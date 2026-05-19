@@ -1,4 +1,4 @@
-import { NavLink } from "react-router"
+import { NavLink } from "react-router";
 import {
   Invoice01Icon,
   User02Icon,
@@ -7,37 +7,42 @@ import {
   Timer01Icon,
   SafeIcon,
   GridIcon,
-  Setting06Icon,
-} from "@travada-books/ui/icons"
-import { Separator } from "@travada-books/ui/components/separator"
-import { Avatar, AvatarFallback } from "@travada-books/ui/components/avatar"
-import { NavItem } from "./nav-item"
+  Settings02Icon,
+} from "@travada-books/ui/icons";
+import { Separator } from "@travada-books/ui/components/separator";
+import { Avatar, AvatarFallback } from "@travada-books/ui/components/avatar";
+import { NavItem } from "./nav-item";
 
 const mainNav = [
   { icon: Invoice01Icon, label: "Invoices", to: "/invoices" },
   { icon: User02Icon, label: "Customers", to: "/customers" },
-  { icon: Wallet01Icon, label: "Transactions", to: "/transactions", comingSoon: true },
+  {
+    icon: Wallet01Icon,
+    label: "Transactions",
+    to: "/transactions",
+    comingSoon: true,
+  },
   { icon: InboxIcon, label: "Inbox", to: "/inbox", comingSoon: true },
   { icon: Timer01Icon, label: "Tracker", to: "/tracker", comingSoon: true },
   { icon: SafeIcon, label: "Vault", to: "/vault", comingSoon: true },
   { icon: GridIcon, label: "Apps", to: "/apps", comingSoon: true },
-]
+];
 
 export function Sidebar() {
   return (
-    <aside className="flex h-screen w-56 shrink-0 flex-col border-r bg-background">
+    <aside className='flex h-screen w-56 shrink-0 flex-col border-r bg-background'>
       {/* Logo */}
-      <div className="flex h-14 items-center gap-2 px-4">
-        <div className="flex size-6 items-center justify-center rounded-md bg-foreground text-background">
-          <span className="text-xs font-bold">TB</span>
+      <div className='flex h-14 items-center gap-2 px-4'>
+        <div className='flex size-6 items-center justify-center rounded-md bg-foreground text-background'>
+          <span className='text-xs font-bold'>TB</span>
         </div>
-        <span className="text-sm font-semibold">Travada Books</span>
+        <span className='text-sm font-semibold'>Travada Books</span>
       </div>
 
       <Separator />
 
       {/* Main nav */}
-      <nav className="flex flex-1 flex-col gap-0.5 overflow-y-auto px-2 py-3">
+      <nav className='flex flex-1 flex-col gap-0.5 overflow-y-auto px-2 py-3'>
         {mainNav.map((item) => (
           <NavItem
             key={item.to}
@@ -52,17 +57,17 @@ export function Sidebar() {
       <Separator />
 
       {/* Bottom nav */}
-      <div className="flex flex-col gap-0.5 px-2 py-3">
-        <NavItem icon={Setting06Icon} label="Settings" to="/settings" />
-        <NavLink to="/settings/account">
-          <div className="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
-            <Avatar className="size-5">
-              <AvatarFallback className="text-[10px]">JD</AvatarFallback>
+      <div className='flex flex-col gap-0.5 px-2 py-3'>
+        <NavItem icon={Settings02Icon} label='Settings' to='/settings' />
+        <NavLink to='/settings/account'>
+          <div className='flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground'>
+            <Avatar className='size-5'>
+              <AvatarFallback className='text-[10px]'>JD</AvatarFallback>
             </Avatar>
             <span>John Doe</span>
           </div>
         </NavLink>
       </div>
     </aside>
-  )
+  );
 }

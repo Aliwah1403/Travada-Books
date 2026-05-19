@@ -1,8 +1,21 @@
 import React from "react";
-import { HugeiconsIcon, type HugeiconsIconProps, type IconSvgElement } from "@hugeicons/react";
+import {
+  HugeiconsIcon,
+  type HugeiconsIconProps,
+  type IconSvgElement,
+} from "@hugeicons/react";
 import {
   Alert01Icon as Alert01Svg,
   ArrowLeft01Icon as ArrowLeft01Svg,
+  ArrowDown01Icon as ArrowDown01Svg,
+  Calendar01Icon as Calendar01Svg,
+  ClockCheckIcon as ClockCheckSvg,
+  EyeIcon as EyeSvg,
+  EyeOff as EyeOffSvg,
+  Sent02Icon as SendSvg,
+  Settings02Icon as SettingsSvg,
+  FloppyDiskIcon as FloppyDiskSvg,
+  SendingOrderIcon as SendingOrderSvg,
   Cancel01Icon as Cancel01Svg,
   CheckmarkCircle01Icon as CheckmarkCircle01Svg,
   Clock01Icon as Clock01Svg,
@@ -42,7 +55,16 @@ function make(svg: IconSvgElement): Icon {
 }
 
 export const Alert01Icon = make(Alert01Svg);
+export const ArrowDown01Icon = make(ArrowDown01Svg);
 export const ArrowLeft01Icon = make(ArrowLeft01Svg);
+export const Calendar01Icon = make(Calendar01Svg);
+export const ClockCheckIcon = make(ClockCheckSvg);
+export const Sent02Icon = make(SendSvg);
+export const Settings02Icon = make(SettingsSvg);
+export const EyeIcon = make(EyeSvg);
+export const EyeOffIcon = make(EyeOffSvg);
+export const FloppyDiskIcon = make(FloppyDiskSvg);
+export const SendingOrderIcon = make(SendingOrderSvg);
 export const Cancel01Icon = make(Cancel01Svg);
 export const CheckmarkCircle01Icon = make(CheckmarkCircle01Svg);
 export const Clock01Icon = make(Clock01Svg);
