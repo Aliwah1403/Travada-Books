@@ -1,5 +1,4 @@
-import { HugeiconsIcon } from "@hugeicons/react"
-import { Notification01Icon, Moon01Icon, Sun01Icon } from "@hugeicons/core-free-icons"
+import { Notification01Icon, Moon01Icon, Sun01Icon } from "@travada-books/ui/icons"
 import { Avatar, AvatarFallback } from "@travada-books/ui/components/avatar"
 import { Button } from "@travada-books/ui/components/button"
 import { Separator } from "@travada-books/ui/components/separator"
@@ -21,15 +20,10 @@ export function Header({ title }: HeaderProps) {
       <h1 className="text-sm font-medium">{title}</h1>
       <div className="flex items-center gap-2">
         <Button variant="ghost" size="icon-sm" onClick={toggleTheme}>
-          <HugeiconsIcon
-            icon={theme === "dark" ? Sun01Icon : Moon01Icon}
-            size={16}
-            color="currentColor"
-            strokeWidth={1.5}
-          />
+          {theme === "dark" ? <Sun01Icon size={16} /> : <Moon01Icon size={16} />}
         </Button>
         <Button variant="ghost" size="icon-sm">
-          <HugeiconsIcon icon={Notification01Icon} size={16} color="currentColor" strokeWidth={1.5} />
+          <Notification01Icon size={16} />
         </Button>
         <Separator orientation="vertical" className="h-5" />
         <Avatar className="size-7 cursor-pointer">

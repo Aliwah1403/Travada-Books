@@ -1,21 +1,18 @@
 import { NavLink } from "react-router"
-import { HugeiconsIcon } from "@hugeicons/react"
-import type { IconSvgElement } from "@hugeicons/react"
+import { type Icon } from "@travada-books/ui/icons"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@travada-books/ui/components/tooltip"
 import { cn } from "@travada-books/ui/lib/utils"
 
 type NavItemProps = {
-  icon: IconSvgElement
+  icon: Icon
   label: string
   to: string
   comingSoon?: boolean
   collapsed?: boolean
 }
 
-export function NavItem({ icon, label, to, comingSoon, collapsed }: NavItemProps) {
-  const iconEl = (
-    <HugeiconsIcon icon={icon} size={16} color="currentColor" strokeWidth={1.5} className="shrink-0" />
-  )
+export function NavItem({ icon: NavIcon, label, to, comingSoon, collapsed }: NavItemProps) {
+  const iconEl = <NavIcon size={16} className="shrink-0" />
 
   if (comingSoon) {
     return (

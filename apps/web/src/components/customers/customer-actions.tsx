@@ -1,6 +1,5 @@
 import { useNavigate } from "react-router"
-import { HugeiconsIcon } from "@hugeicons/react"
-import { MoreHorizontalIcon } from "@hugeicons/core-free-icons"
+import { MoreHorizontalIcon } from "@travada-books/ui/icons"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -21,7 +20,7 @@ export function CustomerActions({ customerId }: CustomerActionsProps) {
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" size="icon-sm">
-          <HugeiconsIcon icon={MoreHorizontalIcon} size={14} color="currentColor" strokeWidth={1.5} />
+          <MoreHorizontalIcon size={14} />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">

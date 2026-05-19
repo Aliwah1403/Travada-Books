@@ -1,7 +1,6 @@
 import { useState } from "react"
 import { useNavigate } from "react-router"
-import { HugeiconsIcon } from "@hugeicons/react"
-import { Search01Icon, User02Icon } from "@hugeicons/core-free-icons"
+import { Search01Icon, User02Icon } from "@travada-books/ui/icons"
 import { Button } from "@travada-books/ui/components/button"
 import { Input } from "@travada-books/ui/components/input"
 import { Avatar, AvatarFallback } from "@travada-books/ui/components/avatar"
@@ -80,11 +79,8 @@ export function CustomersPage() {
       {/* Toolbar */}
       <div className="flex items-center gap-2">
         <div className="relative flex-1">
-          <HugeiconsIcon
-            icon={Search01Icon}
+          <Search01Icon
             size={14}
-            color="currentColor"
-            strokeWidth={1.5}
             className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
           />
           <Input

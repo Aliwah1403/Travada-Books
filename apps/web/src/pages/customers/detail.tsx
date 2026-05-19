@@ -1,6 +1,5 @@
 import { useNavigate, useParams } from "react-router"
-import { HugeiconsIcon } from "@hugeicons/react"
-import { ArrowLeft01Icon } from "@hugeicons/core-free-icons"
+import { ArrowLeft01Icon } from "@travada-books/ui/icons"
 import { Button } from "@travada-books/ui/components/button"
 import { Avatar, AvatarFallback } from "@travada-books/ui/components/avatar"
 import { Separator } from "@travada-books/ui/components/separator"
@@ -52,7 +51,7 @@ export function CustomerDetailPage() {
       {/* Back */}
       <div className="flex items-center gap-2">
         <Button variant="ghost" size="icon-sm" onClick={() => navigate("/customers")}>
-          <HugeiconsIcon icon={ArrowLeft01Icon} size={14} color="currentColor" strokeWidth={1.5} />
+          <ArrowLeft01Icon size={14} />
         </Button>
         <span className="text-sm text-muted-foreground">Customers</span>
       </div>

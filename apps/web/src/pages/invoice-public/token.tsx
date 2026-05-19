@@ -1,6 +1,5 @@
 import { useParams } from "react-router"
-import { HugeiconsIcon } from "@hugeicons/react"
-import { Download01Icon } from "@hugeicons/core-free-icons"
+import { Download01Icon } from "@travada-books/ui/icons"
 import { Button } from "@travada-books/ui/components/button"
 import { Separator } from "@travada-books/ui/components/separator"
 
@@ -39,7 +38,7 @@ export function PublicInvoicePage() {
           <span className="text-sm font-semibold">Travada Books</span>
         </div>
         <Button size="sm" className="gap-1.5">
-          <HugeiconsIcon icon={Download01Icon} size={13} color="currentColor" strokeWidth={1.5} />
+          <Download01Icon size={13} />
           Download PDF
         </Button>
       </div>

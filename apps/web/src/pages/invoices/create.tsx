@@ -1,7 +1,6 @@
 import { useState } from "react"
 import { useNavigate } from "react-router"
-import { HugeiconsIcon } from "@hugeicons/react"
-import { ArrowLeft01Icon, PlusSignIcon, Delete01Icon } from "@hugeicons/core-free-icons"
+import { ArrowLeft01Icon, PlusSignIcon, Delete01Icon } from "@travada-books/ui/icons"
 import { Button } from "@travada-books/ui/components/button"
 import { Input } from "@travada-books/ui/components/input"
 import { Label } from "@travada-books/ui/components/label"
@@ -183,7 +182,7 @@ export function CreateInvoicePage() {
       {/* Page header */}
       <div className="flex items-center gap-3 border-b px-6 py-3">
         <Button variant="ghost" size="icon-sm" onClick={() => navigate("/invoices")}>
-          <HugeiconsIcon icon={ArrowLeft01Icon} size={14} color="currentColor" strokeWidth={1.5} />
+          <ArrowLeft01Icon size={14} />
         </Button>
         <span className="text-sm font-medium">New Invoice</span>
       </div>
@@ -296,12 +295,12 @@ export function CreateInvoicePage() {
                   onClick={() => removeItem(item.id)}
                   disabled={items.length === 1}
                 >
-                  <HugeiconsIcon icon={Delete01Icon} size={12} color="currentColor" strokeWidth={1.5} />
+                  <Delete01Icon size={12} />
                 </Button>
               </div>
             ))}
             <Button variant="outline" size="sm" className="mt-1 w-fit gap-1" onClick={addItem}>
-              <HugeiconsIcon icon={PlusSignIcon} size={12} color="currentColor" strokeWidth={1.5} />
+              <PlusSignIcon size={12} />
               Add line item
             </Button>
           </div>

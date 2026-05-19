@@ -1,12 +1,11 @@
 import { useNavigate, useParams } from "react-router"
-import { HugeiconsIcon } from "@hugeicons/react"
 import {
   ArrowLeft01Icon,
   Download01Icon,
   Copy01Icon,
   PencilEdit01Icon,
   MoreHorizontalIcon,
-} from "@hugeicons/core-free-icons"
+} from "@travada-books/ui/icons"
 import { Button } from "@travada-books/ui/components/button"
 import { Separator } from "@travada-books/ui/components/separator"
 import {
@@ -53,30 +52,30 @@ export function InvoiceDetailPage() {
       <div className="flex items-center justify-between border-b px-6 py-3">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="icon-sm" onClick={() => navigate("/invoices")}>
-            <HugeiconsIcon icon={ArrowLeft01Icon} size={14} color="currentColor" strokeWidth={1.5} />
+            <ArrowLeft01Icon size={14} />
           </Button>
           <span className="font-mono text-sm font-medium">{mockInvoice.number}</span>
           <InvoiceStatusBadge status={mockInvoice.status} />
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" className="gap-1.5">
-            <HugeiconsIcon icon={Download01Icon} size={13} color="currentColor" strokeWidth={1.5} />
+            <Download01Icon size={13} />
             Download PDF
           </Button>
           <Button variant="outline" size="sm" className="gap-1.5">
-            <HugeiconsIcon icon={Copy01Icon} size={13} color="currentColor" strokeWidth={1.5} />
+            <Copy01Icon size={13} />
             Copy link
           </Button>
           <Button variant="outline" size="sm">
             Mark as paid
           </Button>
           <Button variant="outline" size="icon-sm" onClick={() => navigate(`/invoices/create`)}>
-            <HugeiconsIcon icon={PencilEdit01Icon} size={13} color="currentColor" strokeWidth={1.5} />
+            <PencilEdit01Icon size={13} />
           </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="icon-sm">
-                <HugeiconsIcon icon={MoreHorizontalIcon} size={13} color="currentColor" strokeWidth={1.5} />
+                <MoreHorizontalIcon size={13} />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">

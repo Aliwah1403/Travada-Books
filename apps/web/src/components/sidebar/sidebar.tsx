@@ -1,5 +1,4 @@
 import { NavLink } from "react-router"
-import { HugeiconsIcon } from "@hugeicons/react"
 import {
   Invoice01Icon,
   User02Icon,
@@ -9,7 +8,7 @@ import {
   SafeIcon,
   GridIcon,
   Setting06Icon,
-} from "@hugeicons/core-free-icons"
+} from "@travada-books/ui/icons"
 import { Separator } from "@travada-books/ui/components/separator"
 import { Avatar, AvatarFallback } from "@travada-books/ui/components/avatar"
 import { NavItem } from "./nav-item"
