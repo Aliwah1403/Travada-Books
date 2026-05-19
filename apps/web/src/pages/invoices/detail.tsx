@@ -7,15 +7,15 @@ import {
   PencilEdit01Icon,
   MoreHorizontalIcon,
 } from "@hugeicons/core-free-icons"
-import { Button } from "@workspace/ui/components/button"
-import { Separator } from "@workspace/ui/components/separator"
+import { Button } from "@travada-books/ui/components/button"
+import { Separator } from "@travada-books/ui/components/separator"
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@workspace/ui/components/dropdown-menu"
+} from "@travada-books/ui/components/dropdown-menu"
 import { InvoiceStatusBadge } from "@/components/invoices/invoice-status-badge"
 
 const mockInvoice = {

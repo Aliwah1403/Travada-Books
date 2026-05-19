@@ -13,8 +13,8 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@workspace/ui/components/table"
-import { Avatar, AvatarFallback } from "@workspace/ui/components/avatar"
+} from "@travada-books/ui/components/table"
+import { Avatar, AvatarFallback } from "@travada-books/ui/components/avatar"
 import { InvoiceStatusBadge, type InvoiceStatus } from "./invoice-status-badge"
 import { InvoiceActions } from "./invoice-actions"
 import { EmptyState } from "@/components/shared/empty-state"

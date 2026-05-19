@@ -1,9 +1,9 @@
 import { Link } from "react-router"
-import { Button } from "@workspace/ui/components/button"
-import { Input } from "@workspace/ui/components/input"
-import { Label } from "@workspace/ui/components/label"
-import { Separator } from "@workspace/ui/components/separator"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@workspace/ui/components/card"
+import { Button } from "@travada-books/ui/components/button"
+import { Input } from "@travada-books/ui/components/input"
+import { Label } from "@travada-books/ui/components/label"
+import { Separator } from "@travada-books/ui/components/separator"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@travada-books/ui/components/card"
 
 export function SignupPage() {
   return (

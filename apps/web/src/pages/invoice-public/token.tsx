@@ -1,8 +1,8 @@
 import { useParams } from "react-router"
 import { HugeiconsIcon } from "@hugeicons/react"
 import { Download01Icon } from "@hugeicons/core-free-icons"
-import { Button } from "@workspace/ui/components/button"
-import { Separator } from "@workspace/ui/components/separator"
+import { Button } from "@travada-books/ui/components/button"
+import { Separator } from "@travada-books/ui/components/separator"
 
 const mockInvoice = {
   number: "INV-0002",

@@ -10,8 +10,8 @@ import {
   GridIcon,
   Setting06Icon,
 } from "@hugeicons/core-free-icons"
-import { Separator } from "@workspace/ui/components/separator"
-import { Avatar, AvatarFallback } from "@workspace/ui/components/avatar"
+import { Separator } from "@travada-books/ui/components/separator"
+import { Avatar, AvatarFallback } from "@travada-books/ui/components/avatar"
 import { NavItem } from "./nav-item"
 
 const mainNav = [

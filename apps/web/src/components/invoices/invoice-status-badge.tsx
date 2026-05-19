@@ -1,5 +1,5 @@
-import { Badge } from "@workspace/ui/components/badge"
-import { cn } from "@workspace/ui/lib/utils"
+import { Badge } from "@travada-books/ui/components/badge"
+import { cn } from "@travada-books/ui/lib/utils"
 
 export type InvoiceStatus = "draft" | "sent" | "paid" | "overdue"
 

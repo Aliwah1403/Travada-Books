@@ -1,8 +1,8 @@
 import { NavLink } from "react-router"
 import { HugeiconsIcon } from "@hugeicons/react"
 import type { IconSvgElement } from "@hugeicons/react"
-import { Tooltip, TooltipContent, TooltipTrigger } from "@workspace/ui/components/tooltip"
-import { cn } from "@workspace/ui/lib/utils"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@travada-books/ui/components/tooltip"
+import { cn } from "@travada-books/ui/lib/utils"
 
 type NavItemProps = {
   icon: IconSvgElement

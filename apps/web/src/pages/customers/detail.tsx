@@ -1,9 +1,9 @@
 import { useNavigate, useParams } from "react-router"
 import { HugeiconsIcon } from "@hugeicons/react"
 import { ArrowLeft01Icon } from "@hugeicons/core-free-icons"
-import { Button } from "@workspace/ui/components/button"
-import { Avatar, AvatarFallback } from "@workspace/ui/components/avatar"
-import { Separator } from "@workspace/ui/components/separator"
+import { Button } from "@travada-books/ui/components/button"
+import { Avatar, AvatarFallback } from "@travada-books/ui/components/avatar"
+import { Separator } from "@travada-books/ui/components/separator"
 import { InvoiceTable, type Invoice } from "@/components/invoices/invoice-table"
 
 const mockCustomer = {

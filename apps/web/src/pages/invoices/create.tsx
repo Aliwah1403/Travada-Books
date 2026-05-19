@@ -2,12 +2,12 @@ import { useState } from "react"
 import { useNavigate } from "react-router"
 import { HugeiconsIcon } from "@hugeicons/react"
 import { ArrowLeft01Icon, PlusSignIcon, Delete01Icon } from "@hugeicons/core-free-icons"
-import { Button } from "@workspace/ui/components/button"
-import { Input } from "@workspace/ui/components/input"
-import { Label } from "@workspace/ui/components/label"
-import { Textarea } from "@workspace/ui/components/textarea"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@workspace/ui/components/select"
-import { Separator } from "@workspace/ui/components/separator"
+import { Button } from "@travada-books/ui/components/button"
+import { Input } from "@travada-books/ui/components/input"
+import { Label } from "@travada-books/ui/components/label"
+import { Textarea } from "@travada-books/ui/components/textarea"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@travada-books/ui/components/select"
+import { Separator } from "@travada-books/ui/components/separator"
 
 type LineItem = {
   id: string

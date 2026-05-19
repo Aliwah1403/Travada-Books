@@ -7,8 +7,8 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@workspace/ui/components/dropdown-menu"
-import { Button } from "@workspace/ui/components/button"
+} from "@travada-books/ui/components/dropdown-menu"
+import { Button } from "@travada-books/ui/components/button"
 
 type CustomerActionsProps = {
   customerId: string

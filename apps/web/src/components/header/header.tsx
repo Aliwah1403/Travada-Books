@@ -1,8 +1,8 @@
 import { HugeiconsIcon } from "@hugeicons/react"
 import { Notification01Icon, Moon01Icon, Sun01Icon } from "@hugeicons/core-free-icons"
-import { Avatar, AvatarFallback } from "@workspace/ui/components/avatar"
-import { Button } from "@workspace/ui/components/button"
-import { Separator } from "@workspace/ui/components/separator"
+import { Avatar, AvatarFallback } from "@travada-books/ui/components/avatar"
+import { Button } from "@travada-books/ui/components/button"
+import { Separator } from "@travada-books/ui/components/separator"
 import { useTheme } from "@/components/theme-provider"
 
 type HeaderProps = {

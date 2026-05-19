@@ -2,9 +2,9 @@ import { useState } from "react"
 import { useNavigate } from "react-router"
 import { HugeiconsIcon } from "@hugeicons/react"
 import { Search01Icon, User02Icon } from "@hugeicons/core-free-icons"
-import { Button } from "@workspace/ui/components/button"
-import { Input } from "@workspace/ui/components/input"
-import { Avatar, AvatarFallback } from "@workspace/ui/components/avatar"
+import { Button } from "@travada-books/ui/components/button"
+import { Input } from "@travada-books/ui/components/input"
+import { Avatar, AvatarFallback } from "@travada-books/ui/components/avatar"
 import {
   Table,
   TableBody,
@@ -12,7 +12,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@workspace/ui/components/table"
+} from "@travada-books/ui/components/table"
 import { CustomerActions } from "@/components/customers/customer-actions"
 import { EmptyState } from "@/components/shared/empty-state"
 

@@ -1,10 +1,10 @@
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@workspace/ui/components/tabs"
-import { Button } from "@workspace/ui/components/button"
-import { Input } from "@workspace/ui/components/input"
-import { Label } from "@workspace/ui/components/label"
-import { Separator } from "@workspace/ui/components/separator"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@workspace/ui/components/select"
-import { Textarea } from "@workspace/ui/components/textarea"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@travada-books/ui/components/tabs"
+import { Button } from "@travada-books/ui/components/button"
+import { Input } from "@travada-books/ui/components/input"
+import { Label } from "@travada-books/ui/components/label"
+import { Separator } from "@travada-books/ui/components/separator"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@travada-books/ui/components/select"
+import { Textarea } from "@travada-books/ui/components/textarea"
 
 const currencies = [
   { code: "KES", name: "Kenyan Shilling" },
