@@ -40,6 +40,7 @@ import {
   Timer01Icon as Timer01Svg,
   User02Icon as User02Svg,
   Wallet01Icon as Wallet01Svg,
+  Tick01Icon as TickSvg,
 } from "@hugeicons/core-free-icons";
 
 export type IconProps = Omit<HugeiconsIconProps, "icon">;
@@ -90,3 +91,4 @@ export const Sun01Icon = make(Sun01Svg);
 export const Timer01Icon = make(Timer01Svg);
 export const User02Icon = make(User02Svg);
 export const Wallet01Icon = make(Wallet01Svg);
+export const TickIcon = make(TickSvg);

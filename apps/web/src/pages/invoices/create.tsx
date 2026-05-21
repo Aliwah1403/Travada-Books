@@ -12,6 +12,7 @@ import {
 import { CustomerCombobox } from "@/components/invoices/customer-combobox";
 import { RecurringDialog } from "@/components/invoices/recurring-dialog";
 import { ScheduleDialog } from "@/components/invoices/schedule-dialog";
+import { InvoiceSettingsSheet, type InvoiceSettings, defaultInvoiceSettings } from "@/components/invoices/invoice-settings-sheet";
 import { DatePicker } from "@/components/shared/date-picker";
 import { incrementInvoiceNumber } from "@/lib/invoice-number";
 import { format } from "date-fns";
@@ -45,6 +46,12 @@ type LineItem = {
 
 const currencies = ["KES", "USD", "EUR", "GBP", "ZAR", "UGX", "TZS"];
 
+const DATE_FORMAT_MAP: Record<InvoiceSettings["dateFormat"], string> = {
+  "DD/MM/YYYY": "dd/MM/yyyy",
+  "MM/DD/YYYY": "MM/dd/yyyy",
+  "YYYY-MM-DD": "yyyy-MM-dd",
+};
+
 function InvoicePreview({
   invoiceNumber,
   issueDate,
@@ -56,10 +63,13 @@ function InvoicePreview({
   vatRate,
   paymentDetails,
   notes,
+  dateFormat,
+  showTaxColumn,
+  showQtyColumn,
 }: {
   invoiceNumber: string;
-  issueDate: string;
-  dueDate: string;
+  issueDate: Date | undefined;
+  dueDate: Date | undefined;
   currency: string;
   items: LineItem[];
   discountType: "%" | "fixed";
@@ -67,6 +77,9 @@ function InvoicePreview({
   vatRate: string;
   paymentDetails: string;
   notes: string;
+  dateFormat: InvoiceSettings["dateFormat"];
+  showTaxColumn: boolean;
+  showQtyColumn: boolean;
 }) {
   const subtotal = items.reduce((sum, item) => {
     const qty = parseFloat(item.qty) || 0;
@@ -124,11 +137,11 @@ function InvoicePreview({
         <div className='text-right'>
           <div className='flex justify-between'>
             <span className='text-muted-foreground'>Issue date:</span>
-            <span className='font-medium'>{issueDate || "—"}</span>
+            <span className='font-medium'>{issueDate ? format(issueDate, DATE_FORMAT_MAP[dateFormat]) : "—"}</span>
           </div>
           <div className='mt-1 flex justify-between'>
             <span className='text-muted-foreground'>Due date:</span>
-            <span className='font-medium'>{dueDate || "—"}</span>
+            <span className='font-medium'>{dueDate ? format(dueDate, DATE_FORMAT_MAP[dateFormat]) : "—"}</span>
           </div>
         </div>
       </div>
@@ -140,12 +153,19 @@ function InvoicePreview({
         <thead>
           <tr className='border-b text-muted-foreground'>
             <th className='w-1/2 pb-2 text-left font-medium'>Description</th>
-            <th className='whitespace-nowrap pb-2 pl-4 text-right font-medium'>
-              Qty
-            </th>
+            {showQtyColumn && (
+              <th className='whitespace-nowrap pb-2 pl-4 text-right font-medium'>
+                Qty
+              </th>
+            )}
             <th className='whitespace-nowrap pb-2 pl-4 text-right font-medium'>
               Rate
             </th>
+            {showTaxColumn && (
+              <th className='whitespace-nowrap pb-2 pl-4 text-right font-medium'>
+                Tax
+              </th>
+            )}
             <th className='whitespace-nowrap pb-2 pl-4 text-right font-medium'>
               Amount
             </th>
@@ -158,12 +178,19 @@ function InvoicePreview({
             return (
               <tr key={item.id} className='border-b border-dashed'>
                 <td className='py-2 break-words'>{item.description || "—"}</td>
-                <td className='whitespace-nowrap py-2 pl-4 text-right'>
-                  {item.qty || "0"}
-                </td>
+                {showQtyColumn && (
+                  <td className='whitespace-nowrap py-2 pl-4 text-right'>
+                    {item.qty || "0"}
+                  </td>
+                )}
                 <td className='whitespace-nowrap py-2 pl-4 text-right'>
                   {item.rate || "0.00"}
                 </td>
+                {showTaxColumn && (
+                  <td className='whitespace-nowrap py-2 pl-4 text-right'>
+                    {item.tax || "0"}%
+                  </td>
+                )}
                 <td className='whitespace-nowrap py-2 pl-4 text-right'>
                   {currency}{" "}
                   {amount.toLocaleString("en-KE", { minimumFractionDigits: 2 })}
@@ -278,6 +305,8 @@ export function CreateInvoicePage() {
   const [recurring, setRecurring] = useState("one_time");
   const [recurringDialogOpen, setRecurringDialogOpen] = useState(false);
   const [scheduleDialogOpen, setScheduleDialogOpen] = useState(false);
+  const [invoiceSettingsOpen, setInvoiceSettingsOpen] = useState(false);
+  const [invoiceSettings, setInvoiceSettings] = useState<InvoiceSettings>(defaultInvoiceSettings);
   const [items, setItems] = useState<LineItem[]>([
     { id: "1", description: "", qty: "1", rate: "", tax: "0" },
   ]);
@@ -325,7 +354,7 @@ export function CreateInvoicePage() {
           </div>
         </div>
         <div className='flex items-center gap-2'>
-          <Button variant='outline' className='gap-1.5'>
+          <Button variant='outline' className='gap-1.5' onClick={() => setInvoiceSettingsOpen(true)}>
             <Settings02Icon size={13} />
             Invoice Settings
           </Button>
@@ -401,6 +430,12 @@ export function CreateInvoicePage() {
         open={scheduleDialogOpen}
         onOpenChange={setScheduleDialogOpen}
         onSave={() => {}}
+      />
+      <InvoiceSettingsSheet
+        open={invoiceSettingsOpen}
+        onOpenChange={setInvoiceSettingsOpen}
+        settings={invoiceSettings}
+        onSettingsChange={setInvoiceSettings}
       />
 
       {/* Split panel */}
@@ -609,8 +644,8 @@ export function CreateInvoicePage() {
           </p>
           <InvoicePreview
             invoiceNumber={invoiceNumber}
-            issueDate={issueDate ? format(issueDate, "dd/MM/yyyy") : ""}
-            dueDate={dueDate ? format(dueDate, "dd/MM/yyyy") : ""}
+            issueDate={issueDate}
+            dueDate={dueDate}
             currency={currency}
             items={items}
             discountType={discountType}
@@ -618,6 +653,9 @@ export function CreateInvoicePage() {
             vatRate={vatRate}
             paymentDetails={paymentDetails}
             notes={notes}
+            dateFormat={invoiceSettings.dateFormat}
+            showTaxColumn={invoiceSettings.showTaxColumn}
+            showQtyColumn={invoiceSettings.showQtyColumn}
           />
         </div>
       </div>
