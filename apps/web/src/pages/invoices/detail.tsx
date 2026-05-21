@@ -202,15 +202,12 @@ export function InvoiceDetailPage() {
           )}
           <Button
             variant='outline'
-            size='icon-sm'
             onClick={() => navigate(`/invoices/create`)}
           >
             <PencilEdit01Icon size={13} />
           </Button>
           <DropdownMenu>
-            <DropdownMenuTrigger
-              render={<Button variant='outline' size='icon-sm' />}
-            >
+            <DropdownMenuTrigger render={<Button variant='outline' />}>
               <MoreHorizontalIcon size={13} />
             </DropdownMenuTrigger>
             <DropdownMenuContent align='end'>

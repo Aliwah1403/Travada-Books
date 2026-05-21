@@ -317,7 +317,21 @@ export function CustomersPage() {
                       {customer.lastInvoiceAt ? format(customer.lastInvoiceAt, "dd/MM/yyyy") : "—"}
                     </TableCell>
                     <TableCell className="py-3" onClick={(e) => e.stopPropagation()}>
-                      <CustomerActions customerId={customer.id} />
+                      <CustomerActions
+                        customerId={customer.id}
+                        customer={{
+                          name: customer.name,
+                          email: customer.email,
+                          billToEmail: customer.billToEmail ?? "",
+                          phone: customer.phone,
+                          mainContact: customer.mainContact ?? "",
+                          industry: customer.industry ?? "",
+                          businessType: customer.businessType ?? "",
+                          website: customer.website ?? "",
+                          vatNumber: "",
+                          country: customer.country,
+                        }}
+                      />
                     </TableCell>
                   </TableRow>
                 ))}

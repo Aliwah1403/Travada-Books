@@ -46,19 +46,18 @@ const schema = z.object({
   businessType: z.string().optional(),
   website: z.string().optional(),
   vatNumber: z.string().optional(),
-  addressLine1: z.string().optional(),
-  addressLine2: z.string().optional(),
   country: z.string().optional(),
-  currency: z.string().optional(),
   mainContact: z.string().optional(),
 });
 
 type FormValues = z.infer<typeof schema>;
 
-type CreateCustomerSheetProps = {
+export type CustomerEditValues = FormValues;
+
+type EditCustomerSheetProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  defaultName?: string;
+  customer: FormValues;
 };
 
 const INDUSTRIES = [
@@ -78,19 +77,6 @@ const INDUSTRIES = [
   "Non-profit",
   "Other",
 ];
-
-const CURRENCIES = [
-  { code: "KES", label: "KES — Kenyan Shilling" },
-  { code: "USD", label: "USD — US Dollar" },
-  { code: "EUR", label: "EUR — Euro" },
-  { code: "GBP", label: "GBP — British Pound" },
-  { code: "UGX", label: "UGX — Ugandan Shilling" },
-  { code: "TZS", label: "TZS — Tanzanian Shilling" },
-  { code: "RWF", label: "RWF — Rwandan Franc" },
-  { code: "ETB", label: "ETB — Ethiopian Birr" },
-  { code: "NGN", label: "NGN — Nigerian Naira" },
-  { code: "ZAR", label: "ZAR — South African Rand" },
-]
 
 const BUSINESS_TYPES = [
   "B2B",
@@ -116,33 +102,19 @@ const COUNTRIES = [
   "Other",
 ];
 
-export function CreateCustomerSheet({
+export function EditCustomerSheet({
   open,
   onOpenChange,
-  defaultName = "",
-}: CreateCustomerSheetProps) {
+  customer,
+}: EditCustomerSheetProps) {
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: {
-      name: defaultName,
-      email: "",
-      billToEmail: "",
-      phone: "",
-      industry: "",
-      businessType: "",
-      website: "",
-      vatNumber: "",
-      addressLine1: "",
-      addressLine2: "",
-      country: "",
-      currency: "KES",
-      mainContact: "",
-    },
+    defaultValues: customer,
   });
 
   useEffect(() => {
-    if (open) form.reset({ name: defaultName });
-  }, [open, defaultName, form]);
+    if (open) form.reset(customer);
+  }, [open, customer, form]);
 
   function handleOpenChange(next: boolean) {
     if (!next) form.reset();
@@ -151,15 +123,16 @@ export function CreateCustomerSheet({
 
   function onSubmit(data: FormValues) {
     console.log(data);
+    handleOpenChange(false);
   }
 
   return (
     <Sheet open={open} onOpenChange={handleOpenChange}>
       <SheetContent side='right' className='flex flex-col'>
         <SheetHeader className='px-6 pt-6'>
-          <SheetTitle>New Customer</SheetTitle>
+          <SheetTitle>Edit Customer</SheetTitle>
           <SheetDescription>
-            Add a new customer to your account.
+            Update the details for {customer.name}.
           </SheetDescription>
         </SheetHeader>
 
@@ -170,7 +143,7 @@ export function CreateCustomerSheet({
         >
           <div className='h-[calc(100vh-180px)] scrollbar-hide overflow-auto'>
             <Accordion
-              type='multiple'
+              multiple
               defaultValue={["general", "business", "location"]}
               className='w-full'
             >
@@ -219,9 +192,6 @@ export function CreateCustomerSheet({
                             placeholder='info@acme.com'
                             className='text-xs'
                           />
-                          <FieldDescription>
-                            We'll automatically fill in the company details if we can find them based on this email.
-                          </FieldDescription>
                           {fieldState.invalid && (
                             <FieldError errors={[fieldState.error]} />
                           )}
@@ -282,7 +252,9 @@ export function CreateCustomerSheet({
                       control={form.control}
                       render={({ field, fieldState }) => (
                         <Field data-invalid={fieldState.invalid}>
-                          <FieldLabel htmlFor={field.name}>Contact Person</FieldLabel>
+                          <FieldLabel htmlFor={field.name}>
+                            Contact Person
+                          </FieldLabel>
                           <Input
                             {...field}
                             id={field.name}
@@ -327,11 +299,7 @@ export function CreateCustomerSheet({
                             </SelectTrigger>
                             <SelectContent>
                               {INDUSTRIES.map((i) => (
-                                <SelectItem
-                                  key={i}
-                                  value={i}
-                                  className='text-xs'
-                                >
+                                <SelectItem key={i} value={i} className='text-xs'>
                                   {i}
                                 </SelectItem>
                               ))}
@@ -366,11 +334,7 @@ export function CreateCustomerSheet({
                             </SelectTrigger>
                             <SelectContent>
                               {BUSINESS_TYPES.map((t) => (
-                                <SelectItem
-                                  key={t}
-                                  value={t}
-                                  className='text-xs'
-                                >
+                                <SelectItem key={t} value={t} className='text-xs'>
                                   {t}
                                 </SelectItem>
                               ))}
@@ -424,42 +388,6 @@ export function CreateCustomerSheet({
                         </Field>
                       )}
                     />
-
-                    <Controller
-                      name='currency'
-                      control={form.control}
-                      render={({ field, fieldState }) => (
-                        <Field data-invalid={fieldState.invalid}>
-                          <FieldLabel htmlFor={field.name}>Default Currency</FieldLabel>
-                          <Select
-                            name={field.name}
-                            value={field.value}
-                            onValueChange={field.onChange}
-                          >
-                            <SelectTrigger
-                              id={field.name}
-                              aria-invalid={fieldState.invalid}
-                              className='text-xs'
-                            >
-                              <SelectValue placeholder='Select currency' />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {CURRENCIES.map((c) => (
-                                <SelectItem key={c.code} value={c.code} className='text-xs'>
-                                  {c.label}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <FieldDescription>
-                            Pre-filled when creating invoices for this customer. You can always change it per invoice.
-                          </FieldDescription>
-                          {fieldState.invalid && (
-                            <FieldError errors={[fieldState.error]} />
-                          )}
-                        </Field>
-                      )}
-                    />
                   </div>
                 </AccordionContent>
               </AccordionItem>
@@ -471,46 +399,6 @@ export function CreateCustomerSheet({
                 </AccordionTrigger>
                 <AccordionContent>
                   <div className='flex flex-col gap-4 pb-5'>
-                    <Controller
-                      name='addressLine1'
-                      control={form.control}
-                      render={({ field, fieldState }) => (
-                        <Field data-invalid={fieldState.invalid}>
-                          <FieldLabel htmlFor={field.name}>Address Line 1</FieldLabel>
-                          <Input
-                            {...field}
-                            id={field.name}
-                            aria-invalid={fieldState.invalid}
-                            placeholder='123 Kimathi Street'
-                            className='text-xs'
-                          />
-                          {fieldState.invalid && (
-                            <FieldError errors={[fieldState.error]} />
-                          )}
-                        </Field>
-                      )}
-                    />
-
-                    <Controller
-                      name='addressLine2'
-                      control={form.control}
-                      render={({ field, fieldState }) => (
-                        <Field data-invalid={fieldState.invalid}>
-                          <FieldLabel htmlFor={field.name}>Address Line 2</FieldLabel>
-                          <Input
-                            {...field}
-                            id={field.name}
-                            aria-invalid={fieldState.invalid}
-                            placeholder='Nairobi CBD, 00100'
-                            className='text-xs'
-                          />
-                          {fieldState.invalid && (
-                            <FieldError errors={[fieldState.error]} />
-                          )}
-                        </Field>
-                      )}
-                    />
-
                     <Controller
                       name='country'
                       control={form.control}
@@ -531,11 +419,7 @@ export function CreateCustomerSheet({
                             </SelectTrigger>
                             <SelectContent>
                               {COUNTRIES.map((c) => (
-                                <SelectItem
-                                  key={c}
-                                  value={c}
-                                  className='text-xs'
-                                >
+                                <SelectItem key={c} value={c} className='text-xs'>
                                   {c}
                                 </SelectItem>
                               ))}
@@ -550,7 +434,6 @@ export function CreateCustomerSheet({
                   </div>
                 </AccordionContent>
               </AccordionItem>
-
             </Accordion>
           </div>
 
@@ -565,7 +448,7 @@ export function CreateCustomerSheet({
               Cancel
             </Button>
             <Button type='submit' className='flex-1'>
-              Create Customer
+              Save Changes
             </Button>
           </SheetFooter>
         </form>

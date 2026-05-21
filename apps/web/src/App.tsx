@@ -17,6 +17,8 @@ import { SettingsPage } from "@/pages/settings/index"
 import { PublicInvoicePage } from "@/pages/invoice-public/token"
 import { PublicQuotePage } from "@/pages/quote-public/token"
 import { QuoteConfirmedPage } from "@/pages/quote-public/confirmed"
+import { StatementDetailPage } from "@/pages/statements/detail"
+import { PublicStatementPage } from "@/pages/statement-public/token"
 
 const router = createBrowserRouter([
   {
@@ -41,6 +43,7 @@ const router = createBrowserRouter([
       { path: "/quotes/:id", element: <QuoteDetailPage /> },
       { path: "/customers", element: <CustomersPage /> },
       { path: "/customers/:id", element: <CustomerDetailPage /> },
+      { path: "/statements/:id", element: <StatementDetailPage /> },
       { path: "/settings", element: <SettingsPage /> },
     ],
   },
@@ -55,6 +58,10 @@ const router = createBrowserRouter([
   {
     path: "/q/:token/confirmed",
     element: <QuoteConfirmedPage />,
+  },
+  {
+    path: "/st/:token",
+    element: <PublicStatementPage />,
   },
 ])
 
