@@ -8,6 +8,7 @@ import {
   InvoiceTable,
   type Invoice,
 } from "@/components/invoices/invoice-table";
+import { QuotePreviewSheet } from "@/components/quotes/quote-preview-sheet";
 
 const mockInvoices: Invoice[] = [
   {
@@ -46,7 +47,7 @@ const mockInvoices: Invoice[] = [
   {
     id: "4",
     number: "INV-0004",
-    status: "pending",
+    status: "sent",
     customer: "Nova Agency",
     amount: 12500,
     currency: "KES",
@@ -54,11 +55,23 @@ const mockInvoices: Invoice[] = [
     issueDate: "15/06/2025",
     recurring: "one_time",
   },
+  {
+    id: "5",
+    number: "INV-0005",
+    status: "draft",
+    customer: "Callfast Services LTD",
+    amount: 25890,
+    currency: "KES",
+    dueDate: "30/07/2025",
+    issueDate: "01/07/2025",
+    recurring: "one_time",
+    quoteNumber: "QUO-0001",
+  },
 ];
 
 function getStats(invoices: Invoice[]) {
   const open = invoices.filter(
-    (i) => i.status === "pending" || i.status === "draft",
+    (i) => i.status === "sent" || i.status === "draft",
   );
   const overdue = invoices.filter((i) => i.status === "overdue");
   const paid = invoices.filter((i) => i.status === "paid");
@@ -91,6 +104,7 @@ function getStats(invoices: Invoice[]) {
 export function InvoicesPage() {
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
+  const [previewQuote, setPreviewQuote] = useState<string | null>(null);
   const stats = getStats(mockInvoices);
 
   return (
@@ -123,14 +137,23 @@ export function InvoicesPage() {
         </div>
 
         <Button
-          className='h-10 w-20'
+          className='h-10'
           onClick={() => navigate("/invoices/create")}
         >
-          + New
+          + New Invoice
         </Button>
       </div>
 
-      <InvoiceTable data={mockInvoices} globalFilter={search} />
+      <InvoiceTable
+        data={mockInvoices}
+        globalFilter={search}
+        onQuoteClick={(quoteNumber) => setPreviewQuote(quoteNumber)}
+      />
+
+      <QuotePreviewSheet
+        quoteNumber={previewQuote}
+        onOpenChange={(open) => { if (!open) setPreviewQuote(null); }}
+      />
     </div>
   );
 }

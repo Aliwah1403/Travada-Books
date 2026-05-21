@@ -1,5 +1,5 @@
 import { useParams } from "react-router"
-import { Download01Icon } from "@travada-books/ui/icons"
+import { Copy01Icon, Download01Icon, Wallet01Icon } from "@travada-books/ui/icons"
 import { Button } from "@travada-books/ui/components/button"
 import { Separator } from "@travada-books/ui/components/separator"
 
@@ -37,10 +37,20 @@ export function PublicInvoicePage() {
           </div>
           <span className="text-sm font-semibold">Travada Books</span>
         </div>
-        <Button size="sm" className="gap-1.5">
-          <Download01Icon size={13} />
-          Download PDF
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" className="gap-1.5">
+            <Copy01Icon size={13} />
+            Copy Link
+          </Button>
+          <Button variant="outline" className="gap-1.5">
+            <Download01Icon size={13} />
+            Download PDF
+          </Button>
+          <Button className="gap-1.5">
+            <Wallet01Icon size={13} />
+            Pay Invoice
+          </Button>
+        </div>
       </div>
 
       {/* Invoice */}

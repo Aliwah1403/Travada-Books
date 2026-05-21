@@ -4,6 +4,13 @@ import { InvoiceStatusBadge } from "./invoice-status-badge";
 import { InvoiceActions } from "./invoice-actions";
 import { type Invoice } from "./invoice-table";
 
+declare module "@tanstack/react-table" {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  interface TableMeta<TData> {
+    onQuoteClick?: (quoteNumber: string) => void;
+  }
+}
+
 export const invoiceColumns: ColumnDef<Invoice>[] = [
   {
     accessorKey: "number",
@@ -71,7 +78,27 @@ export const invoiceColumns: ColumnDef<Invoice>[] = [
     ),
   },
   {
+    accessorKey: "quoteNumber",
+    header: "Quote",
+    cell: ({ row, table }) =>
+      row.original.quoteNumber ? (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            table.options.meta?.onQuoteClick?.(row.original.quoteNumber!);
+          }}
+          className="font-mono text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground transition-colors"
+        >
+          {row.original.quoteNumber}
+        </button>
+      ) : (
+        <span className="text-xs text-muted-foreground">—</span>
+      ),
+  },
+  {
     id: "actions",
-    cell: ({ row }) => <InvoiceActions invoiceId={row.original.id} />,
+    cell: ({ row }) => (
+      <InvoiceActions invoiceId={row.original.id} status={row.original.status} />
+    ),
   },
 ];

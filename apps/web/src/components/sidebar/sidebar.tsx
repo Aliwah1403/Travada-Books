@@ -1,6 +1,7 @@
 import { NavLink } from "react-router";
 import {
   Invoice01Icon,
+  FileEditIcon,
   User02Icon,
   Wallet01Icon,
   InboxIcon,
@@ -13,8 +14,12 @@ import { Separator } from "@travada-books/ui/components/separator";
 import { Avatar, AvatarFallback } from "@travada-books/ui/components/avatar";
 import { NavItem } from "./nav-item";
 
-const mainNav = [
+const salesNav = [
   { icon: Invoice01Icon, label: "Invoices", to: "/invoices" },
+  { icon: FileEditIcon, label: "Quotes", to: "/quotes" },
+];
+
+const mainNav = [
   { icon: User02Icon, label: "Customers", to: "/customers" },
   {
     icon: Wallet01Icon,
@@ -42,16 +47,34 @@ export function Sidebar() {
       <Separator />
 
       {/* Main nav */}
-      <nav className='flex flex-1 flex-col gap-0.5 overflow-y-auto px-2 py-3'>
-        {mainNav.map((item) => (
-          <NavItem
-            key={item.to}
-            icon={item.icon}
-            label={item.label}
-            to={item.to}
-            comingSoon={item.comingSoon}
-          />
-        ))}
+      <nav className='flex flex-1 flex-col overflow-y-auto px-2 py-3'>
+        {/* Sales group — Invoices + Quotes */}
+        <div className='flex flex-col gap-0.5'>
+          {salesNav.map((item) => (
+            <NavItem
+              key={item.to}
+              icon={item.icon}
+              label={item.label}
+              to={item.to}
+              comingSoon={item.comingSoon}
+            />
+          ))}
+        </div>
+
+        <div className='my-2 border-t' />
+
+        {/* Everything else */}
+        <div className='flex flex-col gap-0.5'>
+          {mainNav.map((item) => (
+            <NavItem
+              key={item.to}
+              icon={item.icon}
+              label={item.label}
+              to={item.to}
+              comingSoon={item.comingSoon}
+            />
+          ))}
+        </div>
       </nav>
 
       <Separator />

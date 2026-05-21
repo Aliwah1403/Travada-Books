@@ -8,10 +8,15 @@ import { SignupPage } from "@/pages/auth/signup"
 import { InvoicesPage } from "@/pages/invoices/index"
 import { CreateInvoicePage } from "@/pages/invoices/create"
 import { InvoiceDetailPage } from "@/pages/invoices/detail"
+import { QuotesPage } from "@/pages/quotes/index"
+import { CreateQuotePage } from "@/pages/quotes/create"
+import { QuoteDetailPage } from "@/pages/quotes/detail"
 import { CustomersPage } from "@/pages/customers/index"
 import { CustomerDetailPage } from "@/pages/customers/detail"
 import { SettingsPage } from "@/pages/settings/index"
 import { PublicInvoicePage } from "@/pages/invoice-public/token"
+import { PublicQuotePage } from "@/pages/quote-public/token"
+import { QuoteConfirmedPage } from "@/pages/quote-public/confirmed"
 
 const router = createBrowserRouter([
   {
@@ -31,6 +36,9 @@ const router = createBrowserRouter([
       { path: "/invoices", element: <InvoicesPage /> },
       { path: "/invoices/create", element: <CreateInvoicePage /> },
       { path: "/invoices/:id", element: <InvoiceDetailPage /> },
+      { path: "/quotes", element: <QuotesPage /> },
+      { path: "/quotes/create", element: <CreateQuotePage /> },
+      { path: "/quotes/:id", element: <QuoteDetailPage /> },
       { path: "/customers", element: <CustomersPage /> },
       { path: "/customers/:id", element: <CustomerDetailPage /> },
       { path: "/settings", element: <SettingsPage /> },
@@ -39,6 +47,14 @@ const router = createBrowserRouter([
   {
     path: "/i/:token",
     element: <PublicInvoicePage />,
+  },
+  {
+    path: "/q/:token",
+    element: <PublicQuotePage />,
+  },
+  {
+    path: "/q/:token/confirmed",
+    element: <QuoteConfirmedPage />,
   },
 ])
 
