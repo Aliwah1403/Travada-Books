@@ -39,8 +39,10 @@ import {
   Sun01Icon as Sun01Svg,
   Timer01Icon as Timer01Svg,
   User02Icon as User02Svg,
+  UserIcon as UserSvg,
   Wallet01Icon as Wallet01Svg,
   Tick01Icon as TickSvg,
+  LockPasswordIcon as LockPasswordSvg,
 } from "@hugeicons/core-free-icons";
 
 export type IconProps = Omit<HugeiconsIconProps, "icon">;
@@ -90,5 +92,7 @@ export const Setting06Icon = make(Setting06Svg);
 export const Sun01Icon = make(Sun01Svg);
 export const Timer01Icon = make(Timer01Svg);
 export const User02Icon = make(User02Svg);
+export const UserIcon = make(UserSvg);
 export const Wallet01Icon = make(Wallet01Svg);
 export const TickIcon = make(TickSvg);
+export const LockPasswordIcon = make(LockPasswordSvg);

@@ -1,11 +1,23 @@
+import { Link } from "react-router";
 import {
   Notification01Icon,
   Moon01Icon,
   Sun01Icon,
+  UserIcon,
+  LockPasswordIcon,
 } from "@travada-books/ui/icons";
 import { Avatar, AvatarFallback } from "@travada-books/ui/components/avatar";
 import { Button } from "@travada-books/ui/components/button";
 import { Separator } from "@travada-books/ui/components/separator";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@travada-books/ui/components/dropdown-menu";
 import { useTheme } from "@/components/theme-provider";
 
 type HeaderProps = {
@@ -36,9 +48,41 @@ export function Header({ title }: HeaderProps) {
           <Notification01Icon size={16} />
         </Button>
         <Separator orientation='vertical' className='h-7' />
-        <Avatar className='size-7 cursor-pointer'>
-          <AvatarFallback className='text-xs'>JD</AvatarFallback>
-        </Avatar>
+
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={
+              <Avatar className='size-7 cursor-pointer ring-offset-background transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2' />
+            }
+          >
+            <AvatarFallback className='text-xs'>JD</AvatarFallback>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align='end' className='w-52'>
+            <DropdownMenuGroup>
+              <DropdownMenuLabel className='flex flex-col gap-0.5'>
+                <span className='text-xs font-medium'>John Doe</span>
+                <span className='text-[10px] font-normal text-muted-foreground'>
+                  john@example.com
+                </span>
+              </DropdownMenuLabel>
+            </DropdownMenuGroup>
+            <DropdownMenuSeparator />
+            <DropdownMenuGroup>
+              <DropdownMenuItem render={<Link to='/account/profile' />}>
+                <UserIcon size={14} className='shrink-0' />
+                Profile
+              </DropdownMenuItem>
+              <DropdownMenuItem render={<Link to='/account/security' />}>
+                <LockPasswordIcon size={14} className='shrink-0' />
+                Security
+              </DropdownMenuItem>
+              <DropdownMenuItem render={<Link to='/account/notifications' />}>
+                <Notification01Icon size={14} className='shrink-0' />
+                Notifications
+              </DropdownMenuItem>
+            </DropdownMenuGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </header>
   );

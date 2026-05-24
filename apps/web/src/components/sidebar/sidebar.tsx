@@ -1,4 +1,3 @@
-import { NavLink } from "react-router";
 import {
   Invoice01Icon,
   FileEditIcon,
@@ -10,7 +9,6 @@ import {
   Settings02Icon,
 } from "@travada-books/ui/icons";
 import { Separator } from "@travada-books/ui/components/separator";
-import { Avatar, AvatarFallback } from "@travada-books/ui/components/avatar";
 import { NavItem } from "./nav-item";
 
 const salesNav = [
@@ -80,14 +78,6 @@ export function Sidebar() {
       {/* Bottom nav */}
       <div className='flex flex-col gap-0.5 px-2 py-3'>
         <NavItem icon={Settings02Icon} label='Settings' to='/settings' />
-        <NavLink to='/account/profile'>
-          <div className='flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground'>
-            <Avatar className='size-5'>
-              <AvatarFallback className='text-[10px]'>JD</AvatarFallback>
-            </Avatar>
-            <span>John Doe</span>
-          </div>
-        </NavLink>
       </div>
     </aside>
   );

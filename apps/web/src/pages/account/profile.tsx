@@ -176,7 +176,9 @@ export function ProfilePage() {
 
       <section className='flex flex-col gap-5'>
         <div>
-          <h2 className='text-sm font-semibold text-destructive'>Delete Account</h2>
+          <h2 className='text-sm font-semibold text-destructive'>
+            Delete Account
+          </h2>
           <p className='text-xs text-muted-foreground mt-0.5'>
             Permanently delete your account and all associated data.
           </p>
@@ -184,38 +186,67 @@ export function ProfilePage() {
 
         <div className='rounded-lg border border-destructive/40 bg-destructive/5 p-4 flex flex-col gap-3'>
           <p className='text-xs text-muted-foreground leading-relaxed'>
-            Deleting your account is <span className='font-medium text-foreground'>permanent and cannot be undone.</span> All of the following will be immediately and irreversibly removed:
+            Deleting your account is{" "}
+            <span className='font-medium text-foreground'>
+              permanent and cannot be undone.
+            </span>{" "}
+            All of the following will be immediately and irreversibly removed:
           </p>
           <ul className='text-xs text-muted-foreground space-y-1 pl-3'>
-            <li className='flex gap-2'><span className='text-destructive'>·</span> Your profile and login credentials</li>
-            <li className='flex gap-2'><span className='text-destructive'>·</span> All invoices, quotes, and customer records</li>
-            <li className='flex gap-2'><span className='text-destructive'>·</span> All uploaded files and documents</li>
-            <li className='flex gap-2'><span className='text-destructive'>·</span> Your organisation and any team members in it</li>
-            <li className='flex gap-2'><span className='text-destructive'>·</span> Any active subscription — no refunds are issued</li>
+            <li className='flex gap-2'>
+              <span className='text-destructive'>·</span> Your profile and login
+              credentials
+            </li>
+            <li className='flex gap-2'>
+              <span className='text-destructive'>·</span> All invoices, quotes,
+              and customer records
+            </li>
+            <li className='flex gap-2'>
+              <span className='text-destructive'>·</span> All uploaded files and
+              documents
+            </li>
+            <li className='flex gap-2'>
+              <span className='text-destructive'>·</span> Your organisation and
+              any team members in it
+            </li>
+            <li className='flex gap-2'>
+              <span className='text-destructive'>·</span> Any active
+              subscription — no refunds are issued
+            </li>
           </ul>
         </div>
 
         <Dialog>
-          <DialogTrigger render={<Button variant='destructive' size='sm' className='w-fit' />}>
+          <DialogTrigger
+            render={
+              <Button variant='destructive' size='sm' className='w-fit' />
+            }
+          >
             Delete my account
           </DialogTrigger>
-          <DialogContent className="md:max-w-xl">
+          <DialogContent className='md:max-w-xl'>
             <DialogHeader>
               <DialogTitle>Are you absolutely sure?</DialogTitle>
               <DialogDescription>
-                This will permanently delete your account, all your data, and cancel any active
-                subscription. This action cannot be undone.
+                This will permanently delete your account, all your data, and
+                cancel any active subscription. This action cannot be undone.
               </DialogDescription>
             </DialogHeader>
             <p className='text-xs text-muted-foreground'>
-              Type <span className='font-mono font-medium text-foreground'>delete my account</span> to confirm.
+              Type{" "}
+              <span className='font-mono font-medium text-foreground'>
+                delete my account
+              </span>{" "}
+              to confirm.
             </p>
             <Input placeholder='delete my account' />
             <DialogFooter>
               <DialogClose render={<Button variant='outline' size='sm' />}>
                 Cancel
               </DialogClose>
-              <Button variant='destructive' size='sm'>Delete account</Button>
+              <Button variant='destructive' size='sm'>
+                Delete account
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
