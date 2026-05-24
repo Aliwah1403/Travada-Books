@@ -7,7 +7,6 @@ import {
   InboxIcon,
   Timer01Icon,
   SafeIcon,
-  GridIcon,
   Settings02Icon,
 } from "@travada-books/ui/icons";
 import { Separator } from "@travada-books/ui/components/separator";
@@ -30,7 +29,6 @@ const mainNav = [
   { icon: InboxIcon, label: "Inbox", to: "/inbox", comingSoon: true },
   { icon: Timer01Icon, label: "Tracker", to: "/tracker", comingSoon: true },
   { icon: SafeIcon, label: "Vault", to: "/vault", comingSoon: true },
-  { icon: GridIcon, label: "Apps", to: "/apps", comingSoon: true },
 ];
 
 export function Sidebar() {
@@ -82,7 +80,7 @@ export function Sidebar() {
       {/* Bottom nav */}
       <div className='flex flex-col gap-0.5 px-2 py-3'>
         <NavItem icon={Settings02Icon} label='Settings' to='/settings' />
-        <NavLink to='/settings/account'>
+        <NavLink to='/account/profile'>
           <div className='flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground'>
             <Avatar className='size-5'>
               <AvatarFallback className='text-[10px]'>JD</AvatarFallback>

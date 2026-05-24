@@ -1,35 +1,45 @@
-import { Notification01Icon, Moon01Icon, Sun01Icon } from "@travada-books/ui/icons"
-import { Avatar, AvatarFallback } from "@travada-books/ui/components/avatar"
-import { Button } from "@travada-books/ui/components/button"
-import { Separator } from "@travada-books/ui/components/separator"
-import { useTheme } from "@/components/theme-provider"
+import {
+  Notification01Icon,
+  Moon01Icon,
+  Sun01Icon,
+} from "@travada-books/ui/icons";
+import { Avatar, AvatarFallback } from "@travada-books/ui/components/avatar";
+import { Button } from "@travada-books/ui/components/button";
+import { Separator } from "@travada-books/ui/components/separator";
+import { useTheme } from "@/components/theme-provider";
 
 type HeaderProps = {
-  title: string
-}
+  title: string;
+};
 
 export function Header({ title }: HeaderProps) {
-  const { theme, setTheme } = useTheme()
+  const { theme, setTheme } = useTheme();
 
   const toggleTheme = () => {
-    setTheme(theme === "dark" ? "light" : theme === "light" ? "dark" : "dark")
-  }
+    setTheme(
+      theme === "dark" ? "light"
+      : theme === "light" ? "dark"
+      : "dark",
+    );
+  };
 
   return (
-    <header className="flex h-14 shrink-0 items-center justify-between border-b px-6">
-      <h1 className="text-sm font-medium">{title}</h1>
-      <div className="flex items-center gap-2">
-        <Button variant="ghost" size="icon-sm" onClick={toggleTheme}>
-          {theme === "dark" ? <Sun01Icon size={16} /> : <Moon01Icon size={16} />}
+    <header className='flex h-14 shrink-0 items-center justify-between border-b px-6'>
+      <h1 className='text-sm font-medium'>{title}</h1>
+      <div className='flex items-center gap-2'>
+        <Button variant='ghost' size='icon-lg' onClick={toggleTheme}>
+          {theme === "dark" ?
+            <Sun01Icon size={32} />
+          : <Moon01Icon size={32} />}
         </Button>
-        <Button variant="ghost" size="icon-sm">
+        <Button variant='ghost' size='icon-lg'>
           <Notification01Icon size={16} />
         </Button>
-        <Separator orientation="vertical" className="h-5" />
-        <Avatar className="size-7 cursor-pointer">
-          <AvatarFallback className="text-xs">JD</AvatarFallback>
+        <Separator orientation='vertical' className='h-7' />
+        <Avatar className='size-7 cursor-pointer'>
+          <AvatarFallback className='text-xs'>JD</AvatarFallback>
         </Avatar>
       </div>
     </header>
-  )
+  );
 }

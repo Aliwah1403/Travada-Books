@@ -5,14 +5,18 @@ import { Header } from "@/components/header/header"
 const pageTitles: Record<string, string> = {
   "/invoices": "Invoices",
   "/invoices/create": "New Invoice",
+  "/quotes": "Quotes",
+  "/quotes/create": "New Quote",
   "/customers": "Customers",
-  "/settings": "Settings",
 }
 
 function getTitle(pathname: string): string {
   if (pageTitles[pathname]) return pageTitles[pathname]
   if (pathname.startsWith("/invoices/")) return "Invoice"
+  if (pathname.startsWith("/quotes/")) return "Quote"
   if (pathname.startsWith("/customers/")) return "Customer"
+  if (pathname.startsWith("/settings")) return "Settings"
+  if (pathname.startsWith("/account")) return "Account"
   return "Travada Books"
 }
 
