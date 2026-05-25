@@ -6,13 +6,13 @@ import LogoLime from "@/assets/Logo-Lime.svg"
 
 export function AuthLayout() {
   const { theme } = useTheme()
-  const { user, loading } = useAuth()
+  const { user, loading, org, orgLoading } = useAuth()
   const { pathname } = useLocation()
 
-  if (loading) return null
-  // Allow reset-password page even when session exists — verifyOtp creates a session
-  // and the user still needs to set their new password before being fully in
-  if (user && pathname !== "/forgot-password/reset") return <Navigate to="/invoices" replace />
+  if (loading || orgLoading) return null
+  if (user && pathname !== "/forgot-password/reset") {
+    return <Navigate to={org ? "/invoices" : "/onboarding/org"} replace />
+  }
   const logo = theme === "dark" ? LogoLime : LogoGreen
 
   return (

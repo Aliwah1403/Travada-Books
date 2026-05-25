@@ -2,6 +2,7 @@ import { createBrowserRouter, RouterProvider, Navigate } from "react-router"
 
 import { AppLayout } from "@/layouts/app-layout"
 import { AuthLayout } from "@/layouts/auth-layout"
+import { OnboardingLayout } from "@/layouts/onboarding-layout"
 import { SettingsLayout } from "@/layouts/settings-layout"
 import { AccountLayout } from "@/layouts/account-layout"
 
@@ -33,6 +34,8 @@ import { BillingSettingsPage } from "@/pages/settings/billing"
 import { ProfilePage } from "@/pages/account/profile"
 import { SecurityPage } from "@/pages/account/security"
 import { NotificationsPage } from "@/pages/account/notifications"
+import { OnboardingOrgPage } from "@/pages/onboarding/org"
+import { OnboardingInvitePage } from "@/pages/onboarding/invite"
 
 const router = createBrowserRouter([
   {
@@ -47,6 +50,13 @@ const router = createBrowserRouter([
       { path: "/forgot-password", element: <ForgotPasswordPage /> },
       { path: "/forgot-password/verify", element: <VerifyOtpPage /> },
       { path: "/forgot-password/reset", element: <ResetPasswordPage /> },
+    ],
+  },
+  {
+    element: <OnboardingLayout />,
+    children: [
+      { path: "/onboarding/org", element: <OnboardingOrgPage /> },
+      { path: "/onboarding/invite", element: <OnboardingInvitePage /> },
     ],
   },
   {
