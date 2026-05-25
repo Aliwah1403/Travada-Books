@@ -1,4 +1,3 @@
-import { NavLink } from "react-router";
 import {
   Invoice01Icon,
   FileEditIcon,
@@ -7,12 +6,13 @@ import {
   InboxIcon,
   Timer01Icon,
   SafeIcon,
-  GridIcon,
   Settings02Icon,
 } from "@travada-books/ui/icons";
 import { Separator } from "@travada-books/ui/components/separator";
-import { Avatar, AvatarFallback } from "@travada-books/ui/components/avatar";
 import { NavItem } from "./nav-item";
+import { useTheme } from "@/components/theme-provider";
+import LogoGreen from "@/assets/Logo-Green.svg";
+import LogoLime from "@/assets/Logo-Lime.svg";
 
 const salesNav = [
   { icon: Invoice01Icon, label: "Invoices", to: "/invoices" },
@@ -30,17 +30,17 @@ const mainNav = [
   { icon: InboxIcon, label: "Inbox", to: "/inbox", comingSoon: true },
   { icon: Timer01Icon, label: "Tracker", to: "/tracker", comingSoon: true },
   { icon: SafeIcon, label: "Vault", to: "/vault", comingSoon: true },
-  { icon: GridIcon, label: "Apps", to: "/apps", comingSoon: true },
 ];
 
 export function Sidebar() {
+  const { theme } = useTheme();
+  const logo = theme === "dark" ? LogoLime : LogoGreen;
+
   return (
     <aside className='flex h-screen w-56 shrink-0 flex-col border-r bg-background'>
       {/* Logo */}
       <div className='flex h-14 items-center gap-2 px-4'>
-        <div className='flex size-6 items-center justify-center rounded-md bg-foreground text-background'>
-          <span className='text-xs font-bold'>TB</span>
-        </div>
+        <img src={logo} alt='Travada Books' className='size-6' />
         <span className='text-sm font-semibold'>Travada Books</span>
       </div>
 
@@ -82,14 +82,6 @@ export function Sidebar() {
       {/* Bottom nav */}
       <div className='flex flex-col gap-0.5 px-2 py-3'>
         <NavItem icon={Settings02Icon} label='Settings' to='/settings' />
-        <NavLink to='/settings/account'>
-          <div className='flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground'>
-            <Avatar className='size-5'>
-              <AvatarFallback className='text-[10px]'>JD</AvatarFallback>
-            </Avatar>
-            <span>John Doe</span>
-          </div>
-        </NavLink>
       </div>
     </aside>
   );

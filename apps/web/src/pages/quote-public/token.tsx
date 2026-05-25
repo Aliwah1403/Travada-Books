@@ -5,6 +5,9 @@ import { Button } from "@travada-books/ui/components/button";
 import { Separator } from "@travada-books/ui/components/separator";
 import { Textarea } from "@travada-books/ui/components/textarea";
 import { Label } from "@travada-books/ui/components/label";
+import { useTheme } from "@/components/theme-provider";
+import LogoGreen from "@/assets/Logo-Green.svg";
+import LogoLime from "@/assets/Logo-Lime.svg";
 
 const mockQuote = {
   number: "QUO-0002",
@@ -23,6 +26,8 @@ const mockQuote = {
 export function PublicQuotePage() {
   const { token } = useParams();
   const navigate = useNavigate();
+  const { theme } = useTheme();
+  const logo = theme === "dark" ? LogoLime : LogoGreen;
   const [showDeclineModal, setShowDeclineModal] = useState(false);
   const [declineReason, setDeclineReason] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -60,9 +65,7 @@ export function PublicQuotePage() {
       {/* Top bar */}
       <div className="flex items-center justify-between border-b bg-background px-6 py-3">
         <div className="flex items-center gap-2">
-          <div className="flex size-6 items-center justify-center rounded-md bg-foreground text-background text-xs font-bold">
-            TB
-          </div>
+          <img src={logo} alt="Travada Books" className="size-6" />
           <span className="text-sm font-semibold">Travada Books</span>
         </div>
         <div className="flex items-center gap-2">

@@ -1,21 +1,24 @@
 import { useParams, useSearchParams, Link } from "react-router";
 import { CheckmarkCircle01Icon, Cancel01Icon, Download01Icon } from "@travada-books/ui/icons";
 import { Button } from "@travada-books/ui/components/button";
+import { useTheme } from "@/components/theme-provider";
+import LogoGreen from "@/assets/Logo-Green.svg";
+import LogoLime from "@/assets/Logo-Lime.svg";
 
 export function QuoteConfirmedPage() {
   const { token } = useParams();
   const [searchParams] = useSearchParams();
   const action = searchParams.get("action");
   const isAccepted = action === "accepted";
+  const { theme } = useTheme();
+  const logo = theme === "dark" ? LogoLime : LogoGreen;
 
   return (
     <div className="min-h-screen bg-muted/30">
       {/* Top bar */}
       <div className="flex items-center border-b bg-background px-6 py-3">
         <div className="flex items-center gap-2">
-          <div className="flex size-6 items-center justify-center rounded-md bg-foreground text-background text-xs font-bold">
-            TB
-          </div>
+          <img src={logo} alt="Travada Books" className="size-6" />
           <span className="text-sm font-semibold">Travada Books</span>
         </div>
       </div>

@@ -2,9 +2,14 @@ import { createBrowserRouter, RouterProvider, Navigate } from "react-router"
 
 import { AppLayout } from "@/layouts/app-layout"
 import { AuthLayout } from "@/layouts/auth-layout"
+import { SettingsLayout } from "@/layouts/settings-layout"
+import { AccountLayout } from "@/layouts/account-layout"
 
 import { LoginPage } from "@/pages/auth/login"
 import { SignupPage } from "@/pages/auth/signup"
+import { ForgotPasswordPage } from "@/pages/auth/forgot-password"
+import { VerifyOtpPage } from "@/pages/auth/verify-otp"
+import { ResetPasswordPage } from "@/pages/auth/reset-password"
 import { InvoicesPage } from "@/pages/invoices/index"
 import { CreateInvoicePage } from "@/pages/invoices/create"
 import { InvoiceDetailPage } from "@/pages/invoices/detail"
@@ -13,12 +18,21 @@ import { CreateQuotePage } from "@/pages/quotes/create"
 import { QuoteDetailPage } from "@/pages/quotes/detail"
 import { CustomersPage } from "@/pages/customers/index"
 import { CustomerDetailPage } from "@/pages/customers/detail"
-import { SettingsPage } from "@/pages/settings/index"
 import { PublicInvoicePage } from "@/pages/invoice-public/token"
 import { PublicQuotePage } from "@/pages/quote-public/token"
 import { QuoteConfirmedPage } from "@/pages/quote-public/confirmed"
 import { StatementDetailPage } from "@/pages/statements/detail"
 import { PublicStatementPage } from "@/pages/statement-public/token"
+
+import { GeneralSettingsPage } from "@/pages/settings/general"
+import { InvoiceSettingsPage } from "@/pages/settings/invoices"
+import { TeamSettingsPage } from "@/pages/settings/team"
+import { IntegrationsSettingsPage } from "@/pages/settings/integrations"
+import { BillingSettingsPage } from "@/pages/settings/billing"
+
+import { ProfilePage } from "@/pages/account/profile"
+import { SecurityPage } from "@/pages/account/security"
+import { NotificationsPage } from "@/pages/account/notifications"
 
 const router = createBrowserRouter([
   {
@@ -30,6 +44,9 @@ const router = createBrowserRouter([
     children: [
       { path: "/login", element: <LoginPage /> },
       { path: "/signup", element: <SignupPage /> },
+      { path: "/forgot-password", element: <ForgotPasswordPage /> },
+      { path: "/forgot-password/verify", element: <VerifyOtpPage /> },
+      { path: "/forgot-password/reset", element: <ResetPasswordPage /> },
     ],
   },
   {
@@ -44,7 +61,28 @@ const router = createBrowserRouter([
       { path: "/customers", element: <CustomersPage /> },
       { path: "/customers/:id", element: <CustomerDetailPage /> },
       { path: "/statements/:id", element: <StatementDetailPage /> },
-      { path: "/settings", element: <SettingsPage /> },
+      {
+        path: "/settings",
+        element: <SettingsLayout />,
+        children: [
+          { index: true, element: <Navigate to="/settings/general" replace /> },
+          { path: "general", element: <GeneralSettingsPage /> },
+          { path: "invoices", element: <InvoiceSettingsPage /> },
+          { path: "team", element: <TeamSettingsPage /> },
+          { path: "integrations", element: <IntegrationsSettingsPage /> },
+          { path: "billing", element: <BillingSettingsPage /> },
+        ],
+      },
+      {
+        path: "/account",
+        element: <AccountLayout />,
+        children: [
+          { index: true, element: <Navigate to="/account/profile" replace /> },
+          { path: "profile", element: <ProfilePage /> },
+          { path: "security", element: <SecurityPage /> },
+          { path: "notifications", element: <NotificationsPage /> },
+        ],
+      },
     ],
   },
   {
