@@ -22,7 +22,7 @@ export function ForgotPasswordPage() {
       setError(error.message)
       return
     }
-    navigate("/forgot-password/verify", { state: { email } })
+    navigate(`/forgot-password/verify?email=${encodeURIComponent(email)}`)
   }
 
   return (

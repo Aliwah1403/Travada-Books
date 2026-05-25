@@ -1,5 +1,5 @@
 import { useRef, useState, useCallback } from "react";
-import { useNavigate, useLocation } from "react-router";
+import { useNavigate, useSearchParams } from "react-router";
 import { Button } from "@travada-books/ui/components/button";
 import {
   Card,
@@ -14,12 +14,19 @@ const OTP_LENGTH = 8;
 
 export function VerifyOtpPage() {
   const navigate = useNavigate();
-  const location = useLocation();
-  const email = (location.state as { email?: string })?.email ?? "";
+  const [searchParams] = useSearchParams();
+  const email = searchParams.get("email") ?? "";
+  const isValidEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+
+  if (!isValidEmail) {
+    navigate("/forgot-password", { replace: true });
+    return null;
+  }
 
   const [digits, setDigits] = useState<string[]>(Array(OTP_LENGTH).fill(""));
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [isResending, setIsResending] = useState(false);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   const focusAt = (index: number) => inputRefs.current[index]?.focus();
@@ -88,14 +95,24 @@ export function VerifyOtpPage() {
       setError(error.message);
       return;
     }
-    navigate("/forgot-password/reset", { state: { email } });
+    navigate(`/forgot-password/reset?email=${encodeURIComponent(email)}`);
   }
 
   async function handleResend() {
-    setDigits(Array(OTP_LENGTH).fill(""));
-    setError("");
-    focusAt(0);
-    await supabase.auth.resetPasswordForEmail(email);
+    if (isResending) return;
+    setIsResending(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email);
+      if (error) {
+        setError(error.message);
+        return;
+      }
+      setDigits(Array(OTP_LENGTH).fill(""));
+      setError("");
+      focusAt(0);
+    } finally {
+      setIsResending(false);
+    }
   }
 
   const isFilled = digits.every(Boolean);
@@ -150,9 +167,10 @@ export function VerifyOtpPage() {
               <button
                 type='button'
                 onClick={handleResend}
-                className='text-foreground underline-offset-4 hover:underline'
+                disabled={isResending}
+                className='text-foreground underline-offset-4 hover:underline disabled:opacity-50'
               >
-                Resend code
+                {isResending ? "Resending…" : "Resend code"}
               </button>
             </p>
           </div>

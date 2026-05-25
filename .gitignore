@@ -2,6 +2,7 @@ node_modules
 CLAUDE.md
 .claude
 PLANNED.md
+BACKEND.md
 .env
 .env.local
 .env.*.local

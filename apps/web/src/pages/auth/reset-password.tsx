@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { useNavigate } from "react-router"
+import { useNavigate, useSearchParams } from "react-router"
 import { Button } from "@travada-books/ui/components/button"
 import { Input } from "@travada-books/ui/components/input"
 import { Label } from "@travada-books/ui/components/label"
@@ -9,6 +9,15 @@ import { supabase } from "@/lib/supabase"
 
 export function ResetPasswordPage() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const email = searchParams.get("email") ?? ""
+  const isValidEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+
+  if (!isValidEmail) {
+    navigate("/forgot-password", { replace: true })
+    return null
+  }
+
   const [password, setPassword] = useState("")
   const [confirm, setConfirm] = useState("")
   const [showPassword, setShowPassword] = useState(false)
@@ -62,8 +71,8 @@ export function ResetPasswordPage() {
               <button
                 type="button"
                 onClick={() => setShowPassword((v) => !v)}
+                aria-label={showPassword ? "Hide password" : "Show password"}
                 className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                tabIndex={-1}
               >
                 {showPassword ? <EyeOffIcon size={15} /> : <EyeIcon size={15} />}
               </button>
@@ -85,8 +94,8 @@ export function ResetPasswordPage() {
               <button
                 type="button"
                 onClick={() => setShowConfirm((v) => !v)}
+                aria-label={showConfirm ? "Hide confirm password" : "Show confirm password"}
                 className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                tabIndex={-1}
               >
                 {showConfirm ? <EyeOffIcon size={15} /> : <EyeIcon size={15} />}
               </button>

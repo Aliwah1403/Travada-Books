@@ -7,8 +7,8 @@ One stage at a time. Each stage is validated before moving to the next.
 | # | Stage | Status |
 |---|---|---|
 | 0 | Supabase MCP Setup | ✅ Done |
-| 1 | Auth (Supabase Auth) | ✅ Done — awaiting validation |
-| 2 | Database Schema | ⬜ Not Started |
+| 1 | Auth (Supabase Auth) | ✅ Done |
+| 2 | Database Schema | ✅ Done — awaiting validation |
 | 3 | Customers CRUD | ⬜ Not Started |
 | 4 | Invoices CRUD | ⬜ Not Started |
 | 5 | PDF + Public Invoice Links | ⬜ Not Started |
