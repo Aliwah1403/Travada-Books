@@ -50,7 +50,7 @@ export function LoginPage() {
           <div className="flex flex-col gap-1.5">
             <div className="flex items-center justify-between">
               <Label htmlFor="password">Password</Label>
-              <Link to="#" className="text-xs text-muted-foreground underline-offset-4 hover:underline">
+              <Link to="/forgot-password" className="text-xs text-muted-foreground underline-offset-4 hover:underline">
                 Forgot password?
               </Link>
             </div>

@@ -7,6 +7,9 @@ import { AccountLayout } from "@/layouts/account-layout"
 
 import { LoginPage } from "@/pages/auth/login"
 import { SignupPage } from "@/pages/auth/signup"
+import { ForgotPasswordPage } from "@/pages/auth/forgot-password"
+import { VerifyOtpPage } from "@/pages/auth/verify-otp"
+import { ResetPasswordPage } from "@/pages/auth/reset-password"
 import { InvoicesPage } from "@/pages/invoices/index"
 import { CreateInvoicePage } from "@/pages/invoices/create"
 import { InvoiceDetailPage } from "@/pages/invoices/detail"
@@ -41,6 +44,9 @@ const router = createBrowserRouter([
     children: [
       { path: "/login", element: <LoginPage /> },
       { path: "/signup", element: <SignupPage /> },
+      { path: "/forgot-password", element: <ForgotPasswordPage /> },
+      { path: "/forgot-password/verify", element: <VerifyOtpPage /> },
+      { path: "/forgot-password/reset", element: <ResetPasswordPage /> },
     ],
   },
   {
