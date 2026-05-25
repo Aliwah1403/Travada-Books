@@ -2,6 +2,9 @@ import { useParams } from "react-router"
 import { Copy01Icon, Download01Icon, Wallet01Icon } from "@travada-books/ui/icons"
 import { Button } from "@travada-books/ui/components/button"
 import { Separator } from "@travada-books/ui/components/separator"
+import { useTheme } from "@/components/theme-provider"
+import LogoGreen from "@/assets/Logo-Green.svg"
+import LogoLime from "@/assets/Logo-Lime.svg"
 
 const mockInvoice = {
   number: "INV-0002",
@@ -19,6 +22,8 @@ const mockInvoice = {
 
 export function PublicInvoicePage() {
   const { token } = useParams()
+  const { theme } = useTheme()
+  const logo = theme === "dark" ? LogoLime : LogoGreen
 
   const subtotal = mockInvoice.items.reduce((sum, item) => sum + item.qty * item.rate, 0)
   const tax = mockInvoice.items.reduce(
@@ -32,9 +37,7 @@ export function PublicInvoicePage() {
       {/* Top bar */}
       <div className="flex items-center justify-between border-b bg-background px-6 py-3">
         <div className="flex items-center gap-2">
-          <div className="flex size-6 items-center justify-center rounded-md bg-foreground text-background text-xs font-bold">
-            TB
-          </div>
+          <img src={logo} alt="Travada Books" className="size-6" />
           <span className="text-sm font-semibold">Travada Books</span>
         </div>
         <div className="flex items-center gap-2">

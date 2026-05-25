@@ -10,6 +10,9 @@ import {
 } from "@travada-books/ui/icons";
 import { Separator } from "@travada-books/ui/components/separator";
 import { NavItem } from "./nav-item";
+import { useTheme } from "@/components/theme-provider";
+import LogoGreen from "@/assets/Logo-Green.svg";
+import LogoLime from "@/assets/Logo-Lime.svg";
 
 const salesNav = [
   { icon: Invoice01Icon, label: "Invoices", to: "/invoices" },
@@ -30,13 +33,14 @@ const mainNav = [
 ];
 
 export function Sidebar() {
+  const { theme } = useTheme();
+  const logo = theme === "dark" ? LogoLime : LogoGreen;
+
   return (
     <aside className='flex h-screen w-56 shrink-0 flex-col border-r bg-background'>
       {/* Logo */}
       <div className='flex h-14 items-center gap-2 px-4'>
-        <div className='flex size-6 items-center justify-center rounded-md bg-foreground text-background'>
-          <span className='text-xs font-bold'>TB</span>
-        </div>
+        <img src={logo} alt='Travada Books' className='size-6' />
         <span className='text-sm font-semibold'>Travada Books</span>
       </div>
 

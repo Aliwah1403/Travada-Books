@@ -4,6 +4,9 @@ import { Copy01Icon, Download01Icon } from "@travada-books/ui/icons"
 import { Button } from "@travada-books/ui/components/button"
 import { Separator } from "@travada-books/ui/components/separator"
 import { cn } from "@travada-books/ui/lib/utils"
+import { useTheme } from "@/components/theme-provider"
+import LogoGreen from "@/assets/Logo-Green.svg"
+import LogoLime from "@/assets/Logo-Lime.svg"
 
 type StatementEntry = {
   date: string
@@ -55,6 +58,8 @@ const mockStatement = {
 
 export function PublicStatementPage() {
   useParams()
+  const { theme } = useTheme()
+  const logo = theme === "dark" ? LogoLime : LogoGreen
 
   const { currency, openingBalance, closingBalance, entries } = mockStatement
   const totalDebits = entries.reduce((s, e) => s + e.debit, 0)
@@ -69,9 +74,7 @@ export function PublicStatementPage() {
       {/* Top bar */}
       <div className="flex items-center justify-between border-b bg-background px-6 py-3">
         <div className="flex items-center gap-2">
-          <div className="flex size-6 items-center justify-center rounded-md bg-foreground text-background text-xs font-bold">
-            TB
-          </div>
+          <img src={logo} alt="Travada Books" className="size-6" />
           <span className="text-sm font-semibold">Travada Books</span>
         </div>
         <div className="flex items-center gap-2">

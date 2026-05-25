@@ -1,12 +1,16 @@
 import { Outlet } from "react-router"
+import { useTheme } from "@/components/theme-provider"
+import LogoGreen from "@/assets/Logo-Green.svg"
+import LogoLime from "@/assets/Logo-Lime.svg"
 
 export function AuthLayout() {
+  const { theme } = useTheme()
+  const logo = theme === "dark" ? LogoLime : LogoGreen
+
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-muted/40 px-4">
       <div className="mb-8 flex flex-col items-center gap-2">
-        <div className="flex size-9 items-center justify-center rounded-lg bg-foreground text-background">
-          <span className="text-sm font-bold">TB</span>
-        </div>
+        <img src={logo} alt="Travada Books" className="size-9" />
         <span className="text-base font-semibold">Travada Books</span>
       </div>
 
