@@ -43,6 +43,7 @@ import {
   Wallet01Icon as Wallet01Svg,
   Tick01Icon as TickSvg,
   LockPasswordIcon as LockPasswordSvg,
+  Logout02Icon as Logout02Svg,
 } from "@hugeicons/core-free-icons";
 
 export type IconProps = Omit<HugeiconsIconProps, "icon">;
@@ -96,3 +97,4 @@ export const UserIcon = make(UserSvg);
 export const Wallet01Icon = make(Wallet01Svg);
 export const TickIcon = make(TickSvg);
 export const LockPasswordIcon = make(LockPasswordSvg);
+export const Logout02Icon = make(Logout02Svg);

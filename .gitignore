@@ -2,3 +2,6 @@ node_modules
 CLAUDE.md
 .claude
 PLANNED.md
+.env
+.env.local
+.env.*.local

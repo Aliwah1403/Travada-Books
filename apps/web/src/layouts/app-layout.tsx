@@ -1,6 +1,7 @@
-import { Outlet, useLocation } from "react-router"
+import { Outlet, useLocation, Navigate } from "react-router"
 import { Sidebar } from "@/components/sidebar/sidebar"
 import { Header } from "@/components/header/header"
+import { useAuth } from "@/contexts/auth-context"
 
 const pageTitles: Record<string, string> = {
   "/invoices": "Invoices",
@@ -22,6 +23,10 @@ function getTitle(pathname: string): string {
 
 export function AppLayout() {
   const { pathname } = useLocation()
+  const { user, loading } = useAuth()
+
+  if (loading) return null
+  if (!user) return <Navigate to="/login" replace />
 
   return (
     <div className="flex h-screen overflow-hidden">

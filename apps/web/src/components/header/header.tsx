@@ -1,10 +1,13 @@
-import { Link } from "react-router";
+import { useState } from "react";
+import { Link, useNavigate } from "react-router";
+import { toast } from "sonner";
 import {
   Notification01Icon,
   Moon01Icon,
   Sun01Icon,
   UserIcon,
   LockPasswordIcon,
+  Logout02Icon,
 } from "@travada-books/ui/icons";
 import { Avatar, AvatarFallback } from "@travada-books/ui/components/avatar";
 import { Button } from "@travada-books/ui/components/button";
@@ -19,6 +22,8 @@ import {
   DropdownMenuTrigger,
 } from "@travada-books/ui/components/dropdown-menu";
 import { useTheme } from "@/components/theme-provider";
+import { useAuth } from "@/contexts/auth-context";
+import { supabase } from "@/lib/supabase";
 
 type HeaderProps = {
   title: string;
@@ -26,6 +31,9 @@ type HeaderProps = {
 
 export function Header({ title }: HeaderProps) {
   const { theme, setTheme } = useTheme();
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const [signingOut, setSigningOut] = useState(false);
 
   const toggleTheme = () => {
     setTheme(
@@ -34,6 +42,23 @@ export function Header({ title }: HeaderProps) {
       : "dark",
     );
   };
+
+  async function handleSignOut() {
+    setSigningOut(true);
+    const { error } = await supabase.auth.signOut();
+    setSigningOut(false);
+    if (error) {
+      toast.error("Failed to sign out. Please try again.");
+      return;
+    }
+    navigate("/login");
+  }
+
+  const fullName = (user?.user_metadata?.full_name as string | undefined) ?? ""
+  const email = user?.email ?? ""
+  const initials = fullName
+    ? fullName.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()
+    : email.slice(0, 2).toUpperCase()
 
   return (
     <header className='flex h-14 shrink-0 items-center justify-between border-b px-6'>
@@ -55,15 +80,17 @@ export function Header({ title }: HeaderProps) {
               <Avatar className='size-7 cursor-pointer ring-offset-background transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2' />
             }
           >
-            <AvatarFallback className='text-xs'>JD</AvatarFallback>
+            <AvatarFallback className='text-xs'>{initials}</AvatarFallback>
           </DropdownMenuTrigger>
           <DropdownMenuContent align='end' className='w-52'>
             <DropdownMenuGroup>
               <DropdownMenuLabel className='flex flex-col gap-0.5'>
-                <span className='text-xs font-medium'>John Doe</span>
-                <span className='text-[10px] font-normal text-muted-foreground'>
-                  john@example.com
-                </span>
+                <span className='text-xs font-medium'>{fullName || email}</span>
+                {fullName && (
+                  <span className='text-[10px] font-normal text-muted-foreground'>
+                    {email}
+                  </span>
+                )}
               </DropdownMenuLabel>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
@@ -81,6 +108,15 @@ export function Header({ title }: HeaderProps) {
                 Notifications
               </DropdownMenuItem>
             </DropdownMenuGroup>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onClick={handleSignOut}
+              disabled={signingOut}
+              className='text-destructive focus:text-destructive'
+            >
+              <Logout02Icon size={14} className='shrink-0' />
+              {signingOut ? "Signing out…" : "Sign out"}
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>

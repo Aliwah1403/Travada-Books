@@ -4,14 +4,24 @@ import { Button } from "@travada-books/ui/components/button"
 import { Input } from "@travada-books/ui/components/input"
 import { Label } from "@travada-books/ui/components/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@travada-books/ui/components/card"
+import { supabase } from "@/lib/supabase"
 
 export function ForgotPasswordPage() {
   const navigate = useNavigate()
   const [email, setEmail] = useState("")
+  const [error, setError] = useState("")
+  const [loading, setLoading] = useState(false)
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    // TODO: POST /api/auth/forgot-password { email }
+    setError("")
+    setLoading(true)
+    const { error } = await supabase.auth.resetPasswordForEmail(email)
+    setLoading(false)
+    if (error) {
+      setError(error.message)
+      return
+    }
     navigate("/forgot-password/verify", { state: { email } })
   }
 
@@ -20,7 +30,7 @@ export function ForgotPasswordPage() {
       <CardHeader className="text-center">
         <CardTitle className="text-base">Reset your password</CardTitle>
         <CardDescription>
-          Enter your email and we'll send you a one-time code
+          Enter your email and we&apos;ll send you a one-time code
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -38,8 +48,10 @@ export function ForgotPasswordPage() {
             />
           </div>
 
-          <Button type="submit" className="w-full">
-            Send code
+          {error && <p className="text-xs text-destructive">{error}</p>}
+
+          <Button type="submit" className="w-full" disabled={loading}>
+            {loading ? "Sending…" : "Send code"}
           </Button>
 
           <p className="text-center text-xs text-muted-foreground">

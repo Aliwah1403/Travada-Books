@@ -1,23 +1,22 @@
 import { useState } from "react"
-import { useNavigate, useLocation } from "react-router"
+import { useNavigate } from "react-router"
 import { Button } from "@travada-books/ui/components/button"
 import { Input } from "@travada-books/ui/components/input"
 import { Label } from "@travada-books/ui/components/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@travada-books/ui/components/card"
 import { EyeIcon, EyeOffIcon } from "@travada-books/ui/icons"
+import { supabase } from "@/lib/supabase"
 
 export function ResetPasswordPage() {
   const navigate = useNavigate()
-  const location = useLocation()
-  const { email, otp } = (location.state as { email?: string; otp?: string }) ?? {}
-
   const [password, setPassword] = useState("")
   const [confirm, setConfirm] = useState("")
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
   const [error, setError] = useState("")
+  const [loading, setLoading] = useState(false)
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (password.length < 8) {
       setError("Password must be at least 8 characters.")
@@ -28,7 +27,14 @@ export function ResetPasswordPage() {
       return
     }
     setError("")
-    // TODO: POST /api/auth/reset-password { email, otp, password }
+    setLoading(true)
+    const { error } = await supabase.auth.updateUser({ password })
+    setLoading(false)
+    if (error) {
+      setError(error.message)
+      return
+    }
+    await supabase.auth.signOut()
     navigate("/login")
   }
 
@@ -36,9 +42,7 @@ export function ResetPasswordPage() {
     <Card>
       <CardHeader className="text-center">
         <CardTitle className="text-base">Create new password</CardTitle>
-        <CardDescription>
-          Your new password must be at least 8 characters
-        </CardDescription>
+        <CardDescription>Your new password must be at least 8 characters</CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
@@ -89,12 +93,10 @@ export function ResetPasswordPage() {
             </div>
           </div>
 
-          {error && (
-            <p className="text-xs text-destructive">{error}</p>
-          )}
+          {error && <p className="text-xs text-destructive">{error}</p>}
 
-          <Button type="submit" className="w-full">
-            Set new password
+          <Button type="submit" className="w-full" disabled={loading}>
+            {loading ? "Saving…" : "Set new password"}
           </Button>
         </form>
       </CardContent>
