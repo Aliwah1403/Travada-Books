@@ -42,6 +42,7 @@ import {
   DropdownMenuTrigger,
 } from "@travada-books/ui/components/dropdown-menu";
 import { getInvoice, updateInvoice } from "@/lib/queries/invoices";
+import { getOrgInvoiceTemplate, upsertOrgInvoiceTemplate } from "@/lib/queries/invoice-templates";
 import { useAuth, type UserOrg } from "@/contexts/auth-context";
 import { Spinner } from "@/components/shared/spinner";
 import { toast } from "sonner";
@@ -327,6 +328,7 @@ export function EditInvoicePage() {
   const [scheduleDialogOpen, setScheduleDialogOpen] = useState(false);
   const [invoiceSettingsOpen, setInvoiceSettingsOpen] = useState(false);
   const [invoiceSettings, setInvoiceSettings] = useState<InvoiceSettings>(defaultInvoiceSettings);
+  const [settingsDirty, setSettingsDirty] = useState(false);
   const [items, setItems] = useState<LineItem[]>([
     { id: "1", description: "", qty: "1", rate: "", tax: "0" },
   ]);
@@ -336,6 +338,12 @@ export function EditInvoicePage() {
     queryKey: ["invoice", id],
     queryFn: () => getInvoice(id!),
     enabled: !!id,
+  });
+
+  const { data: savedTemplate } = useQuery({
+    queryKey: ["invoice-template", orgId],
+    queryFn: () => getOrgInvoiceTemplate(orgId!),
+    enabled: !!orgId,
   });
 
   // Redirect non-draft invoices back to the detail page
@@ -385,12 +393,12 @@ export function EditInvoicePage() {
     setItems(mappedItems.length > 0 ? mappedItems : [{ id: "1", description: "", qty: "1", rate: "", tax: "0" }]);
 
     setInvoiceSettings((prev) => ({
-      ...prev,
+      ...(savedTemplate ?? prev),
       acceptPaymentsEnabled: invoice.accept_payments ?? false,
     }));
 
     setInitialized(true);
-  }, [invoice, initialized]);
+  }, [invoice, initialized, savedTemplate]);
 
   const updateMutation = useMutation({
     mutationFn: ({ patch }: { patch: Parameters<typeof updateInvoice>[1] }) =>
@@ -613,9 +621,20 @@ export function EditInvoicePage() {
       />
       <InvoiceSettingsSheet
         open={invoiceSettingsOpen}
-        onOpenChange={setInvoiceSettingsOpen}
+        onOpenChange={(open) => {
+          setInvoiceSettingsOpen(open);
+          if (!open && settingsDirty && orgId) {
+            setSettingsDirty(false);
+            upsertOrgInvoiceTemplate(orgId, invoiceSettings).catch(() =>
+              toast.error("Failed to save invoice settings"),
+            );
+          }
+        }}
         settings={invoiceSettings}
-        onSettingsChange={setInvoiceSettings}
+        onSettingsChange={(s) => {
+          setInvoiceSettings(s);
+          setSettingsDirty(true);
+        }}
       />
 
       {/* Split panel */}

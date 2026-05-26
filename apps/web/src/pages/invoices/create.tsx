@@ -43,6 +43,7 @@ import {
 } from "@travada-books/ui/components/dropdown-menu";
 import { createInvoice, getNextInvoiceNumber } from "@/lib/queries/invoices";
 import { getCustomer } from "@/lib/queries/customers";
+import { getOrgInvoiceTemplate, upsertOrgInvoiceTemplate } from "@/lib/queries/invoice-templates";
 import { useAuth, type UserOrg } from "@/contexts/auth-context";
 import { Spinner } from "@/components/shared/spinner";
 import { toast } from "sonner";
@@ -351,6 +352,7 @@ export function CreateInvoicePage() {
   const [scheduleDialogOpen, setScheduleDialogOpen] = useState(false);
   const [invoiceSettingsOpen, setInvoiceSettingsOpen] = useState(false);
   const [invoiceSettings, setInvoiceSettings] = useState<InvoiceSettings>(defaultInvoiceSettings);
+  const [settingsDirty, setSettingsDirty] = useState(false);
   const [items, setItems] = useState<LineItem[]>([
     { id: "1", description: "", qty: "1", rate: "", tax: "0" },
   ]);
@@ -363,6 +365,16 @@ export function CreateInvoicePage() {
     queryFn: () => getNextInvoiceNumber(orgId!),
     enabled: !!orgId,
   });
+
+  const { data: savedTemplate } = useQuery({
+    queryKey: ["invoice-template", orgId],
+    queryFn: () => getOrgInvoiceTemplate(orgId!),
+    enabled: !!orgId,
+  });
+
+  useEffect(() => {
+    if (savedTemplate) setInvoiceSettings(savedTemplate);
+  }, [savedTemplate]);
 
   // Auto-fill invoice number only once, after a customer is first selected
   useEffect(() => {
@@ -608,9 +620,20 @@ export function CreateInvoicePage() {
       />
       <InvoiceSettingsSheet
         open={invoiceSettingsOpen}
-        onOpenChange={setInvoiceSettingsOpen}
+        onOpenChange={(open) => {
+          setInvoiceSettingsOpen(open);
+          if (!open && settingsDirty && orgId) {
+            setSettingsDirty(false);
+            upsertOrgInvoiceTemplate(orgId, invoiceSettings).catch(() =>
+              toast.error("Failed to save invoice settings"),
+            );
+          }
+        }}
         settings={invoiceSettings}
-        onSettingsChange={setInvoiceSettings}
+        onSettingsChange={(s) => {
+          setInvoiceSettings(s);
+          setSettingsDirty(true);
+        }}
       />
 
       {/* Split panel */}
