@@ -12,6 +12,15 @@ import { Button } from "@travada-books/ui/components/button";
 import { Avatar, AvatarFallback } from "@travada-books/ui/components/avatar";
 import { Separator } from "@travada-books/ui/components/separator";
 import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@travada-books/ui/components/alert-dialog";
+import {
   Accordion,
   AccordionContent,
   AccordionItem,
@@ -47,8 +56,13 @@ export function CustomerDetailPage() {
   const queryClient = useQueryClient();
   const [editOpen, setEditOpen] = useState(false);
   const [statementOpen, setStatementOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
 
-  const { data: customer, isLoading, isError } = useQuery({
+  const {
+    data: customer,
+    isLoading,
+    isError,
+  } = useQuery({
     queryKey: ["customer", id],
     queryFn: () => getCustomer(id!),
     enabled: !!id,
@@ -63,18 +77,17 @@ export function CustomerDetailPage() {
   });
 
   function handleDelete() {
-    if (!customer) return;
-    if (confirm(`Delete ${customer.name}? This cannot be undone.`)) {
-      deleteMutation.mutate();
-    }
+    deleteMutation.mutate();
   }
 
   if (isLoading) {
     return (
-      <div className="flex h-full flex-col overflow-hidden animate-pulse">
-        <div className="h-14 border-b" />
-        <div className="grid grid-cols-4 gap-4 border-b p-4">
-          {[0, 1, 2, 3].map((i) => <div key={i} className="h-24 rounded-lg border bg-muted/40" />)}
+      <div className='flex h-full flex-col overflow-hidden animate-pulse'>
+        <div className='h-14 border-b' />
+        <div className='grid grid-cols-4 gap-4 border-b p-4'>
+          {[0, 1, 2, 3].map((i) => (
+            <div key={i} className='h-24 rounded-lg border bg-muted/40' />
+          ))}
         </div>
       </div>
     );
@@ -82,8 +95,8 @@ export function CustomerDetailPage() {
 
   if (isError || !customer) {
     return (
-      <div className="flex h-full items-center justify-center">
-        <p className="text-sm text-muted-foreground">Customer not found.</p>
+      <div className='flex h-full items-center justify-center'>
+        <p className='text-sm text-muted-foreground'>Customer not found.</p>
       </div>
     );
   }
@@ -127,11 +140,11 @@ export function CustomerDetailPage() {
             <DropdownMenuTrigger render={<Button variant='outline' />}>
               <MoreHorizontalIcon size={13} />
             </DropdownMenuTrigger>
-            <DropdownMenuContent align='end' className="w-full">
+            <DropdownMenuContent align='end' className='w-full'>
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 className='text-destructive focus:text-destructive'
-                onClick={handleDelete}
+                onClick={() => setDeleteOpen(true)}
                 disabled={deleteMutation.isPending}
               >
                 <Delete01Icon size={13} />
@@ -150,7 +163,9 @@ export function CustomerDetailPage() {
               <p className='text-xl font-semibold tracking-tight'>—</p>
               <div>
                 <p className='text-sm'>Total Invoiced</p>
-                <p className='mt-0.5 text-xs text-muted-foreground'>Lifetime value</p>
+                <p className='mt-0.5 text-xs text-muted-foreground'>
+                  Lifetime value
+                </p>
               </div>
             </div>
           </CardContent>
@@ -158,10 +173,14 @@ export function CustomerDetailPage() {
         <Card>
           <CardContent className='p-4'>
             <div className='flex flex-col justify-between gap-3'>
-              <p className='text-xl font-semibold tracking-tight text-green-600 dark:text-green-400'>—</p>
+              <p className='text-xl font-semibold tracking-tight text-green-600 dark:text-green-400'>
+                —
+              </p>
               <div>
                 <p className='text-sm'>Total Paid</p>
-                <p className='mt-0.5 text-xs text-muted-foreground'>Collected to date</p>
+                <p className='mt-0.5 text-xs text-muted-foreground'>
+                  Collected to date
+                </p>
               </div>
             </div>
           </CardContent>
@@ -172,7 +191,9 @@ export function CustomerDetailPage() {
               <p className='text-xl font-semibold tracking-tight'>—</p>
               <div>
                 <p className='text-sm'>Outstanding</p>
-                <p className='mt-0.5 text-xs text-muted-foreground'>Awaiting payment</p>
+                <p className='mt-0.5 text-xs text-muted-foreground'>
+                  Awaiting payment
+                </p>
               </div>
             </div>
           </CardContent>
@@ -183,7 +204,9 @@ export function CustomerDetailPage() {
               <p className='text-xl font-semibold tracking-tight'>—</p>
               <div>
                 <p className='text-sm'>Invoices</p>
-                <p className='mt-0.5 text-xs text-muted-foreground'>Total issued</p>
+                <p className='mt-0.5 text-xs text-muted-foreground'>
+                  Total issued
+                </p>
               </div>
             </div>
           </CardContent>
@@ -204,7 +227,9 @@ export function CustomerDetailPage() {
               <div>
                 <p className='font-semibold text-sm'>{customer.name}</p>
                 {customer.main_contact && (
-                  <p className='text-xs text-muted-foreground mt-0.5'>{customer.main_contact}</p>
+                  <p className='text-xs text-muted-foreground mt-0.5'>
+                    {customer.main_contact}
+                  </p>
                 )}
               </div>
             </div>
@@ -212,11 +237,16 @@ export function CustomerDetailPage() {
             <Separator className='my-4' />
 
             <div className='flex flex-col gap-0 divide-y'>
-              {customer.email && <InfoRow label='Email' value={customer.email} />}
-              {customer.billing_email && customer.billing_email !== customer.email && (
-                <InfoRow label='Bill to' value={customer.billing_email} />
+              {customer.email && (
+                <InfoRow label='Email' value={customer.email} />
               )}
-              {customer.phone && <InfoRow label='Phone' value={customer.phone} />}
+              {customer.billing_email &&
+                customer.billing_email !== customer.email && (
+                  <InfoRow label='Bill to' value={customer.billing_email} />
+                )}
+              {customer.phone && (
+                <InfoRow label='Phone' value={customer.phone} />
+              )}
             </div>
           </div>
 
@@ -232,11 +262,24 @@ export function CustomerDetailPage() {
                 </AccordionTrigger>
                 <AccordionContent>
                   <div className='divide-y'>
-                    {customer.industry && <InfoRow label='Industry' value={customer.industry} />}
-                    {customer.company_type && <InfoRow label='Type' value={customer.company_type} />}
-                    {customer.website && <InfoRow label='Website' value={customer.website} />}
-                    {customer.vat_number && <InfoRow label='VAT / KRA PIN' value={customer.vat_number} />}
-                    {currency && <InfoRow label='Default Currency' value={currency} />}
+                    {customer.industry && (
+                      <InfoRow label='Industry' value={customer.industry} />
+                    )}
+                    {customer.company_type && (
+                      <InfoRow label='Type' value={customer.company_type} />
+                    )}
+                    {customer.website && (
+                      <InfoRow label='Website' value={customer.website} />
+                    )}
+                    {customer.vat_number && (
+                      <InfoRow
+                        label='VAT / KRA PIN'
+                        value={customer.vat_number}
+                      />
+                    )}
+                    {currency && (
+                      <InfoRow label='Default Currency' value={currency} />
+                    )}
                   </div>
                 </AccordionContent>
               </AccordionItem>
@@ -247,12 +290,30 @@ export function CustomerDetailPage() {
                 </AccordionTrigger>
                 <AccordionContent>
                   <div className='divide-y'>
-                    {customer.address_line1 && <InfoRow label='Address Line 1' value={customer.address_line1} />}
-                    {customer.address_line2 && <InfoRow label='Address Line 2' value={customer.address_line2} />}
-                    {customer.city && <InfoRow label='City' value={customer.city} />}
-                    {customer.state && <InfoRow label='State / County' value={customer.state} />}
-                    {customer.zip && <InfoRow label='ZIP' value={customer.zip} />}
-                    {customer.country && <InfoRow label='Country' value={customer.country} />}
+                    {customer.address_line1 && (
+                      <InfoRow
+                        label='Address Line 1'
+                        value={customer.address_line1}
+                      />
+                    )}
+                    {customer.address_line2 && (
+                      <InfoRow
+                        label='Address Line 2'
+                        value={customer.address_line2}
+                      />
+                    )}
+                    {customer.city && (
+                      <InfoRow label='City' value={customer.city} />
+                    )}
+                    {customer.state && (
+                      <InfoRow label='State / County' value={customer.state} />
+                    )}
+                    {customer.zip && (
+                      <InfoRow label='ZIP' value={customer.zip} />
+                    )}
+                    {customer.country && (
+                      <InfoRow label='Country' value={customer.country} />
+                    )}
                   </div>
                 </AccordionContent>
               </AccordionItem>
@@ -262,17 +323,17 @@ export function CustomerDetailPage() {
                     <span className='text-xs font-semibold uppercase tracking-wider text-muted-foreground'>
                       AI Enrichment
                     </span>
-                    {customer.enrichment_status === 'done' && (
+                    {customer.enrichment_status === "done" && (
                       <span className='rounded-full bg-violet-500/15 px-2 py-0.5 text-[10px] font-medium text-violet-600 dark:text-violet-400'>
                         Enriched
                       </span>
                     )}
-                    {customer.enrichment_status === 'pending' && (
+                    {customer.enrichment_status === "pending" && (
                       <span className='rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-medium text-amber-600 dark:text-amber-400'>
                         Pending
                       </span>
                     )}
-                    {customer.enrichment_status === 'failed' && (
+                    {customer.enrichment_status === "failed" && (
                       <span className='rounded-full bg-destructive/15 px-2 py-0.5 text-[10px] font-medium text-destructive'>
                         Failed
                       </span>
@@ -285,48 +346,118 @@ export function CustomerDetailPage() {
                   </div>
                 </AccordionTrigger>
                 <AccordionContent>
-                  {!customer.enrichment_status ? (
+                  {!customer.enrichment_status ?
                     <p className='pb-4 text-xs text-muted-foreground'>
-                      Enrichment runs automatically when an email is set. Add an email to trigger it.
+                      Enrichment runs automatically when an email is set. Add an
+                      email to trigger it.
                     </p>
-                  ) : (
-                    <div className='flex flex-col gap-3 pb-4'>
+                  : <div className='flex flex-col gap-3 pb-4'>
                       {customer.description && (
                         <p className='text-xs text-muted-foreground leading-relaxed'>
                           {customer.description}
                         </p>
                       )}
                       <div className='divide-y'>
-                        {customer.ceo_name && <InfoRow label='CEO' value={customer.ceo_name} />}
-                        {customer.founded_year && <InfoRow label='Founded' value={String(customer.founded_year)} />}
-                        {customer.employee_count && <InfoRow label='Employees' value={String(customer.employee_count)} />}
-                        {customer.estimated_revenue && <InfoRow label='Est. Revenue' value={customer.estimated_revenue} />}
-                        {customer.funding_stage && <InfoRow label='Funding Stage' value={customer.funding_stage} />}
-                        {customer.total_funding && <InfoRow label='Total Funding' value={customer.total_funding} />}
-                        {customer.headquarters_location && <InfoRow label='HQ' value={customer.headquarters_location} />}
-                        {customer.fiscal_year_end && <InfoRow label='Fiscal Year End' value={customer.fiscal_year_end} />}
-                        {customer.finance_contact && <InfoRow label='Finance Contact' value={customer.finance_contact} />}
-                        {customer.finance_contact_email && <InfoRow label='Finance Email' value={customer.finance_contact_email} />}
+                        {customer.ceo_name && (
+                          <InfoRow label='CEO' value={customer.ceo_name} />
+                        )}
+                        {customer.founded_year && (
+                          <InfoRow
+                            label='Founded'
+                            value={String(customer.founded_year)}
+                          />
+                        )}
+                        {customer.employee_count && (
+                          <InfoRow
+                            label='Employees'
+                            value={String(customer.employee_count)}
+                          />
+                        )}
+                        {customer.estimated_revenue && (
+                          <InfoRow
+                            label='Est. Revenue'
+                            value={customer.estimated_revenue}
+                          />
+                        )}
+                        {customer.funding_stage && (
+                          <InfoRow
+                            label='Funding Stage'
+                            value={customer.funding_stage}
+                          />
+                        )}
+                        {customer.total_funding && (
+                          <InfoRow
+                            label='Total Funding'
+                            value={customer.total_funding}
+                          />
+                        )}
+                        {customer.headquarters_location && (
+                          <InfoRow
+                            label='HQ'
+                            value={customer.headquarters_location}
+                          />
+                        )}
+                        {customer.fiscal_year_end && (
+                          <InfoRow
+                            label='Fiscal Year End'
+                            value={customer.fiscal_year_end}
+                          />
+                        )}
+                        {customer.finance_contact && (
+                          <InfoRow
+                            label='Finance Contact'
+                            value={customer.finance_contact}
+                          />
+                        )}
+                        {customer.finance_contact_email && (
+                          <InfoRow
+                            label='Finance Email'
+                            value={customer.finance_contact_email}
+                          />
+                        )}
                       </div>
-                      {(customer.linkedin_url || customer.twitter_url || customer.instagram_url || customer.facebook_url) && (
+                      {(customer.linkedin_url ||
+                        customer.twitter_url ||
+                        customer.instagram_url ||
+                        customer.facebook_url) && (
                         <div className='flex flex-wrap gap-2'>
                           {customer.linkedin_url && (
-                            <a href={customer.linkedin_url} target='_blank' rel='noreferrer' className='text-[11px] text-muted-foreground underline-offset-4 hover:underline'>
+                            <a
+                              href={customer.linkedin_url}
+                              target='_blank'
+                              rel='noreferrer'
+                              className='text-[11px] text-muted-foreground underline-offset-4 hover:underline'
+                            >
                               LinkedIn
                             </a>
                           )}
                           {customer.twitter_url && (
-                            <a href={customer.twitter_url} target='_blank' rel='noreferrer' className='text-[11px] text-muted-foreground underline-offset-4 hover:underline'>
+                            <a
+                              href={customer.twitter_url}
+                              target='_blank'
+                              rel='noreferrer'
+                              className='text-[11px] text-muted-foreground underline-offset-4 hover:underline'
+                            >
                               Twitter / X
                             </a>
                           )}
                           {customer.instagram_url && (
-                            <a href={customer.instagram_url} target='_blank' rel='noreferrer' className='text-[11px] text-muted-foreground underline-offset-4 hover:underline'>
+                            <a
+                              href={customer.instagram_url}
+                              target='_blank'
+                              rel='noreferrer'
+                              className='text-[11px] text-muted-foreground underline-offset-4 hover:underline'
+                            >
                               Instagram
                             </a>
                           )}
                           {customer.facebook_url && (
-                            <a href={customer.facebook_url} target='_blank' rel='noreferrer' className='text-[11px] text-muted-foreground underline-offset-4 hover:underline'>
+                            <a
+                              href={customer.facebook_url}
+                              target='_blank'
+                              rel='noreferrer'
+                              className='text-[11px] text-muted-foreground underline-offset-4 hover:underline'
+                            >
                               Facebook
                             </a>
                           )}
@@ -334,11 +465,12 @@ export function CustomerDetailPage() {
                       )}
                       {customer.enriched_at && (
                         <p className='text-[10px] text-muted-foreground/60'>
-                          Last enriched {new Date(customer.enriched_at).toLocaleDateString()}
+                          Last enriched{" "}
+                          {new Date(customer.enriched_at).toLocaleDateString()}
                         </p>
                       )}
                     </div>
-                  )}
+                  }
                 </AccordionContent>
               </AccordionItem>
             </Accordion>
@@ -346,8 +478,12 @@ export function CustomerDetailPage() {
 
           {customer.note && (
             <div className='rounded-lg border bg-background p-4'>
-              <p className='mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground'>Note</p>
-              <p className='text-xs text-muted-foreground leading-relaxed whitespace-pre-wrap'>{customer.note}</p>
+              <p className='mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground'>
+                Note
+              </p>
+              <p className='text-xs text-muted-foreground leading-relaxed whitespace-pre-wrap'>
+                {customer.note}
+              </p>
             </div>
           )}
         </div>
@@ -358,6 +494,31 @@ export function CustomerDetailPage() {
           <InvoiceTable data={[]} />
         </div>
       </div>
+
+      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete customer?</AlertDialogTitle>
+            <AlertDialogDescription>
+              <strong>{customer.name}</strong> will be permanently deleted. This
+              cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <Button
+              variant='destructive'
+              onClick={() => {
+                setDeleteOpen(false);
+                handleDelete();
+              }}
+              disabled={deleteMutation.isPending}
+            >
+              Delete
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <GenerateStatementSheet
         open={statementOpen}
@@ -387,7 +548,9 @@ export function CustomerDetailPage() {
           zip: customer.zip ?? "",
           note: customer.note ?? "",
         }}
-        onUpdated={() => queryClient.invalidateQueries({ queryKey: ["customer", id] })}
+        onUpdated={() =>
+          queryClient.invalidateQueries({ queryKey: ["customer", id] })
+        }
       />
     </div>
   );
