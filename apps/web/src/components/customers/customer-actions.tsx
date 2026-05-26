@@ -14,11 +14,19 @@ import { EditCustomerSheet, type CustomerEditValues } from "./edit-customer-shee
 type CustomerActionsProps = {
   customerId: string
   customer: CustomerEditValues
+  onDelete?: () => void
+  onUpdated?: () => void
 }
 
-export function CustomerActions({ customerId, customer }: CustomerActionsProps) {
+export function CustomerActions({ customerId, customer, onDelete, onUpdated }: CustomerActionsProps) {
   const navigate = useNavigate()
   const [editOpen, setEditOpen] = useState(false)
+
+  function handleDelete() {
+    if (confirm(`Delete ${customer.name}? This cannot be undone.`)) {
+      onDelete?.()
+    }
+  }
 
   return (
     <>
@@ -39,7 +47,7 @@ export function CustomerActions({ customerId, customer }: CustomerActionsProps) 
             New invoice
           </DropdownMenuItem>
           <DropdownMenuSeparator />
-          <DropdownMenuItem className="text-destructive focus:text-destructive">
+          <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={handleDelete}>
             Delete
           </DropdownMenuItem>
         </DropdownMenuContent>
@@ -49,6 +57,8 @@ export function CustomerActions({ customerId, customer }: CustomerActionsProps) 
         open={editOpen}
         onOpenChange={setEditOpen}
         customer={customer}
+        customerId={customerId}
+        onUpdated={onUpdated}
       />
     </>
   )
