@@ -8,7 +8,7 @@ import {
   Alert01Icon,
 } from "@travada-books/ui/icons";
 
-export type InvoiceStatus = "draft" | "sent" | "paid" | "overdue";
+export type InvoiceStatus = "draft" | "unpaid" | "paid" | "overdue" | "canceled";
 
 const statusConfig: Record<
   InvoiceStatus,
@@ -19,7 +19,7 @@ const statusConfig: Record<
     icon: FileEditIcon,
     className: "bg-muted text-muted-foreground hover:bg-muted",
   },
-  sent: {
+  unpaid: {
     label: "Sent",
     icon: Sent02Icon,
     className:
@@ -36,6 +36,11 @@ const statusConfig: Record<
     icon: Alert01Icon,
     className:
       "bg-red-100 text-red-700 hover:bg-red-100 dark:bg-red-900/30 dark:text-red-400",
+  },
+  canceled: {
+    label: "Canceled",
+    icon: FileEditIcon,
+    className: "bg-muted text-muted-foreground hover:bg-muted",
   },
 };
 

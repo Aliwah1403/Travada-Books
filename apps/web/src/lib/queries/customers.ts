@@ -53,9 +53,13 @@ export type CustomerInput = {
   website?: string
   address_line1?: string
   address_line2?: string
+  city?: string
+  state?: string
+  zip?: string
   country?: string
   country_code?: string
   vat_number?: string
+  note?: string
   industry?: string
   company_type?: string
   preferred_currency?: string
@@ -74,11 +78,12 @@ export async function listCustomers(orgId: string): Promise<Customer[]> {
   return data ?? []
 }
 
-export async function getCustomer(id: string): Promise<Customer> {
+export async function getCustomer(id: string, orgId: string): Promise<Customer> {
   const { data, error } = await supabase
     .from("customers")
     .select("id, created_at, org_id, name, email, billing_email, phone, website, address_line1, address_line2, city, state, zip, country, country_code, vat_number, note, logo_url, preferred_currency, is_archived, industry, company_type, main_contact, description, employee_count, founded_year, estimated_revenue, funding_stage, total_funding, headquarters_location, linkedin_url, twitter_url, instagram_url, facebook_url, ceo_name, finance_contact, finance_contact_email, primary_language, fiscal_year_end, enrichment_status, enriched_at")
     .eq("id", id)
+    .eq("org_id", orgId)
     .single()
 
   if (error) throw error
@@ -96,11 +101,12 @@ export async function createCustomer(orgId: string, input: CustomerInput): Promi
   return data
 }
 
-export async function updateCustomer(id: string, input: Partial<CustomerInput>): Promise<Customer> {
+export async function updateCustomer(id: string, orgId: string, input: Partial<CustomerInput>): Promise<Customer> {
   const { data, error } = await supabase
     .from("customers")
     .update(input)
     .eq("id", id)
+    .eq("org_id", orgId)
     .select("id, created_at, org_id, name, email, billing_email, phone, website, address_line1, address_line2, city, state, zip, country, country_code, vat_number, note, logo_url, preferred_currency, is_archived, industry, company_type, main_contact, description, employee_count, founded_year, estimated_revenue, funding_stage, total_funding, headquarters_location, linkedin_url, twitter_url, instagram_url, facebook_url, ceo_name, finance_contact, finance_contact_email, primary_language, fiscal_year_end, enrichment_status, enriched_at")
     .single()
 
@@ -108,7 +114,7 @@ export async function updateCustomer(id: string, input: Partial<CustomerInput>):
   return data
 }
 
-export async function deleteCustomer(id: string): Promise<void> {
-  const { error } = await supabase.from("customers").delete().eq("id", id)
+export async function deleteCustomer(id: string, orgId: string): Promise<void> {
+  const { error } = await supabase.from("customers").delete().eq("id", id).eq("org_id", orgId)
   if (error) throw error
 }

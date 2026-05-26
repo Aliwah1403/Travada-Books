@@ -13,6 +13,7 @@ import { VerifyOtpPage } from "@/pages/auth/verify-otp"
 import { ResetPasswordPage } from "@/pages/auth/reset-password"
 import { InvoicesPage } from "@/pages/invoices/index"
 import { CreateInvoicePage } from "@/pages/invoices/create"
+import { EditInvoicePage } from "@/pages/invoices/edit"
 import { InvoiceDetailPage } from "@/pages/invoices/detail"
 import { QuotesPage } from "@/pages/quotes/index"
 import { CreateQuotePage } from "@/pages/quotes/create"
@@ -64,6 +65,7 @@ const router = createBrowserRouter([
     children: [
       { path: "/invoices", element: <InvoicesPage /> },
       { path: "/invoices/create", element: <CreateInvoicePage /> },
+      { path: "/invoices/:id/edit", element: <EditInvoicePage /> },
       { path: "/invoices/:id", element: <InvoiceDetailPage /> },
       { path: "/quotes", element: <QuotesPage /> },
       { path: "/quotes/create", element: <CreateQuotePage /> },
@@ -102,6 +104,10 @@ const router = createBrowserRouter([
   {
     path: "/q/:token",
     element: <PublicQuotePage />,
+  },
+  {
+    path: "/s/:token",
+    element: <PublicStatementPage />,
   },
   {
     path: "/q/:token/confirmed",

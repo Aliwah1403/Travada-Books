@@ -22,13 +22,14 @@ export type Invoice = {
   id: string;
   number: string;
   status: InvoiceStatus;
-  dueDate: string;
+  dueDate: string | null;
   customer: string;
   amount: number;
   currency: string;
-  issueDate: string;
-  recurring: "one_time" | "recurring";
+  issueDate: string | null;
+  recurring: string;
   quoteNumber?: string;
+  token: string;
 };
 
 type InvoiceTableProps = {

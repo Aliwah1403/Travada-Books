@@ -29,9 +29,9 @@ function StatCard({ label, value, sub, subHighlight }: StatCardProps) {
 type CustomerStatsProps = {
   totalCount: number;
   newThisMonth: number;
-  totalOutstanding: number;
+  totalOutstanding: number | undefined;
   topCustomer: { name: string; totalPaid: number } | undefined;
-  overdueCount: number;
+  overdueCount: number | undefined;
 };
 
 export function CustomerStats({
@@ -50,7 +50,7 @@ export function CustomerStats({
       />
       <StatCard
         label="Outstanding Balance"
-        value={`KES ${totalOutstanding.toLocaleString("en-KE")}`}
+        value={totalOutstanding !== undefined ? `KES ${totalOutstanding.toLocaleString("en-KE")}` : "N/A"}
         sub="Across all customers"
       />
       <StatCard
@@ -64,9 +64,9 @@ export function CustomerStats({
       />
       <StatCard
         label="Overdue Customers"
-        value={String(overdueCount)}
-        sub={overdueCount > 0 ? "Have at least one overdue invoice" : "All customers up to date"}
-        subHighlight={overdueCount > 0}
+        value={overdueCount !== undefined ? String(overdueCount) : "N/A"}
+        sub={overdueCount === undefined ? "Not yet calculated" : overdueCount > 0 ? "Have at least one overdue invoice" : "All customers up to date"}
+        subHighlight={!!overdueCount && overdueCount > 0}
       />
     </div>
   );

@@ -21,6 +21,8 @@ import { useTableScroll } from "@/hooks/use-table-scroll"
 import { cn } from "@travada-books/ui/lib/utils"
 import { useAuth } from "@/contexts/auth-context"
 import { listCustomers, deleteCustomer } from "@/lib/queries/customers"
+import { listAllCustomerInvoiceSummaries } from "@/lib/queries/invoices"
+import { toast } from "sonner"
 
 function HorizontalPagination({
   canScrollLeft,
@@ -65,22 +67,34 @@ export function CustomersPage() {
   const [sheetOpen, setSheetOpen] = useState(false)
   const { containerRef, canScrollLeft, canScrollRight, scrollLeft, scrollRight } = useTableScroll()
 
-  const { data: customers = [], isLoading } = useQuery({
+  const { data: customers, isLoading, error, refetch } = useQuery({
     queryKey: ["customers", orgId],
     queryFn: () => listCustomers(orgId!),
     enabled: !!orgId,
   })
 
+  const { data: summaries = {} } = useQuery({
+    queryKey: ["customer-invoice-summaries", orgId],
+    queryFn: () => listAllCustomerInvoiceSummaries(orgId!),
+    enabled: !!orgId,
+  })
+
   const deleteMutation = useMutation({
-    mutationFn: deleteCustomer,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["customers", orgId] }),
+    mutationFn: (customerId: string) => deleteCustomer(customerId, orgId!),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["customers", orgId] });
+      toast.success("Customer deleted");
+    },
+    onError: () => {
+      toast.error("Failed to delete customer", { description: "Please try again." });
+    },
   })
 
   function handleCustomerUpdated() {
     queryClient.invalidateQueries({ queryKey: ["customers", orgId] })
   }
 
-  const filtered = customers.filter(
+  const filtered = (customers ?? []).filter(
     (c) =>
       c.name.toLowerCase().includes(search.toLowerCase()) ||
       (c.email ?? "").toLowerCase().includes(search.toLowerCase())
@@ -89,12 +103,22 @@ export function CustomersPage() {
   const thirtyDaysAgo = new Date()
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
 
+  const totalOutstanding = Object.values(summaries).reduce((sum, s) => sum + s.outstanding, 0)
+
+  const topCustomerEntry = Object.entries(summaries).sort((a, b) => b[1].totalPaid - a[1].totalPaid)[0]
+  const topCustomer = topCustomerEntry && topCustomerEntry[1].totalPaid > 0
+    ? {
+        name: (customers ?? []).find((c) => c.id === topCustomerEntry[0])?.name ?? "—",
+        totalPaid: topCustomerEntry[1].totalPaid,
+      }
+    : undefined
+
   const stats = {
-    totalCount: customers.length,
-    newThisMonth: customers.filter((c) => new Date(c.created_at) >= thirtyDaysAgo).length,
-    totalOutstanding: 0,
-    overdueCount: 0,
-    topCustomer: undefined as { name: string; totalPaid: number } | undefined,
+    totalCount: (customers ?? []).length,
+    newThisMonth: (customers ?? []).filter((c) => new Date(c.created_at) >= thirtyDaysAgo).length,
+    totalOutstanding: Object.keys(summaries).length > 0 ? totalOutstanding : undefined,
+    overdueCount: undefined as number | undefined,
+    topCustomer,
   }
 
   if (isLoading) {
@@ -106,6 +130,18 @@ export function CustomersPage() {
           ))}
         </div>
         <div className="h-96 rounded-lg border bg-muted/40 animate-pulse" />
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-3 p-12 text-center">
+        <p className="text-sm font-medium">Failed to load customers</p>
+        <p className="text-xs text-muted-foreground">{error.message}</p>
+        <Button variant="outline" size="sm" onClick={() => refetch()}>
+          Retry
+        </Button>
       </div>
     )
   }
@@ -222,10 +258,26 @@ export function CustomersPage() {
                     <TableCell className="py-3 text-xs text-muted-foreground">
                       {customer.website ?? <span className="text-muted-foreground/50">—</span>}
                     </TableCell>
-                    <TableCell className="py-3 text-xs text-muted-foreground">—</TableCell>
-                    <TableCell className="py-3 text-xs text-muted-foreground">—</TableCell>
-                    <TableCell className="py-3 text-xs text-muted-foreground">—</TableCell>
-                    <TableCell className="py-3 text-xs text-muted-foreground">—</TableCell>
+                    <TableCell className="py-3 text-xs text-muted-foreground">
+                      {summaries[customer.id]?.invoiceCount ?? <span className="text-muted-foreground/50">—</span>}
+                    </TableCell>
+                    <TableCell className="py-3 text-xs text-muted-foreground">
+                      {summaries[customer.id]
+                        ? `KES ${summaries[customer.id].totalPaid.toLocaleString("en-KE", { minimumFractionDigits: 2 })}`
+                        : <span className="text-muted-foreground/50">—</span>}
+                    </TableCell>
+                    <TableCell className="py-3 text-xs">
+                      {summaries[customer.id]
+                        ? <span className={summaries[customer.id].outstanding > 0 ? "text-destructive font-medium" : "text-muted-foreground"}>
+                            KES {summaries[customer.id].outstanding.toLocaleString("en-KE", { minimumFractionDigits: 2 })}
+                          </span>
+                        : <span className="text-muted-foreground/50">—</span>}
+                    </TableCell>
+                    <TableCell className="py-3 text-xs text-muted-foreground">
+                      {summaries[customer.id]?.lastInvoiceAt
+                        ? format(new Date(summaries[customer.id].lastInvoiceAt!), "dd/MM/yyyy")
+                        : <span className="text-muted-foreground/50">—</span>}
+                    </TableCell>
                     <TableCell className="py-3" onClick={(e) => e.stopPropagation()}>
                       <CustomerActions
                         customerId={customer.id}
@@ -240,7 +292,7 @@ export function CustomersPage() {
                           website: customer.website ?? "",
                           vatNumber: customer.vat_number ?? "",
                           country: customer.country ?? "",
-                          currency: customer.preferred_currency ?? "KES",
+                          currency: customer.preferred_currency ?? undefined,
                           addressLine1: customer.address_line1 ?? "",
                           addressLine2: customer.address_line2 ?? "",
                           city: customer.city ?? "",

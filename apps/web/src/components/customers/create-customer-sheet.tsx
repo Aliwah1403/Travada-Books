@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -34,6 +34,7 @@ import {
 } from "@travada-books/ui/components/field";
 import { useAuth } from "@/contexts/auth-context";
 import { createCustomer } from "@/lib/queries/customers";
+import { toast } from "sonner";
 
 const schema = z.object({
   name: z.string().min(1, "Name is required."),
@@ -134,7 +135,6 @@ export function CreateCustomerSheet({
   onCreated,
 }: CreateCustomerSheetProps) {
   const { orgId } = useAuth();
-  const [submitError, setSubmitError] = useState("");
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
@@ -169,7 +169,6 @@ export function CreateCustomerSheet({
 
   async function onSubmit(data: FormValues) {
     if (!orgId) return;
-    setSubmitError("");
     try {
       await createCustomer(orgId, {
         name: data.name,
@@ -191,10 +190,13 @@ export function CreateCustomerSheet({
         main_contact: data.mainContact || undefined,
         note: data.note || undefined,
       });
+      toast.success("Customer created");
       handleOpenChange(false);
       onCreated?.();
     } catch (err) {
-      setSubmitError(err instanceof Error ? err.message : "Failed to create customer");
+      toast.error("Failed to create customer", {
+        description: err instanceof Error ? err.message : "Please try again.",
+      });
     }
   }
 
@@ -681,9 +683,6 @@ export function CreateCustomerSheet({
           </div>
 
           <Separator />
-          {submitError && (
-            <p className="px-6 pt-3 text-xs text-destructive">{submitError}</p>
-          )}
           <SheetFooter className='flex-row gap-2 px-6 py-4'>
             <Button
               type='button'

@@ -6,7 +6,7 @@ One stage at a time. Each stage is validated before moving to the next.
 
 | # | Stage | Status |
 |---|---|---|
-| 0 | Supabase MCP Setup | ✅ Done |
+| 0 | Supabase MCP Setup | ✅ Done | 
 | 1 | Auth (Supabase Auth) | ✅ Done |
 | 2 | Database Schema | ✅ Done — awaiting full validation |
 | 2.5 | Onboarding Flow | ✅ Done — awaiting validation |

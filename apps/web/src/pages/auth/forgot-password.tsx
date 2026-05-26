@@ -22,7 +22,8 @@ export function ForgotPasswordPage() {
       setError(error.message)
       return
     }
-    navigate(`/forgot-password/verify?email=${encodeURIComponent(email)}`)
+    sessionStorage.setItem("fp_email", email)
+    navigate("/forgot-password/verify")
   }
 
   return (
