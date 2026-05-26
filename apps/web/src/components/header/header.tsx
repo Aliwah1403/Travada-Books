@@ -64,18 +64,24 @@ export function Header({ title }: HeaderProps) {
     <header className='flex h-14 shrink-0 items-center justify-between border-b px-6'>
       <h1 className='text-sm font-medium'>{title}</h1>
       <div className='flex items-center gap-2'>
-        <Button variant='ghost' size='icon-lg' onClick={toggleTheme}>
+        <Button
+          variant='ghost'
+          size='icon-lg'
+          onClick={toggleTheme}
+          aria-label={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
+        >
           {theme === "dark" ?
             <Sun01Icon size={32} />
           : <Moon01Icon size={32} />}
         </Button>
-        <Button variant='ghost' size='icon-lg'>
+        <Button variant='ghost' size='icon-lg' aria-label='Show notifications'>
           <Notification01Icon size={16} />
         </Button>
         <Separator orientation='vertical' className='h-7' />
 
         <DropdownMenu>
           <DropdownMenuTrigger
+            aria-label={`Open account menu${initials ? ` for ${initials}` : ""}`}
             render={
               <Avatar className='size-7 cursor-pointer ring-offset-background transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2' />
             }

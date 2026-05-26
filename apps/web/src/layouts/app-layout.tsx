@@ -23,10 +23,11 @@ function getTitle(pathname: string): string {
 
 export function AppLayout() {
   const { pathname } = useLocation()
-  const { user, loading } = useAuth()
+  const { user, loading, orgId, orgLoading } = useAuth()
 
-  if (loading) return null
+  if (loading || orgLoading) return null
   if (!user) return <Navigate to="/login" replace />
+  if (!orgId) return <Navigate to="/onboarding/org" replace />
 
   return (
     <div className="flex h-screen overflow-hidden">

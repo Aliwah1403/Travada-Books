@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft01Icon,
   Delete01Icon,
@@ -10,6 +11,15 @@ import {
 import { Button } from "@travada-books/ui/components/button";
 import { Avatar, AvatarFallback } from "@travada-books/ui/components/avatar";
 import { Separator } from "@travada-books/ui/components/separator";
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@travada-books/ui/components/alert-dialog";
 import {
   Accordion,
   AccordionContent,
@@ -24,65 +34,11 @@ import {
   DropdownMenuTrigger,
 } from "@travada-books/ui/components/dropdown-menu";
 import { Card, CardContent } from "@travada-books/ui/components/card";
-import {
-  InvoiceTable,
-  type Invoice,
-} from "@/components/invoices/invoice-table";
+import { InvoiceTable } from "@/components/invoices/invoice-table";
 import { EditCustomerSheet } from "@/components/customers/edit-customer-sheet";
 import { GenerateStatementSheet } from "@/components/customers/generate-statement-sheet";
-
-const mockCustomer = {
-  id: "1",
-  name: "Acme Ltd",
-  email: "info@acme.co.ke",
-  billToEmail: "billing@acme.co.ke",
-  phone: "+254 700 000 001",
-  mainContact: "Jane Doe",
-  industry: "Technology",
-  businessType: "B2B",
-  website: "acme.co.ke",
-  vatNumber: "P051234567A",
-  country: "Kenya",
-  defaultCurrency: "KES",
-  totalInvoiced: 30890,
-  totalPaid: 25890,
-  totalOwed: 5000,
-  currency: "KES",
-  enriched: {
-    description:
-      "Acme Ltd is a Nairobi-based technology company specialising in enterprise software solutions and cloud infrastructure for the East African market.",
-    founded: "2016",
-    employees: "50–200",
-    linkedIn: "linkedin.com/company/acme-ke",
-    services: ["Cloud Infrastructure", "Enterprise SaaS", "IT Consulting"],
-    enrichedAt: "May 2025",
-  },
-};
-
-const mockCustomerInvoices: Invoice[] = [
-  {
-    id: "1",
-    number: "INV-0001",
-    status: "draft",
-    customer: "Acme Ltd",
-    amount: 5000,
-    currency: "KES",
-    dueDate: "30/06/2025",
-    issueDate: "01/06/2025",
-    recurring: "one_time",
-  },
-  {
-    id: "2",
-    number: "INV-0002",
-    status: "paid",
-    customer: "Acme Ltd",
-    amount: 25890,
-    currency: "KES",
-    dueDate: "09/12/2024",
-    issueDate: "20/11/2024",
-    recurring: "one_time",
-  },
-];
+import { getCustomer, deleteCustomer } from "@/lib/queries/customers";
+import { useAuth } from "@/contexts/auth-context";
 
 function InfoRow({ label, value }: { label: string; value: string }) {
   return (
@@ -95,12 +51,57 @@ function InfoRow({ label, value }: { label: string; value: string }) {
 
 export function CustomerDetailPage() {
   const navigate = useNavigate();
-  useParams();
+  const { id } = useParams<{ id: string }>();
+  const { orgId } = useAuth();
+  const queryClient = useQueryClient();
   const [editOpen, setEditOpen] = useState(false);
   const [statementOpen, setStatementOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
 
-  const { currency, totalInvoiced, totalPaid, totalOwed, enriched } =
-    mockCustomer;
+  const {
+    data: customer,
+    isLoading,
+    isError,
+  } = useQuery({
+    queryKey: ["customer", id],
+    queryFn: () => getCustomer(id!),
+    enabled: !!id,
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: () => deleteCustomer(id!),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["customers", orgId] });
+      navigate("/customers");
+    },
+  });
+
+  function handleDelete() {
+    deleteMutation.mutate();
+  }
+
+  if (isLoading) {
+    return (
+      <div className='flex h-full flex-col overflow-hidden animate-pulse'>
+        <div className='h-14 border-b' />
+        <div className='grid grid-cols-4 gap-4 border-b p-4'>
+          {[0, 1, 2, 3].map((i) => (
+            <div key={i} className='h-24 rounded-lg border bg-muted/40' />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (isError || !customer) {
+    return (
+      <div className='flex h-full items-center justify-center'>
+        <p className='text-sm text-muted-foreground'>Customer not found.</p>
+      </div>
+    );
+  }
+
+  const currency = customer.preferred_currency ?? "KES";
 
   return (
     <div className='flex h-full flex-col overflow-hidden'>
@@ -114,7 +115,7 @@ export function CustomerDetailPage() {
           >
             <ArrowLeft01Icon size={14} />
           </Button>
-          <span className='text-sm font-medium'>{mockCustomer.name}</span>
+          <span className='text-sm font-medium'>{customer.name}</span>
         </div>
         <div className='flex items-center gap-2'>
           <Button
@@ -139,9 +140,13 @@ export function CustomerDetailPage() {
             <DropdownMenuTrigger render={<Button variant='outline' />}>
               <MoreHorizontalIcon size={13} />
             </DropdownMenuTrigger>
-            <DropdownMenuContent align='end' className="w-full">
+            <DropdownMenuContent align='end' className='w-full'>
               <DropdownMenuSeparator />
-              <DropdownMenuItem className='text-destructive focus:text-destructive'>
+              <DropdownMenuItem
+                className='text-destructive focus:text-destructive'
+                onClick={() => setDeleteOpen(true)}
+                disabled={deleteMutation.isPending}
+              >
                 <Delete01Icon size={13} />
                 Delete Customer
               </DropdownMenuItem>
@@ -150,14 +155,12 @@ export function CustomerDetailPage() {
         </div>
       </div>
 
-      {/* KPI row */}
+      {/* KPI row — invoice totals populate in Stage 4 */}
       <div className='grid shrink-0 grid-cols-4 gap-4 border-b p-4'>
         <Card>
           <CardContent className='p-4'>
             <div className='flex flex-col justify-between gap-3'>
-              <p className='text-xl font-semibold tracking-tight'>
-                {currency} {totalInvoiced.toLocaleString("en-KE")}
-              </p>
+              <p className='text-xl font-semibold tracking-tight'>—</p>
               <div>
                 <p className='text-sm'>Total Invoiced</p>
                 <p className='mt-0.5 text-xs text-muted-foreground'>
@@ -171,7 +174,7 @@ export function CustomerDetailPage() {
           <CardContent className='p-4'>
             <div className='flex flex-col justify-between gap-3'>
               <p className='text-xl font-semibold tracking-tight text-green-600 dark:text-green-400'>
-                {currency} {totalPaid.toLocaleString("en-KE")}
+                —
               </p>
               <div>
                 <p className='text-sm'>Total Paid</p>
@@ -185,9 +188,7 @@ export function CustomerDetailPage() {
         <Card>
           <CardContent className='p-4'>
             <div className='flex flex-col justify-between gap-3'>
-              <p className='text-xl font-semibold tracking-tight text-red-600 dark:text-red-400'>
-                {currency} {totalOwed.toLocaleString("en-KE")}
-              </p>
+              <p className='text-xl font-semibold tracking-tight'>—</p>
               <div>
                 <p className='text-sm'>Outstanding</p>
                 <p className='mt-0.5 text-xs text-muted-foreground'>
@@ -200,9 +201,7 @@ export function CustomerDetailPage() {
         <Card>
           <CardContent className='p-4'>
             <div className='flex flex-col justify-between gap-3'>
-              <p className='text-xl font-semibold tracking-tight'>
-                {mockCustomerInvoices.length}
-              </p>
+              <p className='text-xl font-semibold tracking-tight'>—</p>
               <div>
                 <p className='text-sm'>Invoices</p>
                 <p className='mt-0.5 text-xs text-muted-foreground'>
@@ -218,19 +217,18 @@ export function CustomerDetailPage() {
       <div className='flex flex-1 overflow-hidden'>
         {/* Left sidebar — profile + details */}
         <div className='flex w-[400px] shrink-0 flex-col gap-4 overflow-y-auto border-r p-4'>
-          {/* General: avatar + contact info */}
           <div className='rounded-lg border bg-background p-4'>
             <div className='flex flex-col items-center gap-3 text-center'>
               <Avatar className='size-14'>
                 <AvatarFallback className='text-base font-semibold'>
-                  {mockCustomer.name.slice(0, 2).toUpperCase()}
+                  {customer.name.slice(0, 2).toUpperCase()}
                 </AvatarFallback>
               </Avatar>
               <div>
-                <p className='font-semibold text-sm'>{mockCustomer.name}</p>
-                {mockCustomer.mainContact && (
+                <p className='font-semibold text-sm'>{customer.name}</p>
+                {customer.main_contact && (
                   <p className='text-xs text-muted-foreground mt-0.5'>
-                    {mockCustomer.mainContact}
+                    {customer.main_contact}
                   </p>
                 )}
               </div>
@@ -239,17 +237,19 @@ export function CustomerDetailPage() {
             <Separator className='my-4' />
 
             <div className='flex flex-col gap-0 divide-y'>
-              <InfoRow label='Email' value={mockCustomer.email} />
-              {mockCustomer.billToEmail !== mockCustomer.email && (
-                <InfoRow label='Bill to' value={mockCustomer.billToEmail} />
+              {customer.email && (
+                <InfoRow label='Email' value={customer.email} />
               )}
-              {mockCustomer.phone && (
-                <InfoRow label='Phone' value={mockCustomer.phone} />
+              {customer.billing_email &&
+                customer.billing_email !== customer.email && (
+                  <InfoRow label='Bill to' value={customer.billing_email} />
+                )}
+              {customer.phone && (
+                <InfoRow label='Phone' value={customer.phone} />
               )}
             </div>
           </div>
 
-          {/* Details accordion */}
           <div>
             <Accordion
               multiple
@@ -262,26 +262,23 @@ export function CustomerDetailPage() {
                 </AccordionTrigger>
                 <AccordionContent>
                   <div className='divide-y'>
-                    {mockCustomer.industry && (
-                      <InfoRow label='Industry' value={mockCustomer.industry} />
+                    {customer.industry && (
+                      <InfoRow label='Industry' value={customer.industry} />
                     )}
-                    {mockCustomer.businessType && (
-                      <InfoRow label='Type' value={mockCustomer.businessType} />
+                    {customer.company_type && (
+                      <InfoRow label='Type' value={customer.company_type} />
                     )}
-                    {mockCustomer.website && (
-                      <InfoRow label='Website' value={mockCustomer.website} />
+                    {customer.website && (
+                      <InfoRow label='Website' value={customer.website} />
                     )}
-                    {mockCustomer.vatNumber && (
+                    {customer.vat_number && (
                       <InfoRow
                         label='VAT / KRA PIN'
-                        value={mockCustomer.vatNumber}
+                        value={customer.vat_number}
                       />
                     )}
-                    {mockCustomer.defaultCurrency && (
-                      <InfoRow
-                        label='Default Currency'
-                        value={mockCustomer.defaultCurrency}
-                      />
+                    {currency && (
+                      <InfoRow label='Default Currency' value={currency} />
                     )}
                   </div>
                 </AccordionContent>
@@ -293,97 +290,267 @@ export function CustomerDetailPage() {
                 </AccordionTrigger>
                 <AccordionContent>
                   <div className='divide-y'>
-                    {mockCustomer.country && (
-                      <InfoRow label='Country' value={mockCustomer.country} />
+                    {customer.address_line1 && (
+                      <InfoRow
+                        label='Address Line 1'
+                        value={customer.address_line1}
+                      />
+                    )}
+                    {customer.address_line2 && (
+                      <InfoRow
+                        label='Address Line 2'
+                        value={customer.address_line2}
+                      />
+                    )}
+                    {customer.city && (
+                      <InfoRow label='City' value={customer.city} />
+                    )}
+                    {customer.state && (
+                      <InfoRow label='State / County' value={customer.state} />
+                    )}
+                    {customer.zip && (
+                      <InfoRow label='ZIP' value={customer.zip} />
+                    )}
+                    {customer.country && (
+                      <InfoRow label='Country' value={customer.country} />
                     )}
                   </div>
                 </AccordionContent>
               </AccordionItem>
-
               <AccordionItem value='enrichment' className='px-4'>
                 <AccordionTrigger className='py-3 hover:no-underline'>
                   <div className='flex items-center gap-2'>
                     <span className='text-xs font-semibold uppercase tracking-wider text-muted-foreground'>
                       AI Enrichment
                     </span>
-                    <span className='rounded-full bg-violet-500/15 px-2 py-0.5 text-[10px] font-medium text-violet-600 dark:text-violet-400'>
-                      Enriched
-                    </span>
+                    {customer.enrichment_status === "done" && (
+                      <span className='rounded-full bg-violet-500/15 px-2 py-0.5 text-[10px] font-medium text-violet-600 dark:text-violet-400'>
+                        Enriched
+                      </span>
+                    )}
+                    {customer.enrichment_status === "pending" && (
+                      <span className='rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-medium text-amber-600 dark:text-amber-400'>
+                        Pending
+                      </span>
+                    )}
+                    {customer.enrichment_status === "failed" && (
+                      <span className='rounded-full bg-destructive/15 px-2 py-0.5 text-[10px] font-medium text-destructive'>
+                        Failed
+                      </span>
+                    )}
+                    {!customer.enrichment_status && (
+                      <span className='rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground'>
+                        Not enriched
+                      </span>
+                    )}
                   </div>
                 </AccordionTrigger>
                 <AccordionContent>
-                  <div className='flex flex-col gap-3'>
-                    {enriched.description && (
-                      <p className='text-xs text-muted-foreground leading-relaxed'>
-                        {enriched.description}
-                      </p>
-                    )}
-                    <div className='divide-y'>
-                      {enriched.founded && (
-                        <InfoRow label='Founded' value={enriched.founded} />
+                  {!customer.enrichment_status ?
+                    <p className='pb-4 text-xs text-muted-foreground'>
+                      Enrichment runs automatically when an email is set. Add an
+                      email to trigger it.
+                    </p>
+                  : <div className='flex flex-col gap-3 pb-4'>
+                      {customer.description && (
+                        <p className='text-xs text-muted-foreground leading-relaxed'>
+                          {customer.description}
+                        </p>
                       )}
-                      {enriched.employees && (
-                        <InfoRow label='Employees' value={enriched.employees} />
-                      )}
-                      {enriched.linkedIn && (
-                        <InfoRow label='LinkedIn' value={enriched.linkedIn} />
-                      )}
-                      {enriched.services.length > 0 && (
-                        <div className='flex flex-col gap-2 py-2.5 text-xs'>
-                          <span className='text-muted-foreground'>
-                            Services
-                          </span>
-                          <div className='flex flex-wrap gap-1'>
-                            {enriched.services.map((s) => (
-                              <span
-                                key={s}
-                                className='rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium'
-                              >
-                                {s}
-                              </span>
-                            ))}
-                          </div>
+                      <div className='divide-y'>
+                        {customer.ceo_name && (
+                          <InfoRow label='CEO' value={customer.ceo_name} />
+                        )}
+                        {customer.founded_year && (
+                          <InfoRow
+                            label='Founded'
+                            value={String(customer.founded_year)}
+                          />
+                        )}
+                        {customer.employee_count && (
+                          <InfoRow
+                            label='Employees'
+                            value={String(customer.employee_count)}
+                          />
+                        )}
+                        {customer.estimated_revenue && (
+                          <InfoRow
+                            label='Est. Revenue'
+                            value={customer.estimated_revenue}
+                          />
+                        )}
+                        {customer.funding_stage && (
+                          <InfoRow
+                            label='Funding Stage'
+                            value={customer.funding_stage}
+                          />
+                        )}
+                        {customer.total_funding && (
+                          <InfoRow
+                            label='Total Funding'
+                            value={customer.total_funding}
+                          />
+                        )}
+                        {customer.headquarters_location && (
+                          <InfoRow
+                            label='HQ'
+                            value={customer.headquarters_location}
+                          />
+                        )}
+                        {customer.fiscal_year_end && (
+                          <InfoRow
+                            label='Fiscal Year End'
+                            value={customer.fiscal_year_end}
+                          />
+                        )}
+                        {customer.finance_contact && (
+                          <InfoRow
+                            label='Finance Contact'
+                            value={customer.finance_contact}
+                          />
+                        )}
+                        {customer.finance_contact_email && (
+                          <InfoRow
+                            label='Finance Email'
+                            value={customer.finance_contact_email}
+                          />
+                        )}
+                      </div>
+                      {(customer.linkedin_url ||
+                        customer.twitter_url ||
+                        customer.instagram_url ||
+                        customer.facebook_url) && (
+                        <div className='flex flex-wrap gap-2'>
+                          {customer.linkedin_url && (
+                            <a
+                              href={customer.linkedin_url}
+                              target='_blank'
+                              rel='noreferrer'
+                              className='text-[11px] text-muted-foreground underline-offset-4 hover:underline'
+                            >
+                              LinkedIn
+                            </a>
+                          )}
+                          {customer.twitter_url && (
+                            <a
+                              href={customer.twitter_url}
+                              target='_blank'
+                              rel='noreferrer'
+                              className='text-[11px] text-muted-foreground underline-offset-4 hover:underline'
+                            >
+                              Twitter / X
+                            </a>
+                          )}
+                          {customer.instagram_url && (
+                            <a
+                              href={customer.instagram_url}
+                              target='_blank'
+                              rel='noreferrer'
+                              className='text-[11px] text-muted-foreground underline-offset-4 hover:underline'
+                            >
+                              Instagram
+                            </a>
+                          )}
+                          {customer.facebook_url && (
+                            <a
+                              href={customer.facebook_url}
+                              target='_blank'
+                              rel='noreferrer'
+                              className='text-[11px] text-muted-foreground underline-offset-4 hover:underline'
+                            >
+                              Facebook
+                            </a>
+                          )}
                         </div>
                       )}
-                      <InfoRow
-                        label='Last enriched'
-                        value={enriched.enrichedAt}
-                      />
+                      {customer.enriched_at && (
+                        <p className='text-[10px] text-muted-foreground/60'>
+                          Last enriched{" "}
+                          {new Date(customer.enriched_at).toLocaleDateString()}
+                        </p>
+                      )}
                     </div>
-                  </div>
+                  }
                 </AccordionContent>
               </AccordionItem>
             </Accordion>
           </div>
+
+          {customer.note && (
+            <div className='rounded-lg border bg-background p-4'>
+              <p className='mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground'>
+                Note
+              </p>
+              <p className='text-xs text-muted-foreground leading-relaxed whitespace-pre-wrap'>
+                {customer.note}
+              </p>
+            </div>
+          )}
         </div>
 
-        {/* Right main area — invoice history */}
+        {/* Right main area — invoice history (populated in Stage 4) */}
         <div className='flex flex-1 flex-col overflow-y-auto p-6'>
           <p className='mb-4 text-sm font-medium'>Invoice history</p>
-          <InvoiceTable data={mockCustomerInvoices} />
+          <InvoiceTable data={[]} />
         </div>
       </div>
+
+      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete customer?</AlertDialogTitle>
+            <AlertDialogDescription>
+              <strong>{customer.name}</strong> will be permanently deleted. This
+              cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <Button
+              variant='destructive'
+              onClick={() => {
+                setDeleteOpen(false);
+                handleDelete();
+              }}
+              disabled={deleteMutation.isPending}
+            >
+              Delete
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <GenerateStatementSheet
         open={statementOpen}
         onOpenChange={setStatementOpen}
-        customerName={mockCustomer.name}
+        customerName={customer.name}
       />
       <EditCustomerSheet
         open={editOpen}
         onOpenChange={setEditOpen}
+        customerId={customer.id}
         customer={{
-          name: mockCustomer.name,
-          email: mockCustomer.email,
-          billToEmail: mockCustomer.billToEmail,
-          phone: mockCustomer.phone,
-          mainContact: mockCustomer.mainContact,
-          industry: mockCustomer.industry,
-          businessType: mockCustomer.businessType,
-          website: mockCustomer.website,
-          vatNumber: mockCustomer.vatNumber,
-          country: mockCustomer.country,
+          name: customer.name,
+          email: customer.email ?? "",
+          billToEmail: customer.billing_email ?? "",
+          phone: customer.phone ?? "",
+          mainContact: customer.main_contact ?? "",
+          industry: customer.industry ?? "",
+          businessType: customer.company_type ?? "",
+          website: customer.website ?? "",
+          vatNumber: customer.vat_number ?? "",
+          country: customer.country ?? "",
+          currency: customer.preferred_currency ?? "KES",
+          addressLine1: customer.address_line1 ?? "",
+          addressLine2: customer.address_line2 ?? "",
+          city: customer.city ?? "",
+          state: customer.state ?? "",
+          zip: customer.zip ?? "",
+          note: customer.note ?? "",
         }}
+        onUpdated={() =>
+          queryClient.invalidateQueries({ queryKey: ["customer", id] })
+        }
       />
     </div>
   );
