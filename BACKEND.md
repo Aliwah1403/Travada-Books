@@ -6,13 +6,15 @@ One stage at a time. Each stage is validated before moving to the next.
 
 | # | Stage | Status |
 |---|---|---|
-| 0 | Supabase MCP Setup | ✅ Done | 
+| 0 | Supabase MCP Setup | ✅ Done |
 | 1 | Auth (Supabase Auth) | ✅ Done |
-| 2 | Database Schema | ✅ Done — awaiting full validation |
-| 2.5 | Onboarding Flow | ✅ Done — awaiting validation |
-| 3 | Customers CRUD | ⬜ Not Started |
-| 4 | Invoices CRUD | ⬜ Not Started |
-| 5 | PDF + Public Invoice Links | ⬜ Not Started |
+| 2 | Database Schema | ✅ Done |
+| 2.5 | Onboarding Flow | ✅ Done |
+| 3 | Customers CRUD | ✅ Done |
+| 4 | Invoices CRUD | ✅ Done |
+| 4.5 | Statements | ✅ Done |
+| 5 | PDF + Public Invoice Links | 🔲 In Progress — public pages wired, PDF download not yet built |
+| 5.5 | Client Payment Submission | ⬜ Not Started |
 | 6 | Email (Resend via Edge Function) | ⬜ Not Started |
 | 7 | Background Jobs (Trigger.dev) | ⬜ Not Started |
 
@@ -109,3 +111,95 @@ Add `orgId: string | null` and `orgLoading: boolean` to `auth-context.tsx`. Afte
 3. Step 2 skip → lands on `/invoices`
 4. Logging in with an existing org → goes straight to `/invoices`, skips onboarding
 5. Navigating to `/onboarding/*` when org already exists → redirects to `/invoices`
+
+---
+
+## Stage 3 — Customers CRUD
+
+**Status:** ✅ Done
+
+**What was built:**
+- `apps/web/src/lib/queries/customers.ts` — `listCustomers`, `getCustomer`, `createCustomer`, `updateCustomer`, `deleteCustomer`
+- Customers list page wired — real data, empty state
+- Create/edit/delete customer sheets wired with TanStack Query mutations
+- Customer detail page — invoice list, stats, generate statement sheet
+- Customer list table columns populated with real invoice aggregates (invoice count, total paid, outstanding, last invoice date) via `listAllCustomerInvoiceSummaries`
+
+---
+
+## Stage 4 — Invoices CRUD
+
+**Status:** ✅ Done
+
+**What was built:**
+- `apps/web/src/lib/queries/invoices.ts` — full CRUD + `getNextInvoiceNumber`, `getInvoiceByToken`, `listCustomerInvoices`, `listAllCustomerInvoiceSummaries`
+- Create invoice page — line items, JSONB snapshot, auto-generated invoice number, `accept_payments` flag, `from_details`/`customer_details` snapshots on send
+- Edit invoice page — same as create, pre-populated from invoice row
+- Invoice detail page — status changes, duplicate action, send (snapshots org + customer details)
+- Invoice list page — full table with actions (duplicate, copy link, mark paid, delete)
+- Per-customer invoice number uniqueness enforced via DB partial unique index; inline error shown on conflict
+- Invoice settings persisted to `invoice_templates` table — loaded on every new invoice
+
+---
+
+## Stage 4.5 — Statements
+
+**Status:** ✅ Done
+
+**What was built:**
+- `statements` table — `id`, `org_id`, `customer_id`, `token`, `date_from`, `date_to`, `notes`, `snapshot_data` (JSONB), `from_details` (JSONB), `customer_details` (JSONB)
+- `apps/web/src/lib/queries/statements.ts` — `createStatement`, `getStatementByToken`
+- Generate statement sheet on customer detail — date range picker, filters invoices, builds snapshot, creates statement row, shows shareable link
+- Public statement page (`/s/:token`) — letterhead, ledger table (charges/payments/running balance), summary totals, copy link
+
+---
+
+## Stage 5 — PDF + Public Invoice Links
+
+**Status:** 🔲 In Progress
+
+**Done:**
+- Public invoice page (`/i/:token`) — fully wired to real data, `from_details`/`customer_details` rendered, `accept_payments` gates the Pay button, copy link
+- Public statement page (`/s/:token`) — fully wired, ledger view
+
+**Remaining:**
+- PDF download — "Download PDF" buttons exist on invoice detail and public invoice page but do nothing yet
+- `viewed_at` update when public invoice is loaded
+
+---
+
+## Stage 5.5 — Client Payment Submission
+
+**Status:** ⬜ Not Started
+
+**What to build:**
+- `invoice_payments` table — `id`, `invoice_id`, `org_id`, `amount`, `currency`, `payment_method`, `proof_url`, `note`, `submitted_at`, `status` (pending/confirmed/rejected), `confirmed_at`, `confirmed_by`
+- Add `partial` to invoice status enum
+- Supabase Storage bucket `payment-proofs` — private, signed URLs
+- Public invoice page: payment submission form (amount, method, proof upload, note) when `accept_payments = true`
+- Invoice detail: "Payments" tab showing submitted proofs with Confirm / Reject actions
+- `confirmPayment` RPC — updates payment status, recomputes invoice balance, flips invoice to `partial` or `paid`
+
+**Key design decision:** Payments are never auto-applied. Business must confirm, preventing Mpesa screenshot fraud.
+
+---
+
+## Stage 6 — Email (Resend via Edge Function)
+
+**Status:** ⬜ Not Started
+
+**To build:**
+- Edge Function `send-invoice-email` — sends invoice link via Resend, updates `sent_at`
+- Edge Function `send-statement-email` — sends statement link to customer billing email
+- Wire "Send Invoice" button and "Send to [customer]" button in statement sheet
+
+---
+
+## Stage 7 — Background Jobs (Trigger.dev)
+
+**Status:** ⬜ Not Started
+
+**To build:**
+- `mark-overdue` daily cron — flips `unpaid` invoices past due date to `overdue`
+- `exchange-rate-sync` daily cron — caches rates from Frankfurter API
+- At-creation overdue check — if sending an invoice with a past due date, set `overdue` immediately
