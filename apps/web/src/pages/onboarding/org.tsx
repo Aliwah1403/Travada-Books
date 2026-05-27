@@ -74,8 +74,13 @@ export function OnboardingOrgPage() {
       .insert({ org_id: orgId, user_id: user.id, role: "owner", status: "active" })
 
     if (memberError) {
-      await supabase.from("organizations").delete().eq("id", orgId)
-      setError(memberError.message)
+      const { error: rbError } = await supabase.from("organizations").delete().eq("id", orgId)
+      if (rbError) {
+        console.error(`Rollback failed for org ${orgId}: ${rbError.message}`)
+        setError(`${memberError.message} (rollback failed: ${rbError.message})`)
+      } else {
+        setError(memberError.message)
+      }
       setLoading(false)
       return
     }

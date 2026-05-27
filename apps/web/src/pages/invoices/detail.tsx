@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format, addWeeks, addMonths, addYears } from "date-fns";
@@ -149,28 +149,28 @@ export function InvoiceDetailPage() {
     enabled: !!invoice?.customer_id && !!orgId,
   });
 
-  // Sync internal note from DB once loaded
-  useState(() => {
+  useEffect(() => {
     if (invoice?.internal_note) setInternalNote(invoice.internal_note);
-  });
+  }, [invoice]);
 
   const updateMutation = useMutation({
-    mutationFn: ({ patch }: { patch: Parameters<typeof updateInvoice>[1]; label: string }) =>
-      updateInvoice(id!, patch),
-    onSuccess: (_, { label }) => {
+    mutationFn: ({ patch }: { patch: Parameters<typeof updateInvoice>[2]; label: string }) =>
+      updateInvoice(id!, orgId!, patch),
+    onMutate: ({ label }: { patch: Parameters<typeof updateInvoice>[2]; label: string }) => ({ label }),
+    onSuccess: (_, __, context) => {
       queryClient.invalidateQueries({ queryKey: ["invoice", id] });
       queryClient.invalidateQueries({ queryKey: ["invoices", orgId] });
-      toast.success(label);
+      toast.success(context?.label);
     },
-    onError: (_, { label }) => {
-      toast.error(`Failed to ${label.toLowerCase()}`, {
+    onError: (_, __, context) => {
+      toast.error(`Failed to ${context?.label?.toLowerCase()}`, {
         description: "Please try again.",
       });
     },
   });
 
   const deleteMutation = useMutation({
-    mutationFn: () => deleteInvoice(id!),
+    mutationFn: () => deleteInvoice(id!, orgId!),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["invoices", orgId] });
       toast.success("Invoice deleted");
@@ -182,7 +182,7 @@ export function InvoiceDetailPage() {
   });
 
   async function handleDuplicate() {
-    const nextNumber = await getNextInvoiceNumber(orgId!)
+    const nextNumber = await getNextInvoiceNumber(orgId!, invoice!.customer_id!)
     return createInvoice({
       org_id: orgId!,
       user_id: user!.id,
@@ -208,40 +208,40 @@ export function InvoiceDetailPage() {
     })
   }
 
+  const fromDetails = org
+    ? {
+        name: org.name,
+        logo_url: org.logo_url ?? null,
+        address_line1: org.address_line1 ?? null,
+        address_line2: org.address_line2 ?? null,
+        city: org.city ?? null,
+        zip: org.zip ?? null,
+        country_code: org.country_code ?? null,
+        phone: org.phone ?? null,
+        email: org.email ?? null,
+        tax_id: org.tax_id ?? null,
+      }
+    : null;
+
+  const customerDetails = customer
+    ? {
+        name: customer.name,
+        email: customer.email ?? null,
+        billing_email: customer.billing_email ?? null,
+        phone: customer.phone ?? null,
+        address_line1: customer.address_line1 ?? null,
+        address_line2: customer.address_line2 ?? null,
+        city: customer.city ?? null,
+        zip: customer.zip ?? null,
+        country: customer.country ?? null,
+      }
+    : null;
+
   function handleSaveNote() {
     updateMutation.mutate({ patch: { internal_note: internalNote }, label: "Note saved" });
   }
 
   function handleSendInvoice() {
-    const fromDetails = org
-      ? {
-          name: org.name,
-          logo_url: org.logo_url ?? null,
-          address_line1: org.address_line1 ?? null,
-          address_line2: org.address_line2 ?? null,
-          city: org.city ?? null,
-          zip: org.zip ?? null,
-          country_code: org.country_code ?? null,
-          phone: org.phone ?? null,
-          email: org.email ?? null,
-          tax_id: org.tax_id ?? null,
-        }
-      : null;
-
-    const customerDetails = customer
-      ? {
-          name: customer.name,
-          email: customer.email ?? null,
-          billing_email: customer.billing_email ?? null,
-          phone: customer.phone ?? null,
-          address_line1: customer.address_line1 ?? null,
-          address_line2: customer.address_line2 ?? null,
-          city: customer.city ?? null,
-          zip: customer.zip ?? null,
-          country: customer.country ?? null,
-        }
-      : null;
-
     updateMutation.mutate({
       patch: {
         status: "unpaid",
@@ -254,7 +254,15 @@ export function InvoiceDetailPage() {
   }
 
   function handleMarkPaid() {
-    updateMutation.mutate({ patch: { status: "paid", paid_at: new Date().toISOString() }, label: "Invoice marked as paid" });
+    updateMutation.mutate({
+      patch: {
+        status: "paid",
+        paid_at: new Date().toISOString(),
+        ...(!invoice!.from_details && fromDetails ? { from_details: fromDetails } : {}),
+        ...(!invoice!.customer_details && customerDetails ? { customer_details: customerDetails } : {}),
+      },
+      label: "Invoice marked as paid",
+    });
   }
 
   function handleCopyLink() {

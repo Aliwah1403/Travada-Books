@@ -64,7 +64,11 @@ export const quoteColumns: ColumnDef<Quote>[] = [
   {
     id: "actions",
     cell: ({ row }) => (
-      <QuoteActions quoteId={row.original.id} status={row.original.status} />
+      <QuoteActions
+        quoteId={row.original.id}
+        quoteToken={row.original.token}
+        status={row.original.status}
+      />
     ),
   },
 ];

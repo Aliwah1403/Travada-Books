@@ -13,7 +13,7 @@ import {
   FileEditIcon,
 } from "@travada-books/ui/icons";
 import { CustomerCombobox, type SelectedCustomer } from "@/components/invoices/customer-combobox";
-import { RecurringDialog } from "@/components/invoices/recurring-dialog";
+import { RecurringDialog, type RecurringFrequency } from "@/components/invoices/recurring-dialog";
 import { ScheduleDialog } from "@/components/invoices/schedule-dialog";
 import {
   InvoiceSettingsSheet,
@@ -309,7 +309,7 @@ export function EditInvoicePage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { org } = useAuth();
+  const { org, orgId } = useAuth();
 
   const [initialized, setInitialized] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<SelectedCustomer | null>(null);
@@ -322,7 +322,7 @@ export function EditInvoicePage() {
   const [vatRate, setVatRate] = useState("");
   const [paymentDetails, setPaymentDetails] = useState("");
   const [notes, setNotes] = useState("");
-  const [recurring, setRecurring] = useState("one_time");
+  const [recurring, setRecurring] = useState<RecurringFrequency>("one_time");
   const [deliveryMode, setDeliveryMode] = useState<"draft" | "send" | "schedule">("draft");
   const [recurringDialogOpen, setRecurringDialogOpen] = useState(false);
   const [scheduleDialogOpen, setScheduleDialogOpen] = useState(false);
@@ -346,16 +346,16 @@ export function EditInvoicePage() {
     enabled: !!orgId,
   });
 
-  // Redirect non-draft invoices back to the detail page
+  // Redirect non-draft invoices; initialize form for drafts
   useEffect(() => {
-    if (invoice && invoice.status !== "draft") {
-      navigate(`/invoices/${id}`, { replace: true });
-    }
-  }, [invoice, id, navigate]);
+    if (!invoice) return;
 
-  // Pre-populate form once invoice loads
-  useEffect(() => {
-    if (!invoice || initialized) return;
+    if (invoice.status !== "draft") {
+      navigate(`/invoices/${id}`, { replace: true });
+      return;
+    }
+
+    if (initialized) return;
 
     setSelectedCustomer(
       invoice.customer_id
@@ -377,7 +377,7 @@ export function EditInvoicePage() {
     setInvoiceNumber(invoice.invoice_number ?? "");
     setIssueDate(invoice.issue_date ? new Date(invoice.issue_date) : undefined);
     setDueDate(invoice.due_date ? new Date(invoice.due_date) : undefined);
-    setRecurring(invoice.recurring ?? "one_time");
+    setRecurring((invoice.recurring === "recurring" ? "monthly" : (invoice.recurring ?? "one_time")) as RecurringFrequency);
     setPaymentDetails(invoice.payment_details ?? "");
     setNotes(invoice.note ?? "");
     setDiscountType("fixed");
@@ -398,11 +398,20 @@ export function EditInvoicePage() {
     }));
 
     setInitialized(true);
-  }, [invoice, initialized, savedTemplate]);
+  }, [invoice, initialized, savedTemplate, id, navigate]);
+
+  const [issueDateChangedByUser, setIssueDateChangedByUser] = useState(false);
+
+  useEffect(() => {
+    if (!issueDateChangedByUser || !issueDate || invoiceSettings.paymentTerms == null) return;
+    const due = new Date(issueDate);
+    due.setDate(due.getDate() + invoiceSettings.paymentTerms);
+    setDueDate(due);
+  }, [issueDate, invoiceSettings.paymentTerms, issueDateChangedByUser]);
 
   const updateMutation = useMutation({
-    mutationFn: ({ patch }: { patch: Parameters<typeof updateInvoice>[1] }) =>
-      updateInvoice(id!, patch),
+    mutationFn: ({ patch }: { patch: Parameters<typeof updateInvoice>[2] }) =>
+      updateInvoice(id!, orgId!, patch),
     onSuccess: (updated) => {
       queryClient.invalidateQueries({ queryKey: ["invoices"] });
       queryClient.invalidateQueries({ queryKey: ["invoice", id] });
@@ -612,7 +621,7 @@ export function EditInvoicePage() {
       <RecurringDialog
         open={recurringDialogOpen}
         onOpenChange={setRecurringDialogOpen}
-        onSave={() => setRecurring("recurring")}
+        onSave={(settings) => setRecurring(settings.frequency)}
       />
       <ScheduleDialog
         open={scheduleDialogOpen}
@@ -680,7 +689,11 @@ export function EditInvoicePage() {
           <div className="grid grid-cols-2 gap-4">
             <div className="flex flex-col gap-1.5">
               <Label className="text-xs">Issue Date</Label>
-              <DatePicker value={issueDate} onChange={setIssueDate} placeholder="Pick issue date" />
+              <DatePicker
+                value={issueDate}
+                onChange={(d) => { setIssueDate(d); setIssueDateChangedByUser(true); }}
+                placeholder="Pick issue date"
+              />
             </div>
             <div className="flex flex-col gap-1.5">
               <Label className="text-xs">Due Date</Label>

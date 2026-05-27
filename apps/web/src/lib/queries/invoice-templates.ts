@@ -10,12 +10,14 @@ type InvoiceTemplateRow = {
   include_tax: boolean
   show_qty_column: boolean
   accept_payments: boolean
+  payment_terms: number | null
+  default_note: string | null
   cc: string
   bcc: string
 }
 
 const TEMPLATE_SELECT =
-  "id, org_id, is_default, invoice_template, date_format, include_tax, show_qty_column, accept_payments, cc, bcc"
+  "id, org_id, is_default, invoice_template, date_format, include_tax, show_qty_column, accept_payments, payment_terms, default_note, cc, bcc"
 
 export async function getOrgInvoiceTemplate(orgId: string): Promise<InvoiceSettings | null> {
   const { data, error } = await supabase
@@ -35,12 +37,14 @@ export async function upsertOrgInvoiceTemplate(
   orgId: string,
   settings: InvoiceSettings,
 ): Promise<void> {
-  const { data: existing } = await supabase
+  const { data: existing, error: lookupError } = await supabase
     .from("invoice_templates")
     .select("id")
     .eq("org_id", orgId)
     .eq("is_default", true)
     .maybeSingle()
+
+  if (lookupError) throw lookupError
 
   const payload = {
     org_id: orgId,
@@ -50,6 +54,8 @@ export async function upsertOrgInvoiceTemplate(
     include_tax: settings.showTaxColumn,
     show_qty_column: settings.showQtyColumn,
     accept_payments: settings.acceptPaymentsEnabled,
+    payment_terms: settings.paymentTerms,
+    default_note: settings.defaultNote || null,
     cc: settings.cc,
     bcc: settings.bcc,
   }
@@ -72,6 +78,8 @@ function rowToSettings(row: InvoiceTemplateRow): InvoiceSettings {
   return {
     invoiceTemplate: row.invoice_template ?? "classic",
     dateFormat: (row.date_format as InvoiceSettings["dateFormat"]) ?? "DD/MM/YYYY",
+    paymentTerms: row.payment_terms ?? null,
+    defaultNote: row.default_note ?? "",
     showTaxColumn: row.include_tax ?? false,
     showQtyColumn: row.show_qty_column ?? true,
     acceptPaymentsEnabled: row.accept_payments ?? false,

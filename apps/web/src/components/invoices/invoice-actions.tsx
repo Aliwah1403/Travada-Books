@@ -38,10 +38,8 @@ export function InvoiceActions({ invoiceId, status, token, invoiceNumber }: Invo
   const [deleteOpen, setDeleteOpen] = useState(false);
 
   async function handleDuplicate() {
-    const [invoice, nextNumber] = await Promise.all([
-      getInvoice(invoiceId),
-      getNextInvoiceNumber(orgId!),
-    ]);
+    const invoice = await getInvoice(invoiceId);
+    const nextNumber = await getNextInvoiceNumber(orgId!, invoice.customer_id!);
     return createInvoice({
       org_id: orgId!,
       user_id: user!.id,
@@ -83,14 +81,16 @@ export function InvoiceActions({ invoiceId, status, token, invoiceNumber }: Invo
           <DropdownMenuItem onClick={() => navigate(`/invoices/${invoiceId}`)}>
             View
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => navigate(`/invoices/${invoiceId}/edit`)}>
-            Edit
-          </DropdownMenuItem>
+          {status === "draft" && (
+            <DropdownMenuItem onClick={() => navigate(`/invoices/${invoiceId}/edit`)}>
+              Edit
+            </DropdownMenuItem>
+          )}
           {status !== "paid" && status !== "canceled" && (
             <DropdownMenuItem
               onClick={() => {
                 toast.promise(
-                  updateInvoice(invoiceId, { status: "paid", paid_at: new Date().toISOString() }),
+                  updateInvoice(invoiceId, orgId!, { status: "paid", paid_at: new Date().toISOString() }),
                   {
                     loading: "Marking as paid…",
                     success: () => { invalidate(); return "Invoice marked as paid"; },
@@ -156,7 +156,7 @@ export function InvoiceActions({ invoiceId, status, token, invoiceNumber }: Invo
               variant="destructive"
               onClick={() => {
                 setDeleteOpen(false);
-                toast.promise(deleteInvoice(invoiceId), {
+                toast.promise(deleteInvoice(invoiceId, orgId!), {
                   loading: "Deleting invoice…",
                   success: () => { invalidate(); return "Invoice deleted"; },
                   error: "Failed to delete invoice",

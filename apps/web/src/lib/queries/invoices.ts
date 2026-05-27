@@ -89,6 +89,31 @@ export type CustomerInvoiceSummary = {
 const INVOICE_SELECT =
   "id, created_at, updated_at, org_id, user_id, customer_id, customer_name, token, invoice_number, status, issue_date, due_date, currency, line_items, subtotal, tax_amount, discount, total, customer_details, from_details, note, internal_note, payment_details, recurring, delivery_type, scheduled_at, send_template_id, sent_at, paid_at, viewed_at, quote_id, accept_payments"
 
+// Excludes owner identifiers and private fields for unauthenticated token lookups
+const INVOICE_PUBLIC_SELECT =
+  "id, token, invoice_number, status, issue_date, due_date, currency, line_items, subtotal, tax_amount, discount, total, customer_details, from_details, note, payment_details, customer_name, accept_payments"
+
+export type PublicInvoice = {
+  id: string
+  token: string
+  invoice_number: string | null
+  status: string
+  issue_date: string | null
+  due_date: string | null
+  currency: string
+  line_items: LineItem[]
+  subtotal: number | null
+  tax_amount: number | null
+  discount: number | null
+  total: number | null
+  customer_details: Record<string, unknown> | null
+  from_details: Record<string, unknown> | null
+  note: string | null
+  payment_details: string | null
+  customer_name: string
+  accept_payments: boolean
+}
+
 export async function listInvoices(orgId: string): Promise<Invoice[]> {
   const { data, error } = await supabase
     .from("invoices")
@@ -131,11 +156,12 @@ export async function createInvoice(input: InvoiceInput): Promise<Invoice> {
   return data
 }
 
-export async function updateInvoice(id: string, patch: Partial<InvoiceInput> & { internal_note?: string; status?: string; paid_at?: string | null; sent_at?: string | null; from_details?: Record<string, unknown> | null; customer_details?: Record<string, unknown> | null }): Promise<Invoice> {
+export async function updateInvoice(id: string, orgId: string, patch: Partial<InvoiceInput> & { internal_note?: string; status?: string; paid_at?: string | null; sent_at?: string | null; from_details?: Record<string, unknown> | null; customer_details?: Record<string, unknown> | null }): Promise<Invoice> {
   const { data, error } = await supabase
     .from("invoices")
     .update({ ...patch, updated_at: new Date().toISOString() })
     .eq("id", id)
+    .eq("org_id", orgId)
     .select(INVOICE_SELECT)
     .single()
 
@@ -143,22 +169,23 @@ export async function updateInvoice(id: string, patch: Partial<InvoiceInput> & {
   return data
 }
 
-export async function deleteInvoice(id: string): Promise<void> {
-  const { error } = await supabase.from("invoices").delete().eq("id", id)
+export async function deleteInvoice(id: string, orgId: string): Promise<void> {
+  const { error } = await supabase.from("invoices").delete().eq("id", id).eq("org_id", orgId)
   if (error) throw error
 }
 
-export async function getNextInvoiceNumber(orgId: string): Promise<string> {
-  const { data, error } = await supabase.rpc("next_invoice_number", { p_org_id: orgId })
+export async function getNextInvoiceNumber(orgId: string, customerId: string): Promise<string> {
+  const { data, error } = await supabase.rpc("next_invoice_number", { p_org_id: orgId, p_customer_id: customerId })
   if (error) throw error
   return data as string
 }
 
-export async function listCustomerInvoices(customerId: string): Promise<Invoice[]> {
+export async function listCustomerInvoices(customerId: string, orgId: string): Promise<Invoice[]> {
   const { data, error } = await supabase
     .from("invoices")
     .select(INVOICE_SELECT)
     .eq("customer_id", customerId)
+    .eq("org_id", orgId)
     .order("created_at", { ascending: false })
 
   if (error) throw error
@@ -190,11 +217,12 @@ export async function listAllCustomerInvoiceSummaries(orgId: string): Promise<Cu
   return map
 }
 
-export async function getCustomerInvoiceSummary(customerId: string): Promise<CustomerInvoiceSummary> {
+export async function getCustomerInvoiceSummary(customerId: string, orgId: string): Promise<CustomerInvoiceSummary> {
   const { data, error } = await supabase
     .from("invoices")
     .select("status, total")
     .eq("customer_id", customerId)
+    .eq("org_id", orgId)
 
   if (error) throw error
 
@@ -215,15 +243,15 @@ export async function getCustomerInvoiceSummary(customerId: string): Promise<Cus
   }
 }
 
-export async function getInvoiceByToken(token: string): Promise<Invoice> {
+export async function getInvoiceByToken(token: string): Promise<PublicInvoice> {
   const { data, error } = await supabase
     .from("invoices")
-    .select(INVOICE_SELECT)
+    .select(INVOICE_PUBLIC_SELECT)
     .eq("token", token)
     .single()
 
   if (error) throw error
-  return data
+  return data as PublicInvoice
 }
 
 export async function listSendTemplates(): Promise<SendTemplate[]> {

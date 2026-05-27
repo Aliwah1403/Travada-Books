@@ -13,6 +13,7 @@ One stage at a time. Each stage is validated before moving to the next.
 | 3 | Customers CRUD | ✅ Done |
 | 4 | Invoices CRUD | ✅ Done |
 | 4.5 | Statements | ✅ Done |
+| 4.75 | Quotes CRUD | ✅ Done |
 | 5 | PDF + Public Invoice Links | 🔲 In Progress — public pages wired, PDF download not yet built |
 | 5.5 | Client Payment Submission | ⬜ Not Started |
 | 6 | Email (Resend via Edge Function) | ⬜ Not Started |
@@ -201,5 +202,82 @@ Add `orgId: string | null` and `orgLoading: boolean` to `auth-context.tsx`. Afte
 
 **To build:**
 - `mark-overdue` daily cron — flips `unpaid` invoices past due date to `overdue`
-- `exchange-rate-sync` daily cron — caches rates from Frankfurter API
+- `exchange-rate-sync` daily cron — fetches the full currency matrix and upserts into `exchange_rates`
 - At-creation overdue check — if sending an invoice with a past due date, set `overdue` immediately
+
+### Exchange Rate Sync — Implementation Notes
+
+**Approach (modelled on Midday's pattern):**
+
+#### 1. DB Migration
+
+Create `exchange_rates` table:
+```sql
+create table exchange_rates (
+  base        text not null,
+  target      text not null,
+  rate        numeric not null,
+  updated_at  timestamptz not null default now(),
+  primary key (base, target)
+);
+```
+
+Add to `invoices` table:
+```sql
+alter table invoices
+  add column exchange_rate    numeric,       -- rate used at write time (audit trail)
+  add column converted_amount numeric,       -- total in org's base currency
+  add column base_currency    text;          -- org's base currency at write time
+```
+
+#### 2. Trigger.dev Daily Cron — `exchange-rate-sync`
+
+Fetch the **full currency matrix** — every supported currency to every other — so any `base → target` pair is available regardless of what org base currencies exist. This is future-proof: a USD-based org invoicing in EUR, a GBP-based org invoicing in KES, etc. all work without any changes.
+
+**Two candidate APIs (test both, pick the winner):**
+
+**Option A — `@fawazahmed0/currency-api`** (Midday's actual choice)
+- CDN-hosted, no API key, updated daily
+- Fetch each currency individually, all in parallel:
+  ```ts
+  const ENDPOINT = "https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1"
+  // GET /currencies/{currency}.json  →  { "date": "...", "{currency}": { "usd": 1.08, "kes": 140, ... } }
+  ```
+- Loop over all supported currencies, `Promise.allSettled`, filter fulfilled, transform keys to uppercase, filter to only known currencies
+- Produces the full N×N matrix in one job run
+
+**Option B — Frankfurter** (ECB-based, originally planned)
+- No API key, ECB data
+- Single fetch gives rates from one base to all others: `https://api.frankfurter.app/latest?base=USD`
+- To get the full matrix, loop over all base currencies and fetch each — same `Promise.allSettled` pattern as Option A
+- Shape: `{ "base": "USD", "rates": { "EUR": 0.92, "KES": 129.5, ... } }`
+
+Both produce the same DB output. Test for reliability, rate freshness, and latency under parallel fetches.
+
+#### 3. Batch Upsert into `exchange_rates`
+
+After fetching, upsert all pairs in batches (e.g. 1000 rows per transaction) with conflict on `(base, target)` → update `rate` and `updated_at`. Same pattern as Midday's `upsertExchangeRates`.
+
+#### 4. Convert at Write Time, Not Read Time
+
+When an invoice is created or sent, look up `exchange_rates WHERE base = invoiceCurrency AND target = orgBaseCurrency`, then write `exchange_rate`, `converted_amount`, and `base_currency` onto the invoice row. Reporting queries (`getStats` in `invoices/index.tsx`) read `converted_amount` directly — no runtime math.
+
+If org base currency = invoice currency, rate = 1 and `converted_amount = total` (no lookup needed).
+
+#### 5. Base Currency Change Re-converts Everything
+
+If an org changes their base currency in settings (future settings feature), trigger a background job that re-fetches the stored rate for each invoice and recomputes `converted_amount` and `base_currency`. This keeps historical reporting correct under the new base. Midday does this with a live progress indicator — worth doing the same.
+
+#### 6. In-Process Rate Cache
+
+In `queries/exchange-rates.ts`, keep a module-level `Map<string, { rate: number; ts: number }>` keyed by `"BASE:TARGET"` with a 4-hour TTL. On cache miss, query the DB. This avoids a round-trip on every invoice save without adding Redis or any external dependency.
+
+#### 7. Remove the Hardcoded `* 130`
+
+Once `converted_amount` is on every invoice row, replace the `i.amount * 130` line in `getStats` (`invoices/index.tsx`) with `i.convertedAmount ?? i.amount`. The fallback handles any legacy rows created before the migration.
+
+**Key design decisions:**
+- Full N×N matrix stored as `base/target` pairs — any org base currency works without schema changes
+- Write-time conversion: `converted_amount` is frozen at invoice creation, correct for P&L and audit even if rates move
+- `exchange_rate` + `base_currency` on the invoice row = full audit trail of what rate was applied and against what base
+- In-process cache with TTL keeps invoice saves fast without infrastructure overhead

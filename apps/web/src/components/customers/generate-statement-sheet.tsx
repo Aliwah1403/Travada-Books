@@ -75,8 +75,8 @@ export function GenerateStatementSheet({
 
   const { data: allInvoices = [] } = useQuery({
     queryKey: ["customer-invoices", customerId],
-    queryFn: () => listCustomerInvoices(customerId),
-    enabled: !!customerId && open,
+    queryFn: () => listCustomerInvoices(customerId, orgId!),
+    enabled: !!customerId && !!orgId && open,
   });
 
   function handleOpenChange(next: boolean) {
@@ -149,10 +149,14 @@ export function GenerateStatementSheet({
     }
   }
 
-  function copyLink() {
+  async function copyLink() {
     if (!generatedLink) return;
-    navigator.clipboard.writeText(generatedLink);
-    toast.success("Link copied to clipboard");
+    try {
+      await navigator.clipboard.writeText(generatedLink);
+      toast.success("Link copied to clipboard");
+    } catch {
+      toast.error("Failed to copy link. Please copy it manually.");
+    }
   }
 
   return (

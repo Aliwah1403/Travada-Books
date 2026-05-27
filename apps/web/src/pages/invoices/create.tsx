@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -13,7 +13,7 @@ import {
   FileEditIcon,
 } from "@travada-books/ui/icons";
 import { CustomerCombobox, type SelectedCustomer } from "@/components/invoices/customer-combobox";
-import { RecurringDialog } from "@/components/invoices/recurring-dialog";
+import { RecurringDialog, type RecurringFrequency } from "@/components/invoices/recurring-dialog";
 import { ScheduleDialog } from "@/components/invoices/schedule-dialog";
 import {
   InvoiceSettingsSheet,
@@ -336,7 +336,7 @@ export function CreateInvoicePage() {
         country: preselectedCustomer.country,
       });
     }
-  }, [preselectedCustomer]);
+  }, [preselectedCustomer, selectedCustomer]);
   const [currency, setCurrency] = useState("KES");
   const [invoiceNumber, setInvoiceNumber] = useState("");
   const [issueDate, setIssueDate] = useState<Date | undefined>(undefined);
@@ -346,7 +346,7 @@ export function CreateInvoicePage() {
   const [vatRate, setVatRate] = useState("");
   const [paymentDetails, setPaymentDetails] = useState("");
   const [notes, setNotes] = useState("");
-  const [recurring, setRecurring] = useState("one_time");
+  const [recurring, setRecurring] = useState<RecurringFrequency>("one_time");
   const [deliveryMode, setDeliveryMode] = useState<"draft" | "send" | "schedule">("draft");
   const [recurringDialogOpen, setRecurringDialogOpen] = useState(false);
   const [scheduleDialogOpen, setScheduleDialogOpen] = useState(false);
@@ -358,12 +358,10 @@ export function CreateInvoicePage() {
   ]);
   const [invoiceNumberError, setInvoiceNumberError] = useState<string | null>(null);
 
-  const invoiceNumberSet = useRef(false);
-
   const { data: nextNumber } = useQuery({
-    queryKey: ["next-invoice-number", orgId],
-    queryFn: () => getNextInvoiceNumber(orgId!),
-    enabled: !!orgId,
+    queryKey: ["next-invoice-number", orgId, selectedCustomer?.id],
+    queryFn: () => getNextInvoiceNumber(orgId!, selectedCustomer!.id),
+    enabled: !!orgId && !!selectedCustomer?.id,
   });
 
   const { data: savedTemplate } = useQuery({
@@ -373,16 +371,22 @@ export function CreateInvoicePage() {
   });
 
   useEffect(() => {
-    if (savedTemplate) setInvoiceSettings(savedTemplate);
+    if (savedTemplate) {
+      setInvoiceSettings(savedTemplate);
+      if (savedTemplate.defaultNote) setNotes(savedTemplate.defaultNote);
+    }
   }, [savedTemplate]);
 
-  // Auto-fill invoice number only once, after a customer is first selected
   useEffect(() => {
-    if (nextNumber && selectedCustomer && !invoiceNumberSet.current) {
-      setInvoiceNumber(nextNumber);
-      invoiceNumberSet.current = true;
-    }
-  }, [nextNumber, selectedCustomer]);
+    if (nextNumber) setInvoiceNumber(nextNumber);
+  }, [nextNumber]);
+
+  useEffect(() => {
+    if (!issueDate || invoiceSettings.paymentTerms == null) return;
+    const due = new Date(issueDate);
+    due.setDate(due.getDate() + invoiceSettings.paymentTerms);
+    setDueDate(due);
+  }, [issueDate, invoiceSettings.paymentTerms]);
 
   const createMutation = useMutation({
     mutationFn: createInvoice,
@@ -611,7 +615,7 @@ export function CreateInvoicePage() {
       <RecurringDialog
         open={recurringDialogOpen}
         onOpenChange={setRecurringDialogOpen}
-        onSave={() => setRecurring("recurring")}
+        onSave={(settings) => setRecurring(settings.frequency)}
       />
       <ScheduleDialog
         open={scheduleDialogOpen}

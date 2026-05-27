@@ -1,76 +1,30 @@
 import { useState } from "react";
 import { useNavigate } from "react-router";
+import { useQuery } from "@tanstack/react-query";
 import { FilterIcon, Search01Icon, Cancel01Icon } from "@travada-books/ui/icons";
 import { Button } from "@travada-books/ui/components/button";
 import { Input } from "@travada-books/ui/components/input";
+import { Skeleton } from "@travada-books/ui/components/skeleton";
 import { QuoteStats } from "@/components/quotes/quote-stats";
-import { QuoteTable, type Quote } from "@/components/quotes/quote-table";
+import { QuoteTable, type Quote as UIQuote } from "@/components/quotes/quote-table";
+import { listQuotes } from "@/lib/queries/quotes";
+import { useAuth } from "@/contexts/auth-context";
+import { format } from "date-fns";
 
-const mockQuotes: Quote[] = [
-  {
-    id: "1",
-    number: "QUO-0001",
-    status: "accepted",
-    customer: "Callfast Services LTD",
-    amount: 25890,
-    currency: "KES",
-    validUntil: "30/06/2025",
-    issueDate: "01/06/2025",
-  },
-  {
-    id: "2",
-    number: "QUO-0002",
-    status: "sent",
-    customer: "Studio X",
-    amount: 800,
-    currency: "USD",
-    validUntil: "15/07/2025",
-    issueDate: "15/06/2025",
-  },
-  {
-    id: "3",
-    number: "QUO-0003",
-    status: "declined",
-    customer: "Acme Ltd",
-    amount: 5000,
-    currency: "KES",
-    validUntil: "01/05/2025",
-    issueDate: "01/04/2025",
-  },
-  {
-    id: "4",
-    number: "QUO-0004",
-    status: "draft",
-    customer: "Nova Agency",
-    amount: 12500,
-    currency: "KES",
-    validUntil: "31/07/2025",
-    issueDate: "20/06/2025",
-  },
-  {
-    id: "5",
-    number: "QUO-0005",
-    status: "expired",
-    customer: "Bright Futures NGO",
-    amount: 45000,
-    currency: "KES",
-    validUntil: "01/03/2025",
-    issueDate: "01/02/2025",
-  },
-];
+function resolveStatus(status: string, validUntil: string | null): UIQuote["status"] {
+  if (status === "sent" && validUntil && new Date(validUntil) < new Date()) {
+    return "expired";
+  }
+  return status as UIQuote["status"];
+}
 
-function getStats(quotes: Quote[]) {
-  const open = quotes.filter(
-    (q) => q.status === "draft" || q.status === "sent",
-  );
+function getStats(quotes: UIQuote[]) {
+  const open = quotes.filter((q) => q.status === "draft" || q.status === "sent");
   const accepted = quotes.filter((q) => q.status === "accepted");
   const expired = quotes.filter((q) => q.status === "expired");
 
-  const sum = (arr: Quote[]) =>
-    arr.reduce(
-      (acc, q) => acc + (q.currency === "KES" ? q.amount : q.amount * 130),
-      0,
-    );
+  const sum = (arr: UIQuote[]) =>
+    arr.reduce((acc, q) => acc + (q.currency === "KES" ? q.amount : q.amount * 130), 0);
 
   return {
     open: {
@@ -93,12 +47,40 @@ function getStats(quotes: Quote[]) {
 
 export function QuotesPage() {
   const navigate = useNavigate();
+  const { orgId } = useAuth();
   const [search, setSearch] = useState("");
-  const stats = getStats(mockQuotes);
+
+  const { data: rawQuotes = [], isLoading } = useQuery({
+    queryKey: ["quotes", orgId],
+    queryFn: () => listQuotes(orgId!),
+    enabled: !!orgId,
+  });
+
+  const quotes: UIQuote[] = rawQuotes.map((q) => ({
+    id: q.id,
+    number: q.quote_number ?? "—",
+    token: q.token,
+    status: resolveStatus(q.status, q.valid_until),
+    validUntil: q.valid_until ? format(new Date(q.valid_until), "dd/MM/yyyy") : "—",
+    customer: q.customer_name ?? "—",
+    amount: q.total ?? 0,
+    currency: q.currency,
+    issueDate: q.issue_date ? format(new Date(q.issue_date), "dd/MM/yyyy") : "—",
+  }));
+
+  const stats = getStats(quotes);
 
   return (
     <div className="flex flex-col gap-6 p-6">
-      <QuoteStats {...stats} />
+      {isLoading ? (
+        <div className="grid grid-cols-3 gap-4">
+          {[0, 1, 2].map((i) => (
+            <Skeleton key={i} className="h-24 rounded-lg" />
+          ))}
+        </div>
+      ) : (
+        <QuoteStats {...stats} />
+      )}
 
       {/* Toolbar */}
       <div className="flex items-center justify-between gap-2">
@@ -133,7 +115,11 @@ export function QuotesPage() {
         </Button>
       </div>
 
-      <QuoteTable data={mockQuotes} globalFilter={search} />
+      {isLoading ? (
+        <Skeleton className="h-48 rounded-lg" />
+      ) : (
+        <QuoteTable data={quotes} globalFilter={search} />
+      )}
     </div>
   );
 }

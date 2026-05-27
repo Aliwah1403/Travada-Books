@@ -21,6 +21,7 @@ import { quoteColumns } from "./quote-columns";
 export type Quote = {
   id: string;
   number: string;
+  token: string;
   status: QuoteStatus;
   validUntil: string;
   customer: string;

@@ -141,7 +141,11 @@ export function EditCustomerSheet({
   }
 
   async function onSubmit(data: FormValues) {
-    if (!customerId || !orgId) return;
+    if (!customerId) return;
+    if (!orgId) {
+      toast.error("Organization not found. Please refresh and try again.");
+      return;
+    }
     try {
       await updateCustomer(customerId, orgId, {
         name: data.name,

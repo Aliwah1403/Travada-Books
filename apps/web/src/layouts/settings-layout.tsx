@@ -10,7 +10,6 @@ type SettingsNavItem = {
 
 const settingsNav: SettingsNavItem[] = [
   { label: "General", to: "/settings/general" },
-  { label: "Invoices", to: "/settings/invoices" },
   { label: "Team", to: "/settings/team", comingSoon: true },
   { label: "Integrations", to: "/settings/integrations", comingSoon: true },
   { label: "Billing", to: "/settings/billing", comingSoon: true },

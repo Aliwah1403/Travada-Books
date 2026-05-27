@@ -18,6 +18,7 @@ import { InvoiceDetailPage } from "@/pages/invoices/detail"
 import { QuotesPage } from "@/pages/quotes/index"
 import { CreateQuotePage } from "@/pages/quotes/create"
 import { QuoteDetailPage } from "@/pages/quotes/detail"
+import { EditQuotePage } from "@/pages/quotes/edit"
 import { CustomersPage } from "@/pages/customers/index"
 import { CustomerDetailPage } from "@/pages/customers/detail"
 import { PublicInvoicePage } from "@/pages/invoice-public/token"
@@ -27,7 +28,6 @@ import { StatementDetailPage } from "@/pages/statements/detail"
 import { PublicStatementPage } from "@/pages/statement-public/token"
 
 import { GeneralSettingsPage } from "@/pages/settings/general"
-import { InvoiceSettingsPage } from "@/pages/settings/invoices"
 import { TeamSettingsPage } from "@/pages/settings/team"
 import { IntegrationsSettingsPage } from "@/pages/settings/integrations"
 import { BillingSettingsPage } from "@/pages/settings/billing"
@@ -69,6 +69,7 @@ const router = createBrowserRouter([
       { path: "/invoices/:id", element: <InvoiceDetailPage /> },
       { path: "/quotes", element: <QuotesPage /> },
       { path: "/quotes/create", element: <CreateQuotePage /> },
+      { path: "/quotes/:id/edit", element: <EditQuotePage /> },
       { path: "/quotes/:id", element: <QuoteDetailPage /> },
       { path: "/customers", element: <CustomersPage /> },
       { path: "/customers/:id", element: <CustomerDetailPage /> },
@@ -79,7 +80,6 @@ const router = createBrowserRouter([
         children: [
           { index: true, element: <Navigate to="/settings/general" replace /> },
           { path: "general", element: <GeneralSettingsPage /> },
-          { path: "invoices", element: <InvoiceSettingsPage /> },
           { path: "team", element: <TeamSettingsPage /> },
           { path: "integrations", element: <IntegrationsSettingsPage /> },
           { path: "billing", element: <BillingSettingsPage /> },

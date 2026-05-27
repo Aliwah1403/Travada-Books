@@ -64,14 +64,14 @@ export function CustomerDetailPage() {
 
   const { data: invoiceSummary } = useQuery({
     queryKey: ["customer-invoice-summary", id],
-    queryFn: () => getCustomerInvoiceSummary(id!),
-    enabled: !!id,
+    queryFn: () => getCustomerInvoiceSummary(id!, orgId!),
+    enabled: !!id && !!orgId,
   });
 
   const { data: customerInvoices = [] } = useQuery({
     queryKey: ["customer-invoices", id],
-    queryFn: () => listCustomerInvoices(id!),
-    enabled: !!id,
+    queryFn: () => listCustomerInvoices(id!, orgId!),
+    enabled: !!id && !!orgId,
   });
 
   const {
@@ -81,7 +81,7 @@ export function CustomerDetailPage() {
   } = useQuery({
     queryKey: ["customer", id],
     queryFn: () => getCustomer(id!, orgId!),
-    enabled: !!id,
+    enabled: !!id && !!orgId,
   });
 
   const deleteMutation = useMutation({
