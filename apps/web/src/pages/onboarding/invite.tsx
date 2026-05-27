@@ -50,7 +50,7 @@ export function OnboardingInvitePage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    const validEmails = emails.map((e) => e.trim()).filter(Boolean)
+    const validEmails = Array.from(new Set(emails.map((e) => e.trim().toLowerCase()))).filter(Boolean)
 
     if (validEmails.length === 0) {
       await finish()

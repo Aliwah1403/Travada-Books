@@ -1,5 +1,5 @@
-import { useState } from "react"
-import { useNavigate, useSearchParams } from "react-router"
+import { useState, useEffect } from "react"
+import { useNavigate } from "react-router"
 import { Button } from "@travada-books/ui/components/button"
 import { Input } from "@travada-books/ui/components/input"
 import { Label } from "@travada-books/ui/components/label"
@@ -9,21 +9,24 @@ import { supabase } from "@/lib/supabase"
 
 export function ResetPasswordPage() {
   const navigate = useNavigate()
-  const [searchParams] = useSearchParams()
-  const email = searchParams.get("email") ?? ""
-  const isValidEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
-
-  if (!isValidEmail) {
-    navigate("/forgot-password", { replace: true })
-    return null
-  }
-
   const [password, setPassword] = useState("")
   const [confirm, setConfirm] = useState("")
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
+
+  const isValidEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
+    sessionStorage.getItem("fp_email") ?? ""
+  )
+
+  useEffect(() => {
+    if (!isValidEmail) {
+      navigate("/forgot-password", { replace: true })
+    }
+  }, [isValidEmail, navigate])
+
+  if (!isValidEmail) return null
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -43,6 +46,7 @@ export function ResetPasswordPage() {
       setError(error.message)
       return
     }
+    sessionStorage.removeItem("fp_email")
     await supabase.auth.signOut()
     navigate("/login")
   }

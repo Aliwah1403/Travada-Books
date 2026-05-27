@@ -38,7 +38,11 @@ import { InvoiceTable } from "@/components/invoices/invoice-table";
 import { EditCustomerSheet } from "@/components/customers/edit-customer-sheet";
 import { GenerateStatementSheet } from "@/components/customers/generate-statement-sheet";
 import { getCustomer, deleteCustomer } from "@/lib/queries/customers";
+import { listCustomerInvoices, getCustomerInvoiceSummary } from "@/lib/queries/invoices";
+import { type Invoice } from "@/components/invoices/invoice-table";
 import { useAuth } from "@/contexts/auth-context";
+import { format } from "date-fns";
+import { toast } from "sonner";
 
 function InfoRow({ label, value }: { label: string; value: string }) {
   return (
@@ -58,21 +62,38 @@ export function CustomerDetailPage() {
   const [statementOpen, setStatementOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
 
+  const { data: invoiceSummary } = useQuery({
+    queryKey: ["customer-invoice-summary", id],
+    queryFn: () => getCustomerInvoiceSummary(id!),
+    enabled: !!id,
+  });
+
+  const { data: customerInvoices = [] } = useQuery({
+    queryKey: ["customer-invoices", id],
+    queryFn: () => listCustomerInvoices(id!),
+    enabled: !!id,
+  });
+
   const {
     data: customer,
     isLoading,
     isError,
   } = useQuery({
     queryKey: ["customer", id],
-    queryFn: () => getCustomer(id!),
+    queryFn: () => getCustomer(id!, orgId!),
     enabled: !!id,
   });
 
   const deleteMutation = useMutation({
-    mutationFn: () => deleteCustomer(id!),
+    mutationFn: () => deleteCustomer(id!, orgId!),
     onSuccess: () => {
+      setDeleteOpen(false);
       queryClient.invalidateQueries({ queryKey: ["customers", orgId] });
+      toast.success("Customer deleted");
       navigate("/customers");
+    },
+    onError: () => {
+      toast.error("Failed to delete customer", { description: "Please try again." });
     },
   });
 
@@ -93,7 +114,15 @@ export function CustomerDetailPage() {
     );
   }
 
-  if (isError || !customer) {
+  if (isError) {
+    return (
+      <div className='flex h-full items-center justify-center'>
+        <p className='text-sm text-muted-foreground'>An error occurred while loading the customer. Please try again.</p>
+      </div>
+    );
+  }
+
+  if (!customer) {
     return (
       <div className='flex h-full items-center justify-center'>
         <p className='text-sm text-muted-foreground'>Customer not found.</p>
@@ -128,7 +157,7 @@ export function CustomerDetailPage() {
           <Button
             variant='outline'
             className='gap-1.5'
-            onClick={() => navigate("/invoices/create")}
+            onClick={() => navigate(`/invoices/create?customerId=${id}`)}
           >
             <PlusSignIcon size={13} />
             New Invoice
@@ -155,17 +184,19 @@ export function CustomerDetailPage() {
         </div>
       </div>
 
-      {/* KPI row — invoice totals populate in Stage 4 */}
+      {/* KPI row */}
       <div className='grid shrink-0 grid-cols-4 gap-4 border-b p-4'>
         <Card>
           <CardContent className='p-4'>
             <div className='flex flex-col justify-between gap-3'>
-              <p className='text-xl font-semibold tracking-tight'>—</p>
+              <p className='text-xl font-semibold tracking-tight'>
+                {invoiceSummary
+                  ? `${currency} ${invoiceSummary.totalInvoiced.toLocaleString("en-KE", { minimumFractionDigits: 2 })}`
+                  : "—"}
+              </p>
               <div>
                 <p className='text-sm'>Total Invoiced</p>
-                <p className='mt-0.5 text-xs text-muted-foreground'>
-                  Lifetime value
-                </p>
+                <p className='mt-0.5 text-xs text-muted-foreground'>Lifetime value</p>
               </div>
             </div>
           </CardContent>
@@ -174,13 +205,13 @@ export function CustomerDetailPage() {
           <CardContent className='p-4'>
             <div className='flex flex-col justify-between gap-3'>
               <p className='text-xl font-semibold tracking-tight text-green-600 dark:text-green-400'>
-                —
+                {invoiceSummary
+                  ? `${currency} ${invoiceSummary.totalPaid.toLocaleString("en-KE", { minimumFractionDigits: 2 })}`
+                  : "—"}
               </p>
               <div>
                 <p className='text-sm'>Total Paid</p>
-                <p className='mt-0.5 text-xs text-muted-foreground'>
-                  Collected to date
-                </p>
+                <p className='mt-0.5 text-xs text-muted-foreground'>Collected to date</p>
               </div>
             </div>
           </CardContent>
@@ -188,12 +219,14 @@ export function CustomerDetailPage() {
         <Card>
           <CardContent className='p-4'>
             <div className='flex flex-col justify-between gap-3'>
-              <p className='text-xl font-semibold tracking-tight'>—</p>
+              <p className='text-xl font-semibold tracking-tight'>
+                {invoiceSummary
+                  ? `${currency} ${invoiceSummary.outstanding.toLocaleString("en-KE", { minimumFractionDigits: 2 })}`
+                  : "—"}
+              </p>
               <div>
                 <p className='text-sm'>Outstanding</p>
-                <p className='mt-0.5 text-xs text-muted-foreground'>
-                  Awaiting payment
-                </p>
+                <p className='mt-0.5 text-xs text-muted-foreground'>Awaiting payment</p>
               </div>
             </div>
           </CardContent>
@@ -201,12 +234,12 @@ export function CustomerDetailPage() {
         <Card>
           <CardContent className='p-4'>
             <div className='flex flex-col justify-between gap-3'>
-              <p className='text-xl font-semibold tracking-tight'>—</p>
+              <p className='text-xl font-semibold tracking-tight'>
+                {invoiceSummary ? invoiceSummary.invoiceCount : "—"}
+              </p>
               <div>
                 <p className='text-sm'>Invoices</p>
-                <p className='mt-0.5 text-xs text-muted-foreground'>
-                  Total issued
-                </p>
+                <p className='mt-0.5 text-xs text-muted-foreground'>Total issued</p>
               </div>
             </div>
           </CardContent>
@@ -488,10 +521,23 @@ export function CustomerDetailPage() {
           )}
         </div>
 
-        {/* Right main area — invoice history (populated in Stage 4) */}
+        {/* Right main area — invoice history */}
         <div className='flex flex-1 flex-col overflow-y-auto p-6'>
           <p className='mb-4 text-sm font-medium'>Invoice history</p>
-          <InvoiceTable data={[]} />
+          <InvoiceTable
+            data={customerInvoices.map((inv) => ({
+              id: inv.id,
+              number: inv.invoice_number ?? "—",
+              status: inv.status as Invoice["status"],
+              customer: inv.customer_name,
+              amount: inv.total ?? 0,
+              currency: inv.currency,
+              dueDate: inv.due_date ? format(new Date(inv.due_date), "dd/MM/yyyy") : null,
+              issueDate: inv.issue_date ? format(new Date(inv.issue_date), "dd/MM/yyyy") : null,
+              recurring: inv.recurring,
+              token: inv.token,
+            }))}
+          />
         </div>
       </div>
 
@@ -508,10 +554,7 @@ export function CustomerDetailPage() {
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <Button
               variant='destructive'
-              onClick={() => {
-                setDeleteOpen(false);
-                handleDelete();
-              }}
+              onClick={handleDelete}
               disabled={deleteMutation.isPending}
             >
               Delete
@@ -524,6 +567,18 @@ export function CustomerDetailPage() {
         open={statementOpen}
         onOpenChange={setStatementOpen}
         customerName={customer.name}
+        customerId={customer.id}
+        customerDetails={{
+          name: customer.name,
+          email: customer.email ?? null,
+          billing_email: customer.billing_email ?? null,
+          phone: customer.phone ?? null,
+          address_line1: customer.address_line1 ?? null,
+          address_line2: customer.address_line2 ?? null,
+          city: customer.city ?? null,
+          zip: customer.zip ?? null,
+          country: customer.country ?? null,
+        }}
       />
       <EditCustomerSheet
         open={editOpen}
@@ -540,7 +595,7 @@ export function CustomerDetailPage() {
           website: customer.website ?? "",
           vatNumber: customer.vat_number ?? "",
           country: customer.country ?? "",
-          currency: customer.preferred_currency ?? "KES",
+          currency: customer.preferred_currency ?? undefined,
           addressLine1: customer.address_line1 ?? "",
           addressLine2: customer.address_line2 ?? "",
           city: customer.city ?? "",

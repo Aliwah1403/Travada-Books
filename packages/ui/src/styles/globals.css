@@ -137,3 +137,12 @@
     cursor: pointer;
     }
 }
+
+@keyframes fade-spin {
+  0% { opacity: 1; }
+  100% { opacity: 0.15; }
+}
+
+@utility animate-fade-spin {
+  animation: fade-spin 1.2s linear infinite;
+}

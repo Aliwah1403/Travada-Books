@@ -74,6 +74,7 @@ export function OnboardingOrgPage() {
       .insert({ org_id: orgId, user_id: user.id, role: "owner", status: "active" })
 
     if (memberError) {
+      await supabase.from("organizations").delete().eq("id", orgId)
       setError(memberError.message)
       setLoading(false)
       return

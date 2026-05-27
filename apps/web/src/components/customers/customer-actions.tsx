@@ -26,7 +26,7 @@ import {
 type CustomerActionsProps = {
   customerId: string;
   customer: CustomerEditValues;
-  onDelete?: () => void;
+  onDelete: () => void;
   onUpdated?: () => void;
 };
 
@@ -44,7 +44,7 @@ export function CustomerActions({
     <>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant='ghost' size='icon-sm'>
+          <Button variant='ghost' size='icon-sm' aria-label='More actions' aria-haspopup='menu'>
             <MoreHorizontalIcon size={14} />
           </Button>
         </DropdownMenuTrigger>
@@ -86,7 +86,7 @@ export function CustomerActions({
               className='h-10 w-20'
               onClick={() => {
                 setDeleteOpen(false);
-                onDelete?.();
+                onDelete();
               }}
             >
               Delete

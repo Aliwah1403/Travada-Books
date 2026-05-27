@@ -98,7 +98,7 @@ export const invoiceColumns: ColumnDef<Invoice>[] = [
   {
     id: "actions",
     cell: ({ row }) => (
-      <InvoiceActions invoiceId={row.original.id} status={row.original.status} />
+      <InvoiceActions invoiceId={row.original.id} status={row.original.status} token={row.original.token} invoiceNumber={row.original.number} />
     ),
   },
 ];

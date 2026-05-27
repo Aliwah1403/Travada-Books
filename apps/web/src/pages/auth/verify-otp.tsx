@@ -1,5 +1,5 @@
-import { useRef, useState, useCallback } from "react";
-import { useNavigate, useSearchParams } from "react-router";
+import { useRef, useState, useCallback, useEffect } from "react";
+import { useNavigate } from "react-router";
 import { Button } from "@travada-books/ui/components/button";
 import {
   Card,
@@ -14,20 +14,21 @@ const OTP_LENGTH = 8;
 
 export function VerifyOtpPage() {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const email = searchParams.get("email") ?? "";
-  const isValidEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-
-  if (!isValidEmail) {
-    navigate("/forgot-password", { replace: true });
-    return null;
-  }
-
   const [digits, setDigits] = useState<string[]>(Array(OTP_LENGTH).fill(""));
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [isResending, setIsResending] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(30);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
+
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const id = setTimeout(() => setResendCooldown((n) => n - 1), 1000);
+    return () => clearTimeout(id);
+  }, [resendCooldown]);
+
+  const email = sessionStorage.getItem("fp_email") ?? "";
+  const isValidEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
   const focusAt = (index: number) => inputRefs.current[index]?.focus();
 
@@ -79,6 +80,14 @@ export function VerifyOtpPage() {
     focusAt(Math.min(pasted.length, OTP_LENGTH - 1));
   }, []);
 
+  useEffect(() => {
+    if (!isValidEmail) {
+      navigate("/forgot-password", { replace: true });
+    }
+  }, [isValidEmail, navigate]);
+
+  if (!isValidEmail) return null;
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     const token = digits.join("");
@@ -95,11 +104,11 @@ export function VerifyOtpPage() {
       setError(error.message);
       return;
     }
-    navigate(`/forgot-password/reset?email=${encodeURIComponent(email)}`);
+    navigate("/forgot-password/reset");
   }
 
   async function handleResend() {
-    if (isResending) return;
+    if (isResending || loading || resendCooldown > 0) return;
     setIsResending(true);
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email);
@@ -109,6 +118,7 @@ export function VerifyOtpPage() {
       }
       setDigits(Array(OTP_LENGTH).fill(""));
       setError("");
+      setResendCooldown(30);
       focusAt(0);
     } finally {
       setIsResending(false);
@@ -167,10 +177,10 @@ export function VerifyOtpPage() {
               <button
                 type='button'
                 onClick={handleResend}
-                disabled={isResending}
-                className='text-foreground underline-offset-4 hover:underline disabled:opacity-50'
+                disabled={isResending || loading || resendCooldown > 0}
+                className='text-foreground underline-offset-4 hover:underline disabled:pointer-events-none disabled:opacity-50'
               >
-                {isResending ? "Resending…" : "Resend code"}
+                {isResending ? "Resending…" : resendCooldown > 0 ? `Resend code in ${resendCooldown}s` : "Resend code"}
               </button>
             </p>
           </div>

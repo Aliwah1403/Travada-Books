@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, useCallback } from "react"
+import { createContext, useContext, useEffect, useState, useCallback, useRef } from "react"
 import type { Session, User } from "@supabase/supabase-js"
 import { supabase } from "@/lib/supabase"
 
@@ -20,6 +20,14 @@ export type UserOrg = {
   name: string
   logo_url: string | null
   base_currency: string
+  address_line1: string | null
+  address_line2: string | null
+  city: string | null
+  state: string | null
+  country_code: string | null
+  email: string | null
+  phone: string | null
+  tax_id: string | null
 }
 
 type AuthContextValue = {
@@ -53,7 +61,7 @@ async function fetchUserData(userId: string): Promise<{ profile: UserProfile | n
       .maybeSingle(),
     supabase
       .from("organization_members")
-      .select("organizations(id, name, logo_url, base_currency)")
+      .select("organizations(id, name, logo_url, base_currency, address_line1, address_line2, city, state, country_code, email, phone, tax_id)")
       .eq("user_id", userId)
       .eq("status", "active")
       .limit(1)
@@ -71,12 +79,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [org, setOrg] = useState<UserOrg | null>(null)
   const [orgLoading, setOrgLoading] = useState(true)
+  const fetchIdRef = useRef(0)
 
   const refreshOrg = useCallback(async () => {
     const userId = session?.user?.id
     if (!userId) return
+    const fetchId = ++fetchIdRef.current
     setOrgLoading(true)
     const result = await fetchUserData(userId)
+    if (fetchId !== fetchIdRef.current) return
     setProfile(result.profile)
     setOrg(result.org)
     setOrgLoading(false)
@@ -108,12 +119,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setOrgLoading(false)
       return
     }
+    let cancelled = false
     setOrgLoading(true)
     fetchUserData(session.user.id).then(({ profile, org }) => {
+      if (cancelled) return
       setProfile(profile)
       setOrg(org)
       setOrgLoading(false)
     })
+    return () => { cancelled = true }
   }, [session?.user?.id, loading])
 
   return (

@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef } from "react";
-import { useNavigate, useSearchParams } from "react-router";
+import { useState, useEffect } from "react";
+import { useNavigate, useParams } from "react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowDown01Icon,
@@ -41,8 +41,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@travada-books/ui/components/dropdown-menu";
-import { createInvoice, getNextInvoiceNumber } from "@/lib/queries/invoices";
-import { getCustomer } from "@/lib/queries/customers";
+import { getInvoice, updateInvoice } from "@/lib/queries/invoices";
 import { getOrgInvoiceTemplate, upsertOrgInvoiceTemplate } from "@/lib/queries/invoice-templates";
 import { useAuth, type UserOrg } from "@/contexts/auth-context";
 import { Spinner } from "@/components/shared/spinner";
@@ -306,42 +305,19 @@ function InvoicePreview({
   );
 }
 
-export function CreateInvoicePage() {
+export function EditInvoicePage() {
+  const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const preselectedCustomerId = searchParams.get("customerId");
-  const { orgId, user, org } = useAuth();
   const queryClient = useQueryClient();
+  const { org } = useAuth();
 
+  const [initialized, setInitialized] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<SelectedCustomer | null>(null);
-
-  const { data: preselectedCustomer } = useQuery({
-    queryKey: ["customer", preselectedCustomerId, orgId],
-    queryFn: () => getCustomer(preselectedCustomerId!, orgId!),
-    enabled: !!preselectedCustomerId && !!orgId,
-  });
-
-  useEffect(() => {
-    if (preselectedCustomer && !selectedCustomer) {
-      setSelectedCustomer({
-        id: preselectedCustomer.id,
-        name: preselectedCustomer.name,
-        email: preselectedCustomer.email,
-        billing_email: preselectedCustomer.billing_email,
-        phone: preselectedCustomer.phone,
-        address_line1: preselectedCustomer.address_line1,
-        address_line2: preselectedCustomer.address_line2,
-        city: preselectedCustomer.city,
-        zip: preselectedCustomer.zip,
-        country: preselectedCustomer.country,
-      });
-    }
-  }, [preselectedCustomer]);
   const [currency, setCurrency] = useState("KES");
   const [invoiceNumber, setInvoiceNumber] = useState("");
   const [issueDate, setIssueDate] = useState<Date | undefined>(undefined);
   const [dueDate, setDueDate] = useState<Date | undefined>(undefined);
-  const [discountType, setDiscountType] = useState<"%" | "fixed">("%");
+  const [discountType, setDiscountType] = useState<"%" | "fixed">("fixed");
   const [discountValue, setDiscountValue] = useState("");
   const [vatRate, setVatRate] = useState("");
   const [paymentDetails, setPaymentDetails] = useState("");
@@ -358,12 +334,10 @@ export function CreateInvoicePage() {
   ]);
   const [invoiceNumberError, setInvoiceNumberError] = useState<string | null>(null);
 
-  const invoiceNumberSet = useRef(false);
-
-  const { data: nextNumber } = useQuery({
-    queryKey: ["next-invoice-number", orgId],
-    queryFn: () => getNextInvoiceNumber(orgId!),
-    enabled: !!orgId,
+  const { data: invoice, isLoading } = useQuery({
+    queryKey: ["invoice", id],
+    queryFn: () => getInvoice(id!),
+    enabled: !!id,
   });
 
   const { data: savedTemplate } = useQuery({
@@ -372,31 +346,75 @@ export function CreateInvoicePage() {
     enabled: !!orgId,
   });
 
+  // Redirect non-draft invoices back to the detail page
   useEffect(() => {
-    if (savedTemplate) setInvoiceSettings(savedTemplate);
-  }, [savedTemplate]);
-
-  // Auto-fill invoice number only once, after a customer is first selected
-  useEffect(() => {
-    if (nextNumber && selectedCustomer && !invoiceNumberSet.current) {
-      setInvoiceNumber(nextNumber);
-      invoiceNumberSet.current = true;
+    if (invoice && invoice.status !== "draft") {
+      navigate(`/invoices/${id}`, { replace: true });
     }
-  }, [nextNumber, selectedCustomer]);
+  }, [invoice, id, navigate]);
 
-  const createMutation = useMutation({
-    mutationFn: createInvoice,
-    onSuccess: (invoice) => {
-      queryClient.invalidateQueries({ queryKey: ["invoices", orgId] });
-      toast.success("Invoice created");
-      navigate(`/invoices/${invoice.id}`);
+  // Pre-populate form once invoice loads
+  useEffect(() => {
+    if (!invoice || initialized) return;
+
+    setSelectedCustomer(
+      invoice.customer_id
+        ? {
+            id: invoice.customer_id,
+            name: invoice.customer_name,
+            email: null,
+            billing_email: null,
+            phone: null,
+            address_line1: null,
+            address_line2: null,
+            city: null,
+            zip: null,
+            country: null,
+          }
+        : null,
+    );
+    setCurrency(invoice.currency);
+    setInvoiceNumber(invoice.invoice_number ?? "");
+    setIssueDate(invoice.issue_date ? new Date(invoice.issue_date) : undefined);
+    setDueDate(invoice.due_date ? new Date(invoice.due_date) : undefined);
+    setRecurring(invoice.recurring ?? "one_time");
+    setPaymentDetails(invoice.payment_details ?? "");
+    setNotes(invoice.note ?? "");
+    setDiscountType("fixed");
+    setDiscountValue(invoice.discount ? String(invoice.discount) : "");
+
+    const mappedItems: LineItem[] = (invoice.line_items ?? []).map((li, i) => ({
+      id: String(i + 1),
+      description: li.description,
+      qty: String(li.quantity),
+      rate: String(li.price),
+      tax: String(li.tax_rate),
+    }));
+    setItems(mappedItems.length > 0 ? mappedItems : [{ id: "1", description: "", qty: "1", rate: "", tax: "0" }]);
+
+    setInvoiceSettings((prev) => ({
+      ...(savedTemplate ?? prev),
+      acceptPaymentsEnabled: invoice.accept_payments ?? false,
+    }));
+
+    setInitialized(true);
+  }, [invoice, initialized, savedTemplate]);
+
+  const updateMutation = useMutation({
+    mutationFn: ({ patch }: { patch: Parameters<typeof updateInvoice>[1] }) =>
+      updateInvoice(id!, patch),
+    onSuccess: (updated) => {
+      queryClient.invalidateQueries({ queryKey: ["invoices"] });
+      queryClient.invalidateQueries({ queryKey: ["invoice", id] });
+      toast.success("Invoice updated");
+      navigate(`/invoices/${updated.id}`);
     },
     onError: (error) => {
       const msg = error instanceof Error ? error.message : "";
       if (msg.includes("already used")) {
         setInvoiceNumberError(msg);
       } else {
-        toast.error("Failed to create invoice", { description: msg || "Please try again." });
+        toast.error("Failed to update invoice", { description: msg || "Please try again." });
       }
     },
   });
@@ -408,17 +426,17 @@ export function CreateInvoicePage() {
     ]);
   }
 
-  function removeItem(id: string) {
-    setItems((prev) => prev.filter((item) => item.id !== id));
+  function removeItem(itemId: string) {
+    setItems((prev) => prev.filter((item) => item.id !== itemId));
   }
 
-  function updateItem(id: string, field: keyof LineItem, value: string) {
+  function updateItem(itemId: string, field: keyof LineItem, value: string) {
     setItems((prev) =>
-      prev.map((item) => (item.id === id ? { ...item, [field]: value } : item)),
+      prev.map((item) => (item.id === itemId ? { ...item, [field]: value } : item)),
     );
   }
 
-  function buildInput(action: "draft" | "send" | "schedule", scheduleDate?: Date) {
+  function buildPatch(action: "draft" | "send" | "schedule", scheduleDate?: Date) {
     const { subtotal, taxAmount, discountAmt, total } = computeTotals(
       items,
       discountType,
@@ -437,8 +455,6 @@ export function CreateInvoicePage() {
     const isSchedule = action === "schedule";
 
     return {
-      org_id: orgId!,
-      user_id: user!.id,
       customer_id: selectedCustomer!.id,
       customer_name: selectedCustomer!.name,
       invoice_number: invoiceNumber,
@@ -456,45 +472,28 @@ export function CreateInvoicePage() {
       note: notes,
       delivery_type: action === "draft" ? "none" : "email",
       scheduled_at: isSchedule && scheduleDate ? scheduleDate.toISOString() : null,
-      send_template_id: null, // template picker coming in a later stage
+      send_template_id: null,
       accept_payments: invoiceSettings.acceptPaymentsEnabled,
       ...(isSend && { sent_at: new Date().toISOString() }),
-      ...(isSend && org && {
-        from_details: {
-          name: org.name,
-          logo_url: org.logo_url ?? null,
-          address_line1: org.address_line1 ?? null,
-          address_line2: org.address_line2 ?? null,
-          city: org.city ?? null,
-          zip: org.zip ?? null,
-          country_code: org.country_code ?? null,
-          phone: org.phone ?? null,
-          email: org.email ?? null,
-          tax_id: org.tax_id ?? null,
-        },
-      }),
-      ...(isSend && selectedCustomer && {
-        customer_details: {
-          name: selectedCustomer.name,
-          email: selectedCustomer.email ?? null,
-          billing_email: selectedCustomer.billing_email ?? null,
-          phone: selectedCustomer.phone ?? null,
-          address_line1: selectedCustomer.address_line1 ?? null,
-          address_line2: selectedCustomer.address_line2 ?? null,
-          city: selectedCustomer.city ?? null,
-          zip: selectedCustomer.zip ?? null,
-          country: selectedCustomer.country ?? null,
-        },
-      }),
     };
   }
 
   function handleSubmit(action: "draft" | "send" | "schedule", scheduleDate?: Date) {
-    if (!selectedCustomer || !orgId || !user) return;
-    createMutation.mutate(buildInput(action, scheduleDate));
+    if (!selectedCustomer) return;
+    updateMutation.mutate({ patch: buildPatch(action, scheduleDate) });
   }
 
-  const isSubmitting = createMutation.isPending;
+  const isSubmitting = updateMutation.isPending;
+
+  if (isLoading) {
+    return (
+      <div className="flex h-full items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+      </div>
+    );
+  }
+
+  if (!invoice) return null;
 
   return (
     <div className="flex h-full flex-col">
@@ -504,13 +503,15 @@ export function CreateInvoicePage() {
           <Button
             variant="ghost"
             size="icon-sm"
-            onClick={() => navigate("/invoices")}
+            onClick={() => navigate(`/invoices/${id}`)}
           >
             <ArrowLeft01Icon size={14} />
           </Button>
           <div>
-            <p className="text-sm font-semibold">New Invoice</p>
-            <p className="text-xs text-muted-foreground">Generate and send new invoice.</p>
+            <p className="text-sm font-semibold">Edit Invoice</p>
+            <p className="text-xs text-muted-foreground">
+              {invoice.invoice_number ?? "Draft"}
+            </p>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -540,9 +541,9 @@ export function CreateInvoicePage() {
                   {deliveryMode === "schedule" && <ClockCheckIcon size={13} />}
                 </>
               )}
-              {deliveryMode === "draft" && (isSubmitting ? "Creating…" : "Create Invoice")}
-              {deliveryMode === "send" && (isSubmitting ? "Sending…" : "Create + Send")}
-              {deliveryMode === "schedule" && (isSubmitting ? "Scheduling…" : "Schedule Send")}
+              {deliveryMode === "draft" && (isSubmitting ? "Saving…" : "Save Changes")}
+              {deliveryMode === "send" && (isSubmitting ? "Sending…" : "Save + Send")}
+              {deliveryMode === "schedule" && (isSubmitting ? "Scheduling…" : "Save + Schedule")}
             </Button>
             <DropdownMenu>
               <DropdownMenuTrigger
@@ -562,8 +563,8 @@ export function CreateInvoicePage() {
                   onClick={() => setDeliveryMode("draft")}
                 >
                   <div className="flex flex-col gap-0.5">
-                    <span className="font-medium">Create Invoice</span>
-                    <span className="text-[11px] text-muted-foreground">Save as draft</span>
+                    <span className="font-medium">Save Changes</span>
+                    <span className="text-[11px] text-muted-foreground">Keep as draft</span>
                   </div>
                   {deliveryMode === "draft" && <CheckmarkCircle01Icon size={13} />}
                 </DropdownMenuItem>
@@ -573,7 +574,7 @@ export function CreateInvoicePage() {
                   onClick={() => setDeliveryMode("send")}
                 >
                   <div className="flex flex-col gap-0.5">
-                    <span className="font-medium">Create + Send</span>
+                    <span className="font-medium">Save + Send</span>
                     <span className="text-[11px] text-muted-foreground">Send to customer now</span>
                   </div>
                   {deliveryMode === "send" && <CheckmarkCircle01Icon size={13} />}
@@ -584,7 +585,7 @@ export function CreateInvoicePage() {
                   onClick={() => setDeliveryMode("schedule")}
                 >
                   <div className="flex flex-col gap-0.5">
-                    <span className="font-medium">Schedule Send</span>
+                    <span className="font-medium">Save + Schedule</span>
                     <span className="text-[11px] text-muted-foreground">Pick a date to send</span>
                   </div>
                   {deliveryMode === "schedule" && <CheckmarkCircle01Icon size={13} />}
@@ -655,7 +656,6 @@ export function CreateInvoicePage() {
                 id="invoice-number"
                 value={invoiceNumber}
                 onChange={(e) => { setInvoiceNumber(e.target.value); setInvoiceNumberError(null); }}
-                placeholder="Select a customer first"
                 className={invoiceNumberError ? "border-destructive text-xs" : "text-xs"}
               />
               {invoiceNumberError && (
@@ -802,7 +802,6 @@ export function CreateInvoicePage() {
               rows={3}
             />
           </div>
-
         </div>
 
         {/* Right: Preview */}
