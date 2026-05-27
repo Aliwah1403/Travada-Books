@@ -1,6 +1,7 @@
 import { useParams } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import { format, parseISO, isValid } from "date-fns";
+import { useState } from "react";
 import { Copy01Icon, Download01Icon } from "@travada-books/ui/icons";
 import { Button } from "@travada-books/ui/components/button";
 import { Separator } from "@travada-books/ui/components/separator";
@@ -10,6 +11,8 @@ import {
   getStatementByToken,
   type StatementInvoiceRow,
 } from "@/lib/queries/statements";
+import { StatementPdf } from "@/components/statement-templates/default/pdf";
+import { downloadPdf } from "@/lib/pdf-download";
 import LogoGreen from "@/assets/Logo-Green.svg";
 import LogoLime from "@/assets/Logo-Lime.svg";
 import { toast } from "sonner";
@@ -72,6 +75,7 @@ export function PublicStatementPage() {
   const { token } = useParams<{ token: string }>();
   const { theme } = useTheme();
   const logo = theme === "dark" ? LogoLime : LogoGreen;
+  const [isPdfDownloading, setIsPdfDownloading] = useState(false);
 
   const {
     data: statement,
@@ -153,6 +157,54 @@ export function PublicStatementPage() {
     }
   }
 
+  async function handleDownload() {
+    setIsPdfDownloading(true);
+    try {
+      const fromSnap = (statement.from_details ?? {}) as Record<string, string | null>;
+      const customerSnap = (statement.customer_details ?? {}) as Record<string, string | null>;
+      await downloadPdf(
+        <StatementPdf
+          data={{
+            currency,
+            from: {
+              name: fromSnap.name,
+              logo_url: fromSnap.logo_url,
+              address_line1: fromSnap.address_line1,
+              address_line2: fromSnap.address_line2,
+              city: fromSnap.city,
+              zip: fromSnap.zip,
+              country_code: fromSnap.country_code,
+              phone: fromSnap.phone,
+              email: fromSnap.email,
+              tax_id: fromSnap.tax_id,
+            },
+            customer: {
+              name: customerSnap.name,
+              email: customerSnap.email,
+              billing_email: customerSnap.billing_email,
+              phone: customerSnap.phone,
+              address_line1: customerSnap.address_line1,
+              address_line2: customerSnap.address_line2,
+              city: customerSnap.city,
+              zip: customerSnap.zip,
+              country: customerSnap.country,
+            },
+            statementDate: safeFormatDate(statement.created_at),
+            dateFrom: safeFormatDate(statement.date_from),
+            dateTo: safeFormatDate(statement.date_to),
+            entries,
+            notes: statement.notes,
+          }}
+        />,
+        `Statement-${customerSnap.name ?? "Customer"}.pdf`,
+      );
+    } catch {
+      toast.error("Failed to generate PDF");
+    } finally {
+      setIsPdfDownloading(false);
+    }
+  }
+
   return (
     <div className='min-h-screen bg-muted/30'>
       {/* Top bar */}
@@ -166,9 +218,9 @@ export function PublicStatementPage() {
             <Copy01Icon size={13} />
             Copy Link
           </Button>
-          <Button variant='outline' className='gap-1.5'>
+          <Button variant='outline' className='gap-1.5' onClick={handleDownload} disabled={isPdfDownloading}>
             <Download01Icon size={13} />
-            Download PDF
+            {isPdfDownloading ? "Generating…" : "Download PDF"}
           </Button>
         </div>
       </div>

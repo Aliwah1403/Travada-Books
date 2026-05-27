@@ -47,6 +47,8 @@ import {
 import { getCustomer } from "@/lib/queries/customers";
 import { supabase } from "@/lib/supabase";
 import type { Invoice } from "@/lib/queries/invoices";
+import { InvoicePdf } from "@/components/invoice-templates";
+import { downloadPdf } from "@/lib/pdf-download";
 
 function DetailRow({ label, value }: { label: string; value: string }) {
   return (
@@ -125,6 +127,7 @@ export function QuoteDetailPage() {
   const { orgId, org, user } = useAuth();
   const [copied, setCopied] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [isPdfDownloading, setIsPdfDownloading] = useState(false);
   const [internalNote, setInternalNote] = useState("");
   const [internalNoteSaved, setInternalNoteSaved] = useState(false);
 
@@ -220,6 +223,62 @@ export function QuoteDetailPage() {
     onError: () => toast.error("Failed to delete quote"),
   });
 
+  async function handleDownloadPdf() {
+    if (!quote) return;
+    setIsPdfDownloading(true);
+    try {
+      const from = (quote.from_details ?? {}) as Record<string, string | null>;
+      const customerSnap = (quote.customer_details ?? {}) as Record<string, string | null>;
+      const documentData = {
+        label: "QUOTATION",
+        number: quote.quote_number,
+        currency: quote.currency,
+        issueDate: quote.issue_date,
+        secondaryDate: quote.valid_until,
+        secondaryDateLabel: "Valid until:",
+        from: {
+          name: from["name"] ?? org?.name,
+          logo_url: from["logo_url"] ?? org?.logo_url,
+          address_line1: from["address_line1"] ?? org?.address_line1,
+          address_line2: from["address_line2"] ?? org?.address_line2,
+          city: from["city"] ?? org?.city,
+          zip: from["zip"] ?? org?.zip,
+          country_code: from["country_code"] ?? org?.country_code,
+          phone: from["phone"] ?? org?.phone,
+          email: from["email"] ?? org?.email,
+          tax_id: from["tax_id"] ?? org?.tax_id,
+        },
+        customer: {
+          name: customerSnap["name"] ?? customer?.name ?? quote.customer_name,
+          email: customerSnap["email"] ?? customer?.email,
+          billing_email: customerSnap["billing_email"] ?? customer?.billing_email,
+          phone: customerSnap["phone"] ?? customer?.phone,
+          address_line1: customerSnap["address_line1"] ?? customer?.address_line1,
+          address_line2: customerSnap["address_line2"] ?? customer?.address_line2,
+          city: customerSnap["city"] ?? customer?.city,
+          zip: customerSnap["zip"] ?? customer?.zip,
+          country: customerSnap["country"] ?? customer?.country,
+        },
+        customerLabel: "Prepared For",
+        lineItems: quote.line_items,
+        subtotal: quote.subtotal,
+        taxAmount: quote.tax_amount,
+        discount: quote.discount,
+        total: quote.total,
+        note: quote.note,
+        publicUrl: quote.token && quote.status !== "draft" ? `${window.location.origin}/q/${quote.token}` : null,
+      };
+      await downloadPdf(
+        <InvoicePdf data={documentData} />,
+        quote.quote_number ?? "Quote",
+      );
+    } catch {
+      toast.error("Failed to generate PDF");
+    } finally {
+      setIsPdfDownloading(false);
+    }
+  }
+
   const { mutate: saveInternalNote } = useMutation({
     mutationFn: () => updateQuote(id!, { internal_note: internalNote || null }),
     onSuccess: () => {
@@ -305,9 +364,9 @@ export function QuoteDetailPage() {
           <QuoteStatusBadge status={quote.status} />
         </div>
         <div className='flex items-center gap-2'>
-          <Button variant='outline' className='gap-1.5' disabled>
+          <Button variant='outline' className='gap-1.5' onClick={handleDownloadPdf} disabled={isPdfDownloading}>
             <Download01Icon size={13} />
-            Download PDF
+            {isPdfDownloading ? "Generating…" : "Download PDF"}
           </Button>
           <Button
             variant='outline'

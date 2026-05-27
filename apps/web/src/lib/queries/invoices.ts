@@ -40,6 +40,7 @@ export type Invoice = {
   viewed_at: string | null
   quote_id: string | null
   accept_payments: boolean
+  invoice_template: string
 }
 
 export type InvoiceInput = {
@@ -65,6 +66,7 @@ export type InvoiceInput = {
   send_template_id: string | null
   sent_at?: string
   accept_payments?: boolean
+  invoice_template?: string
   from_details?: Record<string, unknown> | null
   customer_details?: Record<string, unknown> | null
 }
@@ -87,7 +89,7 @@ export type CustomerInvoiceSummary = {
 }
 
 const INVOICE_SELECT =
-  "id, created_at, updated_at, org_id, user_id, customer_id, customer_name, token, invoice_number, status, issue_date, due_date, currency, line_items, subtotal, tax_amount, discount, total, customer_details, from_details, note, internal_note, payment_details, recurring, delivery_type, scheduled_at, send_template_id, sent_at, paid_at, viewed_at, quote_id, accept_payments"
+  "id, created_at, updated_at, org_id, user_id, customer_id, customer_name, token, invoice_number, status, issue_date, due_date, currency, line_items, subtotal, tax_amount, discount, total, customer_details, from_details, note, internal_note, payment_details, recurring, delivery_type, scheduled_at, send_template_id, sent_at, paid_at, viewed_at, quote_id, accept_payments, invoice_template"
 
 // Excludes owner identifiers and private fields for unauthenticated token lookups
 const INVOICE_PUBLIC_SELECT =

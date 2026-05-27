@@ -483,6 +483,7 @@ export function EditInvoicePage() {
       scheduled_at: isSchedule && scheduleDate ? scheduleDate.toISOString() : null,
       send_template_id: null,
       accept_payments: invoiceSettings.acceptPaymentsEnabled,
+      invoice_template: invoiceSettings.invoiceTemplate,
       ...(isSend && { sent_at: new Date().toISOString() }),
     };
   }

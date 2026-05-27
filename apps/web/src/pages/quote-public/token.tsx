@@ -9,11 +9,12 @@ import {
   Cancel01Icon,
 } from "@travada-books/ui/icons";
 import { Button } from "@travada-books/ui/components/button";
-import { Separator } from "@travada-books/ui/components/separator";
 import { Textarea } from "@travada-books/ui/components/textarea";
 import { Label } from "@travada-books/ui/components/label";
 import { useTheme } from "@/components/theme-provider";
 import { getQuoteByToken } from "@/lib/queries/quotes";
+import { InvoicePreview, InvoicePdf } from "@/components/invoice-templates";
+import { downloadPdf } from "@/lib/pdf-download";
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
 import LogoGreen from "@/assets/Logo-Green.svg";
@@ -28,6 +29,7 @@ export function PublicQuotePage() {
   const [showDeclineModal, setShowDeclineModal] = useState(false);
   const [declineReason, setDeclineReason] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isPdfDownloading, setIsPdfDownloading] = useState(false);
 
   const {
     data: quote,
@@ -91,21 +93,62 @@ export function PublicQuotePage() {
     isExpired;
 
   const from = (quote.from_details ?? {}) as Record<string, string | null>;
-  const customer = (quote.customer_details ?? {}) as Record<string, string | null>;
-  const customerName = customer["name"] ?? quote.customer_name ?? "Customer";
-  const customerEmail = customer["billing_email"] ?? customer["email"] ?? null;
+  const customerSnap = (quote.customer_details ?? {}) as Record<string, string | null>;
+  const customerName = customerSnap["name"] ?? quote.customer_name ?? "Customer";
 
-  const items = (quote.line_items ?? []) as Array<{
-    description: string;
-    quantity: number;
-    price: number;
-    tax_rate: number;
-  }>;
+  const documentData = {
+    label: "QUOTATION",
+    number: quote.quote_number,
+    currency: quote.currency,
+    issueDate: quote.issue_date,
+    secondaryDate: quote.valid_until,
+    secondaryDateLabel: "Valid until:",
+    from: {
+      name: from["name"],
+      logo_url: from["logo_url"],
+      address_line1: from["address_line1"],
+      address_line2: from["address_line2"],
+      city: from["city"],
+      zip: from["zip"],
+      country_code: from["country_code"],
+      phone: from["phone"],
+      email: from["email"],
+      tax_id: from["tax_id"],
+    },
+    customer: {
+      name: customerName,
+      email: customerSnap["email"],
+      billing_email: customerSnap["billing_email"],
+      phone: customerSnap["phone"],
+      address_line1: customerSnap["address_line1"],
+      address_line2: customerSnap["address_line2"],
+      city: customerSnap["city"],
+      zip: customerSnap["zip"],
+      country: customerSnap["country"],
+    },
+    customerLabel: "Prepared For",
+    lineItems: quote.line_items ?? [],
+    subtotal: quote.subtotal,
+    taxAmount: quote.tax_amount,
+    discount: quote.discount,
+    total: quote.total,
+    note: quote.note,
+    publicUrl: window.location.href,
+  };
 
-  const subtotal = items.reduce((s, i) => s + i.quantity * i.price, 0);
-  const tax = items.reduce((s, i) => s + i.quantity * i.price * (i.tax_rate / 100), 0);
-  const discount = quote.discount ?? 0;
-  const total = subtotal + tax - discount;
+  async function handleDownload() {
+    setIsPdfDownloading(true);
+    try {
+      await downloadPdf(
+        <InvoicePdf data={documentData} />,
+        quote.quote_number ?? "Quote",
+      );
+    } catch {
+      toast.error("Failed to generate PDF");
+    } finally {
+      setIsPdfDownloading(false);
+    }
+  }
 
   async function callEdgeFunction(name: string, body: Record<string, unknown>) {
     const res = await fetch(`${SUPABASE_URL}/functions/v1/${name}`, {
@@ -163,9 +206,9 @@ export function PublicQuotePage() {
             <Copy01Icon size={13} />
             Copy Link
           </Button>
-          <Button variant="outline" className="gap-1.5" disabled>
+          <Button variant="outline" className="gap-1.5" onClick={handleDownload} disabled={isPdfDownloading}>
             <Download01Icon size={13} />
-            Download PDF
+            {isPdfDownloading ? "Generating…" : "Download PDF"}
           </Button>
         </div>
       </div>
@@ -191,180 +234,7 @@ export function PublicQuotePage() {
             </div>
           )}
 
-          <div className="rounded-lg border bg-white p-10 text-sm shadow-sm dark:bg-card">
-            {/* Letterhead */}
-            <div className="flex items-start justify-between">
-              <div>
-                {from["logo_url"] ? (
-                  <img
-                    src={from["logo_url"]!}
-                    alt={from["name"] ?? ""}
-                    className="h-9 w-auto max-w-[140px] object-contain"
-                  />
-                ) : (
-                  <div className="flex size-9 items-center justify-center rounded-lg bg-foreground text-background text-xs font-bold">
-                    {(from["name"] ?? "TB").slice(0, 2).toUpperCase()}
-                  </div>
-                )}
-                <div className="mt-2 space-y-0.5">
-                  <p className="font-semibold text-foreground">{from["name"] ?? "Your Business"}</p>
-                  {from["address_line1"] && (
-                    <p className="text-xs text-muted-foreground">{from["address_line1"]}</p>
-                  )}
-                  {(from["city"] || from["zip"]) && (
-                    <p className="text-xs text-muted-foreground">
-                      {[from["city"], from["zip"]].filter(Boolean).join(" ")}
-                    </p>
-                  )}
-                  {from["country_code"] && (
-                    <p className="text-xs text-muted-foreground">{from["country_code"]}</p>
-                  )}
-                  {from["phone"] && (
-                    <p className="text-xs text-muted-foreground">{from["phone"]}</p>
-                  )}
-                  {from["email"] && (
-                    <p className="text-xs text-muted-foreground">{from["email"]}</p>
-                  )}
-                  {from["tax_id"] && (
-                    <p className="text-xs text-muted-foreground">PIN: {from["tax_id"]}</p>
-                  )}
-                </div>
-              </div>
-              <div className="text-right">
-                <p className="text-2xl font-bold text-foreground">QUOTATION</p>
-                <p className="text-xs text-muted-foreground">{quote.quote_number}</p>
-              </div>
-            </div>
-
-            <Separator className="my-6" />
-
-            <div className="grid grid-cols-2 gap-6">
-              <div>
-                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                  Prepared For
-                </p>
-                <div className="mt-1.5 space-y-0.5">
-                  <p className="font-medium text-foreground">{customerName}</p>
-                  {customer["address_line1"] && (
-                    <p className="text-xs text-muted-foreground">{customer["address_line1"]}</p>
-                  )}
-                  {customer["city"] && (
-                    <p className="text-xs text-muted-foreground">{customer["city"]}</p>
-                  )}
-                  {customer["phone"] && (
-                    <p className="text-xs text-muted-foreground">{customer["phone"]}</p>
-                  )}
-                  {customerEmail && (
-                    <p className="text-xs text-muted-foreground">{customerEmail}</p>
-                  )}
-                </div>
-              </div>
-              <div className="space-y-1">
-                <div className="flex justify-between text-xs">
-                  <span className="text-muted-foreground">Issue date:</span>
-                  <span className="font-medium">
-                    {quote.issue_date ? format(new Date(quote.issue_date), "dd/MM/yyyy") : "—"}
-                  </span>
-                </div>
-                <div className="flex justify-between text-xs">
-                  <span className="text-muted-foreground">Valid until:</span>
-                  <span className="font-medium">
-                    {quote.valid_until ? format(new Date(quote.valid_until), "dd/MM/yyyy") : "—"}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <Separator className="my-6" />
-
-            <table className="w-full text-xs">
-              <thead>
-                <tr className="border-b text-muted-foreground">
-                  <th className="pb-3 text-left font-medium">Description</th>
-                  <th className="pb-3 text-right font-medium">Qty</th>
-                  <th className="pb-3 text-right font-medium">Rate</th>
-                  <th className="pb-3 text-right font-medium">Tax</th>
-                  <th className="pb-3 text-right font-medium">Amount</th>
-                </tr>
-              </thead>
-              <tbody>
-                {items.map((item, i) => (
-                  <tr key={i} className="border-b border-dashed">
-                    <td className="py-3">{item.description}</td>
-                    <td className="py-3 text-right">{item.quantity}</td>
-                    <td className="py-3 text-right">
-                      {quote.currency} {item.price.toLocaleString("en-KE")}
-                    </td>
-                    <td className="py-3 text-right">{item.tax_rate}%</td>
-                    <td className="py-3 text-right font-medium">
-                      {quote.currency}{" "}
-                      {(item.quantity * item.price * (1 + item.tax_rate / 100)).toLocaleString(
-                        "en-KE",
-                        { minimumFractionDigits: 2 },
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-
-            <div className="mt-5 flex flex-col items-end gap-1.5 text-xs">
-              <div className="flex w-48 justify-between">
-                <span className="text-muted-foreground">Subtotal</span>
-                <span>
-                  {quote.currency}{" "}
-                  {subtotal.toLocaleString("en-KE", { minimumFractionDigits: 2 })}
-                </span>
-              </div>
-              {tax > 0 && (
-                <div className="flex w-48 justify-between">
-                  <span className="text-muted-foreground">Tax</span>
-                  <span>
-                    {quote.currency} {tax.toLocaleString("en-KE", { minimumFractionDigits: 2 })}
-                  </span>
-                </div>
-              )}
-              {discount > 0 && (
-                <div className="flex w-48 justify-between text-green-600 dark:text-green-400">
-                  <span>Discount</span>
-                  <span>
-                    − {quote.currency}{" "}
-                    {discount.toLocaleString("en-KE", { minimumFractionDigits: 2 })}
-                  </span>
-                </div>
-              )}
-              <Separator className="my-1 w-48" />
-              <div className="flex w-48 justify-between text-sm font-semibold">
-                <span>Total</span>
-                <span>
-                  {quote.currency} {total.toLocaleString("en-KE", { minimumFractionDigits: 2 })}
-                </span>
-              </div>
-            </div>
-
-            {quote.note && (
-              <>
-                <Separator className="my-6" />
-                <div>
-                  <p className="text-xs font-medium">Notes</p>
-                  <p className="mt-1 text-xs text-muted-foreground">{quote.note}</p>
-                </div>
-              </>
-            )}
-
-            <Separator className="my-6" />
-            <p className="text-center text-[10px] text-muted-foreground">
-              Powered by{" "}
-              <a
-                href="https://travadasys.com"
-                className="underline underline-offset-2"
-                target="_blank"
-                rel="noreferrer"
-              >
-                Travada Books
-              </a>
-            </p>
-          </div>
+          <InvoicePreview data={documentData} />
 
           {/* Accept / Decline — only for sent, non-expired quotes */}
           {!isTerminal && (
