@@ -14,6 +14,7 @@ import {
   TableRow,
 } from "@travada-books/ui/components/table";
 import { type InvoiceStatus } from "./invoice-status-badge";
+import { type RecurringFrequency } from "./recurring-dialog";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Invoice01Icon } from "@travada-books/ui/icons";
 import { invoiceColumns } from "./invoice-columns";
@@ -27,7 +28,7 @@ export type Invoice = {
   amount: number;
   currency: string;
   issueDate: string | null;
-  recurring: string;
+  recurring: RecurringFrequency;
   quoteNumber?: string;
   token: string;
 };

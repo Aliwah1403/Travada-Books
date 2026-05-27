@@ -68,8 +68,15 @@ async function fetchUserData(userId: string): Promise<{ profile: UserProfile | n
       .maybeSingle(),
   ])
 
-  const profile = profileResult.data as UserProfile | null
-  const orgRaw = memberResult.data?.organizations as UserOrg | null
+  if (profileResult.error) {
+    console.error("[auth] fetchUserData: profile query failed", profileResult.error)
+  }
+  if (memberResult.error) {
+    console.error("[auth] fetchUserData: org member query failed", memberResult.error)
+  }
+
+  const profile = profileResult.error ? null : (profileResult.data as UserProfile | null)
+  const orgRaw = memberResult.error ? null : (memberResult.data?.organizations as UserOrg | null)
   return { profile, org: orgRaw ?? null }
 }
 
@@ -119,15 +126,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setOrgLoading(false)
       return
     }
-    let cancelled = false
+    const fetchId = ++fetchIdRef.current
     setOrgLoading(true)
     fetchUserData(session.user.id).then(({ profile, org }) => {
-      if (cancelled) return
+      if (fetchId !== fetchIdRef.current) return
       setProfile(profile)
       setOrg(org)
       setOrgLoading(false)
     })
-    return () => { cancelled = true }
   }, [session?.user?.id, loading])
 
   return (

@@ -50,12 +50,18 @@ export function PublicInvoicePage() {
 
   function formatDate(d: string | null) {
     if (!d) return "—"
-    return format(new Date(d), "dd/MM/yyyy")
+    const parsed = new Date(d)
+    if (!Number.isFinite(parsed.getTime())) return "—"
+    return format(parsed, "dd/MM/yyyy")
   }
 
-  function copyLink() {
-    navigator.clipboard.writeText(window.location.href)
-    toast.success("Link copied to clipboard")
+  async function copyLink() {
+    try {
+      await navigator.clipboard.writeText(window.location.href)
+      toast.success("Link copied to clipboard")
+    } catch {
+      toast.error("Failed to copy link")
+    }
   }
 
   type FromDetails = {

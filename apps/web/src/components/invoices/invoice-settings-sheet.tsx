@@ -16,11 +16,14 @@ import { cn } from "@travada-books/ui/lib/utils";
 import { Label } from "@travada-books/ui/components/label";
 import { Separator } from "@travada-books/ui/components/separator";
 import { Input } from "@travada-books/ui/components/input";
+import { Textarea } from "@travada-books/ui/components/textarea";
 import { TickIcon } from "@travada-books/ui/icons";
 
 export type InvoiceSettings = {
   invoiceTemplate: string;
   dateFormat: "DD/MM/YYYY" | "MM/DD/YYYY" | "YYYY-MM-DD";
+  paymentTerms: number | null;
+  defaultNote: string;
   showTaxColumn: boolean;
   showQtyColumn: boolean;
   acceptPaymentsEnabled: boolean;
@@ -32,6 +35,8 @@ export type InvoiceSettings = {
 export const defaultInvoiceSettings: InvoiceSettings = {
   invoiceTemplate: "classic",
   dateFormat: "DD/MM/YYYY",
+  paymentTerms: null,
+  defaultNote: "",
   showTaxColumn: false,
   showQtyColumn: true,
   acceptPaymentsEnabled: false,
@@ -39,6 +44,15 @@ export const defaultInvoiceSettings: InvoiceSettings = {
   cc: "",
   bcc: "",
 };
+
+const PAYMENT_TERMS_OPTIONS = [
+  { value: "0", label: "Due on receipt" },
+  { value: "7", label: "Net 7" },
+  { value: "14", label: "Net 14" },
+  { value: "21", label: "Net 21" },
+  { value: "30", label: "Net 30" },
+  { value: "60", label: "Net 60" },
+];
 
 // Mock: integrations the business has configured. Replace with real data when backend is ready.
 const connectedIntegrations = [
@@ -249,6 +263,38 @@ export function InvoiceSettingsSheet({
 
           <Separator />
 
+          {/* Payment terms */}
+          <div className='flex flex-col gap-2'>
+            <div className='flex flex-col gap-0.5'>
+              <Label className='text-xs font-medium'>Payment Terms</Label>
+              <p className='text-[11px] text-muted-foreground'>
+                Due date auto-calculates from the issue date.
+              </p>
+            </div>
+            <Select
+              value={settings.paymentTerms != null ? String(settings.paymentTerms) : "none"}
+              onValueChange={(v) =>
+                update("paymentTerms", v === "none" ? null : Number(v))
+              }
+            >
+              <SelectTrigger className='text-xs w-1/2'>
+                <SelectValue placeholder='No default' />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value='none' className='text-xs'>
+                  No default
+                </SelectItem>
+                {PAYMENT_TERMS_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value} className='text-xs'>
+                    {opt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <Separator />
+
           {/* Column visibility */}
           <div className='flex flex-col gap-3'>
             <p className='text-xs font-medium'>Columns</p>
@@ -349,6 +395,25 @@ export function InvoiceSettingsSheet({
                 }
               </div>
             )}
+          </div>
+
+          <Separator />
+
+          {/* Default note */}
+          <div className='flex flex-col gap-2'>
+            <div className='flex flex-col gap-0.5'>
+              <Label className='text-xs font-medium'>Default Note</Label>
+              <p className='text-[11px] text-muted-foreground'>
+                Pre-filled on every new invoice. Edit per invoice as needed.
+              </p>
+            </div>
+            <Textarea
+              value={settings.defaultNote}
+              onChange={(e) => update("defaultNote", e.target.value)}
+              placeholder='e.g. Payment due within 30 days. Bank transfer preferred.'
+              className='text-xs'
+              rows={3}
+            />
           </div>
 
           <Separator />

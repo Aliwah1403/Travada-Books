@@ -6,6 +6,7 @@ import {
   Sent02Icon,
   CheckmarkCircle01Icon,
   Alert01Icon,
+  Cancel01Icon,
 } from "@travada-books/ui/icons";
 
 export type InvoiceStatus = "draft" | "unpaid" | "paid" | "overdue" | "canceled";
@@ -39,7 +40,7 @@ const statusConfig: Record<
   },
   canceled: {
     label: "Canceled",
-    icon: FileEditIcon,
+    icon: Cancel01Icon,
     className: "bg-muted text-muted-foreground hover:bg-muted",
   },
 };

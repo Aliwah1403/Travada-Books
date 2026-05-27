@@ -18,12 +18,14 @@ import {
 import { DatePicker } from "@/components/shared/date-picker";
 import { cn } from "@travada-books/ui/lib/utils";
 
-type RepeatFrequency =
+export type RepeatFrequency =
   | "weekly"
   | "biweekly"
   | "monthly"
   | "quarterly"
   | "yearly";
+
+export type RecurringFrequency = "one_time" | RepeatFrequency;
 
 type EndsType = "on" | "after" | "never";
 

@@ -1,6 +1,6 @@
 import { useParams } from "react-router";
 import { useQuery } from "@tanstack/react-query";
-import { format } from "date-fns";
+import { format, parseISO, isValid } from "date-fns";
 import { Copy01Icon, Download01Icon } from "@travada-books/ui/icons";
 import { Button } from "@travada-books/ui/components/button";
 import { Separator } from "@travada-books/ui/components/separator";
@@ -138,9 +138,19 @@ export function PublicStatementPage() {
   const totalCredits = entries.reduce((s, e) => s + e.credit, 0);
   const closingBalance = totalDebits - totalCredits;
 
-  function copyLink() {
-    navigator.clipboard.writeText(window.location.href);
-    toast.success("Link copied to clipboard");
+  function safeFormatDate(value: string | null | undefined): string {
+    if (!value) return "—"
+    const d = parseISO(value)
+    return isValid(d) ? format(d, "dd/MM/yyyy") : "—"
+  }
+
+  async function copyLink() {
+    try {
+      await navigator.clipboard.writeText(window.location.href)
+      toast.success("Link copied to clipboard")
+    } catch {
+      toast.error("Failed to copy link")
+    }
   }
 
   return (
@@ -219,7 +229,7 @@ export function PublicStatementPage() {
             <div className='text-right'>
               <p className='text-2xl font-bold text-foreground'>STATEMENT</p>
               <p className='text-xs text-muted-foreground'>
-                {format(new Date(statement.created_at), "dd/MM/yyyy")}
+                {safeFormatDate(statement.created_at)}
               </p>
             </div>
           </div>
@@ -270,19 +280,19 @@ export function PublicStatementPage() {
               <div className='flex justify-between text-xs'>
                 <span className='text-muted-foreground'>Statement date:</span>
                 <span className='font-medium'>
-                  {format(new Date(statement.created_at), "dd/MM/yyyy")}
+                  {safeFormatDate(statement.created_at)}
                 </span>
               </div>
               <div className='flex justify-between text-xs'>
                 <span className='text-muted-foreground'>Period from:</span>
                 <span className='font-medium'>
-                  {format(new Date(statement.date_from), "dd/MM/yyyy")}
+                  {safeFormatDate(statement.date_from)}
                 </span>
               </div>
               <div className='flex justify-between text-xs'>
                 <span className='text-muted-foreground'>Period to:</span>
                 <span className='font-medium'>
-                  {format(new Date(statement.date_to), "dd/MM/yyyy")}
+                  {safeFormatDate(statement.date_to)}
                 </span>
               </div>
               <div className='flex justify-between text-xs'>
@@ -325,9 +335,7 @@ export function PublicStatementPage() {
                 {entries.map((entry, i) => (
                   <tr key={i} className='border-b border-dashed'>
                     <td className='py-2.5 text-muted-foreground'>
-                      {entry.date ?
-                        format(new Date(entry.date), "dd/MM/yyyy")
-                      : "—"}
+                      {safeFormatDate(entry.date)}
                     </td>
                     <td className='py-2.5'>{entry.description}</td>
                     <td className='py-2.5 font-mono text-muted-foreground'>

@@ -21,7 +21,7 @@ function toTableInvoice(inv: Awaited<ReturnType<typeof listInvoices>>[number]): 
     currency: inv.currency,
     dueDate: inv.due_date ? format(new Date(inv.due_date), "dd/MM/yyyy") : null,
     issueDate: inv.issue_date ? format(new Date(inv.issue_date), "dd/MM/yyyy") : null,
-    recurring: inv.recurring,
+    recurring: (inv.recurring === "recurring" ? "monthly" : inv.recurring) as Invoice["recurring"],
     token: inv.token,
   };
 }
