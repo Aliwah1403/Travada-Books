@@ -93,11 +93,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!userId) return
     const fetchId = ++fetchIdRef.current
     setOrgLoading(true)
-    const result = await fetchUserData(userId)
-    if (fetchId !== fetchIdRef.current) return
-    setProfile(result.profile)
-    setOrg(result.org)
-    setOrgLoading(false)
+    try {
+      const result = await fetchUserData(userId)
+      if (fetchId !== fetchIdRef.current) return
+      setProfile(result.profile)
+      setOrg(result.org)
+    } finally {
+      if (fetchId === fetchIdRef.current) setOrgLoading(false)
+    }
   }, [session?.user?.id])
 
   useEffect(() => {
@@ -128,12 +131,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
     const fetchId = ++fetchIdRef.current
     setOrgLoading(true)
-    fetchUserData(session.user.id).then(({ profile, org }) => {
-      if (fetchId !== fetchIdRef.current) return
-      setProfile(profile)
-      setOrg(org)
-      setOrgLoading(false)
-    })
+    fetchUserData(session.user.id)
+      .then(({ profile, org }) => {
+        if (fetchId !== fetchIdRef.current) return
+        setProfile(profile)
+        setOrg(org)
+        setOrgLoading(false)
+      })
+      .catch(() => {
+        if (fetchId !== fetchIdRef.current) return
+        setOrgLoading(false)
+      })
   }, [session?.user?.id, loading])
 
   return (

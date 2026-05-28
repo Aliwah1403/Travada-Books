@@ -355,7 +355,7 @@ export function EditInvoicePage() {
       return;
     }
 
-    if (initialized) return;
+    if (initialized && !savedTemplate) return;
 
     setSelectedCustomer(
       invoice.customer_id
@@ -645,6 +645,7 @@ export function EditInvoicePage() {
           setInvoiceSettings(s);
           setSettingsDirty(true);
         }}
+        orgId={orgId ?? ""}
       />
 
       {/* Split panel */}

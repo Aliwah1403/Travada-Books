@@ -36,6 +36,7 @@ import { cn } from "@travada-books/ui/lib/utils";
 import { getInvoice, updateInvoice, deleteInvoice, createInvoice, getNextInvoiceNumber } from "@/lib/queries/invoices";
 import { getCustomer } from "@/lib/queries/customers";
 import { useAuth } from "@/contexts/auth-context";
+import { supabase } from "@/lib/supabase";
 import { Spinner } from "@/components/shared/spinner";
 import { InvoicePreview, InvoicePdf } from "@/components/invoice-templates";
 import { downloadPdf } from "@/lib/pdf-download";
@@ -153,7 +154,7 @@ export function InvoiceDetailPage() {
   });
 
   useEffect(() => {
-    if (invoice?.internal_note) setInternalNote(invoice.internal_note);
+    if (invoice) setInternalNote(invoice.internal_note ?? "");
   }, [invoice]);
 
   const updateMutation = useMutation({
@@ -244,16 +245,23 @@ export function InvoiceDetailPage() {
     updateMutation.mutate({ patch: { internal_note: internalNote }, label: "Note saved" });
   }
 
-  function handleSendInvoice() {
-    updateMutation.mutate({
-      patch: {
-        status: "unpaid",
-        sent_at: new Date().toISOString(),
-        ...(fromDetails && { from_details: fromDetails }),
-        ...(customerDetails && { customer_details: customerDetails }),
-      },
-      label: "Invoice sent",
-    });
+  async function handleSendInvoice() {
+    try {
+      await updateMutation.mutateAsync({
+        patch: {
+          status: "unpaid",
+          sent_at: new Date().toISOString(),
+          ...(fromDetails && { from_details: fromDetails }),
+          ...(customerDetails && { customer_details: customerDetails }),
+        },
+        label: "Invoice sent",
+      });
+      supabase.functions.invoke("send-invoice-email", { body: { invoiceId: id } }).catch(() => {
+        toast.warning("Invoice sent, but email delivery failed. Try resending from the invoice.");
+      });
+    } catch {
+      // onError handles the toast
+    }
   }
 
   function handleMarkPaid() {

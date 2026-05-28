@@ -18,7 +18,7 @@ const MAX_INVITES = 2
 export function OnboardingInvitePage() {
   const navigate = useNavigate()
   const { state } = useLocation()
-  const { refreshOrg } = useAuth()
+  const { refreshOrg, profile, org } = useAuth()
 
   const orgId: string | undefined = state?.orgId
   if (!orgId) return <Navigate to="/onboarding/org" replace />
@@ -75,8 +75,8 @@ export function OnboardingInvitePage() {
       return
     }
 
-    // TODO (Stage 7): trigger Trigger.dev job to send invite emails via Resend
-    // await triggerClient.sendEvent({ name: "team.invite", payload: { orgId, emails: validEmails } })
+    const inviterName = profile?.full_name || org?.name || ""
+    supabase.functions.invoke("invite-member", { body: { emails: validEmails, inviterName } }).catch(() => {})
 
     await finish()
   }

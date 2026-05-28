@@ -35,6 +35,7 @@ import { toast } from "sonner";
 import { cn } from "@travada-books/ui/lib/utils";
 import { useAuth, type UserOrg } from "@/contexts/auth-context";
 import { createQuote, getNextQuoteNumber } from "@/lib/queries/quotes";
+import { supabase } from "@/lib/supabase";
 
 type LineItem = {
   id: string;
@@ -294,6 +295,7 @@ export function CreateQuotePage() {
   const [currency, setCurrency] = useState("KES");
   const [quoteNumber, setQuoteNumber] = useState("");
   const [quoteNumberError, setQuoteNumberError] = useState<string | null>(null);
+  const [isManualQuoteNumber, setIsManualQuoteNumber] = useState(false);
   const [issueDate, setIssueDate] = useState<Date | undefined>(undefined);
   const [validUntil, setValidUntil] = useState<Date | undefined>(undefined);
   const [discountType, setDiscountType] = useState<"%" | "fixed">("%");
@@ -311,8 +313,8 @@ export function CreateQuotePage() {
   });
 
   useEffect(() => {
-    if (nextQuoteNumber) setQuoteNumber(nextQuoteNumber);
-  }, [nextQuoteNumber]);
+    if (nextQuoteNumber && !isManualQuoteNumber) setQuoteNumber(nextQuoteNumber);
+  }, [nextQuoteNumber, isManualQuoteNumber]);
 
   function buildInput(action: "draft" | "send") {
     const totals = computeTotals(items, discountType, discountValue, vatRate);
@@ -370,9 +372,14 @@ export function CreateQuotePage() {
 
   const { mutate: handleSubmit, isPending } = useMutation({
     mutationFn: (action: "draft" | "send") => createQuote(buildInput(action)),
-    onSuccess: (quote) => {
+    onSuccess: (quote, action) => {
       queryClient.invalidateQueries({ queryKey: ["quotes", orgId] });
       queryClient.invalidateQueries({ queryKey: ["next-quote-number", orgId, selectedCustomer?.id] });
+      if (action === "send") {
+        supabase.functions.invoke("send-quote-email", { body: { quoteId: quote.id } }).catch(() => {
+          toast.warning("Quote created, but email delivery failed.");
+        });
+      }
       navigate(`/quotes/${quote.id}`);
     },
     onError: (err) => {
@@ -472,7 +479,7 @@ export function CreateQuotePage() {
             <Label className="text-xs text-muted-foreground">Prepared For</Label>
             <CustomerCombobox
               value={selectedCustomer?.id ?? null}
-              onChange={(customer) => setSelectedCustomer(customer)}
+              onChange={(customer) => { setSelectedCustomer(customer); setIsManualQuoteNumber(false); }}
             />
           </div>
 
@@ -485,6 +492,7 @@ export function CreateQuotePage() {
                 onChange={(e) => {
                   setQuoteNumber(e.target.value);
                   setQuoteNumberError(null);
+                  setIsManualQuoteNumber(true);
                 }}
                 placeholder="Select a customer first"
                 disabled={!selectedCustomer}

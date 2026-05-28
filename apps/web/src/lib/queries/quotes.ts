@@ -60,6 +60,9 @@ export type QuoteInput = {
 const QUOTE_SELECT =
   "id, created_at, updated_at, org_id, user_id, customer_id, customer_name, token, quote_number, status, issue_date, valid_until, currency, line_items, subtotal, tax_amount, discount, total, customer_details, from_details, note, internal_note, sent_at, resent_at, accepted_at, declined_at, decline_reason, viewed_at"
 
+const PUBLIC_QUOTE_SELECT =
+  "id, created_at, updated_at, customer_id, customer_name, token, quote_number, status, issue_date, valid_until, currency, line_items, subtotal, tax_amount, discount, total, customer_details, from_details, note, sent_at, resent_at, accepted_at, declined_at, decline_reason, viewed_at"
+
 export async function listQuotes(orgId: string): Promise<Quote[]> {
   const { data, error } = await supabase
     .from("quotes")
@@ -71,11 +74,12 @@ export async function listQuotes(orgId: string): Promise<Quote[]> {
   return (data ?? []) as Quote[]
 }
 
-export async function getQuote(id: string): Promise<Quote | null> {
+export async function getQuote(id: string, orgId: string): Promise<Quote | null> {
   const { data, error } = await supabase
     .from("quotes")
     .select(QUOTE_SELECT)
     .eq("id", id)
+    .eq("org_id", orgId)
     .maybeSingle()
 
   if (error) throw error
@@ -85,7 +89,7 @@ export async function getQuote(id: string): Promise<Quote | null> {
 export async function getQuoteByToken(token: string): Promise<Quote | null> {
   const { data, error } = await supabase
     .from("quotes")
-    .select(QUOTE_SELECT)
+    .select(PUBLIC_QUOTE_SELECT)
     .eq("token", token)
     .maybeSingle()
 
@@ -118,11 +122,12 @@ export async function createQuote(input: QuoteInput): Promise<Quote> {
   return data as Quote
 }
 
-export async function updateQuote(id: string, input: Partial<QuoteInput>): Promise<Quote> {
+export async function updateQuote(id: string, orgId: string, input: Partial<QuoteInput>): Promise<Quote> {
   const { data, error } = await supabase
     .from("quotes")
     .update(input)
     .eq("id", id)
+    .eq("org_id", orgId)
     .select(QUOTE_SELECT)
     .single()
 
@@ -130,13 +135,14 @@ export async function updateQuote(id: string, input: Partial<QuoteInput>): Promi
   return data as Quote
 }
 
-export async function deleteQuote(id: string): Promise<void> {
-  const { error } = await supabase.from("quotes").delete().eq("id", id)
+export async function deleteQuote(id: string, orgId: string): Promise<void> {
+  const { error } = await supabase.from("quotes").delete().eq("id", id).eq("org_id", orgId)
   if (error) throw error
 }
 
 export async function sendQuote(
   id: string,
+  orgId: string,
   fromDetails: Record<string, unknown>,
   customerDetails: Record<string, unknown>,
   previousSentAt?: string | null,
@@ -153,6 +159,7 @@ export async function sendQuote(
       customer_details: customerDetails,
     })
     .eq("id", id)
+    .eq("org_id", orgId)
     .select(QUOTE_SELECT)
     .single()
 

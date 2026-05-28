@@ -23,6 +23,8 @@ function toTableInvoice(inv: Awaited<ReturnType<typeof listInvoices>>[number]): 
     issueDate: inv.issue_date ? format(new Date(inv.issue_date), "dd/MM/yyyy") : null,
     recurring: (inv.recurring === "recurring" ? "monthly" : inv.recurring) as Invoice["recurring"],
     token: inv.token,
+    quoteNumber: inv.quotes?.quote_number ?? undefined,
+    quoteId: inv.quote_id ?? undefined,
   };
 }
 
@@ -57,7 +59,7 @@ export function InvoicesPage() {
   const navigate = useNavigate();
   const { orgId } = useAuth();
   const [search, setSearch] = useState("");
-  const [previewQuote, setPreviewQuote] = useState<string | null>(null);
+  const [previewQuoteId, setPreviewQuoteId] = useState<string | null>(null);
 
   const { data: rawInvoices = [], isLoading } = useQuery({
     queryKey: ["invoices", orgId],
@@ -121,13 +123,13 @@ export function InvoicesPage() {
       <InvoiceTable
         data={invoices}
         globalFilter={search}
-        onQuoteClick={(quoteNumber) => setPreviewQuote(quoteNumber)}
+        onQuoteClick={(quoteId) => setPreviewQuoteId(quoteId)}
       />
 
       <QuotePreviewSheet
-        quoteNumber={previewQuote}
+        quoteId={previewQuoteId}
         onOpenChange={(open) => {
-          if (!open) setPreviewQuote(null);
+          if (!open) setPreviewQuoteId(null);
         }}
       />
     </div>

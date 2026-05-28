@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate, useParams } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
@@ -41,24 +41,22 @@ export function PublicQuotePage() {
     enabled: !!token,
   });
 
-  // Mark viewed when loaded for the first time (best-effort, fire-and-forget)
-  const [viewedMarked] = useState(() => {
-    if (token) {
-      fetch(
-        `${SUPABASE_URL}/rest/v1/quotes?token=eq.${encodeURIComponent(token)}&viewed_at=is.null`,
-        {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-            apikey: import.meta.env.VITE_SUPABASE_ANON_KEY as string,
-          },
-          body: JSON.stringify({ viewed_at: new Date().toISOString() }),
+  const viewedMarkedRef = useRef(false);
+  useEffect(() => {
+    if (!token || viewedMarkedRef.current) return;
+    viewedMarkedRef.current = true;
+    fetch(
+      `${SUPABASE_URL}/rest/v1/quotes?token=eq.${encodeURIComponent(token)}&viewed_at=is.null`,
+      {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          apikey: import.meta.env.VITE_SUPABASE_ANON_KEY as string,
         },
-      ).catch(() => {});
-    }
-    return true;
-  });
-  void viewedMarked;
+        body: JSON.stringify({ viewed_at: new Date().toISOString() }),
+      },
+    ).catch(() => {});
+  }, [token]);
 
   if (isLoading) {
     return (
@@ -75,6 +73,19 @@ export function PublicQuotePage() {
           <p className="text-sm font-medium">Quote not found</p>
           <p className="mt-1 text-xs text-muted-foreground">
             This link may be invalid or expired.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (quote.status === "draft") {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-muted/30">
+        <div className="text-center">
+          <p className="text-sm font-medium">Quote not ready</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            This quote is still being prepared and hasn't been sent yet.
           </p>
         </div>
       </div>

@@ -18,6 +18,10 @@ import { Separator } from "@travada-books/ui/components/separator";
 import { Input } from "@travada-books/ui/components/input";
 import { Textarea } from "@travada-books/ui/components/textarea";
 import { TickIcon } from "@travada-books/ui/icons";
+import { useRef, useState } from "react";
+import { supabase } from "@/lib/supabase";
+import { toast } from "sonner";
+import { Button } from "@travada-books/ui/components/button";
 
 export type InvoiceSettings = {
   invoiceTemplate: string;
@@ -30,6 +34,8 @@ export type InvoiceSettings = {
   selectedPaymentIntegration: string | null;
   cc: string;
   bcc: string;
+  logoUrl: string | null;
+  reminderDaysAfterDue: 3 | 5 | 7 | 10 | null;
 };
 
 export const defaultInvoiceSettings: InvoiceSettings = {
@@ -43,6 +49,8 @@ export const defaultInvoiceSettings: InvoiceSettings = {
   selectedPaymentIntegration: null,
   cc: "",
   bcc: "",
+  logoUrl: null,
+  reminderDaysAfterDue: null,
 };
 
 const PAYMENT_TERMS_OPTIONS = [
@@ -180,6 +188,7 @@ type Props = {
   onOpenChange: (open: boolean) => void;
   settings: InvoiceSettings;
   onSettingsChange: (settings: InvoiceSettings) => void;
+  orgId: string;
 };
 
 export function InvoiceSettingsSheet({
@@ -187,12 +196,52 @@ export function InvoiceSettingsSheet({
   onOpenChange,
   settings,
   onSettingsChange,
+  orgId,
 }: Props) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+
   function update<K extends keyof InvoiceSettings>(
     key: K,
     value: InvoiceSettings[K],
   ) {
     onSettingsChange({ ...settings, [key]: value });
+  }
+
+  async function handleLogoUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const ext = file.name.split(".").pop();
+    const path = `logos/${orgId}/invoice-logo.${ext}`;
+
+    setUploading(true);
+    const { error } = await supabase.storage
+      .from("org-assets")
+      .upload(path, file, { upsert: true });
+
+    if (error) {
+      toast.error("Failed to upload logo");
+      setUploading(false);
+      return;
+    }
+
+    const { data } = supabase.storage.from("org-assets").getPublicUrl(path);
+    // Bust cache so the new image loads immediately
+    update("logoUrl", `${data.publicUrl}?t=${Date.now()}`);
+    setUploading(false);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }
+
+  async function handleLogoRemove() {
+    if (!settings.logoUrl) return;
+    const ext = settings.logoUrl.split("invoice-logo.")[1]?.split("?")[0];
+    if (ext) {
+      await supabase.storage
+        .from("org-assets")
+        .remove([`logos/${orgId}/invoice-logo.${ext}`]);
+    }
+    update("logoUrl", null);
   }
 
   return (
@@ -203,6 +252,67 @@ export function InvoiceSettingsSheet({
         </SheetHeader>
 
         <div className='flex flex-col gap-6 px-4 pb-6'>
+          {/* Logo */}
+          <div className='flex flex-col gap-2'>
+            <p className='text-xs font-medium'>Invoice Logo</p>
+            <p className='text-[11px] text-muted-foreground'>
+              Shown at the top of every invoice. Leave empty for no logo.
+            </p>
+            <div className='flex items-center gap-3 mt-1'>
+              <div className='flex size-14 shrink-0 items-center justify-center rounded-lg border bg-muted overflow-hidden'>
+                {settings.logoUrl ?
+                  <img
+                    src={settings.logoUrl}
+                    alt='Invoice logo'
+                    className='size-full object-contain'
+                  />
+                : <span className='text-[10px] text-muted-foreground'>
+                    No logo
+                  </span>
+                }
+              </div>
+              <div className='flex flex-col gap-1.5'>
+                <input
+                  ref={fileInputRef}
+                  type='file'
+                  accept='image/png,image/jpeg,image/jpg,image/webp,image/svg+xml'
+                  className='hidden'
+                  onChange={handleLogoUpload}
+                />
+                <Button
+                  type='button'
+                  variant='outline'
+                  size='sm'
+                  className='text-xs h-7'
+                  disabled={uploading}
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  {uploading ?
+                    "Uploading…"
+                  : settings.logoUrl ?
+                    "Replace"
+                  : "Upload"}
+                </Button>
+                {settings.logoUrl && (
+                  <Button
+                    type='button'
+                    variant='ghost'
+                    size='sm'
+                    className='text-xs h-7 text-destructive hover:text-destructive'
+                    onClick={handleLogoRemove}
+                  >
+                    Remove
+                  </Button>
+                )}
+              </div>
+            </div>
+            <p className='text-[11px] text-muted-foreground'>
+              PNG, JPG, WebP or SVG · max 2 MB
+            </p>
+          </div>
+
+          <Separator />
+
           {/* Templates */}
           <div className='flex flex-col gap-3'>
             <p className='text-xs font-medium'>Invoice Template</p>
@@ -272,7 +382,11 @@ export function InvoiceSettingsSheet({
               </p>
             </div>
             <Select
-              value={settings.paymentTerms != null ? String(settings.paymentTerms) : "none"}
+              value={
+                settings.paymentTerms != null ?
+                  String(settings.paymentTerms)
+                : "none"
+              }
               onValueChange={(v) =>
                 update("paymentTerms", v === "none" ? null : Number(v))
               }
@@ -285,10 +399,61 @@ export function InvoiceSettingsSheet({
                   No default
                 </SelectItem>
                 {PAYMENT_TERMS_OPTIONS.map((opt) => (
-                  <SelectItem key={opt.value} value={opt.value} className='text-xs'>
+                  <SelectItem
+                    key={opt.value}
+                    value={opt.value}
+                    className='text-xs'
+                  >
                     {opt.label}
                   </SelectItem>
                 ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <Separator />
+
+          {/* Auto reminders */}
+          <div className='flex flex-col gap-2'>
+            <div className='flex flex-col gap-0.5'>
+              <Label className='text-xs font-medium'>Auto Reminders</Label>
+              <p className='text-[11px] text-muted-foreground'>
+                Automatically send a payment reminder after the invoice due
+                date.
+              </p>
+            </div>
+            <Select
+              value={
+                settings.reminderDaysAfterDue != null ?
+                  String(settings.reminderDaysAfterDue)
+                : "off"
+              }
+              onValueChange={(v) =>
+                update(
+                  "reminderDaysAfterDue",
+                  v === "off" ? null : (Number(v) as 3 | 5 | 7 | 10),
+                )
+              }
+            >
+              <SelectTrigger className='text-xs w-1/2'>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value='off' className='text-xs'>
+                  Off
+                </SelectItem>
+                <SelectItem value='3' className='text-xs'>
+                  3 days after due date
+                </SelectItem>
+                <SelectItem value='5' className='text-xs'>
+                  5 days after due date
+                </SelectItem>
+                <SelectItem value='7' className='text-xs'>
+                  7 days after due date
+                </SelectItem>
+                <SelectItem value='10' className='text-xs'>
+                  10 days after due date
+                </SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -343,8 +508,12 @@ export function InvoiceSettingsSheet({
                 id='accept-payments'
                 checked={settings.acceptPaymentsEnabled}
                 onCheckedChange={(v) => {
-                  update("acceptPaymentsEnabled", v);
-                  if (!v) update("selectedPaymentIntegration", null);
+                  onSettingsChange({
+                    ...settings,
+                    acceptPaymentsEnabled: v,
+                    selectedPaymentIntegration:
+                      v ? settings.selectedPaymentIntegration : null,
+                  });
                 }}
               />
             </div>

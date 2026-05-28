@@ -46,6 +46,7 @@ export function OnboardingOrgPage() {
   const { user } = useAuth()
 
   const [name, setName] = useState("")
+  const [email, setEmail] = useState("")
   const [currency, setCurrency] = useState("KES")
   const [country, setCountry] = useState("KE")
   const [error, setError] = useState("")
@@ -61,7 +62,7 @@ export function OnboardingOrgPage() {
 
     const { error: orgError } = await supabase
       .from("organizations")
-      .insert({ id: orgId, name: name.trim(), base_currency: currency, country_code: country })
+      .insert({ id: orgId, name: name.trim(), email: email.trim(), base_currency: currency, country_code: country })
 
     if (orgError) {
       setError(orgError.message)
@@ -106,6 +107,19 @@ export function OnboardingOrgPage() {
               required
               autoFocus
             />
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="email">Business email</Label>
+            <Input
+              id="email"
+              type="email"
+              placeholder="billing@yourbusiness.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+            />
+            <p className="text-xs text-muted-foreground">Used as the reply-to address on invoice and quote emails sent to clients.</p>
           </div>
 
           <div className="flex flex-col gap-1.5">

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, useParams, Link } from "react-router";
 import { format } from "date-fns";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -137,9 +137,13 @@ export function QuoteDetailPage() {
     isError,
   } = useQuery({
     queryKey: ["quote", id],
-    queryFn: () => getQuote(id!),
-    enabled: !!id,
+    queryFn: () => getQuote(id!, orgId!),
+    enabled: !!id && !!orgId,
   });
+
+  useEffect(() => {
+    if (quote) setInternalNote(quote.internal_note ?? "");
+  }, [quote]);
 
   const { data: customer } = useQuery({
     queryKey: ["customer", quote?.customer_id],
@@ -164,9 +168,10 @@ export function QuoteDetailPage() {
 
   const { mutate: handleSend, isPending: isSending } = useMutation({
     mutationFn: () => {
-      if (!quote || !org) throw new Error("Missing data");
+      if (!quote || !org || !orgId) throw new Error("Missing data");
       return sendQuote(
         quote.id,
+        orgId,
         {
           name: org.name,
           logo_url: org.logo_url ?? null,
@@ -192,10 +197,13 @@ export function QuoteDetailPage() {
         quote.sent_at,
       );
     },
-    onSuccess: () => {
+    onSuccess: (sentQuote) => {
       queryClient.invalidateQueries({ queryKey: ["quote", id] });
       queryClient.invalidateQueries({ queryKey: ["quotes", orgId] });
       toast.success(quote?.sent_at ? "Quote resent" : "Quote sent");
+      supabase.functions.invoke("send-quote-email", { body: { quoteId: sentQuote.id } }).catch(() => {
+        toast.warning("Quote sent, but email delivery failed.");
+      });
     },
     onError: () => toast.error("Failed to send quote"),
   });
@@ -214,7 +222,7 @@ export function QuoteDetailPage() {
   });
 
   const { mutate: handleDelete } = useMutation({
-    mutationFn: () => deleteQuote(id!),
+    mutationFn: () => deleteQuote(id!, orgId!),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["quotes", orgId] });
       navigate("/quotes");
@@ -280,7 +288,7 @@ export function QuoteDetailPage() {
   }
 
   const { mutate: saveInternalNote } = useMutation({
-    mutationFn: () => updateQuote(id!, { internal_note: internalNote || null }),
+    mutationFn: () => updateQuote(id!, orgId!, { internal_note: internalNote || null }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["quote", id] });
       setInternalNoteSaved(true);
@@ -780,7 +788,7 @@ export function QuoteDetailPage() {
                 <div className='flex flex-col gap-2'>
                   <Textarea
                     placeholder='Add a private note — not visible to the client.'
-                    value={internalNote || quote.internal_note || ""}
+                    value={internalNote}
                     onChange={(e) => {
                       setInternalNote(e.target.value);
                       setInternalNoteSaved(false);

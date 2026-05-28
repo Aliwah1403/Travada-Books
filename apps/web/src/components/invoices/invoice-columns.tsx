@@ -7,7 +7,7 @@ import { type Invoice } from "./invoice-table";
 declare module "@tanstack/react-table" {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   interface TableMeta<TData> {
-    onQuoteClick?: (quoteNumber: string) => void;
+    onQuoteClick?: (quoteId: string) => void;
   }
 }
 
@@ -81,11 +81,11 @@ export const invoiceColumns: ColumnDef<Invoice>[] = [
     accessorKey: "quoteNumber",
     header: "Quote",
     cell: ({ row, table }) =>
-      row.original.quoteNumber ? (
+      row.original.quoteNumber && row.original.quoteId ? (
         <button
           onClick={(e) => {
             e.stopPropagation();
-            table.options.meta?.onQuoteClick?.(row.original.quoteNumber!);
+            table.options.meta?.onQuoteClick?.(row.original.quoteId!);
           }}
           className="font-mono text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground transition-colors"
         >
