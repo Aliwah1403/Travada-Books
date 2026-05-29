@@ -37,8 +37,10 @@ type AuthContextValue = {
   profile: UserProfile | null
   org: UserOrg | null
   orgId: string | null
+  orgRole: "owner" | "member" | null
   orgLoading: boolean
   refreshOrg: () => Promise<void>
+  refreshProfile: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextValue>({
@@ -48,11 +50,13 @@ const AuthContext = createContext<AuthContextValue>({
   profile: null,
   org: null,
   orgId: null,
+  orgRole: null,
   orgLoading: true,
   refreshOrg: async () => {},
+  refreshProfile: async () => {},
 })
 
-async function fetchUserData(userId: string): Promise<{ profile: UserProfile | null; org: UserOrg | null }> {
+async function fetchUserData(userId: string): Promise<{ profile: UserProfile | null; org: UserOrg | null; orgRole: "owner" | "member" | null }> {
   const [profileResult, memberResult] = await Promise.all([
     supabase
       .from("users")
@@ -61,7 +65,7 @@ async function fetchUserData(userId: string): Promise<{ profile: UserProfile | n
       .maybeSingle(),
     supabase
       .from("organization_members")
-      .select("organizations(id, name, logo_url, base_currency, address_line1, address_line2, city, state, country_code, email, phone, tax_id)")
+      .select("role, organizations(id, name, logo_url, base_currency, address_line1, address_line2, city, state, country_code, email, phone, tax_id)")
       .eq("user_id", userId)
       .eq("status", "active")
       .limit(1)
@@ -77,7 +81,8 @@ async function fetchUserData(userId: string): Promise<{ profile: UserProfile | n
 
   const profile = profileResult.error ? null : (profileResult.data as UserProfile | null)
   const orgRaw = memberResult.error ? null : (memberResult.data?.organizations as UserOrg | null)
-  return { profile, org: orgRaw ?? null }
+  const orgRole = memberResult.error ? null : ((memberResult.data?.role as "owner" | "member") ?? null)
+  return { profile, org: orgRaw ?? null, orgRole }
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -85,6 +90,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true)
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [org, setOrg] = useState<UserOrg | null>(null)
+  const [orgRole, setOrgRole] = useState<"owner" | "member" | null>(null)
   const [orgLoading, setOrgLoading] = useState(true)
   const fetchIdRef = useRef(0)
 
@@ -92,15 +98,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const userId = session?.user?.id
     if (!userId) return
     const fetchId = ++fetchIdRef.current
-    setOrgLoading(true)
     try {
       const result = await fetchUserData(userId)
       if (fetchId !== fetchIdRef.current) return
       setProfile(result.profile)
       setOrg(result.org)
-    } finally {
-      if (fetchId === fetchIdRef.current) setOrgLoading(false)
+      setOrgRole(result.orgRole)
+    } catch {
+      // silently ignore — layout stays visible
     }
+  }, [session?.user?.id])
+
+  const refreshProfile = useCallback(async () => {
+    const userId = session?.user?.id
+    if (!userId) return
+    const { data } = await supabase
+      .from("users")
+      .select("id, full_name, avatar_url, email, locale, timezone, date_format, time_format, week_starts_on_monday, timezone_auto_sync")
+      .eq("id", userId)
+      .maybeSingle()
+    if (data) setProfile(data as UserProfile)
   }, [session?.user?.id])
 
   useEffect(() => {
@@ -114,6 +131,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (!session) {
         setProfile(null)
         setOrg(null)
+        setOrgRole(null)
         setOrgLoading(false)
       }
     })
@@ -126,16 +144,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!session?.user) {
       setProfile(null)
       setOrg(null)
+      setOrgRole(null)
       setOrgLoading(false)
       return
     }
     const fetchId = ++fetchIdRef.current
     setOrgLoading(true)
     fetchUserData(session.user.id)
-      .then(({ profile, org }) => {
+      .then(({ profile, org, orgRole }) => {
         if (fetchId !== fetchIdRef.current) return
         setProfile(profile)
         setOrg(org)
+        setOrgRole(orgRole)
         setOrgLoading(false)
       })
       .catch(() => {
@@ -152,8 +172,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       profile,
       org,
       orgId: org?.id ?? null,
+      orgRole,
       orgLoading,
       refreshOrg,
+      refreshProfile,
     }}>
       {children}
     </AuthContext.Provider>

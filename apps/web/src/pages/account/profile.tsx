@@ -1,27 +1,26 @@
-import { useState } from "react";
-import { Button } from "@travada-books/ui/components/button";
-import { Input } from "@travada-books/ui/components/input";
-import { Label } from "@travada-books/ui/components/label";
-import { Separator } from "@travada-books/ui/components/separator";
+import { useRef, useState, useEffect } from "react"
+import { useMutation } from "@tanstack/react-query"
+import { toast } from "sonner"
+import { Button } from "@travada-books/ui/components/button"
+import { Input } from "@travada-books/ui/components/input"
+import { Label } from "@travada-books/ui/components/label"
+import { Separator } from "@travada-books/ui/components/separator"
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@travada-books/ui/components/select";
-import { Switch } from "@travada-books/ui/components/switch";
-import { Avatar, AvatarFallback } from "@travada-books/ui/components/avatar";
+} from "@travada-books/ui/components/select"
+import { Switch } from "@travada-books/ui/components/switch"
 import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@travada-books/ui/components/dialog";
+  Avatar,
+  AvatarFallback,
+  AvatarImage,
+} from "@travada-books/ui/components/avatar"
+import { useAuth } from "@/contexts/auth-context"
+import { supabase } from "@/lib/supabase"
+import { updateUserProfile, updateUserRegional, uploadUserAvatar } from "@/lib/queries/profile"
 
 const timezones = [
   { value: "Africa/Nairobi", label: "Nairobi — EAT (UTC+3)" },
@@ -35,12 +34,100 @@ const timezones = [
   { value: "America/New_York", label: "New York — EST/EDT (UTC−5/−4)" },
   { value: "America/Los_Angeles", label: "Los Angeles — PST/PDT (UTC−8/−7)" },
   { value: "UTC", label: "UTC (UTC+0)" },
-];
+]
 
-const deviceTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+const deviceTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone
 
 export function ProfilePage() {
-  const [autoTimezone, setAutoTimezone] = useState(true);
+  const { user, profile, refreshProfile } = useAuth()
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const [fullName, setFullName] = useState("")
+  const [email, setEmail] = useState("")
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
+
+  const [autoTimezone, setAutoTimezone] = useState(true)
+  const [timezone, setTimezone] = useState("Africa/Nairobi")
+  const [dateFormat, setDateFormat] = useState("dd-mm-yyyy")
+  const [timeFormat, setTimeFormat] = useState("24h")
+
+  useEffect(() => {
+    if (!profile) return
+    setFullName(profile.full_name ?? "")
+    setEmail(profile.email ?? user?.email ?? "")
+    setAvatarUrl(profile.avatar_url)
+    setAutoTimezone(profile.timezone_auto_sync)
+    setTimezone(profile.timezone)
+    setDateFormat(profile.date_format === "DD/MM/YYYY" ? "dd-mm-yyyy"
+      : profile.date_format === "MM/DD/YYYY" ? "mm-dd-yyyy"
+      : profile.date_format === "YYYY-MM-DD" ? "yyyy-mm-dd"
+      : "d-mmm-yyyy")
+    setTimeFormat(profile.time_format === "12h" ? "12h" : "24h")
+  }, [profile, user])
+
+  const avatarMutation = useMutation({
+    mutationFn: async (file: File) => {
+      const url = await uploadUserAvatar(user!.id, file)
+      await updateUserProfile(user!.id, { full_name: profile?.full_name ?? null })
+      await supabase.from("users").update({ avatar_url: url }).eq("id", user!.id)
+      return url
+    },
+    onSuccess: async (url) => {
+      setAvatarUrl(url)
+      await refreshProfile()
+    },
+    onError: (err) => toast.error(String(err)),
+  })
+
+  const profileMutation = useMutation({
+    mutationFn: async () => {
+      await updateUserProfile(user!.id, { full_name: fullName || null })
+      const currentEmail = user?.email
+      if (email && email !== currentEmail) {
+        const { error } = await supabase.auth.updateUser({ email })
+        if (error) throw error
+        return "email-changed"
+      }
+    },
+    onSuccess: async (result) => {
+      await refreshProfile()
+      if (result === "email-changed") {
+        toast.success("Profile saved. Check your inbox to confirm the new email address.")
+      } else {
+        toast.success("Profile saved.")
+      }
+    },
+    onError: (err) => toast.error(String(err)),
+  })
+
+  const regionalMutation = useMutation({
+    mutationFn: () =>
+      updateUserRegional(user!.id, {
+        timezone_auto_sync: autoTimezone,
+        timezone: autoTimezone ? deviceTimezone : timezone,
+        date_format:
+          dateFormat === "dd-mm-yyyy" ? "DD/MM/YYYY"
+          : dateFormat === "mm-dd-yyyy" ? "MM/DD/YYYY"
+          : dateFormat === "yyyy-mm-dd" ? "YYYY-MM-DD"
+          : "D MMM YYYY",
+        time_format: timeFormat,
+      }),
+    onSuccess: async () => {
+      await refreshProfile()
+      toast.success("Regional settings saved.")
+    },
+    onError: (err) => toast.error(String(err)),
+  })
+
+  function getInitials() {
+    const name = fullName || user?.email || ""
+    return name
+      .split(" ")
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((n) => n[0].toUpperCase())
+      .join("")
+  }
 
   return (
     <div className='flex flex-col gap-8'>
@@ -56,10 +143,27 @@ export function ProfilePage() {
           <Label>Avatar</Label>
           <div className='flex items-center gap-4'>
             <Avatar className='size-14'>
-              <AvatarFallback className='text-sm'>JD</AvatarFallback>
+              <AvatarImage src={avatarUrl ?? undefined} />
+              <AvatarFallback className='text-sm'>{getInitials()}</AvatarFallback>
             </Avatar>
-            <Button variant='outline' size='sm'>
-              Upload photo
+            <input
+              ref={fileInputRef}
+              type='file'
+              accept='image/png,image/jpeg,image/jpg,image/webp'
+              className='hidden'
+              onChange={(e) => {
+                const file = e.target.files?.[0]
+                if (file) avatarMutation.mutate(file)
+                e.target.value = ""
+              }}
+            />
+            <Button
+              variant='outline'
+              size='sm'
+              onClick={() => fileInputRef.current?.click()}
+              disabled={avatarMutation.isPending}
+            >
+              {avatarMutation.isPending ? "Uploading…" : "Upload photo"}
             </Button>
           </div>
         </div>
@@ -70,7 +174,8 @@ export function ProfilePage() {
             <Input
               id='full-name'
               placeholder='John Doe'
-              defaultValue='John Doe'
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
             />
           </div>
           <div className='flex flex-col gap-1.5'>
@@ -78,13 +183,19 @@ export function ProfilePage() {
             <Input
               id='account-email'
               type='email'
-              defaultValue='john@example.com'
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
             />
           </div>
         </div>
 
-        <Button size='sm' className='w-fit'>
-          Save changes
+        <Button
+          size='sm'
+          className='w-fit'
+          onClick={() => profileMutation.mutate()}
+          disabled={profileMutation.isPending}
+        >
+          {profileMutation.isPending ? "Saving…" : "Save changes"}
         </Button>
       </section>
 
@@ -112,8 +223,9 @@ export function ProfilePage() {
             </div>
           </div>
           <Select
-            value={autoTimezone ? deviceTimezone : "Africa/Nairobi"}
+            value={autoTimezone ? deviceTimezone : timezone}
             disabled={autoTimezone}
+            onValueChange={setTimezone}
           >
             <SelectTrigger id='timezone' className='w-72'>
               <SelectValue />
@@ -133,30 +245,22 @@ export function ProfilePage() {
 
         <div className='flex flex-col gap-1.5'>
           <Label htmlFor='date-format'>Date format</Label>
-          <Select defaultValue='dd-mm-yyyy'>
+          <Select value={dateFormat} onValueChange={setDateFormat}>
             <SelectTrigger id='date-format' className='w-72'>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value='dd-mm-yyyy'>
-                DD/MM/YYYY (31/12/2025)
-              </SelectItem>
-              <SelectItem value='mm-dd-yyyy'>
-                MM/DD/YYYY (12/31/2025)
-              </SelectItem>
-              <SelectItem value='yyyy-mm-dd'>
-                YYYY-MM-DD (2025-12-31)
-              </SelectItem>
-              <SelectItem value='d-mmm-yyyy'>
-                D MMM YYYY (31 Dec 2025)
-              </SelectItem>
+              <SelectItem value='dd-mm-yyyy'>DD/MM/YYYY (31/12/2025)</SelectItem>
+              <SelectItem value='mm-dd-yyyy'>MM/DD/YYYY (12/31/2025)</SelectItem>
+              <SelectItem value='yyyy-mm-dd'>YYYY-MM-DD (2025-12-31)</SelectItem>
+              <SelectItem value='d-mmm-yyyy'>D MMM YYYY (31 Dec 2025)</SelectItem>
             </SelectContent>
           </Select>
         </div>
 
         <div className='flex flex-col gap-1.5'>
           <Label htmlFor='time-format'>Time format</Label>
-          <Select defaultValue='12h'>
+          <Select value={timeFormat} onValueChange={setTimeFormat}>
             <SelectTrigger id='time-format' className='w-72'>
               <SelectValue />
             </SelectTrigger>
@@ -167,90 +271,15 @@ export function ProfilePage() {
           </Select>
         </div>
 
-        <Button size='sm' className='w-fit'>
-          Save changes
+        <Button
+          size='sm'
+          className='w-fit'
+          onClick={() => regionalMutation.mutate()}
+          disabled={regionalMutation.isPending}
+        >
+          {regionalMutation.isPending ? "Saving…" : "Save changes"}
         </Button>
       </section>
-
-      <Separator />
-
-      <section className='flex flex-col gap-5'>
-        <div>
-          <h2 className='text-sm font-semibold text-destructive'>
-            Delete Account
-          </h2>
-          <p className='text-xs text-muted-foreground mt-0.5'>
-            Permanently delete your account and all associated data.
-          </p>
-        </div>
-
-        <div className='rounded-lg border border-destructive/40 bg-destructive/5 p-4 flex flex-col gap-3'>
-          <p className='text-xs text-muted-foreground leading-relaxed'>
-            Deleting your account is{" "}
-            <span className='font-medium text-foreground'>
-              permanent and cannot be undone.
-            </span>{" "}
-            All of the following will be immediately and irreversibly removed:
-          </p>
-          <ul className='text-xs text-muted-foreground space-y-1 pl-3'>
-            <li className='flex gap-2'>
-              <span className='text-destructive'>·</span> Your profile and login
-              credentials
-            </li>
-            <li className='flex gap-2'>
-              <span className='text-destructive'>·</span> All invoices, quotes,
-              and customer records
-            </li>
-            <li className='flex gap-2'>
-              <span className='text-destructive'>·</span> All uploaded files and
-              documents
-            </li>
-            <li className='flex gap-2'>
-              <span className='text-destructive'>·</span> Your organisation and
-              any team members in it
-            </li>
-            <li className='flex gap-2'>
-              <span className='text-destructive'>·</span> Any active
-              subscription — no refunds are issued
-            </li>
-          </ul>
-        </div>
-
-        <Dialog>
-          <DialogTrigger
-            render={
-              <Button variant='destructive' size='sm' className='w-fit' />
-            }
-          >
-            Delete my account
-          </DialogTrigger>
-          <DialogContent className='md:max-w-xl'>
-            <DialogHeader>
-              <DialogTitle>Are you absolutely sure?</DialogTitle>
-              <DialogDescription>
-                This will permanently delete your account, all your data, and
-                cancel any active subscription. This action cannot be undone.
-              </DialogDescription>
-            </DialogHeader>
-            <p className='text-xs text-muted-foreground'>
-              Type{" "}
-              <span className='font-mono font-medium text-foreground'>
-                delete my account
-              </span>{" "}
-              to confirm.
-            </p>
-            <Input placeholder='delete my account' />
-            <DialogFooter>
-              <DialogClose render={<Button variant='outline' size='sm' />}>
-                Cancel
-              </DialogClose>
-              <Button variant='destructive' size='sm'>
-                Delete account
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      </section>
     </div>
-  );
+  )
 }

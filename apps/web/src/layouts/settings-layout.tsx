@@ -1,19 +1,23 @@
-import { NavLink, Outlet } from "react-router"
+import { NavLink, Outlet, Navigate, useLocation } from "react-router"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@travada-books/ui/components/tooltip"
 import { cn } from "@travada-books/ui/lib/utils"
+import { useAuth } from "@/contexts/auth-context"
 
 type SettingsNavItem = {
   label: string
   to: string
   comingSoon?: boolean
+  ownerOnly?: boolean
 }
 
 const settingsNav: SettingsNavItem[] = [
   { label: "General", to: "/settings/general" },
-  { label: "Team", to: "/settings/team", comingSoon: true },
+  { label: "Team", to: "/settings/team", ownerOnly: true },
   { label: "Integrations", to: "/settings/integrations", comingSoon: true },
-  { label: "Billing", to: "/settings/billing", comingSoon: true },
+  { label: "Billing", to: "/settings/billing", comingSoon: true, ownerOnly: true },
 ]
+
+const ownerOnlyPaths = ["/settings/team", "/settings/billing"]
 
 function SettingsNavItem({ label, to, comingSoon }: SettingsNavItem) {
   if (comingSoon) {
@@ -48,10 +52,20 @@ function SettingsNavItem({ label, to, comingSoon }: SettingsNavItem) {
 }
 
 export function SettingsLayout() {
+  const { orgRole } = useAuth()
+  const { pathname } = useLocation()
+  const isOwner = orgRole === "owner"
+
+  if (!isOwner && ownerOnlyPaths.some((p) => pathname.startsWith(p))) {
+    return <Navigate to="/settings/general" replace />
+  }
+
+  const visibleNav = settingsNav.filter((item) => isOwner || !item.ownerOnly)
+
   return (
     <div className="flex">
       <nav className="w-52 shrink-0 border-r px-3 py-6 flex flex-col gap-0.5">
-        {settingsNav.map((item) => (
+        {visibleNav.map((item) => (
           <SettingsNavItem key={item.to} {...item} />
         ))}
       </nav>

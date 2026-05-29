@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { Link, useNavigate } from "react-router"
+import { Link, useNavigate, useSearchParams } from "react-router"
 import { Button } from "@travada-books/ui/components/button"
 import { Input } from "@travada-books/ui/components/input"
 import { Label } from "@travada-books/ui/components/label"
@@ -9,8 +9,9 @@ import { supabase } from "@/lib/supabase"
 
 export function SignupPage() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const [name, setName] = useState("")
-  const [email, setEmail] = useState("")
+  const [email, setEmail] = useState(() => searchParams.get("email") ?? "")
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
@@ -19,17 +20,28 @@ export function SignupPage() {
     e.preventDefault()
     setError("")
     setLoading(true)
+    const next = searchParams.get("next") ?? ""
+    let emailRedirectTo: string | undefined
+    try {
+      const resolved = new URL(decodeURIComponent(next), window.location.origin)
+      if (resolved.origin === window.location.origin && resolved.pathname === "/accept-invite") {
+        emailRedirectTo = resolved.toString()
+      }
+    } catch {
+      // malformed next param — ignore
+    }
+
     const { error } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: { full_name: name } },
+      options: { data: { full_name: name }, emailRedirectTo },
     })
     setLoading(false)
     if (error) {
       setError(error.message)
       return
     }
-    navigate("/invoices")
+    navigate(next ? decodeURIComponent(next) : "/invoices")
   }
 
   return (

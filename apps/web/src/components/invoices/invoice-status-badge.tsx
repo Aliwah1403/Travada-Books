@@ -7,9 +7,10 @@ import {
   CheckmarkCircle01Icon,
   Alert01Icon,
   Cancel01Icon,
+  ClockCheckIcon,
 } from "@travada-books/ui/icons";
 
-export type InvoiceStatus = "draft" | "unpaid" | "paid" | "overdue" | "canceled";
+export type InvoiceStatus = "draft" | "scheduled" | "unpaid" | "paid" | "overdue" | "canceled";
 
 const statusConfig: Record<
   InvoiceStatus,
@@ -19,6 +20,12 @@ const statusConfig: Record<
     label: "Draft",
     icon: FileEditIcon,
     className: "bg-muted text-muted-foreground hover:bg-muted",
+  },
+  scheduled: {
+    label: "Scheduled",
+    icon: ClockCheckIcon,
+    className:
+      "bg-purple-100 text-purple-700 hover:bg-purple-100 dark:bg-purple-900/30 dark:text-purple-400",
   },
   unpaid: {
     label: "Sent",

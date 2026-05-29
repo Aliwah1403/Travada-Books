@@ -20,21 +20,33 @@ Deno.serve(async (req) => {
     if ("error" in auth) return new Response(auth.error.body, { status: auth.error.status, headers: corsHeaders })
     const { orgId } = auth
 
-    const { emails, inviterName } = await req.json() as { emails: string[]; inviterName: string }
-    if (!emails?.length) return new Response(JSON.stringify({ error: "emails required" }), { status: 400, headers: corsHeaders })
+    const body = await req.json() as {
+      invitations?: Array<{ email: string; id: string }>
+      emails?: string[]
+      inviterName: string
+    }
+    const { inviterName } = body
+
+    // Support both new (invitations array with ids) and legacy (emails-only) callers
+    const invitations: Array<{ email: string; id?: string }> =
+      body.invitations ?? (body.emails ?? []).map((email) => ({ email }))
+
+    if (!invitations.length) return new Response(JSON.stringify({ error: "invitations required" }), { status: 400, headers: corsHeaders })
 
     // Fetch org name from DB
     const { data: org } = await db.from("organizations").select("name").eq("id", orgId).single()
     const orgName = org?.name ?? "your team"
 
-    const acceptUrl = `${APP_URL}/signup`
-
     let sent = 0
-    for (const email of emails) {
+    for (const inv of invitations) {
       try {
+        const acceptUrl = inv.id
+          ? `${APP_URL}/accept-invite?token=${inv.id}`
+          : `${APP_URL}/signup`
+
         const html = await render(
           React.createElement(InviteEmail, {
-            invitedEmail: email,
+            invitedEmail: inv.email,
             inviterName: inviterName || orgName,
             orgName,
             acceptUrl,
@@ -43,14 +55,14 @@ Deno.serve(async (req) => {
 
         await resend.emails.send({
           from: `Travada Books <${FROM_EMAIL}>`,
-          to: [email],
+          to: [inv.email],
           subject: `You've been invited to join ${orgName} on Travada Books`,
           html,
         })
 
         sent++
       } catch (emailErr) {
-        console.error(`invite-member: failed to send to ${email}:`, emailErr)
+        console.error(`invite-member: failed to send to ${inv.email}:`, emailErr)
       }
     }
 

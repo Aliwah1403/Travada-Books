@@ -13,7 +13,8 @@ import {
   FileEditIcon,
 } from "@travada-books/ui/icons";
 import { CustomerCombobox, type SelectedCustomer } from "@/components/invoices/customer-combobox";
-import { RecurringDialog, type RecurringFrequency } from "@/components/invoices/recurring-dialog";
+import { RecurringDialog, type RecurringFrequency, type RecurringSettings } from "@/components/invoices/recurring-dialog";
+import { createInvoiceRecurring, addFrequency, type InvoiceRecurringFrequency } from "@/lib/queries/invoice-recurring";
 import { ScheduleDialog } from "@/components/invoices/schedule-dialog";
 import {
   InvoiceSettingsSheet,
@@ -350,6 +351,7 @@ export function CreateInvoicePage() {
   const [paymentDetails, setPaymentDetails] = useState("");
   const [notes, setNotes] = useState("");
   const [recurring, setRecurring] = useState<RecurringFrequency>("one_time");
+  const [recurringSettings, setRecurringSettings] = useState<RecurringSettings | null>(null);
   const [deliveryMode, setDeliveryMode] = useState<"draft" | "send" | "schedule">("draft");
   const [recurringDialogOpen, setRecurringDialogOpen] = useState(false);
   const [scheduleDialogOpen, setScheduleDialogOpen] = useState(false);
@@ -450,7 +452,7 @@ export function CreateInvoicePage() {
       customer_id: selectedCustomer!.id,
       customer_name: selectedCustomer!.name,
       invoice_number: invoiceNumber,
-      status: isSend ? "unpaid" : "draft",
+      status: isSend ? "unpaid" : isSchedule ? "scheduled" : "draft",
       currency,
       issue_date: issueDate ? format(issueDate, "yyyy-MM-dd") : null,
       due_date: dueDate ? format(dueDate, "yyyy-MM-dd") : null,
@@ -505,6 +507,59 @@ export function CreateInvoicePage() {
       if (action === "send") {
         supabase.functions.invoke("send-invoice-email", { body: { invoiceId: invoice.id } }).catch(() => {
           toast.warning("Invoice created, but email delivery failed.");
+        });
+
+        if (recurring !== "one_time" && invoice.issue_date) {
+          try {
+            const freq = recurring as InvoiceRecurringFrequency;
+            const nextDate = addFrequency(invoice.issue_date, freq);
+            const series = await createInvoiceRecurring({
+              org_id: orgId,
+              user_id: user.id,
+              customer_id: selectedCustomer.id,
+              customer_name: selectedCustomer.name,
+              currency: invoice.currency,
+              line_items: invoice.line_items,
+              subtotal: invoice.subtotal ?? 0,
+              tax_amount: invoice.tax_amount ?? 0,
+              discount: invoice.discount ?? 0,
+              total: invoice.total ?? 0,
+              payment_details: invoice.payment_details ?? "",
+              note: invoice.note ?? "",
+              accept_payments: invoice.accept_payments,
+              invoice_template: invoice.invoice_template,
+              from_details: invoice.from_details ?? null,
+              customer_details: invoice.customer_details ?? null,
+              source_issue_date: invoice.issue_date,
+              source_due_date: invoice.due_date ?? null,
+              frequency: freq,
+              end_type: recurringSettings?.endsType === "on" ? "on_date"
+                : recurringSettings?.endsType === "after" ? "after_count"
+                : "never",
+              end_on_date: recurringSettings?.endsOnDate
+                ? format(recurringSettings.endsOnDate, "yyyy-MM-dd")
+                : null,
+              end_after_count: recurringSettings?.endsType === "after"
+                ? parseInt(recurringSettings.endsAfterCount, 10) || null
+                : null,
+              status: "active",
+              next_scheduled_at: new Date(nextDate + "T00:00:00Z").toISOString(),
+            });
+            // Link first invoice back to the series
+            await supabase
+              .from("invoices")
+              .update({ invoice_recurring_id: series.id, recurring_sequence: 1 })
+              .eq("id", invoice.id);
+          } catch {
+            toast.warning("Invoice sent, but failed to set up recurring series. Contact support.");
+          }
+        }
+      }
+      if (action === "schedule" && scheduleDate) {
+        supabase.functions.invoke("trigger-scheduled-send", {
+          body: { invoiceId: invoice.id, scheduledAt: scheduleDate.toISOString() },
+        }).catch(() => {
+          toast.warning("Invoice scheduled, but failed to queue the send job. Contact support.");
         });
       }
     } catch {
@@ -629,7 +684,10 @@ export function CreateInvoicePage() {
       <RecurringDialog
         open={recurringDialogOpen}
         onOpenChange={setRecurringDialogOpen}
-        onSave={(settings) => setRecurring(settings.frequency)}
+        onSave={(settings) => {
+          setRecurring(settings.frequency);
+          setRecurringSettings(settings);
+        }}
       />
       <ScheduleDialog
         open={scheduleDialogOpen}

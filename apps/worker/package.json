@@ -1,0 +1,19 @@
+{
+  "name": "@travada-books/worker",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "npx trigger.dev@latest dev",
+    "deploy": "npx trigger.dev@latest deploy"
+  },
+  "keywords": [],
+  "license": "ISC",
+  "devDependencies": {
+    "@trigger.dev/build": "^4.4.6"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.106.2",
+    "@trigger.dev/sdk": "^4.4.6",
+    "zod": "^3.23.8"
+  }
+}

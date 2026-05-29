@@ -12,13 +12,31 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 }
 
+const WORKER_SHARED_SECRET = Deno.env.get("WORKER_SHARED_SECRET") ?? ""
+
+function timingSafeEqual(a: string, b: string): boolean {
+  const enc = new TextEncoder()
+  const aBytes = enc.encode(a)
+  const bBytes = enc.encode(b)
+  if (aBytes.length !== bBytes.length) return false
+  let diff = 0
+  for (let i = 0; i < aBytes.length; i++) diff |= aBytes[i] ^ bBytes[i]
+  return diff === 0
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders })
 
   try {
-    const auth = await getCallerOrgId(req)
-    if ("error" in auth) return new Response(auth.error.body, { status: auth.error.status, headers: corsHeaders })
-    const { orgId } = auth
+    const workerSecret = req.headers.get("X-Worker-Secret") ?? ""
+    const calledByWorker = WORKER_SHARED_SECRET.length > 0 && timingSafeEqual(workerSecret, WORKER_SHARED_SECRET)
+
+    let orgId: string | null = null
+    if (!calledByWorker) {
+      const auth = await getCallerOrgId(req)
+      if ("error" in auth) return new Response(auth.error.body, { status: auth.error.status, headers: corsHeaders })
+      orgId = auth.orgId
+    }
 
     const { invoiceId } = await req.json()
     if (!invoiceId) return new Response(JSON.stringify({ error: "invoiceId required" }), { status: 400, headers: corsHeaders })
@@ -30,7 +48,7 @@ Deno.serve(async (req) => {
       .single()
 
     if (error || !invoice) return new Response(JSON.stringify({ error: "Invoice not found" }), { status: 404, headers: corsHeaders })
-    if (invoice.org_id !== orgId) return new Response(JSON.stringify({ error: "Forbidden" }), { status: 403, headers: corsHeaders })
+    if (!calledByWorker && invoice.org_id !== orgId) return new Response(JSON.stringify({ error: "Forbidden" }), { status: 403, headers: corsHeaders })
 
     const from = invoice.from_details as Record<string, string> | null
     const customer = invoice.customer_details as Record<string, string> | null
