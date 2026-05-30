@@ -43,6 +43,7 @@ import {
   DropdownMenuTrigger,
 } from "@travada-books/ui/components/dropdown-menu";
 import { createInvoice, getNextInvoiceNumber } from "@/lib/queries/invoices";
+import { lookupRate } from "@/lib/queries/exchange-rates";
 import { getCustomer } from "@/lib/queries/customers";
 import { getOrgInvoiceTemplate, upsertOrgInvoiceTemplate } from "@/lib/queries/invoice-templates";
 import { useAuth, type UserOrg } from "@/contexts/auth-context";
@@ -428,7 +429,7 @@ export function CreateInvoicePage() {
     );
   }
 
-  function buildInput(action: "draft" | "send" | "schedule", scheduleDate?: Date) {
+  async function buildInput(action: "draft" | "send" | "schedule", scheduleDate?: Date) {
     const { subtotal, taxAmount, discountAmt, total } = computeTotals(
       items,
       discountType,
@@ -445,6 +446,13 @@ export function CreateInvoicePage() {
 
     const isSend = action === "send";
     const isSchedule = action === "schedule";
+
+    let exchangeRate: number | null = null
+    let convertedAmount: number | null = null
+    if (isSend && org) {
+      exchangeRate = await lookupRate(currency, org.base_currency)
+      convertedAmount = exchangeRate != null ? total * exchangeRate : null
+    }
 
     return {
       org_id: orgId!,
@@ -470,6 +478,11 @@ export function CreateInvoicePage() {
       accept_payments: invoiceSettings.acceptPaymentsEnabled,
       invoice_template: invoiceSettings.invoiceTemplate,
       ...(isSend && { sent_at: new Date().toISOString() }),
+      ...(isSend && {
+        exchange_rate: exchangeRate,
+        converted_amount: convertedAmount,
+        base_currency: org?.base_currency ?? null,
+      }),
       ...(isSend && org && {
         from_details: {
           name: org.name,
@@ -503,7 +516,7 @@ export function CreateInvoicePage() {
   async function handleSubmit(action: "draft" | "send" | "schedule", scheduleDate?: Date) {
     if (!selectedCustomer || !orgId || !user) return;
     try {
-      const invoice = await createMutation.mutateAsync(buildInput(action, scheduleDate));
+      const invoice = await createMutation.mutateAsync(await buildInput(action, scheduleDate));
       if (action === "send") {
         supabase.functions.invoke("send-invoice-email", { body: { invoiceId: invoice.id } }).catch(() => {
           toast.warning("Invoice created, but email delivery failed.");

@@ -42,6 +42,7 @@ import {
   DropdownMenuTrigger,
 } from "@travada-books/ui/components/dropdown-menu";
 import { getInvoice, updateInvoice } from "@/lib/queries/invoices";
+import { lookupRate } from "@/lib/queries/exchange-rates";
 import { getOrgInvoiceTemplate, upsertOrgInvoiceTemplate } from "@/lib/queries/invoice-templates";
 import { useAuth, type UserOrg } from "@/contexts/auth-context";
 import { Spinner } from "@/components/shared/spinner";
@@ -455,7 +456,7 @@ export function EditInvoicePage() {
     );
   }
 
-  function buildPatch(action: "draft" | "send" | "schedule", scheduleDate?: Date) {
+  async function buildPatch(action: "draft" | "send" | "schedule", scheduleDate?: Date) {
     const { subtotal, taxAmount, discountAmt, total } = computeTotals(
       items,
       discountType,
@@ -472,6 +473,13 @@ export function EditInvoicePage() {
 
     const isSend = action === "send";
     const isSchedule = action === "schedule";
+
+    let exchangeRate: number | null = null
+    let convertedAmount: number | null = null
+    if (isSend && org) {
+      exchangeRate = await lookupRate(currency, org.base_currency)
+      convertedAmount = exchangeRate != null ? total * exchangeRate : null
+    }
 
     return {
       customer_id: selectedCustomer!.id,
@@ -495,12 +503,17 @@ export function EditInvoicePage() {
       accept_payments: invoiceSettings.acceptPaymentsEnabled,
       invoice_template: invoiceSettings.invoiceTemplate,
       ...(isSend && { sent_at: new Date().toISOString() }),
+      ...(isSend && {
+        exchange_rate: exchangeRate,
+        converted_amount: convertedAmount,
+        base_currency: org?.base_currency ?? null,
+      }),
     };
   }
 
-  function handleSubmit(action: "draft" | "send" | "schedule", scheduleDate?: Date) {
+  async function handleSubmit(action: "draft" | "send" | "schedule", scheduleDate?: Date) {
     if (!selectedCustomer) return;
-    updateMutation.mutate({ patch: buildPatch(action, scheduleDate) });
+    updateMutation.mutate({ patch: await buildPatch(action, scheduleDate) });
   }
 
   const isSubmitting = updateMutation.isPending;

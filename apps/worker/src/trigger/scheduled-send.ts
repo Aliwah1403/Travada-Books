@@ -30,7 +30,7 @@ export const scheduledSend = schemaTask({
 
     const { data: invoice, error: fetchError } = await supabase
       .from("invoices")
-      .select("id, status, scheduled_at")
+      .select("id, status, scheduled_at, currency, org_id, total")
       .eq("id", invoiceId)
       .maybeSingle();
 
@@ -54,9 +54,40 @@ export const scheduledSend = schemaTask({
 
     const now = new Date().toISOString();
 
+    // Look up exchange rate at actual send time
+    const { data: org } = await supabase
+      .from("organizations")
+      .select("base_currency")
+      .eq("id", invoice.org_id)
+      .single();
+    const baseCurrency = org?.base_currency ?? null;
+    let exchangeRate: number | null = null;
+    let convertedAmount: number | null = null;
+    if (baseCurrency) {
+      if (invoice.currency === baseCurrency) {
+        exchangeRate = 1;
+      } else {
+        const { data: rateRow } = await supabase
+          .from("exchange_rates")
+          .select("rate")
+          .eq("base", invoice.currency)
+          .eq("target", baseCurrency)
+          .maybeSingle();
+        exchangeRate = (rateRow?.rate as number) ?? null;
+      }
+      convertedAmount = exchangeRate != null ? (invoice.total ?? 0) * exchangeRate : null;
+    }
+
     const { data: updated, error: updateError } = await supabase
       .from("invoices")
-      .update({ status: "unpaid", sent_at: now, scheduled_at: null })
+      .update({
+        status: "unpaid",
+        sent_at: now,
+        scheduled_at: null,
+        exchange_rate: exchangeRate,
+        converted_amount: convertedAmount,
+        base_currency: baseCurrency,
+      })
       .eq("id", invoiceId)
       .eq("status", "scheduled")
       .not("scheduled_at", "is", null)

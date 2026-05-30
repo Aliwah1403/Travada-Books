@@ -125,6 +125,16 @@ export const recurringInvoiceGenerator = schedules.task({
     let processed = 0;
     let skipped = 0;
 
+    // Cache org base_currency per org_id to avoid repeated DB calls in the same batch.
+    const orgBaseCurrencyCache = new Map<string, string | null>();
+    async function getOrgBaseCurrency(orgId: string): Promise<string | null> {
+      if (orgBaseCurrencyCache.has(orgId)) return orgBaseCurrencyCache.get(orgId)!;
+      const { data } = await supabase.from("organizations").select("base_currency").eq("id", orgId).single();
+      const currency = data?.base_currency ?? null;
+      orgBaseCurrencyCache.set(orgId, currency);
+      return currency;
+    }
+
     for (const series of dueSeries) {
       const seriesLog = { seriesId: series.id, customerId: series.customer_id };
 
@@ -181,6 +191,25 @@ export const recurringInvoiceGenerator = schedules.task({
 
         const sentAt = new Date().toISOString();
 
+        // Exchange rate conversion
+        const baseCurrency = await getOrgBaseCurrency(series.org_id);
+        let exchangeRate: number | null = null;
+        let convertedAmount: number | null = null;
+        if (baseCurrency) {
+          if (series.currency === baseCurrency) {
+            exchangeRate = 1;
+          } else {
+            const { data: rateRow } = await supabase
+              .from("exchange_rates")
+              .select("rate")
+              .eq("base", series.currency)
+              .eq("target", baseCurrency)
+              .maybeSingle();
+            exchangeRate = (rateRow?.rate as number) ?? null;
+          }
+          convertedAmount = exchangeRate != null ? series.total * exchangeRate : null;
+        }
+
         const { data: inserted, error: insertError } = await supabase
           .from("invoices")
           .insert({
@@ -209,6 +238,9 @@ export const recurringInvoiceGenerator = schedules.task({
             delivery_type: "email",
             invoice_recurring_id: series.id,
             recurring_sequence: nextSequence,
+            exchange_rate: exchangeRate,
+            converted_amount: convertedAmount,
+            base_currency: baseCurrency,
           })
           .select("id")
           .single();

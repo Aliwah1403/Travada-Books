@@ -43,6 +43,9 @@ export type Invoice = {
   invoice_template: string
   invoice_recurring_id: string | null
   recurring_sequence: number | null
+  exchange_rate: number | null
+  converted_amount: number | null
+  base_currency: string | null
   quotes: { quote_number: string | null } | null
 }
 
@@ -72,6 +75,9 @@ export type InvoiceInput = {
   invoice_template?: string
   from_details?: Record<string, unknown> | null
   customer_details?: Record<string, unknown> | null
+  exchange_rate?: number | null
+  converted_amount?: number | null
+  base_currency?: string | null
 }
 
 export type SendTemplate = {
@@ -92,7 +98,7 @@ export type CustomerInvoiceSummary = {
 }
 
 const INVOICE_SELECT =
-  "id, created_at, updated_at, org_id, user_id, customer_id, customer_name, token, invoice_number, status, issue_date, due_date, currency, line_items, subtotal, tax_amount, discount, total, customer_details, from_details, note, internal_note, payment_details, recurring, delivery_type, scheduled_at, send_template_id, sent_at, paid_at, viewed_at, quote_id, accept_payments, invoice_template, invoice_recurring_id, recurring_sequence, quotes(quote_number)"
+  "id, created_at, updated_at, org_id, user_id, customer_id, customer_name, token, invoice_number, status, issue_date, due_date, currency, line_items, subtotal, tax_amount, discount, total, customer_details, from_details, note, internal_note, payment_details, recurring, delivery_type, scheduled_at, send_template_id, sent_at, paid_at, viewed_at, quote_id, accept_payments, invoice_template, invoice_recurring_id, recurring_sequence, exchange_rate, converted_amount, base_currency, quotes(quote_number)"
 
 // Excludes owner identifiers and private fields for unauthenticated token lookups
 const INVOICE_PUBLIC_SELECT =
@@ -202,7 +208,7 @@ export type CustomerSummaryMap = Record<string, CustomerInvoiceSummary & { lastI
 export async function listAllCustomerInvoiceSummaries(orgId: string): Promise<CustomerSummaryMap> {
   const { data, error } = await supabase
     .from("invoices")
-    .select("customer_id, status, total, created_at")
+    .select("customer_id, status, total, converted_amount, created_at")
     .eq("org_id", orgId)
 
   if (error) throw error
@@ -213,10 +219,11 @@ export async function listAllCustomerInvoiceSummaries(orgId: string): Promise<Cu
     if (!id) continue
     if (!map[id]) map[id] = { invoiceCount: 0, totalInvoiced: 0, totalPaid: 0, outstanding: 0, lastInvoiceAt: null }
     const entry = map[id]
+    const amount = inv.converted_amount ?? inv.total ?? 0
     entry.invoiceCount++
-    entry.totalInvoiced += inv.total ?? 0
-    if (inv.status === "paid") entry.totalPaid += inv.total ?? 0
-    if (inv.status === "unpaid" || inv.status === "overdue") entry.outstanding += inv.total ?? 0
+    entry.totalInvoiced += amount
+    if (inv.status === "paid") entry.totalPaid += amount
+    if (inv.status === "unpaid" || inv.status === "overdue") entry.outstanding += amount
     if (!entry.lastInvoiceAt || inv.created_at > entry.lastInvoiceAt) entry.lastInvoiceAt = inv.created_at
   }
   return map
@@ -225,20 +232,22 @@ export async function listAllCustomerInvoiceSummaries(orgId: string): Promise<Cu
 export async function getCustomerInvoiceSummary(customerId: string, orgId: string): Promise<CustomerInvoiceSummary> {
   const { data, error } = await supabase
     .from("invoices")
-    .select("status, total")
+    .select("status, total, converted_amount")
     .eq("customer_id", customerId)
     .eq("org_id", orgId)
 
   if (error) throw error
 
   const invoices = data ?? []
-  const totalInvoiced = invoices.reduce((sum, inv) => sum + (inv.total ?? 0), 0)
+  const amount = (inv: { total: number | null; converted_amount: number | null }) =>
+    inv.converted_amount ?? inv.total ?? 0
+  const totalInvoiced = invoices.reduce((sum, inv) => sum + amount(inv), 0)
   const totalPaid = invoices
     .filter((inv) => inv.status === "paid")
-    .reduce((sum, inv) => sum + (inv.total ?? 0), 0)
+    .reduce((sum, inv) => sum + amount(inv), 0)
   const outstanding = invoices
     .filter((inv) => inv.status === "unpaid" || inv.status === "overdue")
-    .reduce((sum, inv) => sum + (inv.total ?? 0), 0)
+    .reduce((sum, inv) => sum + amount(inv), 0)
 
   return {
     invoiceCount: invoices.length,

@@ -19,6 +19,8 @@ function toTableInvoice(inv: Awaited<ReturnType<typeof listInvoices>>[number]): 
     customer: inv.customer_name,
     amount: inv.total ?? 0,
     currency: inv.currency,
+    convertedAmount: inv.converted_amount ?? null,
+    baseCurrency: inv.base_currency ?? null,
     dueDate: inv.due_date ? format(new Date(inv.due_date), "dd/MM/yyyy") : null,
     issueDate: inv.issue_date ? format(new Date(inv.issue_date), "dd/MM/yyyy") : null,
     recurring: (inv.recurring === "recurring" ? "monthly" : inv.recurring) as Invoice["recurring"],
@@ -28,36 +30,27 @@ function toTableInvoice(inv: Awaited<ReturnType<typeof listInvoices>>[number]): 
   };
 }
 
-function getStats(invoices: ReturnType<typeof toTableInvoice>[]) {
+function getStats(invoices: ReturnType<typeof toTableInvoice>[], baseCurrency: string) {
   const open = invoices.filter((i) => i.status === "draft" || i.status === "unpaid");
   const overdue = invoices.filter((i) => i.status === "overdue");
   const paid = invoices.filter((i) => i.status === "paid");
 
   const sum = (arr: typeof invoices) =>
-    arr.reduce((acc, i) => acc + (i.currency === "KES" ? i.amount : i.amount * 130), 0);
+    arr.reduce((acc, i) => acc + (i.convertedAmount ?? 0), 0);
+
+  const fmt = (n: number) =>
+    new Intl.NumberFormat(undefined, { style: "currency", currency: baseCurrency }).format(n);
 
   return {
-    open: {
-      label: "Open",
-      amount: `KES ${sum(open).toLocaleString("en-KE")}`,
-      count: open.length,
-    },
-    overdue: {
-      label: "Overdue",
-      amount: `KES ${sum(overdue).toLocaleString("en-KE")}`,
-      count: overdue.length,
-    },
-    paid: {
-      label: "Paid",
-      amount: `KES ${sum(paid).toLocaleString("en-KE")}`,
-      count: paid.length,
-    },
+    open: { label: "Open", amount: fmt(sum(open)), count: open.length },
+    overdue: { label: "Overdue", amount: fmt(sum(overdue)), count: overdue.length },
+    paid: { label: "Paid", amount: fmt(sum(paid)), count: paid.length },
   };
 }
 
 export function InvoicesPage() {
   const navigate = useNavigate();
-  const { orgId } = useAuth();
+  const { orgId, org } = useAuth();
   const [search, setSearch] = useState("");
   const [previewQuoteId, setPreviewQuoteId] = useState<string | null>(null);
 
@@ -68,7 +61,7 @@ export function InvoicesPage() {
   });
 
   const invoices = rawInvoices.map(toTableInvoice);
-  const stats = getStats(invoices);
+  const stats = getStats(invoices, org?.base_currency ?? "KES");
 
   if (isLoading) {
     return (

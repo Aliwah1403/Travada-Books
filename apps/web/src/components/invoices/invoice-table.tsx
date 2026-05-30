@@ -27,6 +27,8 @@ export type Invoice = {
   customer: string;
   amount: number;
   currency: string;
+  convertedAmount: number | null;
+  baseCurrency: string | null;
   issueDate: string | null;
   recurring: RecurringFrequency;
   quoteNumber?: string;

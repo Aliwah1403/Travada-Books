@@ -44,6 +44,7 @@ import {
   createInvoice,
   getNextInvoiceNumber,
 } from "@/lib/queries/invoices";
+import { lookupRate } from "@/lib/queries/exchange-rates";
 import {
   getInvoiceRecurring,
   updateInvoiceRecurringStatus,
@@ -289,10 +290,21 @@ export function InvoiceDetailPage() {
 
   async function handleSendInvoice() {
     try {
+      const invoiceCurrency = invoice!.currency
+      const baseCurrency = org?.base_currency ?? null
+      let exchangeRate: number | null = null
+      let convertedAmount: number | null = null
+      if (baseCurrency) {
+        exchangeRate = await lookupRate(invoiceCurrency, baseCurrency)
+        convertedAmount = exchangeRate != null ? (invoice!.total ?? 0) * exchangeRate : null
+      }
       await updateMutation.mutateAsync({
         patch: {
           status: "unpaid",
           sent_at: new Date().toISOString(),
+          exchange_rate: exchangeRate,
+          converted_amount: convertedAmount,
+          base_currency: baseCurrency,
           ...(fromDetails && { from_details: fromDetails }),
           ...(customerDetails && { customer_details: customerDetails }),
         },
