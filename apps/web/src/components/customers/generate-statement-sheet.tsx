@@ -68,6 +68,8 @@ export function GenerateStatementSheet({
     string | null
   >(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSending, setIsSending] = useState(false);
+  const [hasSent, setHasSent] = useState(false);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -85,6 +87,8 @@ export function GenerateStatementSheet({
       form.reset();
       setGeneratedLink(null);
       setGeneratedStatementId(null);
+      setIsSending(false);
+      setHasSent(false);
     }
     onOpenChange(next);
   }
@@ -202,18 +206,24 @@ export function GenerateStatementSheet({
                 <Button
                   variant='outline'
                   className='w-full gap-1.5'
+                  disabled={isSending || !generatedStatementId || hasSent}
                   onClick={() => {
-                    if (!generatedStatementId) return;
+                    if (isSending || !generatedStatementId || hasSent) return;
+                    setIsSending(true);
                     toast.promise(
                       supabase.functions.invoke("send-statement-email", { body: { statementId: generatedStatementId } }).then((res) => {
                         if (res.error) throw res.error;
                       }),
-                      { loading: "Sending…", success: "Statement sent by email", error: "Failed to send email" }
+                      {
+                        loading: "Sending…",
+                        success: () => { setHasSent(true); return "Statement sent by email"; },
+                        error: () => { setIsSending(false); return "Failed to send email"; },
+                      }
                     );
                   }}
                 >
                   <Sent02Icon size={13} />
-                  Send to {customerName}
+                  {hasSent ? "Sent" : `Send to ${customerName}`}
                 </Button>
               </div>
             </div>
@@ -225,6 +235,9 @@ export function GenerateStatementSheet({
                 onClick={() => {
                   form.reset();
                   setGeneratedLink(null);
+                  setGeneratedStatementId(null);
+                  setIsSending(false);
+                  setHasSent(false);
                 }}
               >
                 Generate another

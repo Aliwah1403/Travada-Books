@@ -28,17 +28,35 @@ Deno.serve(async (req) => {
     const { inviterName } = body
 
     // Support both new (invitations array with ids) and legacy (emails-only) callers
-    const invitations: Array<{ email: string; id?: string }> =
+    const rawInvitations: Array<{ email: string; id?: string }> =
       body.invitations ?? (body.emails ?? []).map((email) => ({ email }))
 
-    if (!invitations.length) return new Response(JSON.stringify({ error: "invitations required" }), { status: 400, headers: corsHeaders })
+    if (!Array.isArray(rawInvitations) || rawInvitations.length === 0) {
+      return new Response(JSON.stringify({ error: "invitations required" }), { status: 400, headers: corsHeaders })
+    }
+    if (rawInvitations.length > 50) {
+      return new Response(JSON.stringify({ error: "Too many invitations; maximum is 50" }), { status: 400, headers: corsHeaders })
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    const seen = new Set<string>()
+    const invitations: Array<{ email: string; id?: string }> = []
+    for (const inv of rawInvitations) {
+      const normalized = (inv.email ?? "").trim().toLowerCase()
+      if (!normalized || !emailRegex.test(normalized) || seen.has(normalized)) continue
+      seen.add(normalized)
+      invitations.push({ ...inv, email: normalized })
+    }
+
+    if (!invitations.length) return new Response(JSON.stringify({ error: "No valid invitation emails provided" }), { status: 400, headers: corsHeaders })
 
     // Fetch org name from DB
     const { data: org } = await db.from("organizations").select("name").eq("id", orgId).single()
     const orgName = org?.name ?? "your team"
 
     let sent = 0
-    for (const inv of invitations) {
+    for (let i = 0; i < invitations.length; i++) {
+      const inv = invitations[i]
       try {
         const acceptUrl = inv.id
           ? `${APP_URL}/accept-invite?token=${inv.id}`
@@ -62,7 +80,7 @@ Deno.serve(async (req) => {
 
         sent++
       } catch (emailErr) {
-        console.error(`invite-member: failed to send to ${inv.email}:`, emailErr)
+        console.error(`invite-member: failed to send invitation ${i} (id: ${inv.id ?? "none"}):`, emailErr)
       }
     }
 

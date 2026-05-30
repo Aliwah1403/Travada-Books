@@ -109,7 +109,10 @@ export function InvoiceActions({
                     invalidate();
                     supabase.functions
                       .invoke("notify-invoice-paid", { body: { invoiceId } })
-                      .catch(() => {});
+                      .catch((err) => {
+                        console.error("notify-invoice-paid failed:", err);
+                        toast.warning("Invoice marked as paid, but the notification email failed to send.");
+                      });
                   }),
                   {
                     loading: "Marking as paid…",

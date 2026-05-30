@@ -212,6 +212,12 @@ export function InvoiceSettingsSheet({
     const file = e.target.files?.[0];
     if (!file) return;
 
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error("File must be 2 MB or smaller");
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
+
     const ext = file.name.split(".").pop();
     const path = `logos/${orgId}/invoice-logo.${ext}`;
 
@@ -237,9 +243,13 @@ export function InvoiceSettingsSheet({
     if (!settings.logoUrl) return;
     const ext = settings.logoUrl.split("invoice-logo.")[1]?.split("?")[0];
     if (ext) {
-      await supabase.storage
+      const { error } = await supabase.storage
         .from("org-assets")
         .remove([`logos/${orgId}/invoice-logo.${ext}`]);
+      if (error) {
+        console.error("Failed to delete logo from storage:", error);
+        toast.warning("Logo removed from your settings, but the file could not be deleted from storage.");
+      }
     }
     update("logoUrl", null);
   }
@@ -428,12 +438,14 @@ export function InvoiceSettingsSheet({
                   String(settings.reminderDaysAfterDue)
                 : "off"
               }
-              onValueChange={(v) =>
-                update(
-                  "reminderDaysAfterDue",
-                  v === "off" ? null : (Number(v) as 3 | 5 | 7 | 10),
-                )
-              }
+              onValueChange={(v) => {
+                const ALLOWED = [3, 5, 7, 10] as const;
+                const n = Number(v);
+                const validated = (ALLOWED as readonly number[]).includes(n)
+                  ? (n as 3 | 5 | 7 | 10)
+                  : null;
+                update("reminderDaysAfterDue", v === "off" ? null : validated);
+              }}
             >
               <SelectTrigger className='text-xs w-1/2'>
                 <SelectValue />

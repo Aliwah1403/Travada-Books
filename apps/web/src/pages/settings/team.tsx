@@ -259,12 +259,14 @@ function ConfirmDialog({
 function MembersTab({
   members,
   currentUserId,
+  isOwner,
   onRoleChange,
   onRemove,
   onLeave,
 }: {
   members: TeamMember[];
   currentUserId: string;
+  isOwner: boolean;
   onRoleChange: (memberId: string, role: string) => void;
   onRemove: (member: TeamMember) => void;
   onLeave: (member: TeamMember) => void;
@@ -290,7 +292,8 @@ function MembersTab({
         {members.map((member) => {
           const isCurrentUser = member.user_id === currentUserId;
           const isLastOwner = member.role === "owner" && ownerCount === 1;
-          const cannotAct = isLastOwner;
+          // Owners can't act on the last owner. Members can only act on themselves.
+          const cannotAct = isOwner ? isLastOwner : !isCurrentUser;
 
           return (
             <div key={member.id} className='flex items-center gap-4 py-3'>
@@ -324,7 +327,7 @@ function MembersTab({
                   Joined {formatDate(member.created_at)}
                 </span>
 
-                {cannotAct ?
+                {!isOwner || cannotAct ?
                   <Badge variant='outline' className='text-xs'>
                     {member.role === "owner" ? "Owner" : "Member"}
                   </Badge>
@@ -356,39 +359,42 @@ function MembersTab({
                   </DropdownMenu>
                 }
 
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      variant='ghost'
-                      size='icon'
-                      className='size-7'
-                      disabled={cannotAct}
-                    >
-                      <span className='sr-only'>Actions</span>
-                      <DotsIcon />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align='end'>
-                    {isCurrentUser ?
-                      <DropdownMenuItem
-                        className='text-destructive focus:text-destructive'
-                        onClick={() =>
-                          setConfirmState({ type: "leave", member })
-                        }
+                {/* Members only see the Leave action on their own row; owners see all actions */}
+                {(!isOwner && !isCurrentUser) ? null : (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant='ghost'
+                        size='icon'
+                        className='size-7'
+                        disabled={cannotAct}
                       >
-                        Leave team
-                      </DropdownMenuItem>
-                    : <DropdownMenuItem
-                        className='text-destructive focus:text-destructive'
-                        onClick={() =>
-                          setConfirmState({ type: "remove", member })
-                        }
-                      >
-                        Remove member
-                      </DropdownMenuItem>
-                    }
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                        <span className='sr-only'>Actions</span>
+                        <DotsIcon />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align='end'>
+                      {isCurrentUser ?
+                        <DropdownMenuItem
+                          className='text-destructive focus:text-destructive'
+                          onClick={() =>
+                            setConfirmState({ type: "leave", member })
+                          }
+                        >
+                          Leave team
+                        </DropdownMenuItem>
+                      : <DropdownMenuItem
+                          className='text-destructive focus:text-destructive'
+                          onClick={() =>
+                            setConfirmState({ type: "remove", member })
+                          }
+                        >
+                          Remove member
+                        </DropdownMenuItem>
+                      }
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
               </div>
             </div>
           );
@@ -507,7 +513,8 @@ function InvitationsTab({
 // ─── Main page ───────────────────────────────────────────────────────────────
 
 export function TeamSettingsPage() {
-  const { orgId, user, profile, org } = useAuth();
+  const { orgId, orgRole, user, profile, org } = useAuth();
+  const isOwner = orgRole === "owner";
   const queryClient = useQueryClient();
 
   const membersQuery = useQuery({
@@ -600,10 +607,12 @@ export function TeamSettingsPage() {
         <div>
           <h2 className='text-sm font-semibold'>Team</h2>
           <p className='text-xs text-muted-foreground mt-0.5'>
-            Manage users who have access to this team.
+            {isOwner ?
+              "Manage users who have access to this team."
+            : "View your team members. You can leave the team from here."}
           </p>
         </div>
-        {orgId && (
+        {isOwner && orgId && (
           <InviteDialog
             orgId={orgId}
             onInvited={() => {
@@ -625,14 +634,16 @@ export function TeamSettingsPage() {
               </span>
             )}
           </TabsTrigger>
-          <TabsTrigger value='invitations'>
-            Invitations
-            {invitations.length > 0 && (
-              <span className='ml-1.5 rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium'>
-                {invitations.length}
-              </span>
-            )}
-          </TabsTrigger>
+          {isOwner && (
+            <TabsTrigger value='invitations'>
+              Invitations
+              {invitations.length > 0 && (
+                <span className='ml-1.5 rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium'>
+                  {invitations.length}
+                </span>
+              )}
+            </TabsTrigger>
+          )}
         </TabsList>
 
         <TabsContent value='members' className='mt-4'>
@@ -643,6 +654,7 @@ export function TeamSettingsPage() {
           : <MembersTab
               members={members}
               currentUserId={user?.id ?? ""}
+              isOwner={isOwner}
               onRoleChange={(memberId, role) =>
                 toast.promise(roleChangeMutation.mutateAsync({ memberId, role }), {
                   loading: "Updating role…",
@@ -656,24 +668,26 @@ export function TeamSettingsPage() {
           }
         </TabsContent>
 
-        <TabsContent value='invitations' className='mt-4'>
-          {invitationsQuery.isLoading ?
-            <div className='py-10 text-center text-sm text-muted-foreground'>
-              Loading…
-            </div>
-          : <InvitationsTab
-              invitations={invitations}
-              onCancel={handleCancel}
-              onResend={(inv) =>
-                toast.promise(resendMutation.mutateAsync(inv), {
-                  loading: "Resending invite…",
-                  success: `Invite resent to ${inv.email}.`,
-                  error: (err) => String(err),
-                })
-              }
-            />
-          }
-        </TabsContent>
+        {isOwner && (
+          <TabsContent value='invitations' className='mt-4'>
+            {invitationsQuery.isLoading ?
+              <div className='py-10 text-center text-sm text-muted-foreground'>
+                Loading…
+              </div>
+            : <InvitationsTab
+                invitations={invitations}
+                onCancel={handleCancel}
+                onResend={(inv) =>
+                  toast.promise(resendMutation.mutateAsync(inv), {
+                    loading: "Resending invite…",
+                    success: `Invite resent to ${inv.email}.`,
+                    error: (err) => String(err),
+                  })
+                }
+              />
+            }
+          </TabsContent>
+        )}
       </Tabs>
     </div>
   );

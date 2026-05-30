@@ -12,12 +12,12 @@ type SettingsNavItem = {
 
 const settingsNav: SettingsNavItem[] = [
   { label: "General", to: "/settings/general" },
-  { label: "Team", to: "/settings/team", ownerOnly: true },
+  { label: "Team", to: "/settings/team" },
   { label: "Integrations", to: "/settings/integrations", comingSoon: true },
   { label: "Billing", to: "/settings/billing", comingSoon: true, ownerOnly: true },
 ]
 
-const ownerOnlyPaths = ["/settings/team", "/settings/billing"]
+const ownerOnlyPaths = ["/settings/billing"]
 
 function SettingsNavItem({ label, to, comingSoon }: SettingsNavItem) {
   if (comingSoon) {

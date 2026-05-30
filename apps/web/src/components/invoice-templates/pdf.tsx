@@ -16,9 +16,12 @@ import { KeyValue } from "@/components/pdfx/key-value/pdfx-key-value";
 import { PdfQRCode } from "@/components/pdfx/qrcode/pdfx-qrcode";
 import type { ClassicDocumentData } from "./classic/preview";
 
-function fmtAmt(n: number | null | undefined, currency: string) {
-  if (n == null) return `${currency} 0.00`;
-  return `${currency} ${n.toLocaleString("en-KE", { minimumFractionDigits: 2 })}`;
+function fmtAmt(n: number | null | undefined, currency: string, locale?: string) {
+  try {
+    return new Intl.NumberFormat(locale, { style: "currency", currency }).format(n ?? 0);
+  } catch {
+    return `${currency} ${(n ?? 0).toFixed(2)}`;
+  }
 }
 
 function safeFormat(value: string | null | undefined): string {

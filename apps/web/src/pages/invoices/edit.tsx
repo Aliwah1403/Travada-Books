@@ -355,7 +355,7 @@ export function EditInvoicePage() {
       return;
     }
 
-    if (initialized && !savedTemplate) return;
+    if (initialized) return;
 
     setSelectedCustomer(
       invoice.customer_id
@@ -393,12 +393,22 @@ export function EditInvoicePage() {
     setItems(mappedItems.length > 0 ? mappedItems : [{ id: "1", description: "", qty: "1", rate: "", tax: "0" }]);
 
     setInvoiceSettings((prev) => ({
-      ...(savedTemplate ?? prev),
+      ...prev,
       acceptPaymentsEnabled: invoice.accept_payments ?? false,
     }));
 
     setInitialized(true);
-  }, [invoice, initialized, savedTemplate, id, navigate]);
+  }, [invoice, initialized, id, navigate]);
+
+  // Merge saved template into settings once both are ready, without clobbering user edits
+  useEffect(() => {
+    if (!initialized || !savedTemplate) return;
+    setInvoiceSettings((prev) => ({
+      ...prev,
+      ...savedTemplate,
+      acceptPaymentsEnabled: invoice?.accept_payments ?? prev.acceptPaymentsEnabled,
+    }));
+  }, [savedTemplate, initialized, invoice?.accept_payments]);
 
   const [issueDateChangedByUser, setIssueDateChangedByUser] = useState(false);
 

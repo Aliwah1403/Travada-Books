@@ -51,8 +51,21 @@ Deno.serve(async (req) => {
     const recipientEmail = (customer.billing_email || customer.email) as string
     if (!recipientEmail) return new Response(JSON.stringify({ error: "Customer has no email" }), { status: 422, headers: corsHeaders })
 
+    // Compute daysOverdue in the org owner's local timezone so the email subject
+    // and body don't show the wrong count near midnight.
+    const { data: ownerMember } = await db
+      .from("organization_members")
+      .select("users(timezone)")
+      .eq("org_id", invoice.org_id)
+      .eq("role", "owner")
+      .eq("status", "active")
+      .limit(1)
+      .single()
+    type TzField = { timezone: string | null } | null
+    const ownerTz = (ownerMember?.users as unknown as TzField)?.timezone ?? "UTC"
+    const todayLocal = new Date().toLocaleDateString("en-CA", { timeZone: ownerTz }) // "YYYY-MM-DD"
     const daysOverdue = invoice.due_date
-      ? Math.max(0, Math.floor((Date.now() - new Date(invoice.due_date).getTime()) / 86_400_000))
+      ? Math.max(0, Math.floor((new Date(todayLocal).getTime() - new Date(invoice.due_date).getTime()) / 86_400_000))
       : 0
 
     const publicUrl = invoice.token ? `${APP_URL}/i/${invoice.token}` : APP_URL
@@ -76,7 +89,7 @@ Deno.serve(async (req) => {
       from: `${from.name} <${FROM_EMAIL}>`,
       to: [recipientEmail],
       replyTo: from.email,
-      subject: `Reminder: ${label} from ${from.name} is overdue`,
+      subject: `Reminder: ${label} from ${from.name} ${daysOverdue > 0 ? "is overdue" : "is due"}`,
       html,
     })
 

@@ -34,6 +34,8 @@ export type Quote = {
   viewed_at: string | null
 }
 
+export type PublicQuote = Omit<Quote, "org_id" | "user_id" | "internal_note">
+
 export type QuoteInput = {
   org_id: string
   user_id: string
@@ -86,7 +88,7 @@ export async function getQuote(id: string, orgId: string): Promise<Quote | null>
   return data as Quote | null
 }
 
-export async function getQuoteByToken(token: string): Promise<Quote | null> {
+export async function getQuoteByToken(token: string): Promise<PublicQuote | null> {
   const { data, error } = await supabase
     .from("quotes")
     .select(PUBLIC_QUOTE_SELECT)
@@ -94,7 +96,7 @@ export async function getQuoteByToken(token: string): Promise<Quote | null> {
     .maybeSingle()
 
   if (error) throw error
-  return data as Quote | null
+  return data as PublicQuote | null
 }
 
 export async function getNextQuoteNumber(orgId: string, customerId: string): Promise<string> {

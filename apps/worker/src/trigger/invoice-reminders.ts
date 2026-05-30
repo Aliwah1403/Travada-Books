@@ -45,15 +45,23 @@ export const invoiceReminders = schedules.task({
     let totalSent = 0;
 
     for (const [days, orgIds] of byDays) {
+      // Target: invoices due exactly `days` days ago.
+      // Lookback: also catch invoices from the prior 7 days in case the cron
+      // skipped a day — last_reminder_sent_at guards against double-sends.
       const targetDate = new Date();
       targetDate.setDate(targetDate.getDate() - days);
       const targetDateStr = targetDate.toISOString().split("T")[0];
+
+      const earliestDate = new Date(targetDate);
+      earliestDate.setDate(earliestDate.getDate() - 7);
+      const earliestDateStr = earliestDate.toISOString().split("T")[0];
 
       const { data: invoices, error: invoiceError } = await supabase
         .from("invoices")
         .select("id")
         .eq("status", "overdue")
-        .eq("due_date", targetDateStr)
+        .gte("due_date", earliestDateStr)
+        .lte("due_date", targetDateStr)
         .is("last_reminder_sent_at", null)
         .in("org_id", orgIds);
 
