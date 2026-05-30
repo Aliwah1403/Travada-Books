@@ -44,8 +44,9 @@ export function GeneralSettingsPage() {
 
         <div className="grid grid-cols-2 gap-4">
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="email">Business email</Label>
-            <Input id="email" type="email" placeholder="billing@yourbusiness.com" />
+            <Label htmlFor="email">Business email <span className="text-destructive">*</span></Label>
+            <Input id="email" type="email" placeholder="billing@yourbusiness.com" required />
+            <p className="text-xs text-muted-foreground">Used as the reply-to on all client emails.</p>
           </div>
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="phone">Phone number</Label>

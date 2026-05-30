@@ -22,6 +22,7 @@ import { Button } from "@travada-books/ui/components/button";
 import { type InvoiceStatus } from "@/components/invoices/invoice-status-badge";
 import { getInvoice, createInvoice, getNextInvoiceNumber, updateInvoice, deleteInvoice } from "@/lib/queries/invoices";
 import { useAuth } from "@/contexts/auth-context";
+import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 
 type InvoiceActionsProps = {
@@ -90,10 +91,13 @@ export function InvoiceActions({ invoiceId, status, token, invoiceNumber }: Invo
             <DropdownMenuItem
               onClick={() => {
                 toast.promise(
-                  updateInvoice(invoiceId, orgId!, { status: "paid", paid_at: new Date().toISOString() }),
+                  updateInvoice(invoiceId, orgId!, { status: "paid", paid_at: new Date().toISOString() }).then(() => {
+                    invalidate();
+                    supabase.functions.invoke("notify-invoice-paid", { body: { invoiceId } }).catch(() => {});
+                  }),
                   {
                     loading: "Marking as paid…",
-                    success: () => { invalidate(); return "Invoice marked as paid"; },
+                    success: "Invoice marked as paid",
                     error: "Failed to mark as paid",
                   }
                 );
@@ -103,7 +107,18 @@ export function InvoiceActions({ invoiceId, status, token, invoiceNumber }: Invo
             </DropdownMenuItem>
           )}
           {(status === "unpaid" || status === "overdue") && (
-            <DropdownMenuItem>Send reminder</DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() => {
+                toast.promise(
+                  supabase.functions.invoke("send-invoice-reminder", { body: { invoiceId } }).then((res) => {
+                    if (res.error) throw res.error;
+                  }),
+                  { loading: "Sending reminder…", success: "Reminder sent", error: "Failed to send reminder" }
+                );
+              }}
+            >
+              Send reminder
+            </DropdownMenuItem>
           )}
           <DropdownMenuItem
             onClick={() => {

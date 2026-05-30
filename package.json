@@ -10,7 +10,7 @@
     "typecheck": "turbo typecheck"
   },
   "devDependencies": {
-    "eslint": "^10.4.0",
+    "eslint": "^9.39.2",
     "prettier": "^3.8.1",
     "prettier-plugin-tailwindcss": "^0.7.2",
     "turbo": "^2.8.17",

@@ -30,13 +30,14 @@ export type Invoice = {
   issueDate: string | null;
   recurring: RecurringFrequency;
   quoteNumber?: string;
+  quoteId?: string;
   token: string;
 };
 
 type InvoiceTableProps = {
   data: Invoice[];
   globalFilter?: string;
-  onQuoteClick?: (quoteNumber: string) => void;
+  onQuoteClick?: (quoteId: string) => void;
 };
 
 export function InvoiceTable({ data, globalFilter, onQuoteClick }: InvoiceTableProps) {

@@ -45,6 +45,7 @@ import { createInvoice, getNextInvoiceNumber } from "@/lib/queries/invoices";
 import { getCustomer } from "@/lib/queries/customers";
 import { getOrgInvoiceTemplate, upsertOrgInvoiceTemplate } from "@/lib/queries/invoice-templates";
 import { useAuth, type UserOrg } from "@/contexts/auth-context";
+import { supabase } from "@/lib/supabase";
 import { Spinner } from "@/components/shared/spinner";
 import { toast } from "sonner";
 
@@ -107,6 +108,7 @@ function InvoicePreview({
   showQtyColumn,
   customer,
   org,
+  logoUrl,
 }: {
   invoiceNumber: string;
   issueDate: Date | undefined;
@@ -123,6 +125,7 @@ function InvoicePreview({
   showQtyColumn: boolean;
   customer: SelectedCustomer | null;
   org: UserOrg | null;
+  logoUrl: string | null;
 }) {
   const { subtotal, taxAmount, discountAmt, total } = computeTotals(
     items,
@@ -142,10 +145,10 @@ function InvoicePreview({
     <div className="rounded-lg border bg-white p-8 text-sm dark:bg-card">
       <div className="flex items-start justify-between">
         <div>
-          {org?.logo_url ? (
+          {logoUrl ? (
             <img
-              src={org.logo_url}
-              alt={org.name}
+              src={logoUrl}
+              alt={org?.name}
               className="h-8 w-auto max-w-[120px] object-contain"
             />
           ) : (
@@ -357,6 +360,7 @@ export function CreateInvoicePage() {
     { id: "1", description: "", qty: "1", rate: "", tax: "0" },
   ]);
   const [invoiceNumberError, setInvoiceNumberError] = useState<string | null>(null);
+  const [isManualInvoiceNumber, setIsManualInvoiceNumber] = useState(false);
 
   const { data: nextNumber } = useQuery({
     queryKey: ["next-invoice-number", orgId, selectedCustomer?.id],
@@ -373,13 +377,13 @@ export function CreateInvoicePage() {
   useEffect(() => {
     if (savedTemplate) {
       setInvoiceSettings(savedTemplate);
-      if (savedTemplate.defaultNote) setNotes(savedTemplate.defaultNote);
+      if (savedTemplate.defaultNote && !notes) setNotes(savedTemplate.defaultNote);
     }
-  }, [savedTemplate]);
+  }, [savedTemplate, notes]);
 
   useEffect(() => {
-    if (nextNumber) setInvoiceNumber(nextNumber);
-  }, [nextNumber]);
+    if (nextNumber && !isManualInvoiceNumber) setInvoiceNumber(nextNumber);
+  }, [nextNumber, isManualInvoiceNumber]);
 
   useEffect(() => {
     if (!issueDate || invoiceSettings.paymentTerms == null) return;
@@ -462,6 +466,7 @@ export function CreateInvoicePage() {
       scheduled_at: isSchedule && scheduleDate ? scheduleDate.toISOString() : null,
       send_template_id: null, // template picker coming in a later stage
       accept_payments: invoiceSettings.acceptPaymentsEnabled,
+      invoice_template: invoiceSettings.invoiceTemplate,
       ...(isSend && { sent_at: new Date().toISOString() }),
       ...(isSend && org && {
         from_details: {
@@ -493,9 +498,18 @@ export function CreateInvoicePage() {
     };
   }
 
-  function handleSubmit(action: "draft" | "send" | "schedule", scheduleDate?: Date) {
+  async function handleSubmit(action: "draft" | "send" | "schedule", scheduleDate?: Date) {
     if (!selectedCustomer || !orgId || !user) return;
-    createMutation.mutate(buildInput(action, scheduleDate));
+    try {
+      const invoice = await createMutation.mutateAsync(buildInput(action, scheduleDate));
+      if (action === "send") {
+        supabase.functions.invoke("send-invoice-email", { body: { invoiceId: invoice.id } }).catch(() => {
+          toast.warning("Invoice created, but email delivery failed.");
+        });
+      }
+    } catch {
+      // onError handles the toast
+    }
   }
 
   const isSubmitting = createMutation.isPending;
@@ -638,6 +652,7 @@ export function CreateInvoicePage() {
           setInvoiceSettings(s);
           setSettingsDirty(true);
         }}
+        orgId={orgId ?? ""}
       />
 
       {/* Split panel */}
@@ -648,7 +663,7 @@ export function CreateInvoicePage() {
             <Label className="text-xs text-muted-foreground">Bill To</Label>
             <CustomerCombobox
               value={selectedCustomer?.id ?? null}
-              onChange={(customer) => setSelectedCustomer(customer)}
+              onChange={(customer) => { setSelectedCustomer(customer); setIsManualInvoiceNumber(false); }}
             />
           </div>
 
@@ -658,7 +673,7 @@ export function CreateInvoicePage() {
               <Input
                 id="invoice-number"
                 value={invoiceNumber}
-                onChange={(e) => { setInvoiceNumber(e.target.value); setInvoiceNumberError(null); }}
+                onChange={(e) => { setInvoiceNumber(e.target.value); setInvoiceNumberError(null); setIsManualInvoiceNumber(true); }}
                 placeholder="Select a customer first"
                 className={invoiceNumberError ? "border-destructive text-xs" : "text-xs"}
               />
@@ -828,6 +843,7 @@ export function CreateInvoicePage() {
             showQtyColumn={invoiceSettings.showQtyColumn}
             customer={selectedCustomer}
             org={org}
+            logoUrl={invoiceSettings.logoUrl}
           />
         </div>
       </div>

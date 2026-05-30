@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "pdfx": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "pdfx-cli@latest",
+        "mcp"
+      ]
+    }
+  }
+}

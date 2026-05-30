@@ -36,7 +36,10 @@ import { cn } from "@travada-books/ui/lib/utils";
 import { getInvoice, updateInvoice, deleteInvoice, createInvoice, getNextInvoiceNumber } from "@/lib/queries/invoices";
 import { getCustomer } from "@/lib/queries/customers";
 import { useAuth } from "@/contexts/auth-context";
+import { supabase } from "@/lib/supabase";
 import { Spinner } from "@/components/shared/spinner";
+import { InvoicePreview, InvoicePdf } from "@/components/invoice-templates";
+import { downloadPdf } from "@/lib/pdf-download";
 import { toast } from "sonner";
 
 const RECURRING_LABELS: Record<string, string> = {
@@ -136,6 +139,7 @@ export function InvoiceDetailPage() {
   const queryClient = useQueryClient();
   const [internalNote, setInternalNote] = useState("");
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [isPdfDownloading, setIsPdfDownloading] = useState(false);
 
   const { data: invoice, isLoading, isError } = useQuery({
     queryKey: ["invoice", id],
@@ -150,7 +154,7 @@ export function InvoiceDetailPage() {
   });
 
   useEffect(() => {
-    if (invoice?.internal_note) setInternalNote(invoice.internal_note);
+    if (invoice) setInternalNote(invoice.internal_note ?? "");
   }, [invoice]);
 
   const updateMutation = useMutation({
@@ -241,16 +245,23 @@ export function InvoiceDetailPage() {
     updateMutation.mutate({ patch: { internal_note: internalNote }, label: "Note saved" });
   }
 
-  function handleSendInvoice() {
-    updateMutation.mutate({
-      patch: {
-        status: "unpaid",
-        sent_at: new Date().toISOString(),
-        ...(fromDetails && { from_details: fromDetails }),
-        ...(customerDetails && { customer_details: customerDetails }),
-      },
-      label: "Invoice sent",
-    });
+  async function handleSendInvoice() {
+    try {
+      await updateMutation.mutateAsync({
+        patch: {
+          status: "unpaid",
+          sent_at: new Date().toISOString(),
+          ...(fromDetails && { from_details: fromDetails }),
+          ...(customerDetails && { customer_details: customerDetails }),
+        },
+        label: "Invoice sent",
+      });
+      supabase.functions.invoke("send-invoice-email", { body: { invoiceId: id } }).catch(() => {
+        toast.warning("Invoice sent, but email delivery failed. Try resending from the invoice.");
+      });
+    } catch {
+      // onError handles the toast
+    }
   }
 
   function handleMarkPaid() {
@@ -269,6 +280,21 @@ export function InvoiceDetailPage() {
     if (!invoice) return;
     navigator.clipboard.writeText(`${window.location.origin}/i/${invoice.token}`);
     toast.success("Link copied to clipboard");
+  }
+
+  async function handleDownloadPdf() {
+    if (!invoice) return;
+    setIsPdfDownloading(true);
+    try {
+      await downloadPdf(
+        <InvoicePdf data={documentData} invoiceTemplate={invoice.invoice_template} />,
+        invoice.invoice_number ?? "Invoice",
+      );
+    } catch {
+      toast.error("Failed to generate PDF");
+    } finally {
+      setIsPdfDownloading(false);
+    }
   }
 
   if (isLoading) {
@@ -303,6 +329,26 @@ export function InvoiceDetailPage() {
   const upcomingDates = isRecurring ? getUpcomingDates(invoice.recurring) : [];
   const status = invoice.status as InvoiceStatus;
 
+  const documentData = {
+    label: "INVOICE",
+    number: invoice.invoice_number,
+    currency: invoice.currency,
+    issueDate: invoice.issue_date,
+    secondaryDate: invoice.due_date,
+    secondaryDateLabel: "Due date:",
+    from: fromDetails ?? {},
+    customer: customerDetails ?? { name: invoice.customer_name },
+    customerLabel: "Bill To",
+    lineItems: invoice.line_items,
+    subtotal: invoice.subtotal,
+    taxAmount: invoice.tax_amount,
+    discount: invoice.discount,
+    total: invoice.total,
+    note: invoice.note,
+    paymentDetails: invoice.payment_details,
+    publicUrl: invoice.token && invoice.status !== "draft" ? `${window.location.origin}/i/${invoice.token}` : null,
+  };
+
   return (
     <div className="flex h-full flex-col overflow-hidden">
       {/* Page header */}
@@ -317,9 +363,9 @@ export function InvoiceDetailPage() {
           <InvoiceStatusBadge status={status} />
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" className="gap-1.5">
+          <Button variant="outline" className="gap-1.5" onClick={handleDownloadPdf} disabled={isPdfDownloading}>
             <Download01Icon size={13} />
-            Download PDF
+            {isPdfDownloading ? "Generating…" : "Download PDF"}
           </Button>
           <Button variant="outline" className="gap-1.5" onClick={handleCopyLink}>
             <Copy01Icon size={13} />
@@ -412,179 +458,7 @@ export function InvoiceDetailPage() {
       {/* Scrollable content */}
       <div className="flex-1 overflow-y-auto bg-muted/30">
         <div className="mx-auto flex max-w-2xl flex-col gap-0 px-4 py-8">
-          {/* Invoice preview card */}
-          <div className="rounded-lg border bg-white p-10 text-sm shadow-sm dark:bg-card">
-            <div className="flex items-start justify-between">
-              <div>
-                {org?.logo_url ? (
-                  <img
-                    src={org.logo_url}
-                    alt={org.name}
-                    className="h-9 w-auto max-w-[140px] object-contain"
-                  />
-                ) : (
-                  <div className="flex size-9 items-center justify-center rounded-lg bg-foreground text-background text-xs font-bold">
-                    {org?.name?.slice(0, 2).toUpperCase() ?? "TB"}
-                  </div>
-                )}
-                <div className="mt-2 space-y-0.5">
-                  <p className="font-semibold text-foreground">{org?.name ?? "Your Business"}</p>
-                  {org?.address_line1 && <p className="text-xs text-muted-foreground">{org.address_line1}</p>}
-                  {org?.address_line2 && <p className="text-xs text-muted-foreground">{org.address_line2}</p>}
-                  {(org?.city || org?.zip) && (
-                    <p className="text-xs text-muted-foreground">{[org.city, org.zip].filter(Boolean).join(" ")}</p>
-                  )}
-                  {org?.country_code && <p className="text-xs text-muted-foreground">{org.country_code}</p>}
-                  {org?.phone && <p className="text-xs text-muted-foreground">{org.phone}</p>}
-                  {org?.email && <p className="text-xs text-muted-foreground">{org.email}</p>}
-                  {org?.tax_id && <p className="text-xs text-muted-foreground">PIN: {org.tax_id}</p>}
-                </div>
-              </div>
-              <div className="text-right">
-                <p className="text-2xl font-bold text-foreground">INVOICE</p>
-                <p className="text-xs text-muted-foreground">{invoice.invoice_number}</p>
-              </div>
-            </div>
-
-            <Separator className="my-6" />
-
-            <div className="grid grid-cols-2 gap-6">
-              <div>
-                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                  Bill To
-                </p>
-                <div className="mt-1.5 space-y-0.5">
-                  <p className="font-medium text-foreground">{invoice.customer_name}</p>
-                  {customer?.address_line1 && <p className="text-xs text-muted-foreground">{customer.address_line1}</p>}
-                  {customer?.address_line2 && <p className="text-xs text-muted-foreground">{customer.address_line2}</p>}
-                  {(customer?.city || customer?.zip) && (
-                    <p className="text-xs text-muted-foreground">{[customer.city, customer.zip].filter(Boolean).join(" ")}</p>
-                  )}
-                  {customer?.country && <p className="text-xs text-muted-foreground">{customer.country}</p>}
-                  {customer?.phone && <p className="text-xs text-muted-foreground">{customer.phone}</p>}
-                  {(customer?.billing_email || customer?.email) && (
-                    <p className="text-xs text-muted-foreground">{customer.billing_email ?? customer.email}</p>
-                  )}
-                </div>
-              </div>
-              <div>
-                <div className="flex justify-between text-xs">
-                  <span className="text-muted-foreground">Issue date:</span>
-                  <span className="font-medium">
-                    {invoice.issue_date
-                      ? format(new Date(invoice.issue_date), "dd/MM/yyyy")
-                      : "—"}
-                  </span>
-                </div>
-                <div className="mt-1 flex justify-between text-xs">
-                  <span className="text-muted-foreground">Due date:</span>
-                  <span className="font-medium">
-                    {invoice.due_date
-                      ? format(new Date(invoice.due_date), "dd/MM/yyyy")
-                      : "—"}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <Separator className="my-6" />
-
-            <table className="w-full text-xs">
-              <thead>
-                <tr className="border-b text-muted-foreground">
-                  <th className="pb-3 text-left font-medium">Description</th>
-                  <th className="pb-3 text-right font-medium">Qty</th>
-                  <th className="pb-3 text-right font-medium">Rate</th>
-                  <th className="pb-3 text-right font-medium">Tax</th>
-                  <th className="pb-3 text-right font-medium">Amount</th>
-                </tr>
-              </thead>
-              <tbody>
-                {invoice.line_items.map((item, i) => (
-                  <tr key={i} className="border-b border-dashed">
-                    <td className="py-3">{item.description}</td>
-                    <td className="py-3 text-right">{item.quantity}</td>
-                    <td className="py-3 text-right">
-                      {invoice.currency}{" "}
-                      {item.price.toLocaleString("en-KE")}
-                    </td>
-                    <td className="py-3 text-right">{item.tax_rate}%</td>
-                    <td className="py-3 text-right font-medium">
-                      {invoice.currency}{" "}
-                      {(item.quantity * item.price * (1 + item.tax_rate / 100)).toLocaleString(
-                        "en-KE",
-                        { minimumFractionDigits: 2 },
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-
-            <div className="mt-5 flex flex-col items-end gap-1.5 text-xs">
-              <div className="flex w-48 justify-between">
-                <span className="text-muted-foreground">Subtotal</span>
-                <span>
-                  {invoice.currency}{" "}
-                  {subtotal.toLocaleString("en-KE", { minimumFractionDigits: 2 })}
-                </span>
-              </div>
-              {tax > 0 && (
-                <div className="flex w-48 justify-between">
-                  <span className="text-muted-foreground">Tax</span>
-                  <span>
-                    {invoice.currency}{" "}
-                    {tax.toLocaleString("en-KE", { minimumFractionDigits: 2 })}
-                  </span>
-                </div>
-              )}
-              {discount > 0 && (
-                <div className="flex w-48 justify-between text-green-600 dark:text-green-400">
-                  <span>Discount</span>
-                  <span>
-                    − {invoice.currency}{" "}
-                    {discount.toLocaleString("en-KE", { minimumFractionDigits: 2 })}
-                  </span>
-                </div>
-              )}
-              <Separator className="my-1 w-48" />
-              <div className="flex w-48 justify-between text-sm font-semibold">
-                <span>Total</span>
-                <span>
-                  {invoice.currency}{" "}
-                  {total.toLocaleString("en-KE", { minimumFractionDigits: 2 })}
-                </span>
-              </div>
-            </div>
-
-            {invoice.payment_details && (
-              <>
-                <Separator className="my-6" />
-                <div>
-                  <p className="text-xs font-medium">Payment Details</p>
-                  <p className="mt-1 whitespace-pre-wrap text-xs text-muted-foreground">
-                    {invoice.payment_details}
-                  </p>
-                </div>
-              </>
-            )}
-
-            {invoice.note && (
-              <>
-                <Separator className="my-6" />
-                <div>
-                  <p className="text-xs font-medium">Notes</p>
-                  <p className="mt-1 text-xs text-muted-foreground">{invoice.note}</p>
-                </div>
-              </>
-            )}
-
-            <Separator className="my-6" />
-            <p className="text-center text-[10px] text-muted-foreground">
-              Powered by{" "}
-              <span className="underline underline-offset-2">Travada Books</span>
-            </p>
-          </div>
+          <InvoicePreview data={documentData} invoiceTemplate={invoice.invoice_template} />
 
           {/* Detail sections */}
           <div className="mt-4 rounded-lg border bg-background divide-y">

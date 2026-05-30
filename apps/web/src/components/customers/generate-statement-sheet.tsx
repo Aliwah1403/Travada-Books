@@ -31,6 +31,7 @@ import { Spinner } from "@/components/shared/spinner";
 import { listCustomerInvoices } from "@/lib/queries/invoices";
 import { createStatement } from "@/lib/queries/statements";
 import { useAuth } from "@/contexts/auth-context";
+import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 
 const schema = z
@@ -201,8 +202,15 @@ export function GenerateStatementSheet({
                 <Button
                   variant='outline'
                   className='w-full gap-1.5'
-                  disabled
-                  title='Email sending coming in a future update'
+                  onClick={() => {
+                    if (!generatedStatementId) return;
+                    toast.promise(
+                      supabase.functions.invoke("send-statement-email", { body: { statementId: generatedStatementId } }).then((res) => {
+                        if (res.error) throw res.error;
+                      }),
+                      { loading: "Sending…", success: "Statement sent by email", error: "Failed to send email" }
+                    );
+                  }}
                 >
                   <Sent02Icon size={13} />
                   Send to {customerName}

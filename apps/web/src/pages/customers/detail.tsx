@@ -38,7 +38,10 @@ import { InvoiceTable } from "@/components/invoices/invoice-table";
 import { EditCustomerSheet } from "@/components/customers/edit-customer-sheet";
 import { GenerateStatementSheet } from "@/components/customers/generate-statement-sheet";
 import { getCustomer, deleteCustomer } from "@/lib/queries/customers";
-import { listCustomerInvoices, getCustomerInvoiceSummary } from "@/lib/queries/invoices";
+import {
+  listCustomerInvoices,
+  getCustomerInvoiceSummary,
+} from "@/lib/queries/invoices";
 import { type Invoice } from "@/components/invoices/invoice-table";
 import { useAuth } from "@/contexts/auth-context";
 import { format } from "date-fns";
@@ -93,7 +96,9 @@ export function CustomerDetailPage() {
       navigate("/customers");
     },
     onError: () => {
-      toast.error("Failed to delete customer", { description: "Please try again." });
+      toast.error("Failed to delete customer", {
+        description: "Please try again.",
+      });
     },
   });
 
@@ -117,7 +122,9 @@ export function CustomerDetailPage() {
   if (isError) {
     return (
       <div className='flex h-full items-center justify-center'>
-        <p className='text-sm text-muted-foreground'>An error occurred while loading the customer. Please try again.</p>
+        <p className='text-sm text-muted-foreground'>
+          An error occurred while loading the customer. Please try again.
+        </p>
       </div>
     );
   }
@@ -190,13 +197,15 @@ export function CustomerDetailPage() {
           <CardContent className='p-4'>
             <div className='flex flex-col justify-between gap-3'>
               <p className='text-xl font-semibold tracking-tight'>
-                {invoiceSummary
-                  ? `${currency} ${invoiceSummary.totalInvoiced.toLocaleString("en-KE", { minimumFractionDigits: 2 })}`
-                  : "—"}
+                {invoiceSummary ?
+                  `${currency} ${invoiceSummary.totalInvoiced.toLocaleString("en-KE", { minimumFractionDigits: 2 })}`
+                : "—"}
               </p>
               <div>
                 <p className='text-sm'>Total Invoiced</p>
-                <p className='mt-0.5 text-xs text-muted-foreground'>Lifetime value</p>
+                <p className='mt-0.5 text-xs text-muted-foreground'>
+                  Lifetime value
+                </p>
               </div>
             </div>
           </CardContent>
@@ -205,13 +214,15 @@ export function CustomerDetailPage() {
           <CardContent className='p-4'>
             <div className='flex flex-col justify-between gap-3'>
               <p className='text-xl font-semibold tracking-tight text-green-600 dark:text-green-400'>
-                {invoiceSummary
-                  ? `${currency} ${invoiceSummary.totalPaid.toLocaleString("en-KE", { minimumFractionDigits: 2 })}`
-                  : "—"}
+                {invoiceSummary ?
+                  `${currency} ${invoiceSummary.totalPaid.toLocaleString("en-KE", { minimumFractionDigits: 2 })}`
+                : "—"}
               </p>
               <div>
                 <p className='text-sm'>Total Paid</p>
-                <p className='mt-0.5 text-xs text-muted-foreground'>Collected to date</p>
+                <p className='mt-0.5 text-xs text-muted-foreground'>
+                  Collected to date
+                </p>
               </div>
             </div>
           </CardContent>
@@ -220,13 +231,15 @@ export function CustomerDetailPage() {
           <CardContent className='p-4'>
             <div className='flex flex-col justify-between gap-3'>
               <p className='text-xl font-semibold tracking-tight'>
-                {invoiceSummary
-                  ? `${currency} ${invoiceSummary.outstanding.toLocaleString("en-KE", { minimumFractionDigits: 2 })}`
-                  : "—"}
+                {invoiceSummary ?
+                  `${currency} ${invoiceSummary.outstanding.toLocaleString("en-KE", { minimumFractionDigits: 2 })}`
+                : "—"}
               </p>
               <div>
                 <p className='text-sm'>Outstanding</p>
-                <p className='mt-0.5 text-xs text-muted-foreground'>Awaiting payment</p>
+                <p className='mt-0.5 text-xs text-muted-foreground'>
+                  Awaiting payment
+                </p>
               </div>
             </div>
           </CardContent>
@@ -239,7 +252,9 @@ export function CustomerDetailPage() {
               </p>
               <div>
                 <p className='text-sm'>Invoices</p>
-                <p className='mt-0.5 text-xs text-muted-foreground'>Total issued</p>
+                <p className='mt-0.5 text-xs text-muted-foreground'>
+                  Total issued
+                </p>
               </div>
             </div>
           </CardContent>
@@ -532,8 +547,14 @@ export function CustomerDetailPage() {
               customer: inv.customer_name,
               amount: inv.total ?? 0,
               currency: inv.currency,
-              dueDate: inv.due_date ? format(new Date(inv.due_date), "dd/MM/yyyy") : null,
-              issueDate: inv.issue_date ? format(new Date(inv.issue_date), "dd/MM/yyyy") : null,
+              dueDate:
+                inv.due_date ?
+                  format(new Date(inv.due_date), "dd/MM/yyyy")
+                : null,
+              issueDate:
+                inv.issue_date ?
+                  format(new Date(inv.issue_date), "dd/MM/yyyy")
+                : null,
               recurring: inv.recurring,
               token: inv.token,
             }))}

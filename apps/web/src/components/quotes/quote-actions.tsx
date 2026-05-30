@@ -26,17 +26,19 @@ export function QuoteActions({ quoteId, quoteToken, status }: QuoteActionsProps)
   const { orgId } = useAuth();
 
   const { mutate: handleDelete } = useMutation({
-    mutationFn: () => deleteQuote(quoteId),
+    mutationFn: () => deleteQuote(quoteId, orgId!),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["quotes", orgId] });
-      toast.success("Quote deleted");
     },
-    onError: () => toast.error("Failed to delete quote"),
   });
 
-  function copyLink() {
-    navigator.clipboard.writeText(`${window.location.origin}/q/${quoteToken}`);
-    toast.success("Link copied to clipboard");
+  async function copyLink() {
+    try {
+      await navigator.clipboard.writeText(`${window.location.origin}/q/${quoteToken}`);
+      toast.success("Link copied to clipboard");
+    } catch {
+      toast.error("Failed to copy link");
+    }
   }
 
   return (

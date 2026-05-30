@@ -92,8 +92,8 @@ export function EditQuotePage() {
 
   const { data: quote, isLoading } = useQuery({
     queryKey: ["quote", id],
-    queryFn: () => getQuote(id!),
-    enabled: !!id,
+    queryFn: () => getQuote(id!, orgId!),
+    enabled: !!id && !!orgId,
   });
 
   // Pre-populate form from existing quote
@@ -144,7 +144,7 @@ export function EditQuotePage() {
         tax_rate: parseFloat(item.tax) || 0,
       }));
 
-      return updateQuote(id, {
+      return updateQuote(id, orgId!, {
         quote_number: quoteNumber,
         currency,
         issue_date: issueDate ? format(issueDate, "yyyy-MM-dd") : null,
