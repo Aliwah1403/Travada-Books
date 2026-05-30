@@ -1,4 +1,4 @@
-import { schemaTask, wait, logger, AbortTaskRunError } from "@trigger.dev/sdk/v3";
+import { schemaTask, wait, logger, AbortTaskRunError } from "@trigger.dev/sdk";
 import { z } from "zod";
 import { supabase } from "../lib/supabase";
 
@@ -78,6 +78,29 @@ export const scheduledSend = schemaTask({
       convertedAmount = exchangeRate != null ? (invoice.total ?? 0) * exchangeRate : null;
     }
 
+    logger.log("Scheduled send: calling send-invoice-email", { invoiceId });
+
+    const res = await fetch(`${process.env.SUPABASE_URL}/functions/v1/send-invoice-email`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
+        "X-Worker-Secret": process.env.WORKER_SHARED_SECRET!,
+      },
+      body: JSON.stringify({ invoiceId }),
+    });
+
+    if (!res.ok) {
+      // Invoice remains "scheduled" so retries can re-attempt delivery.
+      const body = await res.text().catch(() => "");
+      const msg = `send-invoice-email returned ${res.status} for invoice ${invoiceId}: ${body}`;
+      if (res.status >= 400 && res.status < 500) {
+        throw new AbortTaskRunError(msg);
+      }
+      throw new Error(msg);
+    }
+
+    // Email delivered — now promote the invoice to "unpaid".
     const { data: updated, error: updateError } = await supabase
       .from("invoices")
       .update({
@@ -99,29 +122,8 @@ export const scheduledSend = schemaTask({
     }
 
     if (!updated) {
-      logger.log("Scheduled send: invoice was cancelled between check and update, skipping", { invoiceId });
+      logger.log("Scheduled send: invoice was cancelled between send and update, skipping", { invoiceId });
       return { skipped: true, reason: "cancelled_during_transition" };
-    }
-
-    logger.log("Scheduled send: invoice marked unpaid, calling send-invoice-email", { invoiceId });
-
-    const res = await fetch(`${process.env.SUPABASE_URL}/functions/v1/send-invoice-email`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
-        "X-Worker-Secret": process.env.WORKER_SHARED_SECRET!,
-      },
-      body: JSON.stringify({ invoiceId }),
-    });
-
-    if (!res.ok) {
-      const body = await res.text().catch(() => "");
-      const msg = `send-invoice-email returned ${res.status} for invoice ${invoiceId}: ${body}`;
-      if (res.status >= 400 && res.status < 500) {
-        throw new AbortTaskRunError(msg);
-      }
-      throw new Error(msg);
     }
 
     logger.log("Scheduled send: complete", { invoiceId });

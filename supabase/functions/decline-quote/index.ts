@@ -38,7 +38,21 @@ Deno.serve(async (req) => {
       .select("id")
 
     if (updateError) throw updateError
-    if (!updatedRows?.length) return new Response(JSON.stringify({ ok: true, alreadyDeclined: true }), { headers: corsHeaders })
+    if (!updatedRows?.length) {
+      // Update affected 0 rows — the quote is no longer in "sent" status.
+      // Re-read from the already-fetched quote object (status was fetched above).
+      const status = quote.status
+      if (status === "declined") {
+        return new Response(JSON.stringify({ ok: true, alreadyDeclined: true }), { headers: corsHeaders })
+      }
+      if (status === "accepted") {
+        return new Response(JSON.stringify({ error: "Quote has already been accepted", status: "accepted" }), { status: 409, headers: corsHeaders })
+      }
+      if (status === "expired") {
+        return new Response(JSON.stringify({ error: "Quote has expired", status: "expired" }), { status: 409, headers: corsHeaders })
+      }
+      return new Response(JSON.stringify({ error: "Quote cannot be declined in its current state", status }), { status: 409, headers: corsHeaders })
+    }
 
     const from = quote.from_details as Record<string, string> | null
     const customer = quote.customer_details as Record<string, string> | null

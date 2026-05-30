@@ -50,6 +50,7 @@ Deno.serve(async (req) => {
       .eq("org_id", quote.org_id)
       .eq("role", "owner")
       .eq("status", "active")
+      .order("created_at", { ascending: true })
       .limit(1)
       .single()
     type TzField = { timezone: string | null } | null
@@ -77,7 +78,16 @@ Deno.serve(async (req) => {
     })
 
     if (insertError) {
-      await db.from("quotes").update({ status: "sent", accepted_at: null }).eq("id", quote.id)
+      const { error: rollbackError } = await db
+        .from("quotes")
+        .update({ status: "sent", accepted_at: null })
+        .eq("id", quote.id)
+      if (rollbackError) {
+        console.error("accept-quote: rollback failed after invoice insert error:", rollbackError)
+        throw new Error(
+          `Invoice creation failed: ${insertError.message}. Rollback also failed: ${rollbackError.message} — quote ${quote.id} may be stuck in accepted state without an invoice.`
+        )
+      }
       throw insertError
     }
 

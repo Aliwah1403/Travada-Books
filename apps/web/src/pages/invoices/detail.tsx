@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate, useParams } from "react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
@@ -143,6 +143,7 @@ export function InvoiceDetailPage() {
   const { orgId, org, user } = useAuth();
   const queryClient = useQueryClient();
   const [internalNote, setInternalNote] = useState("");
+  const internalNoteDirtyRef = useRef(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [isPdfDownloading, setIsPdfDownloading] = useState(false);
 
@@ -178,7 +179,7 @@ export function InvoiceDetailPage() {
   });
 
   useEffect(() => {
-    if (invoice) setInternalNote(invoice.internal_note ?? "");
+    if (invoice && !internalNoteDirtyRef.current) setInternalNote(invoice.internal_note ?? "");
   }, [invoice]);
 
   const updateMutation = useMutation({
@@ -235,7 +236,7 @@ export function InvoiceDetailPage() {
       currency: invoice!.currency,
       issue_date: null,
       due_date: null,
-      recurring: invoice!.recurring,
+      recurring: "one_time",
       line_items: invoice!.line_items,
       subtotal: invoice!.subtotal ?? 0,
       tax_amount: invoice!.tax_amount ?? 0,
@@ -312,10 +313,14 @@ export function InvoiceDetailPage() {
       });
       supabase.functions
         .invoke("send-invoice-email", { body: { invoiceId: id } })
+        .then((res) => {
+          if (res.error) {
+            console.error("send-invoice-email failed:", res.error);
+            toast.warning("Invoice sent, but email delivery failed. Try resending from the invoice.");
+          }
+        })
         .catch(() => {
-          toast.warning(
-            "Invoice sent, but email delivery failed. Try resending from the invoice.",
-          );
+          toast.warning("Invoice sent, but email delivery failed. Try resending from the invoice.");
         });
     } catch {
       // onError handles the toast
@@ -751,7 +756,7 @@ export function InvoiceDetailPage() {
                   <Textarea
                     placeholder='Add a private note about this invoice — not visible to the client.'
                     value={internalNote}
-                    onChange={(e) => setInternalNote(e.target.value)}
+                    onChange={(e) => { internalNoteDirtyRef.current = true; setInternalNote(e.target.value); }}
                     className='text-xs'
                     rows={3}
                   />

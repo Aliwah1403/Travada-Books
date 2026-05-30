@@ -1,6 +1,6 @@
 ---
 description: How to use realtime in your Trigger.dev tasks and your frontend
-globs: **/trigger/**/*.ts
+globs: **/trigger/**/*.{ts,tsx}
 alwaysApply: false
 ---
 # Trigger.dev Realtime (v4)

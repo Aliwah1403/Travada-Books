@@ -1,4 +1,4 @@
-import { schedules, logger, AbortTaskRunError } from "@trigger.dev/sdk/v3";
+import { schedules, logger, AbortTaskRunError } from "@trigger.dev/sdk";
 import { supabase } from "../lib/supabase";
 
 const MAX_FAILURES = 3;
@@ -38,24 +38,27 @@ type RecurringSeries = {
 
 function addFrequency(dateStr: string, frequency: Frequency): string {
   const d = new Date(dateStr + "T00:00:00Z");
-  switch (frequency) {
-    case "weekly":
-      d.setUTCDate(d.getUTCDate() + 7);
-      break;
-    case "biweekly":
-      d.setUTCDate(d.getUTCDate() + 14);
-      break;
-    case "monthly":
-      d.setUTCMonth(d.getUTCMonth() + 1);
-      break;
-    case "quarterly":
-      d.setUTCMonth(d.getUTCMonth() + 3);
-      break;
-    case "yearly":
-      d.setUTCFullYear(d.getUTCFullYear() + 1);
-      break;
+
+  if (frequency === "weekly") {
+    d.setUTCDate(d.getUTCDate() + 7);
+    return d.toISOString().split("T")[0];
   }
-  return d.toISOString().split("T")[0];
+  if (frequency === "biweekly") {
+    d.setUTCDate(d.getUTCDate() + 14);
+    return d.toISOString().split("T")[0];
+  }
+
+  const monthOffsets: Record<string, number> = { monthly: 1, quarterly: 3, yearly: 12 };
+  const offset = monthOffsets[frequency];
+  const year = d.getUTCFullYear();
+  const month = d.getUTCMonth();
+  const day = d.getUTCDate();
+  const targetMonth = month + offset;
+  const targetYear = year + Math.floor(targetMonth / 12);
+  const targetMonthIndex = targetMonth % 12;
+  const lastDay = new Date(Date.UTC(targetYear, targetMonthIndex + 1, 0)).getUTCDate();
+  const clampedDay = Math.min(day, lastDay);
+  return new Date(Date.UTC(targetYear, targetMonthIndex, clampedDay)).toISOString().split("T")[0];
 }
 
 function hasSeriesEnded(series: {
@@ -63,15 +66,14 @@ function hasSeriesEnded(series: {
   end_on_date: string | null;
   end_after_count: number | null;
   current_count: number;
-  source_issue_date: string;
-  frequency: Frequency;
+  next_scheduled_at: string;
 }): boolean {
   if (series.end_type === "after_count" && series.end_after_count != null) {
     return series.current_count >= series.end_after_count;
   }
   if (series.end_type === "on_date" && series.end_on_date) {
-    const nextIssueDate = addFrequency(series.source_issue_date, series.frequency);
-    return nextIssueDate > series.end_on_date;
+    // next_scheduled_at IS the current issue date — if it's past the end date, series is done.
+    return series.next_scheduled_at.split("T")[0] > series.end_on_date;
   }
   return false;
 }
@@ -167,15 +169,24 @@ export const recurringInvoiceGenerator = schedules.task({
             sequence: nextSequence,
             existingId: existing.id,
           });
-          await advanceSeries(series, nextSequence);
+          await advanceSeries(series, nextSequence, series.next_scheduled_at.split("T")[0]);
           skipped++;
           continue;
         }
 
-        // Calculate next dates
-        const newIssueDate = addFrequency(series.source_issue_date, series.frequency as Frequency);
+        // The current invoice's issue date is the date this run was scheduled for.
+        const newIssueDate = series.next_scheduled_at.split("T")[0];
+        // Preserve the original payment-term offset (source_due - source_issue) rather
+        // than advancing source_due_date by one frequency step.
         const newDueDate = series.source_due_date
-          ? addFrequency(series.source_due_date, series.frequency as Frequency)
+          ? (() => {
+            const offsetMs =
+              new Date(series.source_due_date + "T00:00:00Z").getTime() -
+              new Date(series.source_issue_date + "T00:00:00Z").getTime();
+            return new Date(new Date(newIssueDate + "T00:00:00Z").getTime() + offsetMs)
+              .toISOString()
+              .split("T")[0];
+          })()
           : null;
 
         // Get next invoice number via the Postgres RPC (same as web app, avoids races)
@@ -280,7 +291,7 @@ export const recurringInvoiceGenerator = schedules.task({
           });
         }
 
-        await advanceSeries(series, nextSequence);
+        await advanceSeries(series, nextSequence, newIssueDate);
         processed++;
       } catch (err) {
         logger.error("Recurring invoice generator: error processing series", {
@@ -320,10 +331,11 @@ export const recurringInvoiceGenerator = schedules.task({
 });
 
 async function advanceSeries(
-  series: { id: string; source_issue_date: string; frequency: string; current_count: number },
-  completedSequence: number
+  series: { id: string; frequency: string; current_count: number },
+  completedSequence: number,
+  currentIssueDate: string
 ) {
-  const nextIssueDate = addFrequency(series.source_issue_date, series.frequency as Frequency);
+  const nextIssueDate = addFrequency(currentIssueDate, series.frequency as Frequency);
   const nextScheduledAt = new Date(nextIssueDate + "T00:00:00Z").toISOString();
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

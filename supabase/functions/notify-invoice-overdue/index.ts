@@ -101,6 +101,24 @@ Deno.serve(async (req) => {
           })
         )
 
+        // Atomically claim this invoice: only proceed if no other worker has
+        // already stamped it. The conditional .is("overdue_alert_sent_at", null)
+        // means exactly one concurrent worker wins; the rest get 0 rows back.
+        const { data: stamped, error: stampError } = await db
+          .from("invoices")
+          .update({ overdue_alert_sent_at: new Date().toISOString() })
+          .is("overdue_alert_sent_at", null)
+          .eq("id", invoice.id)
+          .select("id")
+        if (stampError) {
+          console.error(`notify-invoice-overdue: failed to stamp overdue_alert_sent_at for invoice ${invoice.id}:`, stampError)
+          continue
+        }
+        if (!stamped || stamped.length === 0) {
+          // Another worker already stamped this invoice — skip to avoid duplicate send.
+          continue
+        }
+
         const label = invoice.invoice_number ? `Invoice ${invoice.invoice_number}` : "Invoice"
         await resend.emails.send({
           from: `Travada Books <${FROM_EMAIL}>`,
@@ -108,15 +126,6 @@ Deno.serve(async (req) => {
           subject: `${label} to ${customerName} is now overdue`,
           html,
         })
-
-        // Mark as alerted so retries and future cron runs don't resend.
-        const { error: stampError } = await db
-          .from("invoices")
-          .update({ overdue_alert_sent_at: new Date().toISOString() })
-          .eq("id", invoice.id)
-        if (stampError) {
-          console.error(`notify-invoice-overdue: failed to stamp overdue_alert_sent_at for invoice ${invoice.id}:`, stampError)
-        }
 
         sent++
       } catch (invoiceErr) {

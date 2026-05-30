@@ -112,11 +112,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const refreshProfile = useCallback(async () => {
     const userId = session?.user?.id
     if (!userId) return
+    const fetchId = ++fetchIdRef.current
     const { data } = await supabase
       .from("users")
       .select("id, full_name, avatar_url, email, locale, timezone, date_format, time_format, week_starts_on_monday, timezone_auto_sync")
       .eq("id", userId)
       .maybeSingle()
+    if (fetchId !== fetchIdRef.current) return
     if (data) setProfile(data as UserProfile)
   }, [session?.user?.id])
 
@@ -129,6 +131,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session)
       if (!session) {
+        fetchIdRef.current++
         setProfile(null)
         setOrg(null)
         setOrgRole(null)
@@ -142,6 +145,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (loading) return
     if (!session?.user) {
+      fetchIdRef.current++
       setProfile(null)
       setOrg(null)
       setOrgRole(null)

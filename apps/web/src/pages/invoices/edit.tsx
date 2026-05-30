@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate, useParams } from "react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -313,6 +313,7 @@ export function EditInvoicePage() {
   const { org, orgId } = useAuth();
 
   const [initialized, setInitialized] = useState(false);
+  const mergedSavedTemplateRef = useRef(false);
   const [selectedCustomer, setSelectedCustomer] = useState<SelectedCustomer | null>(null);
   const [currency, setCurrency] = useState("KES");
   const [invoiceNumber, setInvoiceNumber] = useState("");
@@ -401,9 +402,10 @@ export function EditInvoicePage() {
     setInitialized(true);
   }, [invoice, initialized, id, navigate]);
 
-  // Merge saved template into settings once both are ready, without clobbering user edits
+  // Merge saved template into settings once on initial load — subsequent refetches won't clobber edits.
   useEffect(() => {
-    if (!initialized || !savedTemplate) return;
+    if (!initialized || !savedTemplate || mergedSavedTemplateRef.current) return;
+    mergedSavedTemplateRef.current = true;
     setInvoiceSettings((prev) => ({
       ...prev,
       ...savedTemplate,

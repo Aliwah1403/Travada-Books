@@ -50,12 +50,18 @@ export function ProfilePage() {
   const [timezone, setTimezone] = useState("Africa/Nairobi")
   const [dateFormat, setDateFormat] = useState("dd-mm-yyyy")
   const [timeFormat, setTimeFormat] = useState("24h")
+  const [lastLoadedProfileId, setLastLoadedProfileId] = useState<string | null>(null)
 
   useEffect(() => {
     if (!profile) return
+    // Always sync non-editable UI state so avatar uploads are reflected immediately.
+    setAvatarUrl(profile.avatar_url)
+    // Only hydrate editable fields on first load or when the signed-in user changes
+    // so an in-progress edit is not overwritten by a background profile refresh.
+    if (profile.id === lastLoadedProfileId) return
+    setLastLoadedProfileId(profile.id)
     setFullName(profile.full_name ?? "")
     setEmail(profile.email ?? user?.email ?? "")
-    setAvatarUrl(profile.avatar_url)
     setAutoTimezone(profile.timezone_auto_sync)
     setTimezone(profile.timezone)
     setDateFormat(profile.date_format === "DD/MM/YYYY" ? "dd-mm-yyyy"
@@ -69,7 +75,8 @@ export function ProfilePage() {
     mutationFn: async (file: File) => {
       const url = await uploadUserAvatar(user!.id, file)
       await updateUserProfile(user!.id, { full_name: profile?.full_name ?? null })
-      await supabase.from("users").update({ avatar_url: url }).eq("id", user!.id)
+      const { error: updateError } = await supabase.from("users").update({ avatar_url: url }).eq("id", user!.id)
+      if (updateError) throw new Error(`Failed to save avatar: ${updateError.message}`)
       return url
     },
     onSuccess: async (url) => {

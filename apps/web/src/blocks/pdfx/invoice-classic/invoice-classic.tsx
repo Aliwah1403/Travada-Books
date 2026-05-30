@@ -60,7 +60,11 @@ export function InvoiceClassicDocument({
 
 function InvoiceClassicContent({ data }: { data: InvoiceClassicData }) {
   const theme = usePdfxTheme();
-  const currencySymbol = data.currency ?? "$";
+  const formatAmount = (amount: number) =>
+    new Intl.NumberFormat(undefined, {
+      style: "currency",
+      currency: data.currency ?? "USD",
+    }).format(amount);
 
   const styles = StyleSheet.create({
     page: {
@@ -156,8 +160,8 @@ function InvoiceClassicContent({ data }: { data: InvoiceClassicData }) {
               <TableRow key={index}>
                 <TableCell>{item.description}</TableCell>
                 <TableCell align="center">{`${item.quantity}`}</TableCell>
-                <TableCell align="center">{`${currencySymbol}${item.unitPrice.toFixed(2)}`}</TableCell>
-                <TableCell align="right">{`${currencySymbol}${(item.quantity * item.unitPrice).toFixed(2)}`}</TableCell>
+                <TableCell align="center">{formatAmount(item.unitPrice)}</TableCell>
+                <TableCell align="right">{formatAmount(item.quantity * item.unitPrice)}</TableCell>
               </TableRow>
             ))}
           </TableBody>
@@ -168,11 +172,11 @@ function InvoiceClassicContent({ data }: { data: InvoiceClassicData }) {
               size="sm"
               dividerThickness={1}
               items={[
-                { key: 'Subtotal', value: `${currencySymbol}${data.summary.subtotal.toFixed(2)}` },
-                { key: 'Tax', value: `${currencySymbol}${data.summary.tax.toFixed(2)}` },
+                { key: 'Subtotal', value: formatAmount(data.summary.subtotal) },
+                { key: 'Tax', value: formatAmount(data.summary.tax) },
                 {
                   key: 'Total',
-                  value: `${currencySymbol}${data.summary.total.toFixed(2)}`,
+                  value: formatAmount(data.summary.total),
                   valueStyle: { fontSize: 12, fontWeight: 'bold' },
                   keyStyle: { fontSize: 12, fontWeight: 'bold' },
                 },

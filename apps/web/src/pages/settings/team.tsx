@@ -135,14 +135,17 @@ function InviteDialog({
       if (!email.trim()) throw new Error("Please enter an email address.");
       const id = await inviteMember(orgId, email, role);
       const inviterName = profile?.full_name || org?.name || "";
-      supabase.functions
-        .invoke("invite-member", {
-          body: {
-            invitations: [{ email: email.trim().toLowerCase(), id }],
-            inviterName,
-          },
-        })
-        .catch(() => {});
+      const { error: invokeError } = await supabase.functions.invoke("invite-member", {
+        body: {
+          invitations: [{ email: email.trim().toLowerCase(), id }],
+          inviterName,
+        },
+      });
+      if (invokeError) {
+        // Roll back the pending invite row so the member list stays consistent.
+        await supabase.from("organization_members").delete().eq("id", id);
+        throw new Error("Failed to send invite email. Please try again.");
+      }
     },
     onSuccess: () => {
       toast.success(`Invite sent to ${email.trim()}.`);
@@ -526,7 +529,7 @@ export function TeamSettingsPage() {
   const invitationsQuery = useQuery({
     queryKey: ["team-invitations", orgId],
     queryFn: () => listTeamInvitations(orgId!),
-    enabled: !!orgId,
+    enabled: isOwner && !!orgId,
   });
 
   const roleChangeMutation = useMutation({
@@ -563,11 +566,12 @@ export function TeamSettingsPage() {
 
   const resendMutation = useMutation({
     mutationFn: async (inv: TeamInvitation) => {
-      await renewInvitation(inv.id);
       const inviterName = profile?.full_name || org?.name || "";
-      await supabase.functions.invoke("invite-member", {
+      const { error: invokeError } = await supabase.functions.invoke("invite-member", {
         body: { invitations: [{ email: inv.email, id: inv.id }], inviterName },
       });
+      if (invokeError) throw new Error("Failed to send invite email. Please try again.");
+      await renewInvitation(inv.id);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["team-invitations", orgId] });

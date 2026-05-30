@@ -314,8 +314,7 @@ export function CreateQuotePage() {
 
   useEffect(() => {
     if (nextQuoteNumber && !isManualQuoteNumber) setQuoteNumber(nextQuoteNumber);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [nextQuoteNumber]);
+  }, [nextQuoteNumber, isManualQuoteNumber]);
 
   function buildInput(action: "draft" | "send") {
     const totals = computeTotals(items, discountType, discountValue, vatRate);

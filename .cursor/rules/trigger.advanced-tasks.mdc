@@ -486,5 +486,6 @@ export const publicWorkflow = task({
 - **Debouncing**: Use for user activity, webhooks, and notification batching
 - **Batch triggering**: Use for bulk operations up to 1,000 items
 - **Error Handling**: Distinguish between retryable and fatal errors
+- **Never Promise.all**: Don't wrap `triggerAndWait()`, `batchTriggerAndWait()`, or `wait` calls in `Promise.all()` or `Promise.allSettled()` — these are suspension points the SDK must checkpoint individually, and concurrent wrapping breaks that mechanism
 
 Design tasks to be stateless, idempotent, and resilient to failures. Use metadata for state tracking and queues for resource management.

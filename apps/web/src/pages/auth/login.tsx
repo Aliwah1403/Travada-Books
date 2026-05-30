@@ -33,7 +33,17 @@ export function LoginPage() {
       return
     }
     const next = searchParams.get("next")
-    navigate(next ? decodeURIComponent(next) : "/invoices")
+    let destination = "/invoices"
+    if (next) {
+      try {
+        const decoded = decodeURIComponent(next)
+        const resolved = new URL(decoded, window.location.origin)
+        if (resolved.origin === window.location.origin) destination = decoded
+      } catch {
+        // malformed next param — fall back to /invoices
+      }
+    }
+    navigate(destination)
   }
 
   return (
@@ -98,7 +108,10 @@ export function LoginPage() {
 
         <p className="text-center text-xs text-muted-foreground">
           Don&apos;t have an account?{" "}
-          <Link to="/signup" className="text-foreground underline-offset-4 hover:underline">
+          <Link
+            to={`/signup?email=${encodeURIComponent(email)}${searchParams.get("next") ? `&next=${encodeURIComponent(searchParams.get("next")!)}` : ""}`}
+            className="text-foreground underline-offset-4 hover:underline"
+          >
             Create one
           </Link>
         </p>

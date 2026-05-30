@@ -16,20 +16,21 @@ Deno.serve(async (req) => {
     if ("error" in auth) return new Response(auth.error.body, { status: auth.error.status, headers: corsHeaders })
     const { orgId } = auth
 
-    const { invoiceId, scheduledAt } = await req.json()
-    if (!invoiceId || !scheduledAt) {
-      return new Response(JSON.stringify({ error: "invoiceId and scheduledAt required" }), { status: 400, headers: corsHeaders })
+    const { invoiceId } = await req.json()
+    if (!invoiceId) {
+      return new Response(JSON.stringify({ error: "invoiceId required" }), { status: 400, headers: corsHeaders })
     }
 
     const { data: invoice, error } = await db
       .from("invoices")
-      .select("id, org_id, status")
+      .select("id, org_id, status, scheduled_at")
       .eq("id", invoiceId)
       .single()
 
     if (error || !invoice) return new Response(JSON.stringify({ error: "Invoice not found" }), { status: 404, headers: corsHeaders })
     if (invoice.org_id !== orgId) return new Response(JSON.stringify({ error: "Forbidden" }), { status: 403, headers: corsHeaders })
     if (invoice.status !== "scheduled") return new Response(JSON.stringify({ error: "Invoice must be in scheduled status" }), { status: 422, headers: corsHeaders })
+    if (!invoice.scheduled_at) return new Response(JSON.stringify({ error: "Invoice has no scheduled_at" }), { status: 422, headers: corsHeaders })
 
     const res = await fetch("https://api.trigger.dev/api/v1/tasks/scheduled-send/trigger", {
       method: "POST",
@@ -37,7 +38,7 @@ Deno.serve(async (req) => {
         "Content-Type": "application/json",
         Authorization: `Bearer ${TRIGGER_SECRET_KEY}`,
       },
-      body: JSON.stringify({ payload: { invoiceId, scheduledAt } }),
+      body: JSON.stringify({ payload: { invoiceId, scheduledAt: invoice.scheduled_at } }),
     })
 
     if (!res.ok) {

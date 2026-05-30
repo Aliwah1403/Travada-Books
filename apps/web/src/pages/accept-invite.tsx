@@ -41,7 +41,10 @@ export function AcceptInvitePage() {
         return setState({ kind: "expired", info })
       }
       setState({ kind: "ready", info })
-    }).catch(() => setState({ kind: "not_found" }))
+    }).catch((err: unknown) => {
+      console.error("getInviteInfo failed:", err)
+      setState({ kind: "error", message: err instanceof Error ? err.message : "Failed to load invite" })
+    })
   }, [token])
 
   // Auto-accept when user is logged in and invite is ready
@@ -56,6 +59,7 @@ export function AcceptInvitePage() {
         window.location.replace("/invoices")
       })
       .catch((err: Error) => {
+        sessionStorage.removeItem("pendingInviteToken")
         if (err.message === "email_mismatch") {
           setState({ kind: "email_mismatch", info })
         } else if (err.message === "already_accepted") {

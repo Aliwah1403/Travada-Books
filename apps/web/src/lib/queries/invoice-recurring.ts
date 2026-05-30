@@ -79,22 +79,28 @@ export async function updateInvoiceRecurringStatus(
 
 export function addFrequency(dateStr: string, frequency: InvoiceRecurringFrequency): string {
   const d = new Date(dateStr + "T00:00:00Z")
-  switch (frequency) {
-    case "weekly":
-      d.setUTCDate(d.getUTCDate() + 7)
-      break
-    case "biweekly":
-      d.setUTCDate(d.getUTCDate() + 14)
-      break
-    case "monthly":
-      d.setUTCMonth(d.getUTCMonth() + 1)
-      break
-    case "quarterly":
-      d.setUTCMonth(d.getUTCMonth() + 3)
-      break
-    case "yearly":
-      d.setUTCFullYear(d.getUTCFullYear() + 1)
-      break
+
+  if (frequency === "weekly") {
+    d.setUTCDate(d.getUTCDate() + 7)
+    return d.toISOString().split("T")[0]
   }
-  return d.toISOString().split("T")[0]
+  if (frequency === "biweekly") {
+    d.setUTCDate(d.getUTCDate() + 14)
+    return d.toISOString().split("T")[0]
+  }
+
+  // For month-based frequencies, clamp the day to the last day of the target
+  // month so Jan 31 -> Feb 28/29, not Mar 3.
+  const monthOffsets: Record<string, number> = { monthly: 1, quarterly: 3, yearly: 12 }
+  const offset = monthOffsets[frequency]
+  const year = d.getUTCFullYear()
+  const month = d.getUTCMonth()
+  const day = d.getUTCDate()
+  const targetMonth = month + offset
+  const targetYear = year + Math.floor(targetMonth / 12)
+  const targetMonthIndex = targetMonth % 12
+  // Day 0 of the next month = last day of targetMonth
+  const lastDay = new Date(Date.UTC(targetYear, targetMonthIndex + 1, 0)).getUTCDate()
+  const clampedDay = Math.min(day, lastDay)
+  return new Date(Date.UTC(targetYear, targetMonthIndex, clampedDay)).toISOString().split("T")[0]
 }

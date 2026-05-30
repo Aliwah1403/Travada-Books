@@ -37,15 +37,21 @@ export function GeneralSettingsPage() {
   const [phone, setPhone] = useState("")
   const [logoUrl, setLogoUrl] = useState<string | null>(null)
   const [currency, setCurrency] = useState("KES")
+  const lastLoadedOrgIdRef = useRef<string | null>(null)
 
   useEffect(() => {
     if (!org) return
+    // Always sync logoUrl so uploads are reflected immediately.
+    setLogoUrl(org.logo_url)
+    // Only hydrate editable fields on first load or when the org switches,
+    // so refreshOrg() calls after logo uploads don't clobber in-progress edits.
+    if (org.id === lastLoadedOrgIdRef.current) return
+    lastLoadedOrgIdRef.current = org.id
     setName(org.name ?? "")
     setTaxId(org.tax_id ?? "")
     setAddress(org.address_line1 ?? "")
     setEmail(org.email ?? "")
     setPhone(org.phone ?? "")
-    setLogoUrl(org.logo_url)
     setCurrency(org.base_currency ?? "KES")
   }, [org])
 
@@ -68,7 +74,7 @@ export function GeneralSettingsPage() {
         name: name.trim() || org!.name,
         tax_id: taxId.trim() || null,
         address_line1: address.trim() || null,
-        email: email.trim() || null,
+        email: email.trim() || org!.email,
         phone: phone.trim() || null,
       }),
     onSuccess: () => refreshOrg(),

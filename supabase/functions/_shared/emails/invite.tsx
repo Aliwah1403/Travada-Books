@@ -1,5 +1,5 @@
 import React from "npm:react"
-import { Text } from "../email-components.ts"
+import { Text, Section } from "../email-components.ts"
 import { EmailLayout, CtaButton, colors } from "../email-layout.tsx"
 
 const font = "ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"

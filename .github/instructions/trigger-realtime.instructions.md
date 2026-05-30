@@ -1,5 +1,5 @@
 ---
-applyTo: **/trigger/**/*.ts
+applyTo: **/trigger/**/*.{ts,tsx}
 ---
 # Trigger.dev Realtime (v4)
 

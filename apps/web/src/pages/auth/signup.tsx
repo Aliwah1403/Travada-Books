@@ -48,7 +48,21 @@ export function SignupPage() {
       setError(error.message)
       return
     }
-    navigate(next ? decodeURIComponent(next) : "/invoices")
+    if (emailRedirectTo) {
+      navigate(emailRedirectTo)
+    } else {
+      let destination = "/invoices"
+      if (next) {
+        try {
+          const decoded = decodeURIComponent(next)
+          const resolved = new URL(decoded, window.location.origin)
+          if (resolved.origin === window.location.origin) destination = decoded
+        } catch {
+          // malformed next param — fall back to /invoices
+        }
+      }
+      navigate(destination)
+    }
   }
 
   return (
@@ -120,7 +134,10 @@ export function SignupPage() {
 
         <p className="text-center text-xs text-muted-foreground">
           Already have an account?{" "}
-          <Link to="/login" className="text-foreground underline-offset-4 hover:underline">
+          <Link
+            to={`/login?email=${encodeURIComponent(email)}${searchParams.get("next") ? `&next=${encodeURIComponent(searchParams.get("next")!)}` : ""}`}
+            className="text-foreground underline-offset-4 hover:underline"
+          >
             Sign in
           </Link>
         </p>
