@@ -27,26 +27,43 @@ Deno.serve(async (req) => {
     if (fetchError || !quote) return new Response(JSON.stringify({ error: "Quote not found" }), { status: 404, headers: corsHeaders })
     if (quote.status !== "sent") return new Response(JSON.stringify({ error: "Quote is not available for acceptance" }), { status: 400, headers: corsHeaders })
 
-    const { error: updateError } = await db
+    const { data: updatedRows, error: updateError } = await db
       .from("quotes")
       .update({ status: "accepted", accepted_at: new Date().toISOString() })
       .eq("id", quote.id)
+      .eq("status", "sent")
+      .select("id")
 
     if (updateError) throw updateError
+    if (!updatedRows?.length) return new Response(JSON.stringify({ error: "Quote is not available for acceptance" }), { status: 400, headers: corsHeaders })
 
     // Create draft invoice from the accepted quote
     const { data: invoiceNumberData } = await db.rpc("next_invoice_number", {
       p_org_id: quote.org_id,
       p_customer_id: quote.customer_id,
     })
-    await db.from("invoices").insert({
+
+    // Resolve org owner's timezone so issue_date reflects their local calendar date.
+    const { data: ownerMember } = await db
+      .from("organization_members")
+      .select("users(timezone)")
+      .eq("org_id", quote.org_id)
+      .eq("role", "owner")
+      .eq("status", "active")
+      .limit(1)
+      .single()
+    type TzField = { timezone: string | null } | null
+    const ownerTz = (ownerMember?.users as unknown as TzField)?.timezone ?? "UTC"
+    const issueDate = new Date().toLocaleDateString("en-CA", { timeZone: ownerTz })
+
+    const { error: insertError } = await db.from("invoices").insert({
       org_id: quote.org_id,
       user_id: quote.user_id,
       customer_id: quote.customer_id,
       customer_name: quote.customer_name,
       invoice_number: invoiceNumberData,
       status: "draft",
-      issue_date: new Date().toISOString().split("T")[0],
+      issue_date: issueDate,
       currency: quote.currency,
       line_items: quote.line_items,
       subtotal: quote.subtotal,
@@ -58,6 +75,11 @@ Deno.serve(async (req) => {
       note: quote.note,
       quote_id: quote.id,
     })
+
+    if (insertError) {
+      await db.from("quotes").update({ status: "sent", accepted_at: null }).eq("id", quote.id)
+      throw insertError
+    }
 
     const from = quote.from_details as Record<string, string> | null
     const customer = quote.customer_details as Record<string, string> | null

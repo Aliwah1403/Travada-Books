@@ -27,7 +27,11 @@ export function AppLayout() {
 
   if (loading || orgLoading) return null
   if (!user) return <Navigate to="/login" replace />
-  if (!orgId) return <Navigate to="/onboarding/org" replace />
+  if (!orgId) {
+    const pending = sessionStorage.getItem("pendingInviteToken")
+    if (pending) return <Navigate to={`/accept-invite?token=${pending}`} replace />
+    return <Navigate to="/onboarding/org" replace />
+  }
 
   return (
     <div className="flex h-screen overflow-hidden">

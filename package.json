@@ -7,7 +7,8 @@
     "dev": "turbo dev",
     "lint": "turbo lint",
     "format": "turbo format",
-    "typecheck": "turbo typecheck"
+    "typecheck": "turbo typecheck",
+    "emails": "npm run dev --workspace=@travada-books/worker"
   },
   "devDependencies": {
     "eslint": "^9.39.2",

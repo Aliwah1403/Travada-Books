@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { Link, useNavigate } from "react-router"
+import { Link, useNavigate, useSearchParams } from "react-router"
 import { Button } from "@travada-books/ui/components/button"
 import { Input } from "@travada-books/ui/components/input"
 import { Label } from "@travada-books/ui/components/label"
@@ -9,7 +9,8 @@ import { supabase } from "@/lib/supabase"
 
 export function LoginPage() {
   const navigate = useNavigate()
-  const [email, setEmail] = useState("")
+  const [searchParams] = useSearchParams()
+  const [email, setEmail] = useState(() => searchParams.get("email") ?? "")
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
@@ -24,7 +25,8 @@ export function LoginPage() {
       setError(error.message)
       return
     }
-    navigate("/invoices")
+    const next = searchParams.get("next")
+    navigate(next ? decodeURIComponent(next) : "/invoices")
   }
 
   return (

@@ -60,14 +60,19 @@ export function OnboardingInvitePage() {
     setError("")
     setLoading(true)
 
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
     const rows = validEmails.map((email) => ({
       org_id: orgId,
       email,
-      role: "viewer" as const,
+      role: "member" as const,
       status: "invited" as const,
+      expires_at: expiresAt,
     }))
 
-    const { error: insertError } = await supabase.from("organization_members").insert(rows)
+    const { data: inserted, error: insertError } = await supabase
+      .from("organization_members")
+      .insert(rows)
+      .select("id, email")
 
     if (insertError) {
       setError(insertError.message)
@@ -76,7 +81,8 @@ export function OnboardingInvitePage() {
     }
 
     const inviterName = profile?.full_name || org?.name || ""
-    supabase.functions.invoke("invite-member", { body: { emails: validEmails, inviterName } }).catch(() => {})
+    const invitations = (inserted ?? []).map((r) => ({ email: r.email as string, id: r.id as string }))
+    supabase.functions.invoke("invite-member", { body: { invitations, inviterName } }).catch(() => {})
 
     await finish()
   }

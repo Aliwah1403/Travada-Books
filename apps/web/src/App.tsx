@@ -37,6 +37,7 @@ import { SecurityPage } from "@/pages/account/security"
 import { NotificationsPage } from "@/pages/account/notifications"
 import { OnboardingOrgPage } from "@/pages/onboarding/org"
 import { OnboardingInvitePage } from "@/pages/onboarding/invite"
+import { AcceptInvitePage } from "@/pages/accept-invite"
 
 const router = createBrowserRouter([
   {
@@ -96,6 +97,10 @@ const router = createBrowserRouter([
         ],
       },
     ],
+  },
+  {
+    path: "/accept-invite",
+    element: <AcceptInvitePage />,
   },
   {
     path: "/i/:token",

@@ -20,7 +20,13 @@ import {
 } from "@travada-books/ui/components/alert-dialog";
 import { Button } from "@travada-books/ui/components/button";
 import { type InvoiceStatus } from "@/components/invoices/invoice-status-badge";
-import { getInvoice, createInvoice, getNextInvoiceNumber, updateInvoice, deleteInvoice } from "@/lib/queries/invoices";
+import {
+  getInvoice,
+  createInvoice,
+  getNextInvoiceNumber,
+  updateInvoice,
+  deleteInvoice,
+} from "@/lib/queries/invoices";
 import { useAuth } from "@/contexts/auth-context";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
@@ -32,7 +38,12 @@ type InvoiceActionsProps = {
   invoiceNumber?: string;
 };
 
-export function InvoiceActions({ invoiceId, status, token, invoiceNumber }: InvoiceActionsProps) {
+export function InvoiceActions({
+  invoiceId,
+  status,
+  token,
+  invoiceNumber,
+}: InvoiceActionsProps) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { orgId, user } = useAuth();
@@ -73,33 +84,41 @@ export function InvoiceActions({ invoiceId, status, token, invoiceNumber }: Invo
   return (
     <>
       <DropdownMenu>
-        <DropdownMenuTrigger
-          render={<Button variant="ghost" size="icon-sm" />}
-        >
+        <DropdownMenuTrigger render={<Button variant='ghost' size='icon-sm' />}>
           <MoreHorizontalIcon size={14} />
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
+        <DropdownMenuContent align='end'>
           <DropdownMenuItem onClick={() => navigate(`/invoices/${invoiceId}`)}>
             View
           </DropdownMenuItem>
           {status === "draft" && (
-            <DropdownMenuItem onClick={() => navigate(`/invoices/${invoiceId}/edit`)}>
+            <DropdownMenuItem
+              onClick={() => navigate(`/invoices/${invoiceId}/edit`)}
+            >
               Edit
             </DropdownMenuItem>
           )}
-          {status !== "paid" && status !== "canceled" && (
+          {status !== "paid" && status !== "canceled" && status !== "scheduled" && (
             <DropdownMenuItem
               onClick={() => {
                 toast.promise(
-                  updateInvoice(invoiceId, orgId!, { status: "paid", paid_at: new Date().toISOString() }).then(() => {
+                  updateInvoice(invoiceId, orgId!, {
+                    status: "paid",
+                    paid_at: new Date().toISOString(),
+                  }).then(() => {
                     invalidate();
-                    supabase.functions.invoke("notify-invoice-paid", { body: { invoiceId } }).catch(() => {});
+                    supabase.functions
+                      .invoke("notify-invoice-paid", { body: { invoiceId } })
+                      .catch((err) => {
+                        console.error("notify-invoice-paid failed:", err);
+                        toast.warning("Invoice marked as paid, but the notification email failed to send.");
+                      });
                   }),
                   {
                     loading: "Marking as paid…",
                     success: "Invoice marked as paid",
                     error: "Failed to mark as paid",
-                  }
+                  },
                 );
               }}
             >
@@ -110,10 +129,16 @@ export function InvoiceActions({ invoiceId, status, token, invoiceNumber }: Invo
             <DropdownMenuItem
               onClick={() => {
                 toast.promise(
-                  supabase.functions.invoke("send-invoice-reminder", { body: { invoiceId } }).then((res) => {
-                    if (res.error) throw res.error;
-                  }),
-                  { loading: "Sending reminder…", success: "Reminder sent", error: "Failed to send reminder" }
+                  supabase.functions
+                    .invoke("send-invoice-reminder", { body: { invoiceId } })
+                    .then((res) => {
+                      if (res.error) throw res.error;
+                    }),
+                  {
+                    loading: "Sending reminder…",
+                    success: "Reminder sent",
+                    error: "Failed to send reminder",
+                  },
                 );
               }}
             >
@@ -137,7 +162,9 @@ export function InvoiceActions({ invoiceId, status, token, invoiceNumber }: Invo
           </DropdownMenuItem>
           <DropdownMenuItem
             onClick={() => {
-              navigator.clipboard.writeText(`${window.location.origin}/i/${token}`);
+              navigator.clipboard.writeText(
+                `${window.location.origin}/i/${token}`,
+              );
               toast.success("Link copied to clipboard");
             }}
           >
@@ -145,7 +172,7 @@ export function InvoiceActions({ invoiceId, status, token, invoiceNumber }: Invo
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem
-            className="text-destructive focus:text-destructive"
+            className='text-destructive focus:text-destructive'
             onClick={() => setDeleteOpen(true)}
           >
             Delete
@@ -154,26 +181,31 @@ export function InvoiceActions({ invoiceId, status, token, invoiceNumber }: Invo
       </DropdownMenu>
 
       <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
-        <AlertDialogContent size="sm">
+        <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete invoice?</AlertDialogTitle>
             <AlertDialogDescription>
-              {invoiceNumber ? (
-                <><strong>{invoiceNumber}</strong> will be permanently deleted. This cannot be undone.</>
-              ) : (
-                "This invoice will be permanently deleted. This cannot be undone."
-              )}
+              {invoiceNumber ?
+                <>
+                  <strong>{invoiceNumber}</strong> will be permanently deleted.
+                  This cannot be undone.
+                </>
+              : "This invoice will be permanently deleted. This cannot be undone."
+              }
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <Button
-              variant="destructive"
+              variant='destructive'
               onClick={() => {
                 setDeleteOpen(false);
                 toast.promise(deleteInvoice(invoiceId, orgId!), {
                   loading: "Deleting invoice…",
-                  success: () => { invalidate(); return "Invoice deleted"; },
+                  success: () => {
+                    invalidate();
+                    return "Invoice deleted";
+                  },
                   error: "Failed to delete invoice",
                 });
               }}

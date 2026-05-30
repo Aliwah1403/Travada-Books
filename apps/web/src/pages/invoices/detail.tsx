@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { format, addWeeks, addMonths, addYears } from "date-fns";
+import { format } from "date-fns";
 import {
   ArrowLeft01Icon,
+  Cancel01Icon,
   Copy01Icon,
   Delete01Icon,
   Download01Icon,
@@ -31,9 +32,22 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@travada-books/ui/components/alert-dialog";
-import { InvoiceStatusBadge, type InvoiceStatus } from "@/components/invoices/invoice-status-badge";
+import {
+  InvoiceStatusBadge,
+  type InvoiceStatus,
+} from "@/components/invoices/invoice-status-badge";
 import { cn } from "@travada-books/ui/lib/utils";
-import { getInvoice, updateInvoice, deleteInvoice, createInvoice, getNextInvoiceNumber } from "@/lib/queries/invoices";
+import {
+  getInvoice,
+  updateInvoice,
+  deleteInvoice,
+  createInvoice,
+  getNextInvoiceNumber,
+} from "@/lib/queries/invoices";
+import {
+  getInvoiceRecurring,
+  updateInvoiceRecurringStatus,
+} from "@/lib/queries/invoice-recurring";
 import { getCustomer } from "@/lib/queries/customers";
 import { useAuth } from "@/contexts/auth-context";
 import { supabase } from "@/lib/supabase";
@@ -51,26 +65,12 @@ const RECURRING_LABELS: Record<string, string> = {
   yearly: "Yearly",
 };
 
-function getUpcomingDates(frequency: string, count = 3): Date[] {
-  const base = new Date();
-  const dates: Date[] = [];
-  for (let i = 1; i <= count; i++) {
-    switch (frequency) {
-      case "weekly": dates.push(addWeeks(base, i)); break;
-      case "biweekly": dates.push(addWeeks(base, i * 2)); break;
-      case "monthly": dates.push(addMonths(base, i)); break;
-      case "quarterly": dates.push(addMonths(base, i * 3)); break;
-      case "yearly": dates.push(addYears(base, i)); break;
-    }
-  }
-  return dates;
-}
 
 function DetailRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex items-center justify-between py-3 text-xs">
-      <span className="text-muted-foreground">{label}</span>
-      <span className="font-medium">{value}</span>
+    <div className='flex items-center justify-between py-3 text-xs'>
+      <span className='text-muted-foreground'>{label}</span>
+      <span className='font-medium'>{value}</span>
     </div>
   );
 }
@@ -90,17 +90,19 @@ function CollapsibleSection({
   return (
     <div>
       <button
-        type="button"
+        type='button'
         onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center justify-between py-3 text-xs font-semibold"
+        className='flex w-full items-center justify-between py-3 text-xs font-semibold'
       >
-        <div className="flex items-center gap-2">
+        <div className='flex items-center gap-2'>
           {title}
           {badge}
         </div>
-        <span className="text-muted-foreground text-base leading-none">{open ? "∧" : "∨"}</span>
+        <span className='text-muted-foreground text-base leading-none'>
+          {open ? "∧" : "∨"}
+        </span>
       </button>
-      {open && <div className="pb-3">{children}</div>}
+      {open && <div className='pb-3'>{children}</div>}
     </div>
   );
 }
@@ -115,16 +117,18 @@ function ActivityItem({
   done: boolean;
 }) {
   return (
-    <div className="flex items-center gap-3 py-2.5 text-xs">
+    <div className='flex items-center gap-3 py-2.5 text-xs'>
       <div
         className={cn(
           "size-2 shrink-0 rounded-full",
           done ? "bg-foreground" : "border-2 border-muted-foreground/30",
         )}
       />
-      <span className={cn("flex-1", !done && "text-muted-foreground")}>{label}</span>
+      <span className={cn("flex-1", !done && "text-muted-foreground")}>
+        {label}
+      </span>
       {date && (
-        <span className="text-muted-foreground">
+        <span className='text-muted-foreground'>
           {format(new Date(date), "MMM d, HH:mm")}
         </span>
       )}
@@ -141,7 +145,11 @@ export function InvoiceDetailPage() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [isPdfDownloading, setIsPdfDownloading] = useState(false);
 
-  const { data: invoice, isLoading, isError } = useQuery({
+  const {
+    data: invoice,
+    isLoading,
+    isError,
+  } = useQuery({
     queryKey: ["invoice", id],
     queryFn: () => getInvoice(id!),
     enabled: !!id,
@@ -153,14 +161,38 @@ export function InvoiceDetailPage() {
     enabled: !!invoice?.customer_id && !!orgId,
   });
 
+  const { data: recurringSeries } = useQuery({
+    queryKey: ["invoice-recurring", invoice?.invoice_recurring_id],
+    queryFn: () => getInvoiceRecurring(invoice!.invoice_recurring_id!),
+    enabled: !!invoice?.invoice_recurring_id,
+  });
+
+  const seriesMutation = useMutation({
+    mutationFn: (status: "active" | "paused" | "canceled") =>
+      updateInvoiceRecurringStatus(invoice!.invoice_recurring_id!, orgId!, status),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["invoice-recurring", invoice?.invoice_recurring_id] });
+    },
+    onError: () => toast.error("Failed to update recurring series"),
+  });
+
   useEffect(() => {
     if (invoice) setInternalNote(invoice.internal_note ?? "");
   }, [invoice]);
 
   const updateMutation = useMutation({
-    mutationFn: ({ patch }: { patch: Parameters<typeof updateInvoice>[2]; label: string }) =>
-      updateInvoice(id!, orgId!, patch),
-    onMutate: ({ label }: { patch: Parameters<typeof updateInvoice>[2]; label: string }) => ({ label }),
+    mutationFn: ({
+      patch,
+    }: {
+      patch: Parameters<typeof updateInvoice>[2];
+      label: string;
+    }) => updateInvoice(id!, orgId!, patch),
+    onMutate: ({
+      label,
+    }: {
+      patch: Parameters<typeof updateInvoice>[2];
+      label: string;
+    }) => ({ label }),
     onSuccess: (_, __, context) => {
       queryClient.invalidateQueries({ queryKey: ["invoice", id] });
       queryClient.invalidateQueries({ queryKey: ["invoices", orgId] });
@@ -181,12 +213,17 @@ export function InvoiceDetailPage() {
       navigate("/invoices");
     },
     onError: () => {
-      toast.error("Failed to delete invoice", { description: "Please try again." });
+      toast.error("Failed to delete invoice", {
+        description: "Please try again.",
+      });
     },
   });
 
   async function handleDuplicate() {
-    const nextNumber = await getNextInvoiceNumber(orgId!, invoice!.customer_id!)
+    const nextNumber = await getNextInvoiceNumber(
+      orgId!,
+      invoice!.customer_id!,
+    );
     return createInvoice({
       org_id: orgId!,
       user_id: user!.id,
@@ -209,11 +246,12 @@ export function InvoiceDetailPage() {
       scheduled_at: null,
       send_template_id: null,
       accept_payments: invoice!.accept_payments,
-    })
+    });
   }
 
-  const fromDetails = org
-    ? {
+  const fromDetails =
+    org ?
+      {
         name: org.name,
         logo_url: org.logo_url ?? null,
         address_line1: org.address_line1 ?? null,
@@ -227,8 +265,9 @@ export function InvoiceDetailPage() {
       }
     : null;
 
-  const customerDetails = customer
-    ? {
+  const customerDetails =
+    customer ?
+      {
         name: customer.name,
         email: customer.email ?? null,
         billing_email: customer.billing_email ?? null,
@@ -242,7 +281,10 @@ export function InvoiceDetailPage() {
     : null;
 
   function handleSaveNote() {
-    updateMutation.mutate({ patch: { internal_note: internalNote }, label: "Note saved" });
+    updateMutation.mutate({
+      patch: { internal_note: internalNote },
+      label: "Note saved",
+    });
   }
 
   async function handleSendInvoice() {
@@ -256,9 +298,13 @@ export function InvoiceDetailPage() {
         },
         label: "Invoice sent",
       });
-      supabase.functions.invoke("send-invoice-email", { body: { invoiceId: id } }).catch(() => {
-        toast.warning("Invoice sent, but email delivery failed. Try resending from the invoice.");
-      });
+      supabase.functions
+        .invoke("send-invoice-email", { body: { invoiceId: id } })
+        .catch(() => {
+          toast.warning(
+            "Invoice sent, but email delivery failed. Try resending from the invoice.",
+          );
+        });
     } catch {
       // onError handles the toast
     }
@@ -269,8 +315,12 @@ export function InvoiceDetailPage() {
       patch: {
         status: "paid",
         paid_at: new Date().toISOString(),
-        ...(!invoice!.from_details && fromDetails ? { from_details: fromDetails } : {}),
-        ...(!invoice!.customer_details && customerDetails ? { customer_details: customerDetails } : {}),
+        ...(!invoice!.from_details && fromDetails ?
+          { from_details: fromDetails }
+        : {}),
+        ...(!invoice!.customer_details && customerDetails ?
+          { customer_details: customerDetails }
+        : {}),
       },
       label: "Invoice marked as paid",
     });
@@ -278,7 +328,9 @@ export function InvoiceDetailPage() {
 
   function handleCopyLink() {
     if (!invoice) return;
-    navigator.clipboard.writeText(`${window.location.origin}/i/${invoice.token}`);
+    navigator.clipboard.writeText(
+      `${window.location.origin}/i/${invoice.token}`,
+    );
     toast.success("Link copied to clipboard");
   }
 
@@ -287,7 +339,10 @@ export function InvoiceDetailPage() {
     setIsPdfDownloading(true);
     try {
       await downloadPdf(
-        <InvoicePdf data={documentData} invoiceTemplate={invoice.invoice_template} />,
+        <InvoicePdf
+          data={documentData}
+          invoiceTemplate={invoice.invoice_template}
+        />,
         invoice.invoice_number ?? "Invoice",
       );
     } catch {
@@ -299,34 +354,22 @@ export function InvoiceDetailPage() {
 
   if (isLoading) {
     return (
-      <div className="flex h-full flex-col overflow-hidden animate-pulse">
-        <div className="h-14 border-b" />
-        <div className="flex-1 bg-muted/30" />
+      <div className='flex h-full flex-col overflow-hidden animate-pulse'>
+        <div className='h-14 border-b' />
+        <div className='flex-1 bg-muted/30' />
       </div>
     );
   }
 
   if (isError || !invoice) {
     return (
-      <div className="flex h-full items-center justify-center">
-        <p className="text-sm text-muted-foreground">Invoice not found.</p>
+      <div className='flex h-full items-center justify-center'>
+        <p className='text-sm text-muted-foreground'>Invoice not found.</p>
       </div>
     );
   }
 
-  const subtotal = invoice.line_items.reduce(
-    (sum, item) => sum + item.quantity * item.price,
-    0,
-  );
-  const tax = invoice.line_items.reduce(
-    (sum, item) => sum + item.quantity * item.price * (item.tax_rate / 100),
-    0,
-  );
-  const discount = invoice.discount ?? 0;
-  const total = invoice.total ?? subtotal - discount + tax;
-
   const isRecurring = invoice.recurring !== "one_time";
-  const upcomingDates = isRecurring ? getUpcomingDates(invoice.recurring) : [];
   const status = invoice.status as InvoiceStatus;
 
   const documentData = {
@@ -346,83 +389,143 @@ export function InvoiceDetailPage() {
     total: invoice.total,
     note: invoice.note,
     paymentDetails: invoice.payment_details,
-    publicUrl: invoice.token && invoice.status !== "draft" ? `${window.location.origin}/i/${invoice.token}` : null,
+    publicUrl:
+      (
+        invoice.token &&
+        invoice.status !== "draft" &&
+        invoice.status !== "scheduled"
+      ) ?
+        `${window.location.origin}/i/${invoice.token}`
+      : null,
   };
 
   return (
-    <div className="flex h-full flex-col overflow-hidden">
+    <div className='flex h-full flex-col overflow-hidden'>
       {/* Page header */}
-      <div className="flex shrink-0 items-center justify-between border-b px-6 py-3">
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon-sm" onClick={() => navigate("/invoices")}>
+      <div className='flex shrink-0 items-center justify-between border-b px-6 py-3'>
+        <div className='flex items-center gap-3'>
+          <Button
+            variant='ghost'
+            size='icon-sm'
+            onClick={() => navigate("/invoices")}
+          >
             <ArrowLeft01Icon size={14} />
           </Button>
-          <span className="font-mono text-sm font-medium">
+          <span className='font-mono text-sm font-medium'>
             {invoice.invoice_number ?? "—"}
           </span>
           <InvoiceStatusBadge status={status} />
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" className="gap-1.5" onClick={handleDownloadPdf} disabled={isPdfDownloading}>
+        <div className='flex items-center gap-2'>
+          <Button
+            variant='outline'
+            className='gap-1.5'
+            onClick={handleDownloadPdf}
+            disabled={isPdfDownloading}
+          >
             <Download01Icon size={13} />
             {isPdfDownloading ? "Generating…" : "Download PDF"}
           </Button>
-          <Button variant="outline" className="gap-1.5" onClick={handleCopyLink}>
+          <Button
+            variant='outline'
+            className='gap-1.5'
+            onClick={handleCopyLink}
+          >
             <Copy01Icon size={13} />
             Copy link
           </Button>
-          {status !== "paid" && status !== "canceled" && (
+          {status === "draft" && (
             <Button
-              variant="outline"
-              className="gap-1.5"
-              onClick={status === "draft" ? handleSendInvoice : handleMarkPaid}
+              variant='outline'
+              className='gap-1.5'
+              onClick={handleSendInvoice}
               disabled={updateMutation.isPending}
             >
-              {updateMutation.isPending ? (
+              {updateMutation.isPending ?
                 <Spinner size={13} />
-              ) : (
-                <Sent02Icon size={13} />
-              )}
-              {status === "draft"
-                ? updateMutation.isPending ? "Sending…" : "Send Invoice"
-                : updateMutation.isPending ? "Saving…" : "Mark as paid"}
+              : <Sent02Icon size={13} />}
+              {updateMutation.isPending ? "Sending…" : "Send Invoice"}
+            </Button>
+          )}
+          {(status === "unpaid" || status === "overdue") && (
+            <Button
+              variant='outline'
+              className='gap-1.5'
+              onClick={handleMarkPaid}
+              disabled={updateMutation.isPending}
+            >
+              {updateMutation.isPending ?
+                <Spinner size={13} />
+              : <Sent02Icon size={13} />}
+              {updateMutation.isPending ? "Saving…" : "Mark as paid"}
             </Button>
           )}
           {status === "draft" && (
-            <Button variant="outline" onClick={() => navigate(`/invoices/${id}/edit`)}>
+            <Button
+              variant='outline'
+              onClick={() => navigate(`/invoices/${id}/edit`)}
+            >
               <PencilEdit01Icon size={13} />
             </Button>
           )}
           <DropdownMenu>
-            <DropdownMenuTrigger render={<Button variant="outline" />}>
+            <DropdownMenuTrigger render={<Button variant='outline' />}>
               <MoreHorizontalIcon size={13} />
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
+            <DropdownMenuContent align='end' className='w-full' sideOffset={10}>
               <DropdownMenuItem
                 onClick={() => {
                   toast.promise(handleDuplicate(), {
                     loading: "Duplicating invoice…",
                     success: (newInvoice) => {
-                      queryClient.invalidateQueries({ queryKey: ["invoices", orgId] })
-                      navigate(`/invoices/${newInvoice.id}/edit`)
-                      return "Invoice duplicated"
+                      queryClient.invalidateQueries({
+                        queryKey: ["invoices", orgId],
+                      });
+                      navigate(`/invoices/${newInvoice.id}/edit`);
+                      return "Invoice duplicated";
                     },
                     error: "Failed to duplicate invoice",
-                  })
+                  });
                 }}
               >
                 <FileEditIcon size={13} />
                 Duplicate
               </DropdownMenuItem>
+              {status === "scheduled" && (
+                <DropdownMenuItem
+                  onClick={() => {
+                    updateMutation.mutate({
+                      patch: { status: "draft", scheduled_at: null },
+                      label: "Schedule cancelled",
+                    });
+                  }}
+                >
+                  <Cancel01Icon size={13} />
+                  Cancel schedule
+                </DropdownMenuItem>
+              )}
               {(status === "unpaid" || status === "overdue") && (
-                <DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => {
+                    toast.promise(
+                      supabase.functions
+                        .invoke("send-invoice-reminder", { body: { invoiceId: id } })
+                        .then((res) => { if (res.error) throw res.error; }),
+                      {
+                        loading: "Sending reminder…",
+                        success: "Reminder sent",
+                        error: "Failed to send reminder",
+                      },
+                    );
+                  }}
+                >
                   <Sent02Icon size={13} />
                   Send reminder
                 </DropdownMenuItem>
               )}
               <DropdownMenuSeparator />
               <DropdownMenuItem
-                className="text-destructive focus:text-destructive"
+                className='text-destructive focus:text-destructive'
                 onClick={() => setDeleteOpen(true)}
                 disabled={deleteMutation.isPending}
               >
@@ -435,18 +538,22 @@ export function InvoiceDetailPage() {
       </div>
 
       <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
-        <AlertDialogContent size="sm">
+        <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete invoice?</AlertDialogTitle>
             <AlertDialogDescription>
-              <strong>{invoice.invoice_number}</strong> will be permanently deleted. This cannot be undone.
+              <strong>{invoice.invoice_number}</strong> will be permanently
+              deleted. This cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <Button
-              variant="destructive"
-              onClick={() => { setDeleteOpen(false); deleteMutation.mutate(); }}
+              variant='destructive'
+              onClick={() => {
+                setDeleteOpen(false);
+                deleteMutation.mutate();
+              }}
               disabled={deleteMutation.isPending}
             >
               Delete
@@ -456,86 +563,190 @@ export function InvoiceDetailPage() {
       </AlertDialog>
 
       {/* Scrollable content */}
-      <div className="flex-1 overflow-y-auto bg-muted/30">
-        <div className="mx-auto flex max-w-2xl flex-col gap-0 px-4 py-8">
-          <InvoicePreview data={documentData} invoiceTemplate={invoice.invoice_template} />
+      <div className='flex-1 overflow-y-auto bg-muted/30'>
+        <div className='mx-auto flex max-w-2xl flex-col gap-0 px-4 py-8'>
+          <InvoicePreview
+            data={documentData}
+            invoiceTemplate={invoice.invoice_template}
+          />
 
           {/* Detail sections */}
-          <div className="mt-4 rounded-lg border bg-background divide-y">
-            <div className="px-5">
+          <div className='mt-4 rounded-lg border bg-background divide-y'>
+            <div className='px-5'>
               <DetailRow
-                label="Due date"
-                value={invoice.due_date ? format(new Date(invoice.due_date), "dd/MM/yyyy") : "—"}
+                label='Due date'
+                value={
+                  invoice.due_date ?
+                    format(new Date(invoice.due_date), "dd/MM/yyyy")
+                  : "—"
+                }
               />
               <Separator />
               <DetailRow
-                label="Issue date"
-                value={invoice.issue_date ? format(new Date(invoice.issue_date), "dd/MM/yyyy") : "—"}
+                label='Issue date'
+                value={
+                  invoice.issue_date ?
+                    format(new Date(invoice.issue_date), "dd/MM/yyyy")
+                  : "—"
+                }
               />
               <Separator />
-              <DetailRow label="Invoice no." value={invoice.invoice_number ?? "—"} />
+              <DetailRow
+                label='Invoice no.'
+                value={invoice.invoice_number ?? "—"}
+              />
               <Separator />
-              <DetailRow label="Type" value={RECURRING_LABELS[invoice.recurring] ?? invoice.recurring} />
+              <DetailRow
+                label='Type'
+                value={RECURRING_LABELS[invoice.recurring] ?? invoice.recurring}
+              />
+              {status === "scheduled" && invoice.scheduled_at && (
+                <>
+                  <Separator />
+                  <DetailRow
+                    label='Scheduled for'
+                    value={format(
+                      new Date(invoice.scheduled_at),
+                      "dd/MM/yyyy 'at' HH:mm",
+                    )}
+                  />
+                </>
+              )}
             </div>
 
-            {isRecurring && (
-              <div className="px-5">
+            {isRecurring && recurringSeries && (
+              <div className='px-5'>
                 <CollapsibleSection
-                  title="Recurring Series"
+                  title='Recurring Series'
                   badge={
-                    <span className="rounded-full bg-green-500/15 px-2 py-0.5 text-[10px] font-medium text-green-600 dark:text-green-400">
-                      Active
+                    <span className={cn(
+                      "rounded-full px-2 py-0.5 text-[10px] font-medium",
+                      recurringSeries.status === "active" && "bg-green-500/15 text-green-600 dark:text-green-400",
+                      recurringSeries.status === "paused" && "bg-yellow-500/15 text-yellow-600 dark:text-yellow-400",
+                      recurringSeries.status === "completed" && "bg-muted text-muted-foreground",
+                      recurringSeries.status === "canceled" && "bg-red-500/15 text-red-600 dark:text-red-400",
+                    )}>
+                      {recurringSeries.status.charAt(0).toUpperCase() + recurringSeries.status.slice(1)}
                     </span>
                   }
                 >
-                  <div className="flex flex-col divide-y">
-                    {upcomingDates.map((date, i) => (
-                      <div key={i} className="flex items-center justify-between py-2.5 text-xs">
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium">{format(date, "MMM d, yyyy")}</span>
-                          <span className="text-muted-foreground">{format(date, "EEE")}</span>
-                        </div>
-                        <span>
-                          {invoice.currency}{" "}
-                          {total.toLocaleString("en-KE", { minimumFractionDigits: 2 })}
+                  <div className='flex flex-col gap-0'>
+                    <div className='flex items-center justify-between py-2.5 text-xs'>
+                      <span className='text-muted-foreground'>Frequency</span>
+                      <span className='font-medium'>{RECURRING_LABELS[recurringSeries.frequency]}</span>
+                    </div>
+                    <div className='flex items-center justify-between py-2.5 text-xs'>
+                      <span className='text-muted-foreground'>Invoices sent</span>
+                      <span className='font-medium'>{recurringSeries.current_count}</span>
+                    </div>
+                    {recurringSeries.status === "active" && (
+                      <div className='flex items-center justify-between py-2.5 text-xs'>
+                        <span className='text-muted-foreground'>Next invoice</span>
+                        <span className='font-medium'>
+                          {format(new Date(recurringSeries.next_scheduled_at), "MMM d, yyyy")}
                         </span>
                       </div>
-                    ))}
-                    <div className="py-2.5 text-center text-xs text-muted-foreground">…</div>
-                  </div>
-                  <Separator className="mt-1" />
-                  <div className="flex items-center justify-between py-3 text-xs">
-                    <span className="text-muted-foreground">No end date</span>
-                    <span className="text-muted-foreground">∞</span>
+                    )}
+                    <div className='flex items-center justify-between py-2.5 text-xs'>
+                      <span className='text-muted-foreground'>Ends</span>
+                      <span className='font-medium'>
+                        {recurringSeries.end_type === "on_date" && recurringSeries.end_on_date
+                          ? format(new Date(recurringSeries.end_on_date), "MMM d, yyyy")
+                          : recurringSeries.end_type === "after_count" && recurringSeries.end_after_count
+                          ? `After ${recurringSeries.end_after_count} invoices`
+                          : "Never"}
+                      </span>
+                    </div>
+                    {recurringSeries.status !== "canceled" && recurringSeries.status !== "completed" && (
+                      <>
+                        <Separator className='mt-1' />
+                        <div className='flex items-center gap-2 py-3'>
+                          {recurringSeries.status === "active" ? (
+                            <Button
+                              size='sm'
+                              variant='outline'
+                              className='flex-1 text-xs'
+                              onClick={() => toast.promise(seriesMutation.mutateAsync("paused"), {
+                                loading: "Pausing series…",
+                                success: "Series paused",
+                                error: "Failed to pause series",
+                              })}
+                              disabled={seriesMutation.isPending}
+                            >
+                              Pause series
+                            </Button>
+                          ) : (
+                            <Button
+                              size='sm'
+                              variant='outline'
+                              className='flex-1 text-xs'
+                              onClick={() => toast.promise(seriesMutation.mutateAsync("active"), {
+                                loading: "Resuming series…",
+                                success: "Series resumed",
+                                error: "Failed to resume series",
+                              })}
+                              disabled={seriesMutation.isPending}
+                            >
+                              Resume series
+                            </Button>
+                          )}
+                          <Button
+                            size='sm'
+                            variant='ghost'
+                            className='flex-1 text-xs text-destructive hover:text-destructive'
+                            onClick={() => toast.promise(seriesMutation.mutateAsync("canceled"), {
+                              loading: "Canceling series…",
+                              success: "Series canceled",
+                              error: "Failed to cancel series",
+                            })}
+                            disabled={seriesMutation.isPending}
+                          >
+                            Cancel series
+                          </Button>
+                        </div>
+                      </>
+                    )}
                   </div>
                 </CollapsibleSection>
               </div>
             )}
 
-            <div className="px-5">
-              <CollapsibleSection title="Activity">
-                <div className="flex flex-col">
-                  <ActivityItem label="Created" date={invoice.created_at} done />
-                  <ActivityItem label="Sent" date={invoice.sent_at} done={!!invoice.sent_at} />
-                  <ActivityItem label="Paid" date={invoice.paid_at} done={!!invoice.paid_at} />
+            <div className='px-5'>
+              <CollapsibleSection title='Activity'>
+                <div className='flex flex-col'>
+                  <ActivityItem
+                    label='Created'
+                    date={invoice.created_at}
+                    done
+                  />
+                  <ActivityItem
+                    label='Sent'
+                    date={invoice.sent_at}
+                    done={!!invoice.sent_at}
+                  />
+                  <ActivityItem
+                    label='Paid'
+                    date={invoice.paid_at}
+                    done={!!invoice.paid_at}
+                  />
                 </div>
               </CollapsibleSection>
             </div>
 
-            <div className="px-5">
-              <CollapsibleSection title="Internal note" defaultOpen={false}>
-                <div className="flex flex-col gap-2">
+            <div className='px-5'>
+              <CollapsibleSection title='Internal note' defaultOpen={false}>
+                <div className='flex flex-col gap-2'>
                   <Textarea
-                    placeholder="Add a private note about this invoice — not visible to the client."
+                    placeholder='Add a private note about this invoice — not visible to the client.'
                     value={internalNote}
                     onChange={(e) => setInternalNote(e.target.value)}
-                    className="text-xs"
+                    className='text-xs'
                     rows={3}
                   />
                   <Button
-                    size="sm"
-                    variant="outline"
-                    className="self-end gap-1.5"
+                    size='sm'
+                    variant='outline'
+                    className='self-end gap-1.5'
                     onClick={handleSaveNote}
                     disabled={updateMutation.isPending}
                   >

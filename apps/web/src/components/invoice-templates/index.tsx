@@ -4,12 +4,10 @@ import type { ClassicDocumentData } from "./classic/preview"
 
 export type { ClassicDocumentData, Participant } from "./classic/preview"
 
-function getPreview(invoiceTemplate?: string | null) {
-  // Future: return different preview components based on template name
-  // e.g. case "minimal": return MinimalPreview
+function getPreview(invoiceTemplate: string | null | undefined, data: ClassicDocumentData) {
   switch (invoiceTemplate) {
     default:
-      return ClassicPreview
+      return <ClassicPreview data={data} />
   }
 }
 
@@ -20,8 +18,7 @@ export function InvoicePreview({
   data: ClassicDocumentData
   invoiceTemplate?: string | null
 }) {
-  const Preview = getPreview(invoiceTemplate)
-  return <Preview data={data} />
+  return getPreview(invoiceTemplate, data)
 }
 
 export function InvoicePdf({ data }: { data: ClassicDocumentData }) {

@@ -25,9 +25,8 @@ Deno.serve(async (req) => {
       .single()
 
     if (fetchError || !quote) return new Response(JSON.stringify({ error: "Quote not found" }), { status: 404, headers: corsHeaders })
-    if (quote.status === "declined") return new Response(JSON.stringify({ ok: true, alreadyDeclined: true }), { headers: corsHeaders })
 
-    const { error: updateError } = await db
+    const { data: updatedRows, error: updateError } = await db
       .from("quotes")
       .update({
         status: "declined",
@@ -35,8 +34,11 @@ Deno.serve(async (req) => {
         ...(reason ? { decline_reason: reason } : {}),
       })
       .eq("id", quote.id)
+      .eq("status", "sent")
+      .select("id")
 
     if (updateError) throw updateError
+    if (!updatedRows?.length) return new Response(JSON.stringify({ ok: true, alreadyDeclined: true }), { headers: corsHeaders })
 
     const from = quote.from_details as Record<string, string> | null
     const customer = quote.customer_details as Record<string, string> | null

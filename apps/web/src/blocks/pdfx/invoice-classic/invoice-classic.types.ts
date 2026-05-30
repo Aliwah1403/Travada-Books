@@ -29,4 +29,5 @@ export interface InvoiceClassicData {
     gst: string;
   };
   notes?: string;
+  currency?: string;
 }
