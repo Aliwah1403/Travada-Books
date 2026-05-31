@@ -39,7 +39,7 @@ const timezones = [
 const deviceTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone
 
 export function ProfilePage() {
-  const { user, profile, refreshProfile } = useAuth()
+  const { user, profile, avatarUrl: resolvedAvatarUrl, refreshProfile } = useAuth()
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [fullName, setFullName] = useState("")
@@ -150,7 +150,7 @@ export function ProfilePage() {
           <Label>Avatar</Label>
           <div className='flex items-center gap-4'>
             <Avatar className='size-14'>
-              <AvatarImage src={avatarUrl ?? undefined} />
+              <AvatarImage src={resolvedAvatarUrl ?? undefined} />
               <AvatarFallback className='text-sm'>{getInitials()}</AvatarFallback>
             </Avatar>
             <input

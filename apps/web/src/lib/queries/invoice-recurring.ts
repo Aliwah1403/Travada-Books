@@ -41,6 +41,17 @@ export type InvoiceRecurringInput = Omit<InvoiceRecurring, "id" | "created_at" |
 
 const RECURRING_SELECT = "id, created_at, org_id, user_id, customer_id, customer_name, currency, line_items, subtotal, tax_amount, discount, total, payment_details, note, accept_payments, invoice_template, from_details, customer_details, source_issue_date, source_due_date, frequency, end_type, end_on_date, end_after_count, status, current_count, failure_count, next_scheduled_at, upcoming_notification_sent_at"
 
+export async function listInvoiceRecurring(orgId: string): Promise<InvoiceRecurring[]> {
+  const { data, error } = await supabase
+    .from("invoice_recurring")
+    .select(RECURRING_SELECT)
+    .eq("org_id", orgId)
+    .order("created_at", { ascending: false })
+
+  if (error) throw error
+  return data ?? []
+}
+
 export async function createInvoiceRecurring(input: InvoiceRecurringInput): Promise<InvoiceRecurring> {
   const { data, error } = await supabase
     .from("invoice_recurring")

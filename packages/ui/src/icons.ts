@@ -44,6 +44,11 @@ import {
   Tick01Icon as TickSvg,
   LockPasswordIcon as LockPasswordSvg,
   Logout02Icon as Logout02Svg,
+  SortingIcon as SortingSvg,
+  SortingUpIcon as SortingUpSvg,
+  SortingDownIcon as SortingDownSvg,
+  ColumnsThreeCogIcon as ColumnsThreeCogSvg,
+  RepeatIcon as RepeatSvg,
 } from "@hugeicons/core-free-icons";
 
 export type IconProps = Omit<HugeiconsIconProps, "icon">;
@@ -98,3 +103,8 @@ export const Wallet01Icon = make(Wallet01Svg);
 export const TickIcon = make(TickSvg);
 export const LockPasswordIcon = make(LockPasswordSvg);
 export const Logout02Icon = make(Logout02Svg);
+export const SortingIcon = make(SortingSvg);
+export const SortingUpIcon = make(SortingUpSvg);
+export const SortingDownIcon = make(SortingDownSvg);
+export const ColumnsThreeCogIcon = make(ColumnsThreeCogSvg);
+export const RepeatIcon = make(RepeatSvg);

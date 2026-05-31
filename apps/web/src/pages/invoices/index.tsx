@@ -12,6 +12,7 @@ import { useAuth } from "@/contexts/auth-context";
 import { format } from "date-fns";
 
 function toTableInvoice(inv: Awaited<ReturnType<typeof listInvoices>>[number]): Invoice {
+  const series = inv.invoice_recurring ?? null;
   return {
     id: inv.id,
     number: inv.invoice_number ?? "—",
@@ -27,6 +28,14 @@ function toTableInvoice(inv: Awaited<ReturnType<typeof listInvoices>>[number]): 
     token: inv.token,
     quoteNumber: inv.quotes?.quote_number ?? undefined,
     quoteId: inv.quote_id ?? undefined,
+    seriesId: series?.id,
+    seriesStatus: series?.status as Invoice["seriesStatus"],
+    invoiceRecurring: series ? {
+      nextScheduledAt: series.next_scheduled_at,
+      endAfterCount: series.end_after_count,
+      currentCount: series.current_count,
+      endType: series.end_type,
+    } : null,
   };
 }
 

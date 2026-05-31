@@ -1,15 +1,20 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { toast } from "sonner";
+import { Inbox } from "@novu/react";
 import {
-  Notification01Icon,
   Moon01Icon,
   Sun01Icon,
   UserIcon,
   LockPasswordIcon,
   Logout02Icon,
+  Notification01Icon,
 } from "@travada-books/ui/icons";
-import { Avatar, AvatarFallback } from "@travada-books/ui/components/avatar";
+import {
+  Avatar,
+  AvatarFallback,
+  AvatarImage,
+} from "@travada-books/ui/components/avatar";
 import { Button } from "@travada-books/ui/components/button";
 import { Separator } from "@travada-books/ui/components/separator";
 import {
@@ -31,7 +36,7 @@ type HeaderProps = {
 
 export function Header({ title }: HeaderProps) {
   const { theme, setTheme } = useTheme();
-  const { user } = useAuth();
+  const { user, avatarUrl } = useAuth();
   const navigate = useNavigate();
   const [signingOut, setSigningOut] = useState(false);
 
@@ -39,7 +44,7 @@ export function Header({ title }: HeaderProps) {
     setTheme(
       theme === "dark" ? "light"
       : theme === "light" ? "dark"
-      : "dark",
+      : "system",
     );
   };
 
@@ -54,11 +59,17 @@ export function Header({ title }: HeaderProps) {
     navigate("/login");
   }
 
-  const fullName = (user?.user_metadata?.full_name as string | undefined) ?? ""
-  const email = user?.email ?? ""
-  const initials = fullName
-    ? fullName.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()
-    : email.slice(0, 2).toUpperCase()
+  const fullName = (user?.user_metadata?.full_name as string | undefined) ?? "";
+  const email = user?.email ?? "";
+  const initials =
+    fullName ?
+      fullName
+        .split(" ")
+        .map((n) => n[0])
+        .join("")
+        .slice(0, 2)
+        .toUpperCase()
+    : email.slice(0, 2).toUpperCase();
 
   return (
     <header className='flex h-14 shrink-0 items-center justify-between border-b px-6'>
@@ -68,15 +79,40 @@ export function Header({ title }: HeaderProps) {
           variant='ghost'
           size='icon-lg'
           onClick={toggleTheme}
-          aria-label={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
+          aria-label={
+            theme === "dark" ? "Switch to light theme" : "Switch to dark theme"
+          }
         >
           {theme === "dark" ?
             <Sun01Icon size={32} />
           : <Moon01Icon size={32} />}
         </Button>
-        <Button variant='ghost' size='icon-lg' aria-label='Show notifications'>
-          <Notification01Icon size={16} />
-        </Button>
+        <Inbox
+          applicationIdentifier={import.meta.env.VITE_NOVU_APP_ID ?? ""}
+          subscriberId={user?.id ?? ""}
+          onNotificationClick={(notification) => {
+            const url = notification.data?.viewUrl as string | undefined;
+            if (!url) return;
+            try {
+              navigate(new URL(url).pathname);
+            } catch {
+              navigate(url);
+            }
+          }}
+          appearance={{
+            variables: {
+              colorPrimary: "var(--color-primary)",
+              colorPrimaryForeground: "var(--color-primary-foreground)",
+              colorBackground: "var(--color-background)",
+              colorForeground: "var(--color-foreground)",
+              colorNeutral: "var(--color-border)",
+              colorRing: "var(--color-ring)",
+            },
+            elements: {
+              bellIcon: { color: "var(--color-foreground)" },
+            },
+          }}
+        />
         <Separator orientation='vertical' className='h-7' />
 
         <DropdownMenu>
@@ -86,6 +122,7 @@ export function Header({ title }: HeaderProps) {
               <Avatar className='size-7 cursor-pointer ring-offset-background transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2' />
             }
           >
+            <AvatarImage src={avatarUrl ?? undefined} />
             <AvatarFallback className='text-xs'>{initials}</AvatarFallback>
           </DropdownMenuTrigger>
           <DropdownMenuContent align='end' className='w-52'>

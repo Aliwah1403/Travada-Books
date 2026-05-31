@@ -2,6 +2,7 @@ import React from "npm:react"
 import { render } from "npm:@react-email/render@1"
 import { resend, FROM_EMAIL } from "../_shared/resend.ts"
 import { db } from "../_shared/db.ts"
+import { triggerNovu } from "../_shared/novu.ts"
 import { QuoteAcceptedEmail } from "../_shared/emails/quote-accepted.tsx"
 
 const APP_URL = Deno.env.get("APP_URL") ?? "https://books.travadasys.com"
@@ -37,27 +38,45 @@ Deno.serve(async (req) => {
     if (updateError) throw updateError
     if (!updatedRows?.length) return new Response(JSON.stringify({ error: "Quote is not available for acceptance" }), { status: 400, headers: corsHeaders })
 
-    // Create draft invoice from the accepted quote
     const { data: invoiceNumberData } = await db.rpc("next_invoice_number", {
       p_org_id: quote.org_id,
       p_customer_id: quote.customer_id,
     })
 
-    // Resolve org owner's timezone so issue_date reflects their local calendar date.
     const { data: ownerMember } = await db
       .from("organization_members")
-      .select("users(timezone)")
+      .select("user_id, users(email, timezone)")
       .eq("org_id", quote.org_id)
       .eq("role", "owner")
       .eq("status", "active")
       .order("created_at", { ascending: true })
       .limit(1)
       .single()
-    type TzField = { timezone: string | null } | null
-    const ownerTz = (ownerMember?.users as unknown as TzField)?.timezone ?? "UTC"
+    type OwnerFields = { email: string; timezone: string | null } | null
+    const ownerTz = (ownerMember?.users as unknown as OwnerFields)?.timezone ?? "UTC"
+
+    const { data: org } = await db.from("organizations").select("email").eq("id", quote.org_id).single()
+    const businessEmail = org?.email
     const issueDate = new Date().toLocaleDateString("en-CA", { timeZone: ownerTz })
 
-    const { error: insertError } = await db.from("invoices").insert({
+    const { data: template } = await db
+      .from("invoice_templates")
+      .select("payment_terms, default_note, default_payment_details")
+      .eq("org_id", quote.org_id)
+      .eq("is_default", true)
+      .maybeSingle()
+
+    let dueDate: string | null = null
+    if (template?.payment_terms) {
+      const d = new Date(issueDate)
+      d.setDate(d.getDate() + template.payment_terms)
+      dueDate = d.toLocaleDateString("en-CA")
+    }
+
+    const note = quote.note || template?.default_note || null
+    const paymentDetails = template?.default_payment_details || null
+
+    const { data: newInvoice, error: insertError } = await db.from("invoices").insert({
       org_id: quote.org_id,
       user_id: quote.user_id,
       customer_id: quote.customer_id,
@@ -65,6 +84,7 @@ Deno.serve(async (req) => {
       invoice_number: invoiceNumberData,
       status: "draft",
       issue_date: issueDate,
+      due_date: dueDate,
       currency: quote.currency,
       line_items: quote.line_items,
       subtotal: quote.subtotal,
@@ -73,9 +93,10 @@ Deno.serve(async (req) => {
       total: quote.total,
       from_details: quote.from_details,
       customer_details: quote.customer_details,
-      note: quote.note,
+      note,
+      payment_details: paymentDetails,
       quote_id: quote.id,
-    })
+    }).select("id").single()
 
     if (insertError) {
       const { error: rollbackError } = await db
@@ -93,27 +114,35 @@ Deno.serve(async (req) => {
 
     const from = quote.from_details as Record<string, string> | null
     const customer = quote.customer_details as Record<string, string> | null
+    const ownerEmail = (ownerMember?.users as unknown as OwnerFields)?.email
 
-    if (from && quote.org_id) {
-      const ownerEmail = await getOrgOwnerEmail(quote.org_id)
-      if (ownerEmail) {
-        const viewUrl = `${APP_URL}/quotes/${quote.id}`
-        const html = await render(
-          React.createElement(QuoteAcceptedEmail, {
-            orgName: from.name,
-            quoteNumber: quote.quote_number,
-            customerName: customer?.name ?? "A customer",
-            total: quote.total,
-            currency: quote.currency,
-            viewUrl,
-          })
-        )
-        await resend.emails.send({
-          from: `Travada Books <${FROM_EMAIL}>`,
-          to: [ownerEmail],
-          subject: `Quote${quote.quote_number ? ` ${quote.quote_number}` : ""} accepted by ${customer?.name ?? "customer"}`,
-          html,
+    if (from && businessEmail) {
+      const viewUrl = newInvoice ? `${APP_URL}/invoices/${newInvoice.id}` : `${APP_URL}/quotes/${quote.id}`
+      const html = await render(
+        React.createElement(QuoteAcceptedEmail, {
+          orgName: from.name,
+          quoteNumber: quote.quote_number,
+          customerName: customer?.name ?? "A customer",
+          total: quote.total,
+          currency: quote.currency,
+          viewUrl,
         })
+      )
+      await resend.emails.send({
+        from: `Travada Books <${FROM_EMAIL}>`,
+        to: [businessEmail],
+        subject: `Quote${quote.quote_number ? ` ${quote.quote_number}` : ""} accepted by ${customer?.name ?? "customer"}`,
+        html,
+      })
+
+      if (ownerMember?.user_id) {
+        triggerNovu("quote-accepted", { subscriberId: ownerMember.user_id, email: ownerEmail }, {
+          quoteNumber: quote.quote_number,
+          customerName: customer?.name ?? "A customer",
+          total: quote.total,
+          currency: quote.currency,
+          viewUrl,
+        }).catch((err) => console.error("accept-quote: novu trigger failed:", err))
       }
     }
 
@@ -123,22 +152,3 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ error: String(err) }), { status: 500, headers: corsHeaders })
   }
 })
-
-async function getOrgOwnerEmail(orgId: string): Promise<string | null> {
-  const { data } = await db
-    .from("organization_members")
-    .select("user_id")
-    .eq("org_id", orgId)
-    .eq("role", "owner")
-    .single()
-
-  if (!data?.user_id) return null
-
-  const { data: user } = await db
-    .from("users")
-    .select("email")
-    .eq("id", data.user_id)
-    .single()
-
-  return user?.email ?? null
-}

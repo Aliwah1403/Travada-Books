@@ -8,6 +8,8 @@ export const quoteColumns: ColumnDef<Quote>[] = [
   {
     accessorKey: "number",
     header: "Quote no.",
+    enableSorting: true,
+    enableHiding: false,
     cell: ({ row }) => (
       <span className="font-mono text-xs">{row.original.number}</span>
     ),
@@ -15,11 +17,14 @@ export const quoteColumns: ColumnDef<Quote>[] = [
   {
     accessorKey: "status",
     header: "Status",
+    enableSorting: true,
+    enableHiding: false,
     cell: ({ row }) => <QuoteStatusBadge status={row.original.status} />,
   },
   {
     accessorKey: "validUntil",
     header: "Valid Until",
+    enableSorting: true,
     cell: ({ row }) => (
       <span className="text-xs text-muted-foreground">
         {row.original.validUntil}
@@ -29,6 +34,8 @@ export const quoteColumns: ColumnDef<Quote>[] = [
   {
     accessorKey: "customer",
     header: "Customer",
+    enableSorting: true,
+    enableHiding: false,
     cell: ({ row }) => (
       <div className="flex items-center gap-2">
         <Avatar className="size-5">
@@ -43,6 +50,8 @@ export const quoteColumns: ColumnDef<Quote>[] = [
   {
     accessorKey: "amount",
     header: "Amount",
+    enableSorting: true,
+    enableHiding: false,
     cell: ({ row }) => (
       <span className="text-xs font-medium">
         {row.original.currency}{" "}
@@ -55,6 +64,7 @@ export const quoteColumns: ColumnDef<Quote>[] = [
   {
     accessorKey: "issueDate",
     header: "Issue Date",
+    enableSorting: true,
     cell: ({ row }) => (
       <span className="text-xs text-muted-foreground">
         {row.original.issueDate}
@@ -63,6 +73,7 @@ export const quoteColumns: ColumnDef<Quote>[] = [
   },
   {
     id: "actions",
+    enableHiding: false,
     cell: ({ row }) => (
       <QuoteActions
         quoteId={row.original.id}

@@ -35,6 +35,7 @@ type AuthContextValue = {
   session: Session | null
   loading: boolean
   profile: UserProfile | null
+  avatarUrl: string | null
   org: UserOrg | null
   orgId: string | null
   orgRole: "owner" | "member" | null
@@ -48,6 +49,7 @@ const AuthContext = createContext<AuthContextValue>({
   session: null,
   loading: true,
   profile: null,
+  avatarUrl: null,
   org: null,
   orgId: null,
   orgRole: null,
@@ -168,12 +170,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       })
   }, [session?.user?.id, loading])
 
+  const user = session?.user ?? null
+  const googleAvatarUrl = (user?.user_metadata?.avatar_url as string | undefined)
+    ?? (user?.user_metadata?.picture as string | undefined)
+    ?? null
+  const avatarUrl = profile?.avatar_url ?? googleAvatarUrl
+
   return (
     <AuthContext.Provider value={{
-      user: session?.user ?? null,
+      user,
       session,
       loading,
       profile,
+      avatarUrl,
       org,
       orgId: org?.id ?? null,
       orgRole,

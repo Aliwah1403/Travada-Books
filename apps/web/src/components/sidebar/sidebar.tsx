@@ -3,7 +3,6 @@ import {
   FileEditIcon,
   User02Icon,
   Wallet01Icon,
-  InboxIcon,
   Timer01Icon,
   SafeIcon,
   Settings02Icon,
@@ -27,7 +26,6 @@ const mainNav = [
     to: "/transactions",
     comingSoon: true,
   },
-  { icon: InboxIcon, label: "Inbox", to: "/inbox", comingSoon: true },
   { icon: Timer01Icon, label: "Tracker", to: "/tracker", comingSoon: true },
   { icon: SafeIcon, label: "Vault", to: "/vault", comingSoon: true },
 ];

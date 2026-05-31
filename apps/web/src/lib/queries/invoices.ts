@@ -47,6 +47,15 @@ export type Invoice = {
   converted_amount: number | null
   base_currency: string | null
   quotes: { quote_number: string | null } | null
+  invoice_recurring: {
+    id: string
+    status: string
+    frequency: string
+    next_scheduled_at: string
+    end_type: string
+    end_after_count: number | null
+    current_count: number
+  } | null
 }
 
 export type InvoiceInput = {
@@ -98,7 +107,7 @@ export type CustomerInvoiceSummary = {
 }
 
 const INVOICE_SELECT =
-  "id, created_at, updated_at, org_id, user_id, customer_id, customer_name, token, invoice_number, status, issue_date, due_date, currency, line_items, subtotal, tax_amount, discount, total, customer_details, from_details, note, internal_note, payment_details, recurring, delivery_type, scheduled_at, send_template_id, sent_at, paid_at, viewed_at, quote_id, accept_payments, invoice_template, invoice_recurring_id, recurring_sequence, exchange_rate, converted_amount, base_currency, quotes(quote_number)"
+  "id, created_at, updated_at, org_id, user_id, customer_id, customer_name, token, invoice_number, status, issue_date, due_date, currency, line_items, subtotal, tax_amount, discount, total, customer_details, from_details, note, internal_note, payment_details, recurring, delivery_type, scheduled_at, send_template_id, sent_at, paid_at, viewed_at, quote_id, accept_payments, invoice_template, invoice_recurring_id, recurring_sequence, exchange_rate, converted_amount, base_currency, quotes(quote_number), invoice_recurring(id, status, frequency, next_scheduled_at, end_type, end_after_count, current_count)"
 
 // Excludes owner identifiers and private fields for unauthenticated token lookups
 const INVOICE_PUBLIC_SELECT =

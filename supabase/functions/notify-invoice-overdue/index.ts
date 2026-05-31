@@ -2,6 +2,7 @@ import React from "npm:react"
 import { render } from "npm:@react-email/render@1"
 import { resend, FROM_EMAIL } from "../_shared/resend.ts"
 import { db } from "../_shared/db.ts"
+import { triggerNovu } from "../_shared/novu.ts"
 import { InvoiceOverdueAlertEmail } from "../_shared/emails/invoice-overdue-alert.tsx"
 
 const APP_URL = Deno.env.get("APP_URL") ?? "https://books.travadasys.com"
@@ -11,22 +12,13 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 }
 
-// Called by a scheduled job (pg_cron / Supabase scheduled function).
-// No user auth — uses service role. Finds all invoices that crossed their
-// due date today and sends an alert to the org owner.
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders })
 
   try {
     const nowUtc = new Date()
-    // UTC date used as a safe upper bound; per-invoice "today" is resolved
-    // against the org owner's timezone after the owner lookup.
     const todayUtc = nowUtc.toISOString().split("T")[0]
 
-    // Find all unpaid/overdue invoices whose due_date has passed (UTC upper
-    // bound) and for which we have not yet sent an overdue alert. Using lte
-    // instead of eq means invoices are caught even if the cron job skipped a
-    // day, and overdue_alert_sent_at IS NULL makes sends idempotent on retries.
     const { data: invoices, error } = await db
       .from("invoices")
       .select("id, org_id, invoice_number, due_date, total, currency, customer_details, from_details, customer_id, token")
@@ -43,17 +35,15 @@ Deno.serve(async (req) => {
 
     for (const invoice of invoices) {
       try {
-        // Resolve customer name
         let customerName = (invoice.customer_details as Record<string, string> | null)?.name ?? null
         if (!customerName && invoice.customer_id) {
           const { data: cust } = await db.from("customers").select("name").eq("id", invoice.customer_id).single()
           customerName = cust?.name ?? "your customer"
         }
 
-        // Resolve org owner emails and timezone (may be multiple active owners)
         const { data: members, error: membersError } = await db
           .from("organization_members")
-          .select("users(email, timezone)")
+          .select("user_id, users(email, timezone)")
           .eq("org_id", invoice.org_id)
           .eq("role", "owner")
           .eq("status", "active")
@@ -68,26 +58,16 @@ Deno.serve(async (req) => {
         }
 
         type UserFields = { email: string; timezone: string | null } | null
-        const ownerEmails = members
-          .map((m) => (m.users as unknown as UserFields)?.email)
-          .filter((e): e is string => Boolean(e))
-
-        if (ownerEmails.length === 0) {
-          console.warn(`notify-invoice-overdue: owner rows found but no emails resolved for org ${invoice.org_id}, skipping invoice ${invoice.id}`)
-          continue
-        }
-
-        // Use the first owner's timezone to determine "today" locally.
-        // All owners share one org so they're almost certainly in the same zone.
         const ownerTz = (members[0].users as unknown as UserFields)?.timezone ?? "UTC"
-        const todayLocal = nowUtc.toLocaleDateString("en-CA", { timeZone: ownerTz }) // "YYYY-MM-DD"
-        if (invoice.due_date > todayLocal) {
-          // UTC query may have pulled this invoice early relative to the owner's
-          // local date — skip until the due date has actually arrived locally.
+        const todayLocal = nowUtc.toLocaleDateString("en-CA", { timeZone: ownerTz })
+        if (invoice.due_date > todayLocal) continue
+
+        const { data: orgData } = await db.from("organizations").select("email").eq("id", invoice.org_id).single()
+        if (!orgData?.email) {
+          console.warn(`notify-invoice-overdue: no business email for org ${invoice.org_id}, skipping invoice ${invoice.id}`)
           continue
         }
 
-        // Org name for the subject line
         const orgName = (invoice.from_details as Record<string, string> | null)?.name ?? "Travada Books"
 
         const viewUrl = `${APP_URL}/invoices/${invoice.id}`
@@ -101,9 +81,6 @@ Deno.serve(async (req) => {
           })
         )
 
-        // Atomically claim this invoice: only proceed if no other worker has
-        // already stamped it. The conditional .is("overdue_alert_sent_at", null)
-        // means exactly one concurrent worker wins; the rest get 0 rows back.
         const { data: stamped, error: stampError } = await db
           .from("invoices")
           .update({ overdue_alert_sent_at: new Date().toISOString() })
@@ -114,18 +91,29 @@ Deno.serve(async (req) => {
           console.error(`notify-invoice-overdue: failed to stamp overdue_alert_sent_at for invoice ${invoice.id}:`, stampError)
           continue
         }
-        if (!stamped || stamped.length === 0) {
-          // Another worker already stamped this invoice — skip to avoid duplicate send.
-          continue
-        }
+        if (!stamped || stamped.length === 0) continue
 
         const label = invoice.invoice_number ? `Invoice ${invoice.invoice_number}` : "Invoice"
         await resend.emails.send({
           from: `Travada Books <${FROM_EMAIL}>`,
-          to: ownerEmails,
+          to: [orgData.email],
           subject: `${label} to ${customerName} is now overdue`,
           html,
         })
+
+        const novuPayload = {
+          invoiceNumber: invoice.invoice_number,
+          customerName: customerName ?? "your customer",
+          total: invoice.total,
+          currency: invoice.currency,
+          viewUrl,
+        }
+        for (const member of members) {
+          const email = (member.users as unknown as UserFields)?.email
+          if (!email) continue
+          triggerNovu("invoice-overdue", { subscriberId: member.user_id, email }, novuPayload)
+            .catch((err) => console.error(`notify-invoice-overdue: novu trigger failed for ${invoice.id}:`, err))
+        }
 
         sent++
       } catch (invoiceErr) {

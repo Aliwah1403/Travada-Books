@@ -381,6 +381,7 @@ export function CreateInvoicePage() {
     if (savedTemplate) {
       setInvoiceSettings(savedTemplate);
       if (savedTemplate.defaultNote && !notes) setNotes(savedTemplate.defaultNote);
+      if (savedTemplate.defaultPaymentDetails && !paymentDetails) setPaymentDetails(savedTemplate.defaultPaymentDetails);
     }
   }, [savedTemplate, notes]);
 
