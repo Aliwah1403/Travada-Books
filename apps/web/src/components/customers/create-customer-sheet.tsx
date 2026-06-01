@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { useForm, Controller } from "react-hook-form";
+import { trackEvent, LogEvents } from "@/lib/analytics";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Button } from "@travada-books/ui/components/button";
@@ -190,6 +191,7 @@ export function CreateCustomerSheet({
         main_contact: data.mainContact || undefined,
         note: data.note || undefined,
       });
+      trackEvent(LogEvents.CustomerCreated);
       toast.success("Customer created");
       handleOpenChange(false);
       onCreated?.();

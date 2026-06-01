@@ -1,5 +1,7 @@
 import { createContext, useContext, useEffect, useState, useCallback, useRef } from "react"
 import type { Session, User } from "@supabase/supabase-js"
+import posthog from "posthog-js"
+import * as Sentry from "@sentry/react"
 import { supabase } from "@/lib/supabase"
 
 export type UserProfile = {
@@ -138,6 +140,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setOrg(null)
         setOrgRole(null)
         setOrgLoading(false)
+        posthog.reset()
+        if (import.meta.env.PROD) {
+          Sentry.setUser(null)
+        }
       }
     })
 
@@ -163,6 +169,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setOrg(org)
         setOrgRole(orgRole)
         setOrgLoading(false)
+
+        posthog.identify(session.user.id, {
+          email: session.user.email,
+          org_id: org?.id,
+        })
+        if (import.meta.env.PROD) {
+          Sentry.setUser({ id: session.user.id, email: session.user.email })
+        }
 
         const metaAvatarUrl =
           (session.user.user_metadata?.avatar_url as string | undefined) ??

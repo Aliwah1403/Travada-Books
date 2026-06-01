@@ -6,6 +6,7 @@ import { Label } from "@travada-books/ui/components/label"
 import { Separator } from "@travada-books/ui/components/separator"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@travada-books/ui/components/card"
 import { supabase } from "@/lib/supabase"
+import { trackEvent, LogEvents } from "@/lib/analytics"
 
 export function LoginPage() {
   const navigate = useNavigate()
@@ -32,6 +33,7 @@ export function LoginPage() {
       setError(error.message)
       return
     }
+    trackEvent(LogEvents.SignIn)
     const next = searchParams.get("next")
     let destination = "/invoices"
     if (next) {

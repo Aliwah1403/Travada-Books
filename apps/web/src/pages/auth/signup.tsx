@@ -6,6 +6,7 @@ import { Label } from "@travada-books/ui/components/label"
 import { Separator } from "@travada-books/ui/components/separator"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@travada-books/ui/components/card"
 import { supabase } from "@/lib/supabase"
+import { trackEvent, LogEvents } from "@/lib/analytics"
 
 export function SignupPage() {
   const navigate = useNavigate()
@@ -48,6 +49,7 @@ export function SignupPage() {
       setError(error.message)
       return
     }
+    trackEvent(LogEvents.Registered)
     if (emailRedirectTo) {
       navigate(emailRedirectTo)
     } else {

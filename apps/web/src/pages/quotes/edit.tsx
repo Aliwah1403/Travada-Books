@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { trackEvent, LogEvents } from "@/lib/analytics";
 import {
   ArrowLeft01Icon,
   PlusSignIcon,
@@ -159,6 +160,7 @@ export function EditQuotePage() {
     onSuccess: (updated) => {
       queryClient.invalidateQueries({ queryKey: ["quote", id] });
       queryClient.invalidateQueries({ queryKey: ["quotes", orgId] });
+      trackEvent(LogEvents.QuoteCreated);
       navigate(`/quotes/${updated.id}`);
     },
     onError: (err) => {

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate, useParams } from "react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { trackEvent, LogEvents } from "@/lib/analytics";
 import {
   ArrowDown01Icon,
   ArrowLeft01Icon,
@@ -425,9 +426,10 @@ export function EditInvoicePage() {
   const updateMutation = useMutation({
     mutationFn: ({ patch }: { patch: Parameters<typeof updateInvoice>[2] }) =>
       updateInvoice(id!, orgId!, patch),
-    onSuccess: (updated) => {
+    onSuccess: (updated, { patch }) => {
       queryClient.invalidateQueries({ queryKey: ["invoices"] });
       queryClient.invalidateQueries({ queryKey: ["invoice", id] });
+      if (patch.status === "unpaid") trackEvent(LogEvents.InvoiceSent);
       toast.success("Invoice updated");
       navigate(`/invoices/${updated.id}`);
     },

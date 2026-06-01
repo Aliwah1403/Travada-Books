@@ -1,6 +1,7 @@
 import { useState } from "react"
 import { useNavigate } from "react-router"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
+import { trackEvent, LogEvents } from "@/lib/analytics"
 import { ArrowLeft01Icon, ArrowRight01Icon, Cancel01Icon, FilterIcon, PlusSignIcon, Search01Icon, User02Icon } from "@travada-books/ui/icons"
 import { format } from "date-fns"
 import { Button } from "@travada-books/ui/components/button"
@@ -83,6 +84,7 @@ export function CustomersPage() {
     mutationFn: (customerId: string) => deleteCustomer(customerId, orgId!),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["customers", orgId] });
+      trackEvent(LogEvents.CustomerDeleted);
       toast.success("Customer deleted");
     },
     onError: () => {

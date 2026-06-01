@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { trackEvent, LogEvents } from "@/lib/analytics";
 import {
   ArrowDown01Icon,
   ArrowLeft01Icon,
@@ -401,6 +402,7 @@ export function CreateInvoicePage() {
     onSuccess: (invoice) => {
       queryClient.invalidateQueries({ queryKey: ["invoices", orgId] });
       toast.success("Invoice created");
+      trackEvent(LogEvents.InvoiceCreated);
       navigate(`/invoices/${invoice.id}`);
     },
     onError: (error) => {
@@ -519,6 +521,7 @@ export function CreateInvoicePage() {
     try {
       const invoice = await createMutation.mutateAsync(await buildInput(action, scheduleDate));
       if (action === "send") {
+        trackEvent(LogEvents.InvoiceSent);
         supabase.functions.invoke("send-invoice-email", { body: { invoiceId: invoice.id } }).catch(() => {
           toast.warning("Invoice created, but email delivery failed.");
         });
