@@ -36,5 +36,5 @@ export async function getCallerOrgId(req: Request): Promise<{ orgId: string } | 
     return { error: new Response(JSON.stringify({ error: "No active organization membership" }), { status: 403, headers: jsonHeaders }) }
   }
 
-  return { orgId: member.org_id }
+  return { orgId: member.org_id, userId: user.id }
 }

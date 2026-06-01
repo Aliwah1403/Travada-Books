@@ -30,6 +30,7 @@ export type UserOrg = {
   email: string | null
   phone: string | null
   tax_id: string | null
+  zip: string | null
 }
 
 type AuthContextValue = {

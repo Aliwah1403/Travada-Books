@@ -3,6 +3,7 @@ import { render } from "npm:@react-email/render@1"
 import { resend, FROM_EMAIL } from "../_shared/resend.ts"
 import { db } from "../_shared/db.ts"
 import { triggerNovu } from "../_shared/novu.ts"
+import { shouldSend } from "../_shared/notification-prefs.ts"
 import { QuoteDeclinedEmail } from "../_shared/emails/quote-declined.tsx"
 
 const APP_URL = Deno.env.get("APP_URL") ?? "https://books.travadasys.com"
@@ -70,28 +71,36 @@ Deno.serve(async (req) => {
     type OwnerEmail = { email: string } | null
     const ownerEmail = (ownerMember?.users as unknown as OwnerEmail)?.email
 
-    if (from && businessEmail) {
+    if (from && businessEmail && ownerMember?.user_id) {
       const viewUrl = `${APP_URL}/quotes/${quote.id}`
-      const html = await render(
-        React.createElement(QuoteDeclinedEmail, {
-          orgName: from.name,
-          quoteNumber: quote.quote_number,
-          customerName: customer?.name ?? "A customer",
-          total: quote.total,
-          currency: quote.currency,
-          declineReason: reason,
-          viewUrl,
-        })
-      )
-      await resend.emails.send({
-        from: `Travada Books <${FROM_EMAIL}>`,
-        to: [businessEmail],
-        subject: `Quote${quote.quote_number ? ` ${quote.quote_number}` : ""} declined by ${customer?.name ?? "customer"}`,
-        html,
-      })
+      const userId = ownerMember.user_id
+      const [sendEmail, sendInApp] = await Promise.all([
+        shouldSend(userId, quote.org_id, "quote.declined", "email"),
+        shouldSend(userId, quote.org_id, "quote.declined", "in_app"),
+      ])
 
-      if (ownerMember?.user_id) {
-        triggerNovu("quote-declined", { subscriberId: ownerMember.user_id, email: ownerEmail }, {
+      if (sendEmail) {
+        const html = await render(
+          React.createElement(QuoteDeclinedEmail, {
+            orgName: from.name,
+            quoteNumber: quote.quote_number,
+            customerName: customer?.name ?? "A customer",
+            total: quote.total,
+            currency: quote.currency,
+            declineReason: reason,
+            viewUrl,
+          })
+        )
+        await resend.emails.send({
+          from: `Travada Books <${FROM_EMAIL}>`,
+          to: [businessEmail],
+          subject: `Quote${quote.quote_number ? ` ${quote.quote_number}` : ""} declined by ${customer?.name ?? "customer"}`,
+          html,
+        })
+      }
+
+      if (sendInApp) {
+        triggerNovu("quote-declined", { subscriberId: userId, email: ownerEmail }, {
           quoteNumber: quote.quote_number,
           customerName: customer?.name ?? "A customer",
           total: quote.total,

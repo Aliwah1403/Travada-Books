@@ -43,8 +43,8 @@ export function Header({ title }: HeaderProps) {
   const toggleTheme = () => {
     setTheme(
       theme === "dark" ? "light"
-      : theme === "light" ? "dark"
-      : "system",
+      : theme === "light" ? "system"
+      : "dark",
     );
   };
 
@@ -80,7 +80,9 @@ export function Header({ title }: HeaderProps) {
           size='icon-lg'
           onClick={toggleTheme}
           aria-label={
-            theme === "dark" ? "Switch to light theme" : "Switch to dark theme"
+            theme === "dark" ? "Switch to light theme"
+            : theme === "light" ? "Switch to system theme"
+            : "Switch to dark theme"
           }
         >
           {theme === "dark" ?
@@ -90,11 +92,17 @@ export function Header({ title }: HeaderProps) {
         <Inbox
           applicationIdentifier={import.meta.env.VITE_NOVU_APP_ID ?? ""}
           subscriberId={user?.id ?? ""}
+          tabs={[
+            { label: "All" },
+            { label: "Invoices", filter: { tags: ["invoices"] } },
+            { label: "Quotes", filter: { tags: ["quotes"] } },
+          ]}
           onNotificationClick={(notification) => {
             const url = notification.data?.viewUrl as string | undefined;
             if (!url) return;
             try {
-              navigate(new URL(url).pathname);
+              const parsed = new URL(url);
+              navigate(parsed.pathname + parsed.search + parsed.hash);
             } catch {
               navigate(url);
             }

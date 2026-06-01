@@ -3,6 +3,7 @@ import { render } from "npm:@react-email/render@1"
 import { resend, FROM_EMAIL } from "../_shared/resend.ts"
 import { db } from "../_shared/db.ts"
 import { triggerNovu } from "../_shared/novu.ts"
+import { shouldSend } from "../_shared/notification-prefs.ts"
 import { InvoiceOverdueAlertEmail } from "../_shared/emails/invoice-overdue-alert.tsx"
 
 const APP_URL = Deno.env.get("APP_URL") ?? "https://books.travadasys.com"
@@ -94,13 +95,6 @@ Deno.serve(async (req) => {
         if (!stamped || stamped.length === 0) continue
 
         const label = invoice.invoice_number ? `Invoice ${invoice.invoice_number}` : "Invoice"
-        await resend.emails.send({
-          from: `Travada Books <${FROM_EMAIL}>`,
-          to: [orgData.email],
-          subject: `${label} to ${customerName} is now overdue`,
-          html,
-        })
-
         const novuPayload = {
           invoiceNumber: invoice.invoice_number,
           customerName: customerName ?? "your customer",
@@ -108,11 +102,26 @@ Deno.serve(async (req) => {
           currency: invoice.currency,
           viewUrl,
         }
+
         for (const member of members) {
           const email = (member.users as unknown as UserFields)?.email
           if (!email) continue
-          triggerNovu("invoice-overdue", { subscriberId: member.user_id, email }, novuPayload)
-            .catch((err) => console.error(`notify-invoice-overdue: novu trigger failed for ${invoice.id}:`, err))
+          const [sendEmail, sendInApp] = await Promise.all([
+            shouldSend(member.user_id, invoice.org_id, "invoice.overdue", "email"),
+            shouldSend(member.user_id, invoice.org_id, "invoice.overdue", "in_app"),
+          ])
+          if (sendEmail) {
+            await resend.emails.send({
+              from: `Travada Books <${FROM_EMAIL}>`,
+              to: [orgData.email],
+              subject: `${label} to ${customerName} is now overdue`,
+              html,
+            })
+          }
+          if (sendInApp) {
+            triggerNovu("invoice-overdue", { subscriberId: member.user_id, email }, novuPayload)
+              .catch((err) => console.error(`notify-invoice-overdue: novu trigger failed for ${invoice.id}:`, err))
+          }
         }
 
         sent++
