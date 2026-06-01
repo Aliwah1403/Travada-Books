@@ -7,3 +7,8 @@ SETUP.md
 .env
 .env.local
 .env.*.local
+
+# Local dev only — fix RLS recursion caused by Supabase local's stricter
+# row_security enforcement. These policies differ from production and must
+# never be pushed to the remote database.
+supabase/migrations/20260601*.sql
