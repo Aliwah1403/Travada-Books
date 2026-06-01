@@ -18,6 +18,7 @@ function toTableInvoice(inv: Awaited<ReturnType<typeof listInvoices>>[number]): 
     number: inv.invoice_number ?? "—",
     status: inv.status as Invoice["status"],
     customer: inv.customer_name,
+    customerLogoUrl: inv.customers?.logo_url ?? null,
     amount: inv.total ?? 0,
     currency: inv.currency,
     convertedAmount: inv.converted_amount ?? null,

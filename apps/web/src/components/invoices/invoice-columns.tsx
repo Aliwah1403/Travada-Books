@@ -1,5 +1,5 @@
 import { type ColumnDef } from "@tanstack/react-table";
-import { Avatar, AvatarFallback } from "@travada-books/ui/components/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@travada-books/ui/components/avatar";
 import { InvoiceStatusBadge } from "./invoice-status-badge";
 import { InvoiceActions } from "./invoice-actions";
 import { type Invoice } from "./invoice-table";
@@ -46,6 +46,7 @@ export const invoiceColumns: ColumnDef<Invoice>[] = [
     cell: ({ row }) => (
       <div className='flex items-center gap-2'>
         <Avatar className='size-5'>
+          <AvatarImage src={row.original.customerLogoUrl ?? undefined} />
           <AvatarFallback className='text-[9px]'>
             {row.original.customer.slice(0, 2).toUpperCase()}
           </AvatarFallback>

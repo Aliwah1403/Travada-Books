@@ -3,6 +3,7 @@ CLAUDE.md
 .claude
 PLANNED.md
 BACKEND.md
+SETUP.md
 .env
 .env.local
 .env.*.local

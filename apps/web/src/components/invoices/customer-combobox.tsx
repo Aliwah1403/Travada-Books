@@ -15,7 +15,7 @@ import {
   CommandItem,
   CommandList,
 } from "@travada-books/ui/components/command";
-import { Avatar, AvatarFallback } from "@travada-books/ui/components/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@travada-books/ui/components/avatar";
 import { cn } from "@travada-books/ui/lib/utils";
 import { CreateCustomerSheet } from "@/components/customers/create-customer-sheet";
 import { listCustomers } from "@/lib/queries/customers";
@@ -93,6 +93,7 @@ export function CustomerCombobox({ value, onChange }: CustomerComboboxProps) {
               {selected ? (
                 <>
                   <Avatar className="size-5">
+                    <AvatarImage src={selected.logo_url ?? undefined} />
                     <AvatarFallback className="text-[9px]">
                       {initials(selected.name)}
                     </AvatarFallback>
@@ -175,6 +176,7 @@ export function CustomerCombobox({ value, onChange }: CustomerComboboxProps) {
                       }}
                     >
                       <Avatar className="size-5 shrink-0">
+                        <AvatarImage src={customer.logo_url ?? undefined} />
                         <AvatarFallback className="text-[9px]">
                           {initials(customer.name)}
                         </AvatarFallback>

@@ -38,6 +38,7 @@ export type Invoice = {
   status: InvoiceStatus;
   dueDate: string | null;
   customer: string;
+  customerLogoUrl: string | null;
   amount: number;
   currency: string;
   convertedAmount: number | null;

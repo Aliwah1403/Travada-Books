@@ -38,6 +38,7 @@ export type Quote = {
   status: QuoteStatus;
   validUntil: string;
   customer: string;
+  customerLogoUrl: string | null;
   amount: number;
   currency: string;
   issueDate: string;

@@ -29,7 +29,7 @@ export function InviteEmail({ invitedEmail, inviterName, orgName, acceptUrl }: P
       </Text>
 
       {/* Steps */}
-      <Section style={{ margin: "0 0 32px", backgroundColor: "#F9FAFB", borderRadius: 8, padding: "20px 24px" }}>
+      <Section style={{ margin: "0 0 32px" }}>
         <Text style={{ margin: "0 0 16px", fontSize: 12, fontWeight: 600, color: colors.muted, letterSpacing: "0.06em", textTransform: "uppercase", fontFamily: font }}>
           How to join
         </Text>
@@ -39,17 +39,15 @@ export function InviteEmail({ invitedEmail, inviterName, orgName, acceptUrl }: P
           { n: "2", title: "Sign in or create a free account", body: `Use the email address this invite was sent to: ${invitedEmail}` },
           { n: "3", title: "You're in", body: `You'll be added to ${orgName}'s workspace automatically.` },
         ].map(({ n, title, body }) => (
-          <table key={n} cellPadding={0} cellSpacing={0} style={{ marginBottom: 14, width: "100%" }}>
+          <table key={n} cellPadding={0} cellSpacing={0} style={{ marginBottom: 16, width: "100%" }}>
             <tbody>
               <tr>
                 <td style={{ verticalAlign: "top", paddingRight: 12, width: 28 }}>
-                  <div style={{ width: 24, height: 24, borderRadius: "50%", backgroundColor: "#007a55", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                    <Text style={{ margin: 0, fontSize: 12, fontWeight: 700, color: "#e6f7ef", textAlign: "center", fontFamily: font, lineHeight: "24px" }}>
-                      {n}
-                    </Text>
+                  <div style={{ width: 24, height: 24, borderRadius: "50%", backgroundColor: "#007a55", textAlign: "center", lineHeight: "24px", fontSize: 12, fontWeight: 700, color: "#e6f7ef", fontFamily: font }}>
+                    {n}
                   </div>
                 </td>
-                <td style={{ verticalAlign: "top" }}>
+                <td style={{ verticalAlign: "top", paddingTop: 3 }}>
                   <Text style={{ margin: "0 0 2px", fontSize: 13, fontWeight: 600, color: colors.dark, fontFamily: font }}>{title}</Text>
                   <Text style={{ margin: 0, fontSize: 13, color: colors.muted, fontFamily: font }}>{body}</Text>
                 </td>

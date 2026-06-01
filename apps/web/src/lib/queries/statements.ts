@@ -51,9 +51,8 @@ export async function createStatement(input: StatementInput): Promise<Statement>
 
 export async function getStatementByToken(token: string): Promise<Statement> {
   const { data, error } = await supabase
-    .from("statements")
+    .rpc("get_statement_by_token", { p_token: token })
     .select(STATEMENT_SELECT)
-    .eq("token", token)
     .single()
 
   if (error) throw error

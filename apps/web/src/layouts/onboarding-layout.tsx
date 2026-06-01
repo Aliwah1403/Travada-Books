@@ -18,6 +18,9 @@ export function OnboardingLayout() {
   if (!user) return <Navigate to="/login" replace />
   if (orgId) return <Navigate to="/invoices" replace />
 
+  const pending = sessionStorage.getItem("pendingInviteToken")
+  if (pending) return <Navigate to={`/accept-invite?token=${pending}`} replace />
+
   const logo = theme === "dark" ? LogoLime : LogoGreen
   const currentStep = STEPS.findIndex((s) => s.path === pathname)
 

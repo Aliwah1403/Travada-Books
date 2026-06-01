@@ -163,6 +163,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setOrg(org)
         setOrgRole(orgRole)
         setOrgLoading(false)
+
+        const metaAvatarUrl =
+          (session.user.user_metadata?.avatar_url as string | undefined) ??
+          (session.user.user_metadata?.picture as string | undefined) ??
+          null
+        if (!profile?.avatar_url && metaAvatarUrl) {
+          supabase
+            .from("users")
+            .update({ avatar_url: metaAvatarUrl })
+            .eq("id", session.user.id)
+            .then(() => refreshProfile())
+        }
       })
       .catch(() => {
         if (fetchId !== fetchIdRef.current) return
