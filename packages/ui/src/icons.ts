@@ -30,6 +30,7 @@ import {
   Invoice01Icon as Invoice01Svg,
   Moon01Icon as Moon01Svg,
   MoreHorizontalIcon as MoreHorizontalSvg,
+  MoreVerticalIcon as MoreVerticalSvg,
   Notification01Icon as Notification01Svg,
   PencilEdit01Icon as PencilEdit01Svg,
   PlusSignIcon as PlusSignSvg,
@@ -89,6 +90,7 @@ export const InboxIcon = make(InboxSvg);
 export const Invoice01Icon = make(Invoice01Svg);
 export const Moon01Icon = make(Moon01Svg);
 export const MoreHorizontalIcon = make(MoreHorizontalSvg);
+export const MoreVerticalIcon = make(MoreVerticalSvg);
 export const Notification01Icon = make(Notification01Svg);
 export const PencilEdit01Icon = make(PencilEdit01Svg);
 export const PlusSignIcon = make(PlusSignSvg);
