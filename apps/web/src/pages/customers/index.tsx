@@ -23,6 +23,7 @@ import { cn } from "@travada-books/ui/lib/utils"
 import { useAuth } from "@/contexts/auth-context"
 import { listCustomers, deleteCustomer } from "@/lib/queries/customers"
 import { listAllCustomerInvoiceSummaries } from "@/lib/queries/invoices"
+import { formatCurrency } from "@/lib/format"
 import { toast } from "sonner"
 
 function HorizontalPagination({
@@ -62,7 +63,8 @@ function HorizontalPagination({
 
 export function CustomersPage() {
   const navigate = useNavigate()
-  const { orgId } = useAuth()
+  const { orgId, org } = useAuth()
+  const orgCurrency = org?.currency ?? "KES"
   const queryClient = useQueryClient()
   const [search, setSearch] = useState("")
   const [sheetOpen, setSheetOpen] = useState(false)
@@ -121,6 +123,7 @@ export function CustomersPage() {
     totalOutstanding: Object.keys(summaries).length > 0 ? totalOutstanding : undefined,
     overdueCount: undefined as number | undefined,
     topCustomer,
+    currency: orgCurrency,
   }
 
   if (isLoading) {
@@ -265,13 +268,13 @@ export function CustomersPage() {
                     </TableCell>
                     <TableCell className="py-3 text-xs text-muted-foreground">
                       {summaries[customer.id]
-                        ? `KES ${summaries[customer.id].totalPaid.toLocaleString("en-KE", { minimumFractionDigits: 2 })}`
+                        ? formatCurrency(summaries[customer.id].totalPaid, orgCurrency)
                         : <span className="text-muted-foreground/50">—</span>}
                     </TableCell>
                     <TableCell className="py-3 text-xs">
                       {summaries[customer.id]
                         ? <span className={summaries[customer.id].outstanding > 0 ? "text-destructive font-medium" : "text-muted-foreground"}>
-                            KES {summaries[customer.id].outstanding.toLocaleString("en-KE", { minimumFractionDigits: 2 })}
+                            {formatCurrency(summaries[customer.id].outstanding, orgCurrency)}
                           </span>
                         : <span className="text-muted-foreground/50">—</span>}
                     </TableCell>

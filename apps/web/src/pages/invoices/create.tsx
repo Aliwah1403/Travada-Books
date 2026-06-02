@@ -367,9 +367,9 @@ export function CreateInvoicePage() {
   const [isManualInvoiceNumber, setIsManualInvoiceNumber] = useState(false);
 
   const { data: nextNumber } = useQuery({
-    queryKey: ["next-invoice-number", orgId, selectedCustomer?.id],
-    queryFn: () => getNextInvoiceNumber(orgId!, selectedCustomer!.id),
-    enabled: !!orgId && !!selectedCustomer?.id,
+    queryKey: ["next-invoice-number", orgId],
+    queryFn: () => getNextInvoiceNumber(orgId!),
+    enabled: !!orgId,
   });
 
   const { data: savedTemplate } = useQuery({

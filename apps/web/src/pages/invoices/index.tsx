@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { FilterIcon, Search01Icon, Cancel01Icon } from "@travada-books/ui/icons";
 import { Button } from "@travada-books/ui/components/button";
 import { Input } from "@travada-books/ui/components/input";
+import { formatCurrency } from "@/lib/format";
 import { InvoiceStats } from "@/components/invoices/invoice-stats";
 import { InvoiceTable, type Invoice } from "@/components/invoices/invoice-table";
 import { QuotePreviewSheet } from "@/components/quotes/quote-preview-sheet";
@@ -40,15 +41,16 @@ function toTableInvoice(inv: Awaited<ReturnType<typeof listInvoices>>[number]): 
   };
 }
 
-function fmtSummary(data: { total_amount: number; invoice_count: number; currency: string } | undefined, label: string) {
-  const currency = data?.currency ?? "KES";
-  const amount = new Intl.NumberFormat(undefined, { style: "currency", currency }).format(data?.total_amount ?? 0);
+function fmtSummary(data: { total_amount: number; invoice_count: number; currency: string } | undefined, label: string, orgCurrency: string) {
+  const currency = data?.currency ?? orgCurrency;
+  const amount = formatCurrency(data?.total_amount ?? 0, currency);
   return { label, amount, count: data?.invoice_count ?? 0 };
 }
 
 export function InvoicesPage() {
   const navigate = useNavigate();
-  const { orgId } = useAuth();
+  const { orgId, org } = useAuth();
+  const orgCurrency = org?.currency ?? "KES";
   const [search, setSearch] = useState("");
   const [previewQuoteId, setPreviewQuoteId] = useState<string | null>(null);
 
@@ -77,9 +79,9 @@ export function InvoicesPage() {
 
   const invoices = rawInvoices.map(toTableInvoice);
   const stats = {
-    open: fmtSummary(openSummary, "Open"),
-    overdue: fmtSummary(overdueSummary, "Overdue"),
-    paid: fmtSummary(paidSummary, "Paid"),
+    open: fmtSummary(openSummary, "Open", orgCurrency),
+    overdue: fmtSummary(overdueSummary, "Overdue", orgCurrency),
+    paid: fmtSummary(paidSummary, "Paid", orgCurrency),
   };
 
   if (isLoading) {

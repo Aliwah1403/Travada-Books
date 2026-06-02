@@ -41,7 +41,6 @@ Deno.serve(async (req) => {
 
     const { data: invoiceNumberData } = await db.rpc("next_invoice_number", {
       p_org_id: quote.org_id,
-      p_customer_id: quote.customer_id,
     })
 
     const { data: ownerMember } = await db

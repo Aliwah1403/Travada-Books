@@ -308,9 +308,9 @@ export function CreateQuotePage() {
   ]);
 
   const { data: nextQuoteNumber } = useQuery({
-    queryKey: ["next-quote-number", orgId, selectedCustomer?.id],
-    queryFn: () => getNextQuoteNumber(orgId!, selectedCustomer!.id),
-    enabled: !!orgId && !!selectedCustomer?.id,
+    queryKey: ["next-quote-number", orgId],
+    queryFn: () => getNextQuoteNumber(orgId!),
+    enabled: !!orgId,
   });
 
   useEffect(() => {
@@ -375,7 +375,7 @@ export function CreateQuotePage() {
     mutationFn: (action: "draft" | "send") => createQuote(buildInput(action)),
     onSuccess: (quote, action) => {
       queryClient.invalidateQueries({ queryKey: ["quotes", orgId] });
-      queryClient.invalidateQueries({ queryKey: ["next-quote-number", orgId, selectedCustomer?.id] });
+      queryClient.invalidateQueries({ queryKey: ["next-quote-number", orgId] });
       trackEvent(LogEvents.QuoteCreated);
       if (action === "send") {
         trackEvent(LogEvents.QuoteSent);

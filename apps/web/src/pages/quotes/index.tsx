@@ -9,6 +9,7 @@ import { QuoteStats } from "@/components/quotes/quote-stats";
 import { QuoteTable, type Quote as UIQuote } from "@/components/quotes/quote-table";
 import { listQuotes } from "@/lib/queries/quotes";
 import { useAuth } from "@/contexts/auth-context";
+import { formatCurrency } from "@/lib/format";
 import { format } from "date-fns";
 
 function resolveStatus(status: string, validUntil: string | null): UIQuote["status"] {
@@ -18,28 +19,27 @@ function resolveStatus(status: string, validUntil: string | null): UIQuote["stat
   return status as UIQuote["status"];
 }
 
-function getStats(quotes: UIQuote[]) {
+function getStats(quotes: UIQuote[], currency: string) {
   const open = quotes.filter((q) => q.status === "draft" || q.status === "sent");
   const accepted = quotes.filter((q) => q.status === "accepted");
   const expired = quotes.filter((q) => q.status === "expired");
 
-  const sum = (arr: UIQuote[]) =>
-    arr.reduce((acc, q) => acc + (q.currency === "KES" ? q.amount : q.amount * 130), 0);
+  const sum = (arr: UIQuote[]) => arr.reduce((acc, q) => acc + q.amount, 0);
 
   return {
     open: {
       label: "Open",
-      amount: `KES ${sum(open).toLocaleString("en-KE")}`,
+      amount: formatCurrency(sum(open), currency),
       count: open.length,
     },
     accepted: {
       label: "Accepted",
-      amount: `KES ${sum(accepted).toLocaleString("en-KE")}`,
+      amount: formatCurrency(sum(accepted), currency),
       count: accepted.length,
     },
     expired: {
       label: "Expired",
-      amount: `KES ${sum(expired).toLocaleString("en-KE")}`,
+      amount: formatCurrency(sum(expired), currency),
       count: expired.length,
     },
   };
@@ -47,7 +47,8 @@ function getStats(quotes: UIQuote[]) {
 
 export function QuotesPage() {
   const navigate = useNavigate();
-  const { orgId } = useAuth();
+  const { orgId, org } = useAuth();
+  const orgCurrency = org?.currency ?? "KES";
   const [search, setSearch] = useState("");
 
   const { data: rawQuotes = [], isLoading } = useQuery({
@@ -69,7 +70,7 @@ export function QuotesPage() {
     issueDate: q.issue_date ? format(new Date(q.issue_date), "dd/MM/yyyy") : "—",
   }));
 
-  const stats = getStats(quotes);
+  const stats = getStats(quotes, orgCurrency);
 
   return (
     <div className="flex flex-col gap-6 p-6">
