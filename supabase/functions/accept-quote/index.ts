@@ -116,14 +116,11 @@ Deno.serve(async (req) => {
     const from = quote.from_details as Record<string, string> | null
     const customer = quote.customer_details as Record<string, string> | null
     const ownerEmail = (ownerMember?.users as unknown as OwnerFields)?.email
+    const viewUrl = newInvoice ? `${APP_URL}/invoices/${newInvoice.id}` : `${APP_URL}/quotes/${quote.id}`
 
     if (from && businessEmail && ownerMember?.user_id) {
-      const viewUrl = newInvoice ? `${APP_URL}/invoices/${newInvoice.id}` : `${APP_URL}/quotes/${quote.id}`
       const userId = ownerMember.user_id
-      const [sendEmail, sendInApp] = await Promise.all([
-        shouldSend(userId, quote.org_id, "quote.accepted", "email"),
-        shouldSend(userId, quote.org_id, "quote.accepted", "in_app"),
-      ])
+      const sendEmail = await shouldSend(userId, quote.org_id, "quote.accepted", "email")
 
       if (sendEmail) {
         const html = await render(
@@ -143,7 +140,11 @@ Deno.serve(async (req) => {
           html,
         })
       }
+    }
 
+    if (ownerMember?.user_id) {
+      const userId = ownerMember.user_id
+      const sendInApp = await shouldSend(userId, quote.org_id, "quote.accepted", "in_app")
       if (sendInApp) {
         triggerNovu("quote-accepted", { subscriberId: userId, email: ownerEmail }, {
           quoteNumber: quote.quote_number,

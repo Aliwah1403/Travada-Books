@@ -65,35 +65,10 @@ Deno.serve(async (req) => {
 
         const { data: orgData } = await db.from("organizations").select("email").eq("id", invoice.org_id).single()
         if (!orgData?.email) {
-          console.warn(`notify-invoice-overdue: no business email for org ${invoice.org_id}, skipping invoice ${invoice.id}`)
-          continue
+          console.warn(`notify-invoice-overdue: no business email for org ${invoice.org_id}, email notifications skipped for invoice ${invoice.id}`)
         }
-
-        const orgName = (invoice.from_details as Record<string, string> | null)?.name ?? "Travada Books"
 
         const viewUrl = `${APP_URL}/invoices/${invoice.id}`
-        const html = await render(
-          React.createElement(InvoiceOverdueAlertEmail, {
-            invoiceNumber: invoice.invoice_number,
-            customerName: customerName ?? "your customer",
-            total: invoice.total,
-            currency: invoice.currency,
-            viewUrl,
-          })
-        )
-
-        const { data: stamped, error: stampError } = await db
-          .from("invoices")
-          .update({ overdue_alert_sent_at: new Date().toISOString() })
-          .is("overdue_alert_sent_at", null)
-          .eq("id", invoice.id)
-          .select("id")
-        if (stampError) {
-          console.error(`notify-invoice-overdue: failed to stamp overdue_alert_sent_at for invoice ${invoice.id}:`, stampError)
-          continue
-        }
-        if (!stamped || stamped.length === 0) continue
-
         const label = invoice.invoice_number ? `Invoice ${invoice.invoice_number}` : "Invoice"
         const novuPayload = {
           invoiceNumber: invoice.invoice_number,
@@ -110,7 +85,16 @@ Deno.serve(async (req) => {
             shouldSend(member.user_id, invoice.org_id, "invoice.overdue", "email"),
             shouldSend(member.user_id, invoice.org_id, "invoice.overdue", "in_app"),
           ])
-          if (sendEmail) {
+          if (sendEmail && orgData?.email) {
+            const html = await render(
+              React.createElement(InvoiceOverdueAlertEmail, {
+                invoiceNumber: invoice.invoice_number,
+                customerName: customerName ?? "your customer",
+                total: invoice.total,
+                currency: invoice.currency,
+                viewUrl,
+              })
+            )
             await resend.emails.send({
               from: `Travada Books <${FROM_EMAIL}>`,
               to: [orgData.email],
@@ -122,6 +106,18 @@ Deno.serve(async (req) => {
             triggerNovu("invoice-overdue", { subscriberId: member.user_id, email }, novuPayload)
               .catch((err) => console.error(`notify-invoice-overdue: novu trigger failed for ${invoice.id}:`, err))
           }
+        }
+
+        // Stamp only after sends succeed so transient failures remain retryable.
+        // The .is("overdue_alert_sent_at", null) clause prevents double-stamping
+        // if two concurrent runs both reach this point.
+        const { error: stampError } = await db
+          .from("invoices")
+          .update({ overdue_alert_sent_at: new Date().toISOString() })
+          .is("overdue_alert_sent_at", null)
+          .eq("id", invoice.id)
+        if (stampError) {
+          console.error(`notify-invoice-overdue: failed to stamp overdue_alert_sent_at for invoice ${invoice.id}:`, stampError)
         }
 
         sent++

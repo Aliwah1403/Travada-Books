@@ -12,6 +12,11 @@ export async function triggerNovu(
   to: NovuSubscriber,
   payload: Record<string, unknown>
 ): Promise<void> {
+  if (!NOVU_SECRET_KEY) {
+    console.error("triggerNovu: NOVU_SECRET_KEY is not set — aborting request")
+    throw new Error("NOVU_SECRET_KEY is not configured")
+  }
+
   const res = await fetch(`${NOVU_API_URL}/events/trigger`, {
     method: "POST",
     headers: {

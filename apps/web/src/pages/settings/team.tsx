@@ -141,14 +141,14 @@ function InviteDialog({
           inviterName,
         },
       });
-      if (invokeError) {
-        // Roll back the pending invite row so the member list stays consistent.
-        await supabase.from("organization_members").delete().eq("id", id);
-        throw new Error("Failed to send invite email. Please try again.");
-      }
+      return { emailFailed: !!invokeError };
     },
-    onSuccess: () => {
-      toast.success(`Invite sent to ${email.trim()}.`);
+    onSuccess: ({ emailFailed }) => {
+      if (emailFailed) {
+        toast.warning(`Invite created for ${email.trim()}, but the email failed to send. Use "Resend invitation" from the Invitations tab to retry.`);
+      } else {
+        toast.success(`Invite sent to ${email.trim()}.`);
+      }
       setEmail("");
       setRole("member");
       setOpen(false);

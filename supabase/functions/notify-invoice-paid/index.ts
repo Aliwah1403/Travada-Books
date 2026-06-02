@@ -49,22 +49,11 @@ Deno.serve(async (req) => {
 
     const { data: org } = await db.from("organizations").select("email").eq("id", orgId).single()
     const businessEmail = org?.email
-    if (!businessEmail) return new Response(JSON.stringify({ error: "Business email not found" }), { status: 422, headers: corsHeaders })
 
     type UserEmail = { email: string } | null
     const ownerEmail = (member?.users as unknown as UserEmail)?.email
 
     const viewUrl = `${APP_URL}/invoices/${invoiceId}`
-    const html = await render(
-      React.createElement(InvoicePaidEmail, {
-        invoiceNumber: invoice.invoice_number,
-        customerName,
-        total: invoice.total,
-        currency: invoice.currency,
-        viewUrl,
-      })
-    )
-
     const label = invoice.invoice_number ? `Invoice ${invoice.invoice_number}` : "Invoice"
     const userId = member?.user_id
     const [sendEmail, sendInApp] = await Promise.all([
@@ -72,7 +61,16 @@ Deno.serve(async (req) => {
       shouldSend(userId ?? "", orgId, "invoice.paid", "in_app"),
     ])
 
-    if (sendEmail) {
+    if (sendEmail && businessEmail) {
+      const html = await render(
+        React.createElement(InvoicePaidEmail, {
+          invoiceNumber: invoice.invoice_number,
+          customerName,
+          total: invoice.total,
+          currency: invoice.currency,
+          viewUrl,
+        })
+      )
       await resend.emails.send({
         from: `Travada Books <${FROM_EMAIL}>`,
         to: [businessEmail],

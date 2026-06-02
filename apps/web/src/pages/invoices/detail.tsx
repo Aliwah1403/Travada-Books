@@ -290,15 +290,20 @@ export function InvoiceDetailPage() {
   }
 
   async function handleSendInvoice() {
-    try {
-      const invoiceCurrency = invoice!.currency
-      const baseCurrency = org?.base_currency ?? null
-      let exchangeRate: number | null = null
-      let convertedAmount: number | null = null
-      if (baseCurrency) {
+    const invoiceCurrency = invoice!.currency
+    const baseCurrency = org?.base_currency ?? null
+    let exchangeRate: number | null = null
+    let convertedAmount: number | null = null
+    if (baseCurrency) {
+      try {
         exchangeRate = await lookupRate(invoiceCurrency, baseCurrency)
         convertedAmount = exchangeRate != null ? (invoice!.total ?? 0) * exchangeRate : null
+      } catch {
+        toast.error("Failed to fetch exchange rate", { description: "Please try again." })
+        return
       }
+    }
+    try {
       await updateMutation.mutateAsync({
         patch: {
           status: "unpaid",

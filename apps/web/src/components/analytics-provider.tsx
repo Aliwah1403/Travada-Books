@@ -7,9 +7,14 @@ export function AnalyticsProvider() {
 
   useEffect(() => {
     if (import.meta.env.PROD) {
-      posthog.capture("$pageview", { $current_url: window.location.href })
+      const currentUrl = location.pathname + location.search + location.hash
+      try {
+        posthog.capture("$pageview", { $current_url: currentUrl })
+      } catch (err) {
+        console.error("posthog pageview capture failed:", err)
+      }
     }
-  }, [location.pathname])
+  }, [location.pathname, location.search, location.hash])
 
   return <Outlet />
 }

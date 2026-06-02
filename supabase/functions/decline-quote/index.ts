@@ -57,29 +57,31 @@ Deno.serve(async (req) => {
     const from = quote.from_details as Record<string, string> | null
     const customer = quote.customer_details as Record<string, string> | null
 
-    const { data: ownerMember } = await db
+    const { data: ownerMembers } = await db
       .from("organization_members")
       .select("user_id, users(email)")
       .eq("org_id", quote.org_id)
       .eq("role", "owner")
       .eq("status", "active")
-      .single()
 
     const { data: org } = await db.from("organizations").select("email").eq("id", quote.org_id).single()
     const businessEmail = org?.email
 
-    type OwnerEmail = { email: string } | null
-    const ownerEmail = (ownerMember?.users as unknown as OwnerEmail)?.email
-
-    if (from && businessEmail && ownerMember?.user_id) {
+    if (from && ownerMembers?.length) {
       const viewUrl = `${APP_URL}/quotes/${quote.id}`
-      const userId = ownerMember.user_id
-      const [sendEmail, sendInApp] = await Promise.all([
-        shouldSend(userId, quote.org_id, "quote.declined", "email"),
-        shouldSend(userId, quote.org_id, "quote.declined", "in_app"),
-      ])
 
-      if (sendEmail) {
+      type OwnerEmail = { email: string } | null
+      const ownerPrefs = await Promise.all(
+        ownerMembers.map(async (m) => {
+          const [sendEmail, sendInApp] = await Promise.all([
+            shouldSend(m.user_id, quote.org_id, "quote.declined", "email"),
+            shouldSend(m.user_id, quote.org_id, "quote.declined", "in_app"),
+          ])
+          return { userId: m.user_id, email: (m.users as unknown as OwnerEmail)?.email, sendEmail, sendInApp }
+        })
+      )
+
+      if (businessEmail && ownerPrefs.some((p) => p.sendEmail)) {
         const html = await render(
           React.createElement(QuoteDeclinedEmail, {
             orgName: from.name,
@@ -99,15 +101,17 @@ Deno.serve(async (req) => {
         })
       }
 
-      if (sendInApp) {
-        triggerNovu("quote-declined", { subscriberId: userId, email: ownerEmail }, {
-          quoteNumber: quote.quote_number,
-          customerName: customer?.name ?? "A customer",
-          total: quote.total,
-          currency: quote.currency,
-          declineReason: reason ?? null,
-          viewUrl,
-        }).catch((err) => console.error("decline-quote: novu trigger failed:", err))
+      for (const { userId, email: ownerEmail, sendInApp } of ownerPrefs) {
+        if (sendInApp) {
+          triggerNovu("quote-declined", { subscriberId: userId, email: ownerEmail }, {
+            quoteNumber: quote.quote_number,
+            customerName: customer?.name ?? "A customer",
+            total: quote.total,
+            currency: quote.currency,
+            declineReason: reason ?? null,
+            viewUrl,
+          }).catch((err) => console.error("decline-quote: novu trigger failed:", err))
+        }
       }
     }
 

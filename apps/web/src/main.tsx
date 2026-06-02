@@ -12,12 +12,15 @@ import { TooltipProvider } from "@travada-books/ui/components/tooltip"
 import { AuthProvider } from "@/contexts/auth-context.tsx"
 import { Toaster } from "sonner"
 
-posthog.init(import.meta.env.VITE_POSTHOG_KEY, {
-  api_host: import.meta.env.VITE_POSTHOG_HOST,
-  capture_pageview: false,
-  capture_pageleave: true,
-  debug: import.meta.env.DEV,
-})
+const posthogKey = import.meta.env.VITE_POSTHOG_KEY
+if (posthogKey) {
+  posthog.init(posthogKey, {
+    api_host: import.meta.env.VITE_POSTHOG_HOST,
+    capture_pageview: false,
+    capture_pageleave: true,
+    debug: import.meta.env.DEV,
+  })
+}
 
 if (import.meta.env.PROD) {
   Sentry.init({

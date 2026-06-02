@@ -172,11 +172,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setOrgLoading(false)
 
         posthog.identify(session.user.id, {
-          email: session.user.email,
           org_id: org?.id,
         })
         if (import.meta.env.PROD) {
-          Sentry.setUser({ id: session.user.id, email: session.user.email })
+          Sentry.setUser({ id: session.user.id })
         }
 
         const metaAvatarUrl =
