@@ -13,7 +13,7 @@ export function AuthLayout() {
   if (user && pathname !== "/forgot-password/reset") {
     if (!org) {
       const pending = sessionStorage.getItem("pendingInviteToken")
-      if (pending) return <Navigate to={`/accept-invite?token=${pending}`} replace />
+      if (pending) return <Navigate to={`/accept-invite?token=${encodeURIComponent(pending)}`} replace />
     }
     return <Navigate to={org ? "/invoices" : "/onboarding/org"} replace />
   }

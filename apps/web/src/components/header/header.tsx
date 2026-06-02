@@ -96,6 +96,7 @@ export function Header({ title }: HeaderProps) {
             { label: "All" },
             { label: "Invoices", filter: { tags: ["invoices"] } },
             { label: "Quotes", filter: { tags: ["quotes"] } },
+            { label: "Team", filter: { tags: ["team"] } },
           ]}
           onNotificationClick={(notification) => {
             const url = notification.data?.viewUrl as string | undefined;

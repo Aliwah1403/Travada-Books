@@ -88,7 +88,7 @@ export function InvoiceActions({
   }
 
   function invalidateSeries() {
-    queryClient.invalidateQueries({ queryKey: ["invoice-recurring", orgId] });
+    queryClient.invalidateQueries({ queryKey: ["invoice-recurring", seriesId] });
   }
 
   if (seriesId) {
