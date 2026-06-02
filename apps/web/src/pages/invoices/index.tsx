@@ -7,7 +7,7 @@ import { Input } from "@travada-books/ui/components/input";
 import { InvoiceStats } from "@/components/invoices/invoice-stats";
 import { InvoiceTable, type Invoice } from "@/components/invoices/invoice-table";
 import { QuotePreviewSheet } from "@/components/quotes/quote-preview-sheet";
-import { listInvoices } from "@/lib/queries/invoices";
+import { listInvoices, getInvoiceSummary } from "@/lib/queries/invoices";
 import { useAuth } from "@/contexts/auth-context";
 import { format } from "date-fns";
 
@@ -40,27 +40,15 @@ function toTableInvoice(inv: Awaited<ReturnType<typeof listInvoices>>[number]): 
   };
 }
 
-function getStats(invoices: ReturnType<typeof toTableInvoice>[], baseCurrency: string) {
-  const open = invoices.filter((i) => i.status === "draft" || i.status === "unpaid");
-  const overdue = invoices.filter((i) => i.status === "overdue");
-  const paid = invoices.filter((i) => i.status === "paid");
-
-  const sum = (arr: typeof invoices) =>
-    arr.reduce((acc, i) => acc + (i.convertedAmount ?? 0), 0);
-
-  const fmt = (n: number) =>
-    new Intl.NumberFormat(undefined, { style: "currency", currency: baseCurrency }).format(n);
-
-  return {
-    open: { label: "Open", amount: fmt(sum(open)), count: open.length },
-    overdue: { label: "Overdue", amount: fmt(sum(overdue)), count: overdue.length },
-    paid: { label: "Paid", amount: fmt(sum(paid)), count: paid.length },
-  };
+function fmtSummary(data: { total_amount: number; invoice_count: number; currency: string } | undefined, label: string) {
+  const currency = data?.currency ?? "KES";
+  const amount = new Intl.NumberFormat(undefined, { style: "currency", currency }).format(data?.total_amount ?? 0);
+  return { label, amount, count: data?.invoice_count ?? 0 };
 }
 
 export function InvoicesPage() {
   const navigate = useNavigate();
-  const { orgId, org } = useAuth();
+  const { orgId } = useAuth();
   const [search, setSearch] = useState("");
   const [previewQuoteId, setPreviewQuoteId] = useState<string | null>(null);
 
@@ -70,8 +58,29 @@ export function InvoicesPage() {
     enabled: !!orgId,
   });
 
+  const { data: openSummary } = useQuery({
+    queryKey: ["invoice-summary", orgId, "open"],
+    queryFn: () => getInvoiceSummary(orgId!, ["draft", "unpaid"]),
+    enabled: !!orgId,
+  });
+  const { data: overdueSummary } = useQuery({
+    queryKey: ["invoice-summary", orgId, "overdue"],
+    queryFn: () => getInvoiceSummary(orgId!, ["overdue"]),
+    enabled: !!orgId,
+  });
+  const { data: paidSummary } = useQuery({
+    queryKey: ["invoice-summary", orgId, "paid"],
+    queryFn: () => getInvoiceSummary(orgId!, ["paid"]),
+    enabled: !!orgId,
+  });
+
+
   const invoices = rawInvoices.map(toTableInvoice);
-  const stats = getStats(invoices, org?.base_currency ?? "KES");
+  const stats = {
+    open: fmtSummary(openSummary, "Open"),
+    overdue: fmtSummary(overdueSummary, "Overdue"),
+    paid: fmtSummary(paidSummary, "Paid"),
+  };
 
   if (isLoading) {
     return (

@@ -3,6 +3,7 @@ import { render } from "npm:@react-email/render@1"
 import { resend, FROM_EMAIL } from "../_shared/resend.ts"
 import { db } from "../_shared/db.ts"
 import { triggerNovu } from "../_shared/novu.ts"
+import { shouldSend } from "../_shared/notification-prefs.ts"
 import { QuoteDeclinedEmail } from "../_shared/emails/quote-declined.tsx"
 
 const APP_URL = Deno.env.get("APP_URL") ?? "https://books.travadasys.com"
@@ -56,49 +57,61 @@ Deno.serve(async (req) => {
     const from = quote.from_details as Record<string, string> | null
     const customer = quote.customer_details as Record<string, string> | null
 
-    const { data: ownerMember } = await db
+    const { data: ownerMembers } = await db
       .from("organization_members")
       .select("user_id, users(email)")
       .eq("org_id", quote.org_id)
       .eq("role", "owner")
       .eq("status", "active")
-      .single()
 
     const { data: org } = await db.from("organizations").select("email").eq("id", quote.org_id).single()
     const businessEmail = org?.email
 
-    type OwnerEmail = { email: string } | null
-    const ownerEmail = (ownerMember?.users as unknown as OwnerEmail)?.email
-
-    if (from && businessEmail) {
+    if (from && ownerMembers?.length) {
       const viewUrl = `${APP_URL}/quotes/${quote.id}`
-      const html = await render(
-        React.createElement(QuoteDeclinedEmail, {
-          orgName: from.name,
-          quoteNumber: quote.quote_number,
-          customerName: customer?.name ?? "A customer",
-          total: quote.total,
-          currency: quote.currency,
-          declineReason: reason,
-          viewUrl,
+
+      type OwnerEmail = { email: string } | null
+      const ownerPrefs = await Promise.all(
+        ownerMembers.map(async (m) => {
+          const [sendEmail, sendInApp] = await Promise.all([
+            shouldSend(m.user_id, quote.org_id, "quote.declined", "email"),
+            shouldSend(m.user_id, quote.org_id, "quote.declined", "in_app"),
+          ])
+          return { userId: m.user_id, email: (m.users as unknown as OwnerEmail)?.email, sendEmail, sendInApp }
         })
       )
-      await resend.emails.send({
-        from: `Travada Books <${FROM_EMAIL}>`,
-        to: [businessEmail],
-        subject: `Quote${quote.quote_number ? ` ${quote.quote_number}` : ""} declined by ${customer?.name ?? "customer"}`,
-        html,
-      })
 
-      if (ownerMember?.user_id) {
-        triggerNovu("quote-declined", { subscriberId: ownerMember.user_id, email: ownerEmail }, {
-          quoteNumber: quote.quote_number,
-          customerName: customer?.name ?? "A customer",
-          total: quote.total,
-          currency: quote.currency,
-          declineReason: reason ?? null,
-          viewUrl,
-        }).catch((err) => console.error("decline-quote: novu trigger failed:", err))
+      if (businessEmail && ownerPrefs.some((p) => p.sendEmail)) {
+        const html = await render(
+          React.createElement(QuoteDeclinedEmail, {
+            orgName: from.name,
+            quoteNumber: quote.quote_number,
+            customerName: customer?.name ?? "A customer",
+            total: quote.total,
+            currency: quote.currency,
+            declineReason: reason,
+            viewUrl,
+          })
+        )
+        await resend.emails.send({
+          from: `Travada Books <${FROM_EMAIL}>`,
+          to: [businessEmail],
+          subject: `Quote${quote.quote_number ? ` ${quote.quote_number}` : ""} declined by ${customer?.name ?? "customer"}`,
+          html,
+        })
+      }
+
+      for (const { userId, email: ownerEmail, sendInApp } of ownerPrefs) {
+        if (sendInApp) {
+          triggerNovu("quote-declined", { subscriberId: userId, email: ownerEmail }, {
+            quoteNumber: quote.quote_number,
+            customerName: customer?.name ?? "A customer",
+            total: quote.total,
+            currency: quote.currency,
+            declineReason: reason ?? null,
+            viewUrl,
+          }).catch((err) => console.error("decline-quote: novu trigger failed:", err))
+        }
       }
     }
 

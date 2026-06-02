@@ -453,8 +453,12 @@ export function CreateInvoicePage() {
     let exchangeRate: number | null = null
     let convertedAmount: number | null = null
     if (isSend && org) {
-      exchangeRate = await lookupRate(currency, org.base_currency)
-      convertedAmount = exchangeRate != null ? total * exchangeRate : null
+      try {
+        exchangeRate = await lookupRate(currency, org.base_currency)
+        convertedAmount = exchangeRate != null ? total * exchangeRate : null
+      } catch {
+        throw new Error("exchange_rate_lookup_failed")
+      }
     }
 
     return {
@@ -570,16 +574,20 @@ export function CreateInvoicePage() {
             next_scheduled_at: new Date(nextDate + "T00:00:00Z").toISOString(),
           });
           // Link first invoice back to the series
-          await supabase
+          const { error: linkError } = await supabase
             .from("invoices")
             .update({ invoice_recurring_id: series.id, recurring_sequence: 1 })
             .eq("id", invoice.id);
+          if (linkError) throw linkError;
         } catch {
           toast.warning("Invoice saved, but failed to set up recurring series. Contact support.");
         }
       }
-    } catch {
-      // onError handles the toast
+    } catch (err) {
+      if (err instanceof Error && err.message === "exchange_rate_lookup_failed") {
+        toast.error("Failed to fetch exchange rate", { description: "Please try again." });
+      }
+      // otherwise onError handles the toast
     }
   }
 

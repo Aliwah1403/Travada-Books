@@ -88,7 +88,7 @@ export const invoiceColumns: ColumnDef<Invoice>[] = [
       const series = row.original.invoiceRecurring;
       const seriesStatus = row.original.seriesStatus;
 
-      if (freq === "one_time" || !series) {
+      if (freq === "one_time") {
         return <span className='text-xs text-muted-foreground'>One time</span>;
       }
 
@@ -99,7 +99,9 @@ export const invoiceColumns: ColumnDef<Invoice>[] = [
       const freqLabel = freqLabels[freq] ?? freq;
 
       let subtitle: string | null = null;
-      if (seriesStatus === "paused") {
+      if (!series) {
+        // series data not loaded yet — show label without schedule details
+      } else if (seriesStatus === "paused") {
         subtitle = "Paused";
       } else if (seriesStatus === "canceled") {
         subtitle = "Canceled";

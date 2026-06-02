@@ -3,7 +3,9 @@ import { render } from "npm:@react-email/render@1"
 import { resend, FROM_EMAIL } from "../_shared/resend.ts"
 import { db } from "../_shared/db.ts"
 import { getCallerOrgId } from "../_shared/auth.ts"
+import { shouldSend } from "../_shared/notification-prefs.ts"
 import { InviteEmail } from "../_shared/emails/invite.tsx"
+import { TeamMemberInvitedEmail } from "../_shared/emails/team-member-invited.tsx"
 
 const APP_URL = Deno.env.get("APP_URL") ?? "https://books.travadasys.com"
 
@@ -18,7 +20,7 @@ Deno.serve(async (req) => {
   try {
     const auth = await getCallerOrgId(req)
     if ("error" in auth) return new Response(auth.error.body, { status: auth.error.status, headers: corsHeaders })
-    const { orgId } = auth
+    const { orgId, userId: actingUserId } = auth
 
     const body = await req.json() as {
       invitations?: Array<{ email: string; id: string }>
@@ -81,6 +83,59 @@ Deno.serve(async (req) => {
         sent++
       } catch (emailErr) {
         console.error(`invite-member: failed to send invitation ${i} (id: ${inv.id ?? "none"}):`, emailErr)
+      }
+    }
+
+    // Notify all other owners that invitations were sent
+    if (invitations.length > 0) {
+      try {
+        const { data: owners } = await db
+          .from("organization_members")
+          .select("user_id, users(email, full_name)")
+          .eq("org_id", orgId)
+          .eq("role", "owner")
+          .eq("status", "active")
+
+        type OwnerFields = { email: string; full_name: string | null } | null
+        const { data: orgData } = await db.from("organizations").select("email, name").eq("id", orgId).single()
+
+        for (const owner of owners ?? []) {
+          const ownerUser = owner.users as unknown as OwnerFields
+          if (!ownerUser?.email || !orgData?.email) continue
+
+          const canEmail = await shouldSend(owner.user_id, orgId, "team.invited", "email")
+          if (!canEmail) continue
+
+          // Send one summary email per other owner listing all invited emails
+          const invitedList = invitations.map((i) => i.email).join(", ")
+          const firstInvitation = invitations[0]
+          const role = firstInvitation
+            ? await db
+                .from("organization_members")
+                .select("role")
+                .eq("id", firstInvitation.id ?? "")
+                .maybeSingle()
+                .then(({ data }) => data?.role ?? "Member")
+            : "Member"
+
+          const html = await render(
+            React.createElement(TeamMemberInvitedEmail, {
+              invitedEmail: invitations.length === 1 ? invitations[0].email : invitedList,
+              role: role.charAt(0).toUpperCase() + role.slice(1),
+              orgName,
+              settingsUrl: `${APP_URL}/settings/team`,
+            })
+          )
+
+          await resend.emails.send({
+            from: `Travada Books <${FROM_EMAIL}>`,
+            to: [orgData.email],
+            subject: `Invitation sent to ${invitations.length === 1 ? invitations[0].email : `${invitations.length} people`}`,
+            html,
+          })
+        }
+      } catch (notifyErr) {
+        console.error("invite-member: owner notification failed:", notifyErr)
       }
     }
 

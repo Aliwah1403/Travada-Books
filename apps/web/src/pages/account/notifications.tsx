@@ -1,10 +1,15 @@
-import { useState } from "react"
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { Switch } from "@travada-books/ui/components/switch"
 import { Badge } from "@travada-books/ui/components/badge"
 import { Separator } from "@travada-books/ui/components/separator"
 import { cn } from "@travada-books/ui/lib/utils"
-
-type NotificationChannel = "inApp" | "email"
+import { useAuth } from "@/contexts/auth-context"
+import {
+  getNotificationPrefs,
+  upsertNotificationPref,
+  type NotificationChannel,
+  type NotificationPrefRow,
+} from "@/lib/queries/notification-settings"
 
 type NotificationEvent = {
   id: string
@@ -28,23 +33,23 @@ const groups: NotificationGroup[] = [
         id: "invoice.paid",
         label: "Invoice paid",
         description: "A client or payment webhook marks an invoice as paid.",
-        channels: ["inApp", "email"],
-        defaults: { inApp: true, email: true },
+        channels: ["in_app", "email"],
+        defaults: { in_app: true, email: true },
       },
       {
         id: "invoice.overdue",
         label: "Invoice overdue",
         description: "An invoice passes its due date without being paid.",
-        channels: ["inApp", "email"],
-        defaults: { inApp: true, email: true },
+        channels: ["in_app", "email"],
+        defaults: { in_app: true, email: true },
       },
       {
         id: "invoice.reminder_upcoming",
         label: "Upcoming scheduled reminder",
         description:
           "Sent 1 day before an automatic reminder goes out to your client, so you can cancel or edit it in time.",
-        channels: ["inApp", "email"],
-        defaults: { inApp: true, email: true },
+        channels: ["in_app", "email"],
+        defaults: { in_app: true, email: true },
       },
     ],
   },
@@ -55,33 +60,32 @@ const groups: NotificationGroup[] = [
         id: "quote.accepted",
         label: "Quote accepted",
         description: "A client accepts a quote. A draft invoice is created automatically.",
-        channels: ["inApp", "email"],
-        defaults: { inApp: true, email: true },
+        channels: ["in_app", "email"],
+        defaults: { in_app: true, email: true },
       },
       {
         id: "quote.declined",
         label: "Quote declined",
         description: "A client declines a quote, optionally with a reason.",
-        channels: ["inApp", "email"],
-        defaults: { inApp: true, email: true },
+        channels: ["in_app", "email"],
+        defaults: { in_app: true, email: true },
       },
       {
         id: "quote.expired",
         label: "Quote expired",
         description: "A quote passes its validity date without a response from the client.",
-        channels: ["inApp", "email"],
-        defaults: { inApp: true, email: false },
+        channels: ["in_app", "email"],
+        defaults: { in_app: true, email: false },
       },
     ],
   },
   {
     label: "Team",
-    comingSoon: true,
     events: [
       {
         id: "team.invited",
         label: "Team member invited",
-        description: "A new member is invited to your organisation.",
+        description: "Another owner sent an invitation to join your organisation.",
         channels: ["email"],
         defaults: { email: true },
       },
@@ -89,15 +93,8 @@ const groups: NotificationGroup[] = [
         id: "team.joined",
         label: "Team member joined",
         description: "An invited member accepts and joins your organisation.",
-        channels: ["inApp"],
-        defaults: { inApp: true },
-      },
-      {
-        id: "team.approval_required",
-        label: "Invoice requires approval",
-        description: "An invoice above the approval threshold is waiting for your sign-off.",
-        channels: ["inApp", "email"],
-        defaults: { inApp: true, email: true },
+        channels: ["in_app", "email"],
+        defaults: { in_app: true, email: true },
       },
     ],
   },
@@ -123,15 +120,22 @@ const groups: NotificationGroup[] = [
   },
 ]
 
-type NotificationState = Record<string, Partial<Record<NotificationChannel, boolean>>>
+function resolvePrefs(
+  rows: NotificationPrefRow[],
+): Record<string, Partial<Record<NotificationChannel, boolean>>> {
+  const state: Record<string, Partial<Record<NotificationChannel, boolean>>> = {}
 
-function buildDefaults(groups: NotificationGroup[]): NotificationState {
-  const state: NotificationState = {}
   for (const group of groups) {
     for (const event of group.events) {
-      state[event.id] = { ...event.defaults }
+      const resolved: Partial<Record<NotificationChannel, boolean>> = {}
+      for (const ch of event.channels) {
+        const row = rows.find((r) => r.notification_type === event.id && r.channel === ch)
+        resolved[ch] = row ? row.enabled : (event.defaults[ch] ?? true)
+      }
+      state[event.id] = resolved
     }
   }
+
   return state
 }
 
@@ -155,10 +159,10 @@ function NotificationRow({
       <div className="flex shrink-0 items-center gap-6">
         <div className="flex flex-col items-center gap-1.5">
           <Switch
-            checked={event.channels.includes("inApp") ? (value.inApp ?? false) : false}
-            onCheckedChange={(checked) => onChange("inApp", checked)}
-            disabled={disabled || !event.channels.includes("inApp")}
-            className={!event.channels.includes("inApp") ? "opacity-0 pointer-events-none" : ""}
+            checked={event.channels.includes("in_app") ? (value.in_app ?? false) : false}
+            onCheckedChange={(checked) => onChange("in_app", checked)}
+            disabled={disabled || !event.channels.includes("in_app")}
+            className={!event.channels.includes("in_app") ? "opacity-0 pointer-events-none" : ""}
           />
         </div>
         <div className="flex flex-col items-center gap-1.5">
@@ -175,13 +179,63 @@ function NotificationRow({
 }
 
 export function NotificationsPage() {
-  const [prefs, setPrefs] = useState<NotificationState>(buildDefaults(groups))
+  const { user, orgId } = useAuth()
+  const queryClient = useQueryClient()
+  const queryKey = ["notification-prefs", user?.id, orgId]
+
+  const { data: rows = [] } = useQuery({
+    queryKey,
+    queryFn: () => getNotificationPrefs(user!.id, orgId!),
+    enabled: !!user && !!orgId,
+  })
+
+  const prefs = resolvePrefs(rows)
+
+  const mutation = useMutation({
+    mutationFn: ({
+      notificationType,
+      channel,
+      enabled,
+    }: {
+      notificationType: string
+      channel: NotificationChannel
+      enabled: boolean
+    }) => upsertNotificationPref(user!.id, orgId!, notificationType, channel, enabled),
+
+    onMutate: async ({ notificationType, channel, enabled }) => {
+      await queryClient.cancelQueries({ queryKey })
+      const previous = queryClient.getQueryData<NotificationPrefRow[]>(queryKey)
+
+      queryClient.setQueryData<NotificationPrefRow[]>(queryKey, (old = []) => {
+        const existing = old.find(
+          (r) => r.notification_type === notificationType && r.channel === channel,
+        )
+        if (existing) {
+          return old.map((r) =>
+            r.notification_type === notificationType && r.channel === channel
+              ? { ...r, enabled }
+              : r,
+          )
+        }
+        return [...old, { user_id: user!.id, org_id: orgId!, notification_type: notificationType, channel, enabled }]
+      })
+
+      return { previous }
+    },
+
+    onError: (_err, _vars, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(queryKey, context.previous)
+      }
+    },
+
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey })
+    },
+  })
 
   function toggle(id: string, channel: NotificationChannel, checked: boolean) {
-    setPrefs((prev) => ({
-      ...prev,
-      [id]: { ...prev[id], [channel]: checked },
-    }))
+    mutation.mutate({ notificationType: id, channel, enabled: checked })
   }
 
   return (
@@ -193,15 +247,6 @@ export function NotificationsPage() {
         </p>
       </div>
 
-      {/* Column headers */}
-      <div className="flex items-center justify-between">
-        <span />
-        <div className="flex items-center gap-6 pr-0.5">
-          <span className="w-9 text-center text-xs font-medium text-muted-foreground">In-app</span>
-          <span className="w-9 text-center text-xs font-medium text-muted-foreground">Email</span>
-        </div>
-      </div>
-
       <div className="flex flex-col gap-8">
         {groups.map((group, i) => (
           <div key={group.label}>
@@ -210,11 +255,16 @@ export function NotificationsPage() {
               <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 {group.label}
               </span>
-              {group.comingSoon && (
-                <Badge variant="secondary" className="text-[10px]">
-                  Coming soon
-                </Badge>
-              )}
+              <div className="flex items-center gap-6 pr-0.5">
+                {group.comingSoon ? (
+                  <Badge variant="secondary" className="text-[10px]">Coming soon</Badge>
+                ) : (
+                  <>
+                    <span className="w-9 text-center text-xs font-medium text-muted-foreground">In-app</span>
+                    <span className="w-9 text-center text-xs font-medium text-muted-foreground">Email</span>
+                  </>
+                )}
+              </div>
             </div>
             <div className="divide-y">
               {group.events.map((event) => (

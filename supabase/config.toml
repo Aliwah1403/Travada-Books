@@ -419,3 +419,6 @@ verify_jwt = false
 
 [functions.decline-quote]
 verify_jwt = false
+
+[functions.notify-team-joined]
+verify_jwt = true

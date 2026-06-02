@@ -4,6 +4,7 @@ import { resend, FROM_EMAIL } from "../_shared/resend.ts"
 import { db } from "../_shared/db.ts"
 import { getCallerOrgId } from "../_shared/auth.ts"
 import { triggerNovu } from "../_shared/novu.ts"
+import { shouldSend } from "../_shared/notification-prefs.ts"
 import { InvoicePaidEmail } from "../_shared/emails/invoice-paid.tsx"
 
 const APP_URL = Deno.env.get("APP_URL") ?? "https://books.travadasys.com"
@@ -48,32 +49,38 @@ Deno.serve(async (req) => {
 
     const { data: org } = await db.from("organizations").select("email").eq("id", orgId).single()
     const businessEmail = org?.email
-    if (!businessEmail) return new Response(JSON.stringify({ error: "Business email not found" }), { status: 422, headers: corsHeaders })
 
     type UserEmail = { email: string } | null
     const ownerEmail = (member?.users as unknown as UserEmail)?.email
 
     const viewUrl = `${APP_URL}/invoices/${invoiceId}`
-    const html = await render(
-      React.createElement(InvoicePaidEmail, {
-        invoiceNumber: invoice.invoice_number,
-        customerName,
-        total: invoice.total,
-        currency: invoice.currency,
-        viewUrl,
-      })
-    )
-
     const label = invoice.invoice_number ? `Invoice ${invoice.invoice_number}` : "Invoice"
-    await resend.emails.send({
-      from: `Travada Books <${FROM_EMAIL}>`,
-      to: [businessEmail],
-      subject: `${label} from ${customerName} has been paid`,
-      html,
-    })
+    const userId = member?.user_id
+    const [sendEmail, sendInApp] = await Promise.all([
+      shouldSend(userId ?? "", orgId, "invoice.paid", "email"),
+      shouldSend(userId ?? "", orgId, "invoice.paid", "in_app"),
+    ])
 
-    if (member?.user_id) {
-      triggerNovu("invoice-paid", { subscriberId: member.user_id, email: ownerEmail }, {
+    if (sendEmail && businessEmail) {
+      const html = await render(
+        React.createElement(InvoicePaidEmail, {
+          invoiceNumber: invoice.invoice_number,
+          customerName,
+          total: invoice.total,
+          currency: invoice.currency,
+          viewUrl,
+        })
+      )
+      await resend.emails.send({
+        from: `Travada Books <${FROM_EMAIL}>`,
+        to: [businessEmail],
+        subject: `${label} from ${customerName} has been paid`,
+        html,
+      })
+    }
+
+    if (sendInApp && userId) {
+      triggerNovu("invoice-paid", { subscriberId: userId, email: ownerEmail }, {
         invoiceNumber: invoice.invoice_number,
         customerName,
         total: invoice.total,

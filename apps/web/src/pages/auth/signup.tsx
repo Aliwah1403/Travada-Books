@@ -18,10 +18,22 @@ export function SignupPage() {
   const [loading, setLoading] = useState(false)
 
   async function handleGoogleSignIn() {
-    await supabase.auth.signInWithOAuth({
+    const next = searchParams.get("next")
+    let destination = "/invoices"
+    if (next) {
+      try {
+        const resolved = new URL(decodeURIComponent(next), window.location.origin)
+        if (resolved.origin === window.location.origin)
+          destination = resolved.pathname + resolved.search + resolved.hash
+      } catch {
+        // malformed next param — fall back to /invoices
+      }
+    }
+    const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
-      options: { redirectTo: `${window.location.origin}/invoices` },
+      options: { redirectTo: `${window.location.origin}${destination}` },
     })
+    if (error) setError(error.message)
   }
 
   async function handleSubmit(e: React.FormEvent) {

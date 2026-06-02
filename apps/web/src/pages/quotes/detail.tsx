@@ -130,6 +130,7 @@ export function QuoteDetailPage() {
   const [isPdfDownloading, setIsPdfDownloading] = useState(false);
   const [internalNote, setInternalNote] = useState("");
   const [internalNoteSaved, setInternalNoteSaved] = useState(false);
+  const [internalNoteDirty, setInternalNoteDirty] = useState(false);
 
   const {
     data: quote,
@@ -142,8 +143,8 @@ export function QuoteDetailPage() {
   });
 
   useEffect(() => {
-    if (quote) setInternalNote(quote.internal_note ?? "");
-  }, [quote?.id, quote?.internal_note]);
+    if (quote && !internalNoteDirty) setInternalNote(quote.internal_note ?? "");
+  }, [quote?.id, quote?.internal_note, internalNoteDirty]);
 
   const { data: customer } = useQuery({
     queryKey: ["customer", quote?.customer_id],
@@ -291,6 +292,7 @@ export function QuoteDetailPage() {
     mutationFn: () => updateQuote(id!, orgId!, { internal_note: internalNote || null }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["quote", id] });
+      setInternalNoteDirty(false);
       setInternalNoteSaved(true);
       setTimeout(() => setInternalNoteSaved(false), 2000);
     },
@@ -791,6 +793,7 @@ export function QuoteDetailPage() {
                     value={internalNote}
                     onChange={(e) => {
                       setInternalNote(e.target.value);
+                      setInternalNoteDirty(true);
                       setInternalNoteSaved(false);
                     }}
                     className='text-xs'

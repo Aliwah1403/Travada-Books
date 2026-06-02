@@ -267,6 +267,17 @@ export async function getCustomerInvoiceSummary(customerId: string, orgId: strin
   }
 }
 
+export async function getInvoiceSummary(
+  orgId: string,
+  statuses: string[]
+): Promise<{ total_amount: number; invoice_count: number; currency: string }> {
+  const { data, error } = await supabase
+    .rpc("get_invoice_summary", { p_org_id: orgId, p_statuses: statuses })
+    .single()
+  if (error) throw error
+  return data as { total_amount: number; invoice_count: number; currency: string }
+}
+
 export async function getInvoiceByToken(token: string): Promise<PublicInvoice> {
   const { data, error } = await supabase
     .rpc("get_invoice_by_token", { p_token: token })

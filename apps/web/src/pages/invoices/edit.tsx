@@ -481,8 +481,12 @@ export function EditInvoicePage() {
     let exchangeRate: number | null = null
     let convertedAmount: number | null = null
     if (isSend && org) {
-      exchangeRate = await lookupRate(currency, org.base_currency)
-      convertedAmount = exchangeRate != null ? total * exchangeRate : null
+      try {
+        exchangeRate = await lookupRate(currency, org.base_currency)
+        convertedAmount = exchangeRate != null ? total * exchangeRate : null
+      } catch {
+        throw new Error("exchange_rate_lookup_failed")
+      }
     }
 
     return {
@@ -517,7 +521,16 @@ export function EditInvoicePage() {
 
   async function handleSubmit(action: "draft" | "send" | "schedule", scheduleDate?: Date) {
     if (!selectedCustomer) return;
-    updateMutation.mutate({ patch: await buildPatch(action, scheduleDate) });
+    let patch;
+    try {
+      patch = await buildPatch(action, scheduleDate);
+    } catch (err) {
+      if (err instanceof Error && err.message === "exchange_rate_lookup_failed") {
+        toast.error("Failed to fetch exchange rate", { description: "Please try again." });
+      }
+      return;
+    }
+    updateMutation.mutate({ patch });
   }
 
   const isSubmitting = updateMutation.isPending;

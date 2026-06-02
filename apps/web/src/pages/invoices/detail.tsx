@@ -290,15 +290,20 @@ export function InvoiceDetailPage() {
   }
 
   async function handleSendInvoice() {
-    try {
-      const invoiceCurrency = invoice!.currency
-      const baseCurrency = org?.base_currency ?? null
-      let exchangeRate: number | null = null
-      let convertedAmount: number | null = null
-      if (baseCurrency) {
+    const invoiceCurrency = invoice!.currency
+    const baseCurrency = org?.base_currency ?? null
+    let exchangeRate: number | null = null
+    let convertedAmount: number | null = null
+    if (baseCurrency) {
+      try {
         exchangeRate = await lookupRate(invoiceCurrency, baseCurrency)
         convertedAmount = exchangeRate != null ? (invoice!.total ?? 0) * exchangeRate : null
+      } catch {
+        toast.error("Failed to fetch exchange rate", { description: "Please try again." })
+        return
       }
+    }
+    try {
       await updateMutation.mutateAsync({
         patch: {
           status: "unpaid",
@@ -328,19 +333,37 @@ export function InvoiceDetailPage() {
   }
 
   function handleMarkPaid() {
-    updateMutation.mutate({
-      patch: {
-        status: "paid",
-        paid_at: new Date().toISOString(),
-        ...(!invoice!.from_details && fromDetails ?
-          { from_details: fromDetails }
-        : {}),
-        ...(!invoice!.customer_details && customerDetails ?
-          { customer_details: customerDetails }
-        : {}),
+    updateMutation.mutate(
+      {
+        patch: {
+          status: "paid",
+          paid_at: new Date().toISOString(),
+          ...(!invoice!.from_details && fromDetails ?
+            { from_details: fromDetails }
+          : {}),
+          ...(!invoice!.customer_details && customerDetails ?
+            { customer_details: customerDetails }
+          : {}),
+        },
+        label: "Invoice marked as paid",
       },
-      label: "Invoice marked as paid",
-    });
+      {
+        onSuccess: () => {
+          supabase.functions
+            .invoke("notify-invoice-paid", { body: { invoiceId: id } })
+            .then((res) => {
+              if (res.error) {
+                console.error("notify-invoice-paid failed:", res.error);
+                toast.warning("Invoice marked as paid, but the notification email failed to send.");
+              }
+            })
+            .catch((err) => {
+              console.error("notify-invoice-paid failed:", err);
+              toast.warning("Invoice marked as paid, but the notification email failed to send.");
+            });
+        },
+      },
+    );
   }
 
   function handleCopyLink() {

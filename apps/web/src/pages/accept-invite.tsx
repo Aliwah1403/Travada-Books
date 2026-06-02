@@ -10,6 +10,7 @@ import {
 } from "@travada-books/ui/components/card"
 import { useAuth } from "@/contexts/auth-context"
 import { getInviteInfo, acceptInvite, type InviteInfo } from "@/lib/queries/team"
+import { supabase } from "@/lib/supabase"
 
 type State =
   | { kind: "loading" }
@@ -55,6 +56,10 @@ export function AcceptInvitePage() {
     acceptInvite(token)
       .then(() => {
         sessionStorage.removeItem("pendingInviteToken")
+        // Fire-and-forget — token IS the organization_members UUID (the memberId)
+        supabase.functions
+          .invoke("notify-team-joined", { body: { memberId: token } })
+          .catch((err) => console.error("notify-team-joined failed:", err))
         // Hard redirect so auth-context re-initialises fresh with the new membership
         window.location.replace("/invoices")
       })
