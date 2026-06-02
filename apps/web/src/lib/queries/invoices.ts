@@ -160,7 +160,7 @@ export async function getInvoice(id: string): Promise<Invoice> {
 function rethrowInvoiceError(error: { code?: string; message?: string }, invoiceNumber?: string | null): never {
   if (error.code === "23505" && error.message?.includes("invoice_number")) {
     throw new Error(
-      `Invoice number '${invoiceNumber}' is already used for this customer. Please provide a different invoice number or omit it to auto-generate one.`
+      `Invoice number '${invoiceNumber}' is already used in your organization. Please provide a different invoice number or omit it to auto-generate one.`
     )
   }
   throw error
@@ -195,8 +195,8 @@ export async function deleteInvoice(id: string, orgId: string): Promise<void> {
   if (error) throw error
 }
 
-export async function getNextInvoiceNumber(orgId: string, customerId: string): Promise<string> {
-  const { data, error } = await supabase.rpc("next_invoice_number", { p_org_id: orgId, p_customer_id: customerId })
+export async function getNextInvoiceNumber(orgId: string): Promise<string> {
+  const { data, error } = await supabase.rpc("next_invoice_number", { p_org_id: orgId })
   if (error) throw error
   return data as string
 }

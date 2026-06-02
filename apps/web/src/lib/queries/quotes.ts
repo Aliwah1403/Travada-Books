@@ -99,12 +99,8 @@ export async function getQuoteByToken(token: string): Promise<PublicQuote | null
   return data as PublicQuote | null
 }
 
-export async function getNextQuoteNumber(orgId: string, customerId: string): Promise<string> {
-  const { data, error } = await supabase.rpc("next_quote_number", {
-    p_org_id: orgId,
-    p_customer_id: customerId,
-  })
-
+export async function getNextQuoteNumber(orgId: string): Promise<string> {
+  const { data, error } = await supabase.rpc("next_quote_number", { p_org_id: orgId })
   if (error) throw error
   return data as string
 }
@@ -170,7 +166,7 @@ export async function sendQuote(
 }
 
 export async function duplicateQuote(quote: Quote, orgId: string, userId: string): Promise<Quote> {
-  const nextNumber = await getNextQuoteNumber(orgId, quote.customer_id)
+  const nextNumber = await getNextQuoteNumber(orgId)
 
   const { data, error } = await supabase
     .from("quotes")
@@ -200,7 +196,7 @@ export async function duplicateQuote(quote: Quote, orgId: string, userId: string
 
 function rethrowQuoteError(error: { code?: string; message?: string }): Error {
   if (error.code === "23505") {
-    throw new Error("This quote number has already been used for this customer.")
+    throw new Error("This quote number has already been used in your organization.")
   }
   throw new Error(error.message ?? "An unexpected error occurred.")
 }

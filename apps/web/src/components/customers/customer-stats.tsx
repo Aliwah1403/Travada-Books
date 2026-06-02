@@ -1,5 +1,6 @@
 import { Card, CardContent } from "@travada-books/ui/components/card";
 import { cn } from "@travada-books/ui/lib/utils";
+import { formatCurrency } from "@/lib/format";
 
 type StatCardProps = {
   label: string;
@@ -32,6 +33,7 @@ type CustomerStatsProps = {
   totalOutstanding: number | undefined;
   topCustomer: { name: string; totalPaid: number } | undefined;
   overdueCount: number | undefined;
+  currency: string;
 };
 
 export function CustomerStats({
@@ -40,6 +42,7 @@ export function CustomerStats({
   totalOutstanding,
   topCustomer,
   overdueCount,
+  currency,
 }: CustomerStatsProps) {
   return (
     <div className="grid grid-cols-4 gap-4">
@@ -50,7 +53,7 @@ export function CustomerStats({
       />
       <StatCard
         label="Outstanding Balance"
-        value={totalOutstanding !== undefined ? `KES ${totalOutstanding.toLocaleString("en-KE")}` : "N/A"}
+        value={totalOutstanding !== undefined ? formatCurrency(totalOutstanding, currency) : "N/A"}
         sub="Across all customers"
       />
       <StatCard
@@ -58,7 +61,7 @@ export function CustomerStats({
         value={topCustomer?.totalPaid > 0 ? topCustomer.name : "—"}
         sub={
           topCustomer?.totalPaid > 0
-            ? `KES ${topCustomer.totalPaid.toLocaleString("en-KE")} paid`
+            ? `${formatCurrency(topCustomer.totalPaid, currency)} paid`
             : "No payments recorded yet"
         }
       />
