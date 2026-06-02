@@ -1,5 +1,7 @@
 import { createContext, useContext, useEffect, useState, useCallback, useRef } from "react"
 import type { Session, User } from "@supabase/supabase-js"
+import posthog from "posthog-js"
+import * as Sentry from "@sentry/react"
 import { supabase } from "@/lib/supabase"
 
 export type UserProfile = {
@@ -35,6 +37,7 @@ type AuthContextValue = {
   session: Session | null
   loading: boolean
   profile: UserProfile | null
+  avatarUrl: string | null
   org: UserOrg | null
   orgId: string | null
   orgRole: "owner" | "member" | null
@@ -48,6 +51,7 @@ const AuthContext = createContext<AuthContextValue>({
   session: null,
   loading: true,
   profile: null,
+  avatarUrl: null,
   org: null,
   orgId: null,
   orgRole: null,
@@ -112,11 +116,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const refreshProfile = useCallback(async () => {
     const userId = session?.user?.id
     if (!userId) return
+    const fetchId = ++fetchIdRef.current
     const { data } = await supabase
       .from("users")
       .select("id, full_name, avatar_url, email, locale, timezone, date_format, time_format, week_starts_on_monday, timezone_auto_sync")
       .eq("id", userId)
       .maybeSingle()
+    if (fetchId !== fetchIdRef.current) return
     if (data) setProfile(data as UserProfile)
   }, [session?.user?.id])
 
@@ -129,10 +135,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session)
       if (!session) {
+        fetchIdRef.current++
         setProfile(null)
         setOrg(null)
         setOrgRole(null)
         setOrgLoading(false)
+        posthog.reset()
+        if (import.meta.env.PROD) {
+          Sentry.setUser(null)
+        }
       }
     })
 
@@ -142,6 +153,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (loading) return
     if (!session?.user) {
+      fetchIdRef.current++
       setProfile(null)
       setOrg(null)
       setOrgRole(null)
@@ -157,6 +169,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setOrg(org)
         setOrgRole(orgRole)
         setOrgLoading(false)
+
+        posthog.identify(session.user.id, {
+          email: session.user.email,
+          org_id: org?.id,
+        })
+        if (import.meta.env.PROD) {
+          Sentry.setUser({ id: session.user.id, email: session.user.email })
+        }
+
+        const metaAvatarUrl =
+          (session.user.user_metadata?.avatar_url as string | undefined) ??
+          (session.user.user_metadata?.picture as string | undefined) ??
+          null
+        if (!profile?.avatar_url && metaAvatarUrl) {
+          supabase
+            .from("users")
+            .update({ avatar_url: metaAvatarUrl })
+            .eq("id", session.user.id)
+            .then(() => refreshProfile())
+        }
       })
       .catch(() => {
         if (fetchId !== fetchIdRef.current) return
@@ -164,12 +196,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       })
   }, [session?.user?.id, loading])
 
+  const user = session?.user ?? null
+  const googleAvatarUrl = (user?.user_metadata?.avatar_url as string | undefined)
+    ?? (user?.user_metadata?.picture as string | undefined)
+    ?? null
+  const avatarUrl = profile?.avatar_url ?? googleAvatarUrl
+
   return (
     <AuthContext.Provider value={{
-      user: session?.user ?? null,
+      user,
       session,
       loading,
       profile,
+      avatarUrl,
       org,
       orgId: org?.id ?? null,
       orgRole,

@@ -9,7 +9,7 @@ import {
   PlusSignIcon,
 } from "@travada-books/ui/icons";
 import { Button } from "@travada-books/ui/components/button";
-import { Avatar, AvatarFallback } from "@travada-books/ui/components/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@travada-books/ui/components/avatar";
 import { Separator } from "@travada-books/ui/components/separator";
 import {
   AlertDialog,
@@ -268,6 +268,7 @@ export function CustomerDetailPage() {
           <div className='rounded-lg border bg-background p-4'>
             <div className='flex flex-col items-center gap-3 text-center'>
               <Avatar className='size-14'>
+                <AvatarImage src={customer.logo_url ?? undefined} />
                 <AvatarFallback className='text-base font-semibold'>
                   {customer.name.slice(0, 2).toUpperCase()}
                 </AvatarFallback>

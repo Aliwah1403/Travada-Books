@@ -6,6 +6,7 @@ import { Label } from "@travada-books/ui/components/label"
 import { Separator } from "@travada-books/ui/components/separator"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@travada-books/ui/components/card"
 import { supabase } from "@/lib/supabase"
+import { trackEvent, LogEvents } from "@/lib/analytics"
 
 export function SignupPage() {
   const navigate = useNavigate()
@@ -15,6 +16,13 @@ export function SignupPage() {
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
+
+  async function handleGoogleSignIn() {
+    await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: { redirectTo: `${window.location.origin}/invoices` },
+    })
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -41,7 +49,22 @@ export function SignupPage() {
       setError(error.message)
       return
     }
-    navigate(next ? decodeURIComponent(next) : "/invoices")
+    trackEvent(LogEvents.Registered)
+    if (emailRedirectTo) {
+      navigate(emailRedirectTo)
+    } else {
+      let destination = "/invoices"
+      if (next) {
+        try {
+          const decoded = decodeURIComponent(next)
+          const resolved = new URL(decoded, window.location.origin)
+          if (resolved.origin === window.location.origin) destination = decoded
+        } catch {
+          // malformed next param — fall back to /invoices
+        }
+      }
+      navigate(destination)
+    }
   }
 
   return (
@@ -51,8 +74,7 @@ export function SignupPage() {
         <CardDescription>Get started with Travada Books for free</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
-        {/* Google OAuth — post-MVP */}
-        <Button variant="outline" className="w-full gap-2" type="button" disabled>
+        <Button variant="outline" className="w-full gap-2" type="button" onClick={handleGoogleSignIn}>
           <svg className="size-4" viewBox="0 0 24 24" aria-hidden="true">
             <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
             <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
@@ -114,7 +136,10 @@ export function SignupPage() {
 
         <p className="text-center text-xs text-muted-foreground">
           Already have an account?{" "}
-          <Link to="/login" className="text-foreground underline-offset-4 hover:underline">
+          <Link
+            to={`/login?email=${encodeURIComponent(email)}${searchParams.get("next") ? `&next=${encodeURIComponent(searchParams.get("next")!)}` : ""}`}
+            className="text-foreground underline-offset-4 hover:underline"
+          >
             Sign in
           </Link>
         </p>

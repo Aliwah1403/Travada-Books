@@ -32,9 +32,10 @@ export type Quote = {
   declined_at: string | null
   decline_reason: string | null
   viewed_at: string | null
+  customers: { logo_url: string | null } | null
 }
 
-export type PublicQuote = Omit<Quote, "org_id" | "user_id" | "internal_note">
+export type PublicQuote = Omit<Quote, "org_id" | "user_id" | "internal_note" | "customers">
 
 export type QuoteInput = {
   org_id: string
@@ -60,7 +61,7 @@ export type QuoteInput = {
 }
 
 const QUOTE_SELECT =
-  "id, created_at, updated_at, org_id, user_id, customer_id, customer_name, token, quote_number, status, issue_date, valid_until, currency, line_items, subtotal, tax_amount, discount, total, customer_details, from_details, note, internal_note, sent_at, resent_at, accepted_at, declined_at, decline_reason, viewed_at"
+  "id, created_at, updated_at, org_id, user_id, customer_id, customer_name, token, quote_number, status, issue_date, valid_until, currency, line_items, subtotal, tax_amount, discount, total, customer_details, from_details, note, internal_note, sent_at, resent_at, accepted_at, declined_at, decline_reason, viewed_at, customers(logo_url)"
 
 const PUBLIC_QUOTE_SELECT =
   "id, created_at, updated_at, customer_id, customer_name, token, quote_number, status, issue_date, valid_until, currency, line_items, subtotal, tax_amount, discount, total, customer_details, from_details, note, sent_at, resent_at, accepted_at, declined_at, decline_reason, viewed_at"
@@ -90,9 +91,8 @@ export async function getQuote(id: string, orgId: string): Promise<Quote | null>
 
 export async function getQuoteByToken(token: string): Promise<PublicQuote | null> {
   const { data, error } = await supabase
-    .from("quotes")
+    .rpc("get_quote_by_token", { p_token: token })
     .select(PUBLIC_QUOTE_SELECT)
-    .eq("token", token)
     .maybeSingle()
 
   if (error) throw error

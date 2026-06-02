@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { trackEvent, LogEvents } from "@/lib/analytics";
 import {
   ArrowDown01Icon,
   ArrowLeft01Icon,
@@ -43,6 +44,7 @@ import {
   DropdownMenuTrigger,
 } from "@travada-books/ui/components/dropdown-menu";
 import { createInvoice, getNextInvoiceNumber } from "@/lib/queries/invoices";
+import { lookupRate } from "@/lib/queries/exchange-rates";
 import { getCustomer } from "@/lib/queries/customers";
 import { getOrgInvoiceTemplate, upsertOrgInvoiceTemplate } from "@/lib/queries/invoice-templates";
 import { useAuth, type UserOrg } from "@/contexts/auth-context";
@@ -380,6 +382,7 @@ export function CreateInvoicePage() {
     if (savedTemplate) {
       setInvoiceSettings(savedTemplate);
       if (savedTemplate.defaultNote && !notes) setNotes(savedTemplate.defaultNote);
+      if (savedTemplate.defaultPaymentDetails && !paymentDetails) setPaymentDetails(savedTemplate.defaultPaymentDetails);
     }
   }, [savedTemplate, notes]);
 
@@ -399,6 +402,7 @@ export function CreateInvoicePage() {
     onSuccess: (invoice) => {
       queryClient.invalidateQueries({ queryKey: ["invoices", orgId] });
       toast.success("Invoice created");
+      trackEvent(LogEvents.InvoiceCreated);
       navigate(`/invoices/${invoice.id}`);
     },
     onError: (error) => {
@@ -428,7 +432,7 @@ export function CreateInvoicePage() {
     );
   }
 
-  function buildInput(action: "draft" | "send" | "schedule", scheduleDate?: Date) {
+  async function buildInput(action: "draft" | "send" | "schedule", scheduleDate?: Date) {
     const { subtotal, taxAmount, discountAmt, total } = computeTotals(
       items,
       discountType,
@@ -445,6 +449,13 @@ export function CreateInvoicePage() {
 
     const isSend = action === "send";
     const isSchedule = action === "schedule";
+
+    let exchangeRate: number | null = null
+    let convertedAmount: number | null = null
+    if (isSend && org) {
+      exchangeRate = await lookupRate(currency, org.base_currency)
+      convertedAmount = exchangeRate != null ? total * exchangeRate : null
+    }
 
     return {
       org_id: orgId!,
@@ -470,7 +481,12 @@ export function CreateInvoicePage() {
       accept_payments: invoiceSettings.acceptPaymentsEnabled,
       invoice_template: invoiceSettings.invoiceTemplate,
       ...(isSend && { sent_at: new Date().toISOString() }),
-      ...(isSend && org && {
+      ...(isSend && {
+        exchange_rate: exchangeRate,
+        converted_amount: convertedAmount,
+        base_currency: org?.base_currency ?? null,
+      }),
+      ...((isSend || isSchedule) && org && {
         from_details: {
           name: org.name,
           logo_url: org.logo_url ?? null,
@@ -484,7 +500,7 @@ export function CreateInvoicePage() {
           tax_id: org.tax_id ?? null,
         },
       }),
-      ...(isSend && selectedCustomer && {
+      ...((isSend || isSchedule) && selectedCustomer && {
         customer_details: {
           name: selectedCustomer.name,
           email: selectedCustomer.email ?? null,
@@ -503,57 +519,12 @@ export function CreateInvoicePage() {
   async function handleSubmit(action: "draft" | "send" | "schedule", scheduleDate?: Date) {
     if (!selectedCustomer || !orgId || !user) return;
     try {
-      const invoice = await createMutation.mutateAsync(buildInput(action, scheduleDate));
+      const invoice = await createMutation.mutateAsync(await buildInput(action, scheduleDate));
       if (action === "send") {
+        trackEvent(LogEvents.InvoiceSent);
         supabase.functions.invoke("send-invoice-email", { body: { invoiceId: invoice.id } }).catch(() => {
           toast.warning("Invoice created, but email delivery failed.");
         });
-
-        if (recurring !== "one_time" && invoice.issue_date) {
-          try {
-            const freq = recurring as InvoiceRecurringFrequency;
-            const nextDate = addFrequency(invoice.issue_date, freq);
-            const series = await createInvoiceRecurring({
-              org_id: orgId,
-              user_id: user.id,
-              customer_id: selectedCustomer.id,
-              customer_name: selectedCustomer.name,
-              currency: invoice.currency,
-              line_items: invoice.line_items,
-              subtotal: invoice.subtotal ?? 0,
-              tax_amount: invoice.tax_amount ?? 0,
-              discount: invoice.discount ?? 0,
-              total: invoice.total ?? 0,
-              payment_details: invoice.payment_details ?? "",
-              note: invoice.note ?? "",
-              accept_payments: invoice.accept_payments,
-              invoice_template: invoice.invoice_template,
-              from_details: invoice.from_details ?? null,
-              customer_details: invoice.customer_details ?? null,
-              source_issue_date: invoice.issue_date,
-              source_due_date: invoice.due_date ?? null,
-              frequency: freq,
-              end_type: recurringSettings?.endsType === "on" ? "on_date"
-                : recurringSettings?.endsType === "after" ? "after_count"
-                : "never",
-              end_on_date: recurringSettings?.endsOnDate
-                ? format(recurringSettings.endsOnDate, "yyyy-MM-dd")
-                : null,
-              end_after_count: recurringSettings?.endsType === "after"
-                ? parseInt(recurringSettings.endsAfterCount, 10) || null
-                : null,
-              status: "active",
-              next_scheduled_at: new Date(nextDate + "T00:00:00Z").toISOString(),
-            });
-            // Link first invoice back to the series
-            await supabase
-              .from("invoices")
-              .update({ invoice_recurring_id: series.id, recurring_sequence: 1 })
-              .eq("id", invoice.id);
-          } catch {
-            toast.warning("Invoice sent, but failed to set up recurring series. Contact support.");
-          }
-        }
       }
       if (action === "schedule" && scheduleDate) {
         supabase.functions.invoke("trigger-scheduled-send", {
@@ -561,6 +532,51 @@ export function CreateInvoicePage() {
         }).catch(() => {
           toast.warning("Invoice scheduled, but failed to queue the send job. Contact support.");
         });
+      }
+      if (recurring !== "one_time" && invoice.issue_date) {
+        try {
+          const freq = recurring as InvoiceRecurringFrequency;
+          const nextDate = addFrequency(invoice.issue_date, freq);
+          const series = await createInvoiceRecurring({
+            org_id: orgId,
+            user_id: user.id,
+            customer_id: selectedCustomer.id,
+            customer_name: selectedCustomer.name,
+            currency: invoice.currency,
+            line_items: invoice.line_items,
+            subtotal: invoice.subtotal ?? 0,
+            tax_amount: invoice.tax_amount ?? 0,
+            discount: invoice.discount ?? 0,
+            total: invoice.total ?? 0,
+            payment_details: invoice.payment_details ?? "",
+            note: invoice.note ?? "",
+            accept_payments: invoice.accept_payments,
+            invoice_template: invoice.invoice_template,
+            from_details: invoice.from_details ?? null,
+            customer_details: invoice.customer_details ?? null,
+            source_issue_date: invoice.issue_date,
+            source_due_date: invoice.due_date ?? null,
+            frequency: freq,
+            end_type: recurringSettings?.endsType === "on" ? "on_date"
+              : recurringSettings?.endsType === "after" ? "after_count"
+              : "never",
+            end_on_date: recurringSettings?.endsOnDate
+              ? format(recurringSettings.endsOnDate, "yyyy-MM-dd")
+              : null,
+            end_after_count: recurringSettings?.endsType === "after"
+              ? parseInt(recurringSettings.endsAfterCount, 10) || null
+              : null,
+            status: "active",
+            next_scheduled_at: new Date(nextDate + "T00:00:00Z").toISOString(),
+          });
+          // Link first invoice back to the series
+          await supabase
+            .from("invoices")
+            .update({ invoice_recurring_id: series.id, recurring_sequence: 1 })
+            .eq("id", invoice.id);
+        } catch {
+          toast.warning("Invoice saved, but failed to set up recurring series. Contact support.");
+        }
       }
     } catch {
       // onError handles the toast

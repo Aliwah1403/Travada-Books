@@ -17,10 +17,11 @@ import { PdfQRCode } from "@/components/pdfx/qrcode/pdfx-qrcode";
 import type { ClassicDocumentData } from "./classic/preview";
 
 function fmtAmt(n: number | null | undefined, currency: string, locale?: string) {
+  if (n == null) return "—";
   try {
-    return new Intl.NumberFormat(locale, { style: "currency", currency }).format(n ?? 0);
+    return new Intl.NumberFormat(locale, { style: "currency", currency }).format(n);
   } catch {
-    return `${currency} ${(n ?? 0).toFixed(2)}`;
+    return `${currency} ${n.toFixed(2)}`;
   }
 }
 

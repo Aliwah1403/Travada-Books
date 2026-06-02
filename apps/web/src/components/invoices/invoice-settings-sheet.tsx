@@ -28,6 +28,7 @@ export type InvoiceSettings = {
   dateFormat: "DD/MM/YYYY" | "MM/DD/YYYY" | "YYYY-MM-DD";
   paymentTerms: number | null;
   defaultNote: string;
+  defaultPaymentDetails: string;
   showTaxColumn: boolean;
   showQtyColumn: boolean;
   acceptPaymentsEnabled: boolean;
@@ -43,6 +44,7 @@ export const defaultInvoiceSettings: InvoiceSettings = {
   dateFormat: "DD/MM/YYYY",
   paymentTerms: null,
   defaultNote: "",
+  defaultPaymentDetails: "",
   showTaxColumn: false,
   showQtyColumn: true,
   acceptPaymentsEnabled: false,
@@ -592,6 +594,25 @@ export function InvoiceSettingsSheet({
               value={settings.defaultNote}
               onChange={(e) => update("defaultNote", e.target.value)}
               placeholder='e.g. Payment due within 30 days. Bank transfer preferred.'
+              className='text-xs'
+              rows={3}
+            />
+          </div>
+
+          <Separator />
+
+          {/* Default payment details */}
+          <div className='flex flex-col gap-2'>
+            <div className='flex flex-col gap-0.5'>
+              <Label className='text-xs font-medium'>Default Payment Details</Label>
+              <p className='text-[11px] text-muted-foreground'>
+                Pre-filled on every new invoice. Edit per invoice as needed.
+              </p>
+            </div>
+            <Textarea
+              value={settings.defaultPaymentDetails}
+              onChange={(e) => update("defaultPaymentDetails", e.target.value)}
+              placeholder={"Bank: Equity Bank\nAccount: 1234567890\nM-Pesa: 0700 000 000"}
               className='text-xs'
               rows={3}
             />

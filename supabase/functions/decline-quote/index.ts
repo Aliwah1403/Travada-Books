@@ -2,6 +2,7 @@ import React from "npm:react"
 import { render } from "npm:@react-email/render@1"
 import { resend, FROM_EMAIL } from "../_shared/resend.ts"
 import { db } from "../_shared/db.ts"
+import { triggerNovu } from "../_shared/novu.ts"
 import { QuoteDeclinedEmail } from "../_shared/emails/quote-declined.tsx"
 
 const APP_URL = Deno.env.get("APP_URL") ?? "https://books.travadasys.com"
@@ -38,32 +39,66 @@ Deno.serve(async (req) => {
       .select("id")
 
     if (updateError) throw updateError
-    if (!updatedRows?.length) return new Response(JSON.stringify({ ok: true, alreadyDeclined: true }), { headers: corsHeaders })
+    if (!updatedRows?.length) {
+      const status = quote.status
+      if (status === "declined") {
+        return new Response(JSON.stringify({ ok: true, alreadyDeclined: true }), { headers: corsHeaders })
+      }
+      if (status === "accepted") {
+        return new Response(JSON.stringify({ error: "Quote has already been accepted", status: "accepted" }), { status: 409, headers: corsHeaders })
+      }
+      if (status === "expired") {
+        return new Response(JSON.stringify({ error: "Quote has expired", status: "expired" }), { status: 409, headers: corsHeaders })
+      }
+      return new Response(JSON.stringify({ error: "Quote cannot be declined in its current state", status }), { status: 409, headers: corsHeaders })
+    }
 
     const from = quote.from_details as Record<string, string> | null
     const customer = quote.customer_details as Record<string, string> | null
 
-    if (from && quote.org_id) {
-      const ownerEmail = await getOrgOwnerEmail(quote.org_id)
-      if (ownerEmail) {
-        const viewUrl = `${APP_URL}/quotes/${quote.id}`
-        const html = await render(
-          React.createElement(QuoteDeclinedEmail, {
-            orgName: from.name,
-            quoteNumber: quote.quote_number,
-            customerName: customer?.name ?? "A customer",
-            total: quote.total,
-            currency: quote.currency,
-            declineReason: reason,
-            viewUrl,
-          })
-        )
-        await resend.emails.send({
-          from: `Travada Books <${FROM_EMAIL}>`,
-          to: [ownerEmail],
-          subject: `Quote${quote.quote_number ? ` ${quote.quote_number}` : ""} declined by ${customer?.name ?? "customer"}`,
-          html,
+    const { data: ownerMember } = await db
+      .from("organization_members")
+      .select("user_id, users(email)")
+      .eq("org_id", quote.org_id)
+      .eq("role", "owner")
+      .eq("status", "active")
+      .single()
+
+    const { data: org } = await db.from("organizations").select("email").eq("id", quote.org_id).single()
+    const businessEmail = org?.email
+
+    type OwnerEmail = { email: string } | null
+    const ownerEmail = (ownerMember?.users as unknown as OwnerEmail)?.email
+
+    if (from && businessEmail) {
+      const viewUrl = `${APP_URL}/quotes/${quote.id}`
+      const html = await render(
+        React.createElement(QuoteDeclinedEmail, {
+          orgName: from.name,
+          quoteNumber: quote.quote_number,
+          customerName: customer?.name ?? "A customer",
+          total: quote.total,
+          currency: quote.currency,
+          declineReason: reason,
+          viewUrl,
         })
+      )
+      await resend.emails.send({
+        from: `Travada Books <${FROM_EMAIL}>`,
+        to: [businessEmail],
+        subject: `Quote${quote.quote_number ? ` ${quote.quote_number}` : ""} declined by ${customer?.name ?? "customer"}`,
+        html,
+      })
+
+      if (ownerMember?.user_id) {
+        triggerNovu("quote-declined", { subscriberId: ownerMember.user_id, email: ownerEmail }, {
+          quoteNumber: quote.quote_number,
+          customerName: customer?.name ?? "A customer",
+          total: quote.total,
+          currency: quote.currency,
+          declineReason: reason ?? null,
+          viewUrl,
+        }).catch((err) => console.error("decline-quote: novu trigger failed:", err))
       }
     }
 
@@ -73,22 +108,3 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ error: String(err) }), { status: 500, headers: corsHeaders })
   }
 })
-
-async function getOrgOwnerEmail(orgId: string): Promise<string | null> {
-  const { data } = await db
-    .from("organization_members")
-    .select("user_id")
-    .eq("org_id", orgId)
-    .eq("role", "owner")
-    .single()
-
-  if (!data?.user_id) return null
-
-  const { data: user } = await db
-    .from("users")
-    .select("email")
-    .eq("id", data.user_id)
-    .single()
-
-  return user?.email ?? null
-}

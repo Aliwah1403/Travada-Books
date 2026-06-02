@@ -11,6 +11,10 @@ export function AuthLayout() {
 
   if (loading || orgLoading) return null
   if (user && pathname !== "/forgot-password/reset") {
+    if (!org) {
+      const pending = sessionStorage.getItem("pendingInviteToken")
+      if (pending) return <Navigate to={`/accept-invite?token=${pending}`} replace />
+    }
     return <Navigate to={org ? "/invoices" : "/onboarding/org"} replace />
   }
   const logo = theme === "dark" ? LogoLime : LogoGreen

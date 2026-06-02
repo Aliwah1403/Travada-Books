@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { trackEvent, LogEvents } from "@/lib/analytics";
 import {
   ArrowDown01Icon,
   ArrowLeft01Icon,
@@ -314,8 +315,7 @@ export function CreateQuotePage() {
 
   useEffect(() => {
     if (nextQuoteNumber && !isManualQuoteNumber) setQuoteNumber(nextQuoteNumber);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [nextQuoteNumber]);
+  }, [nextQuoteNumber, isManualQuoteNumber]);
 
   function buildInput(action: "draft" | "send") {
     const totals = computeTotals(items, discountType, discountValue, vatRate);
@@ -376,7 +376,9 @@ export function CreateQuotePage() {
     onSuccess: (quote, action) => {
       queryClient.invalidateQueries({ queryKey: ["quotes", orgId] });
       queryClient.invalidateQueries({ queryKey: ["next-quote-number", orgId, selectedCustomer?.id] });
+      trackEvent(LogEvents.QuoteCreated);
       if (action === "send") {
+        trackEvent(LogEvents.QuoteSent);
         supabase.functions.invoke("send-quote-email", { body: { quoteId: quote.id } }).catch(() => {
           toast.warning("Quote created, but email delivery failed.");
         });

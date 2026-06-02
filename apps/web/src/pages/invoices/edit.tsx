@@ -1,6 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate, useParams } from "react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { trackEvent, LogEvents } from "@/lib/analytics";
 import {
   ArrowDown01Icon,
   ArrowLeft01Icon,
@@ -42,6 +43,7 @@ import {
   DropdownMenuTrigger,
 } from "@travada-books/ui/components/dropdown-menu";
 import { getInvoice, updateInvoice } from "@/lib/queries/invoices";
+import { lookupRate } from "@/lib/queries/exchange-rates";
 import { getOrgInvoiceTemplate, upsertOrgInvoiceTemplate } from "@/lib/queries/invoice-templates";
 import { useAuth, type UserOrg } from "@/contexts/auth-context";
 import { Spinner } from "@/components/shared/spinner";
@@ -312,6 +314,7 @@ export function EditInvoicePage() {
   const { org, orgId } = useAuth();
 
   const [initialized, setInitialized] = useState(false);
+  const mergedSavedTemplateRef = useRef(false);
   const [selectedCustomer, setSelectedCustomer] = useState<SelectedCustomer | null>(null);
   const [currency, setCurrency] = useState("KES");
   const [invoiceNumber, setInvoiceNumber] = useState("");
@@ -400,9 +403,10 @@ export function EditInvoicePage() {
     setInitialized(true);
   }, [invoice, initialized, id, navigate]);
 
-  // Merge saved template into settings once both are ready, without clobbering user edits
+  // Merge saved template into settings once on initial load — subsequent refetches won't clobber edits.
   useEffect(() => {
-    if (!initialized || !savedTemplate) return;
+    if (!initialized || !savedTemplate || mergedSavedTemplateRef.current) return;
+    mergedSavedTemplateRef.current = true;
     setInvoiceSettings((prev) => ({
       ...prev,
       ...savedTemplate,
@@ -422,9 +426,10 @@ export function EditInvoicePage() {
   const updateMutation = useMutation({
     mutationFn: ({ patch }: { patch: Parameters<typeof updateInvoice>[2] }) =>
       updateInvoice(id!, orgId!, patch),
-    onSuccess: (updated) => {
+    onSuccess: (updated, { patch }) => {
       queryClient.invalidateQueries({ queryKey: ["invoices"] });
       queryClient.invalidateQueries({ queryKey: ["invoice", id] });
+      if (patch.status === "unpaid") trackEvent(LogEvents.InvoiceSent);
       toast.success("Invoice updated");
       navigate(`/invoices/${updated.id}`);
     },
@@ -455,7 +460,7 @@ export function EditInvoicePage() {
     );
   }
 
-  function buildPatch(action: "draft" | "send" | "schedule", scheduleDate?: Date) {
+  async function buildPatch(action: "draft" | "send" | "schedule", scheduleDate?: Date) {
     const { subtotal, taxAmount, discountAmt, total } = computeTotals(
       items,
       discountType,
@@ -472,6 +477,13 @@ export function EditInvoicePage() {
 
     const isSend = action === "send";
     const isSchedule = action === "schedule";
+
+    let exchangeRate: number | null = null
+    let convertedAmount: number | null = null
+    if (isSend && org) {
+      exchangeRate = await lookupRate(currency, org.base_currency)
+      convertedAmount = exchangeRate != null ? total * exchangeRate : null
+    }
 
     return {
       customer_id: selectedCustomer!.id,
@@ -495,12 +507,17 @@ export function EditInvoicePage() {
       accept_payments: invoiceSettings.acceptPaymentsEnabled,
       invoice_template: invoiceSettings.invoiceTemplate,
       ...(isSend && { sent_at: new Date().toISOString() }),
+      ...(isSend && {
+        exchange_rate: exchangeRate,
+        converted_amount: convertedAmount,
+        base_currency: org?.base_currency ?? null,
+      }),
     };
   }
 
-  function handleSubmit(action: "draft" | "send" | "schedule", scheduleDate?: Date) {
+  async function handleSubmit(action: "draft" | "send" | "schedule", scheduleDate?: Date) {
     if (!selectedCustomer) return;
-    updateMutation.mutate({ patch: buildPatch(action, scheduleDate) });
+    updateMutation.mutate({ patch: await buildPatch(action, scheduleDate) });
   }
 
   const isSubmitting = updateMutation.isPending;

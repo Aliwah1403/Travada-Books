@@ -30,6 +30,7 @@ import {
   Invoice01Icon as Invoice01Svg,
   Moon01Icon as Moon01Svg,
   MoreHorizontalIcon as MoreHorizontalSvg,
+  MoreVerticalIcon as MoreVerticalSvg,
   Notification01Icon as Notification01Svg,
   PencilEdit01Icon as PencilEdit01Svg,
   PlusSignIcon as PlusSignSvg,
@@ -44,6 +45,11 @@ import {
   Tick01Icon as TickSvg,
   LockPasswordIcon as LockPasswordSvg,
   Logout02Icon as Logout02Svg,
+  SortingIcon as SortingSvg,
+  SortingUpIcon as SortingUpSvg,
+  SortingDownIcon as SortingDownSvg,
+  ColumnsThreeCogIcon as ColumnsThreeCogSvg,
+  RepeatIcon as RepeatSvg,
 } from "@hugeicons/core-free-icons";
 
 export type IconProps = Omit<HugeiconsIconProps, "icon">;
@@ -84,6 +90,7 @@ export const InboxIcon = make(InboxSvg);
 export const Invoice01Icon = make(Invoice01Svg);
 export const Moon01Icon = make(Moon01Svg);
 export const MoreHorizontalIcon = make(MoreHorizontalSvg);
+export const MoreVerticalIcon = make(MoreVerticalSvg);
 export const Notification01Icon = make(Notification01Svg);
 export const PencilEdit01Icon = make(PencilEdit01Svg);
 export const PlusSignIcon = make(PlusSignSvg);
@@ -98,3 +105,8 @@ export const Wallet01Icon = make(Wallet01Svg);
 export const TickIcon = make(TickSvg);
 export const LockPasswordIcon = make(LockPasswordSvg);
 export const Logout02Icon = make(Logout02Svg);
+export const SortingIcon = make(SortingSvg);
+export const SortingUpIcon = make(SortingUpSvg);
+export const SortingDownIcon = make(SortingDownSvg);
+export const ColumnsThreeCogIcon = make(ColumnsThreeCogSvg);
+export const RepeatIcon = make(RepeatSvg);

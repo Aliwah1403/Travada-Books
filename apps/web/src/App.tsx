@@ -1,5 +1,6 @@
 import { createBrowserRouter, RouterProvider, Navigate } from "react-router"
 
+import { AnalyticsProvider } from "@/components/analytics-provider"
 import { AppLayout } from "@/layouts/app-layout"
 import { AuthLayout } from "@/layouts/auth-layout"
 import { OnboardingLayout } from "@/layouts/onboarding-layout"
@@ -41,86 +42,91 @@ import { AcceptInvitePage } from "@/pages/accept-invite"
 
 const router = createBrowserRouter([
   {
-    path: "/",
-    element: <Navigate to="/invoices" replace />,
-  },
-  {
-    element: <AuthLayout />,
+    element: <AnalyticsProvider />,
     children: [
-      { path: "/login", element: <LoginPage /> },
-      { path: "/signup", element: <SignupPage /> },
-      { path: "/forgot-password", element: <ForgotPasswordPage /> },
-      { path: "/forgot-password/verify", element: <VerifyOtpPage /> },
-      { path: "/forgot-password/reset", element: <ResetPasswordPage /> },
-    ],
-  },
-  {
-    element: <OnboardingLayout />,
-    children: [
-      { path: "/onboarding/org", element: <OnboardingOrgPage /> },
-      { path: "/onboarding/invite", element: <OnboardingInvitePage /> },
-    ],
-  },
-  {
-    element: <AppLayout />,
-    children: [
-      { path: "/invoices", element: <InvoicesPage /> },
-      { path: "/invoices/create", element: <CreateInvoicePage /> },
-      { path: "/invoices/:id/edit", element: <EditInvoicePage /> },
-      { path: "/invoices/:id", element: <InvoiceDetailPage /> },
-      { path: "/quotes", element: <QuotesPage /> },
-      { path: "/quotes/create", element: <CreateQuotePage /> },
-      { path: "/quotes/:id/edit", element: <EditQuotePage /> },
-      { path: "/quotes/:id", element: <QuoteDetailPage /> },
-      { path: "/customers", element: <CustomersPage /> },
-      { path: "/customers/:id", element: <CustomerDetailPage /> },
-      { path: "/statements/:id", element: <StatementDetailPage /> },
       {
-        path: "/settings",
-        element: <SettingsLayout />,
+        path: "/",
+        element: <Navigate to="/invoices" replace />,
+      },
+      {
+        element: <AuthLayout />,
         children: [
-          { index: true, element: <Navigate to="/settings/general" replace /> },
-          { path: "general", element: <GeneralSettingsPage /> },
-          { path: "team", element: <TeamSettingsPage /> },
-          { path: "integrations", element: <IntegrationsSettingsPage /> },
-          { path: "billing", element: <BillingSettingsPage /> },
+          { path: "/login", element: <LoginPage /> },
+          { path: "/signup", element: <SignupPage /> },
+          { path: "/forgot-password", element: <ForgotPasswordPage /> },
+          { path: "/forgot-password/verify", element: <VerifyOtpPage /> },
+          { path: "/forgot-password/reset", element: <ResetPasswordPage /> },
         ],
       },
       {
-        path: "/account",
-        element: <AccountLayout />,
+        element: <OnboardingLayout />,
         children: [
-          { index: true, element: <Navigate to="/account/profile" replace /> },
-          { path: "profile", element: <ProfilePage /> },
-          { path: "security", element: <SecurityPage /> },
-          { path: "notifications", element: <NotificationsPage /> },
+          { path: "/onboarding/org", element: <OnboardingOrgPage /> },
+          { path: "/onboarding/invite", element: <OnboardingInvitePage /> },
         ],
       },
+      {
+        element: <AppLayout />,
+        children: [
+          { path: "/invoices", element: <InvoicesPage /> },
+          { path: "/invoices/create", element: <CreateInvoicePage /> },
+          { path: "/invoices/:id/edit", element: <EditInvoicePage /> },
+          { path: "/invoices/:id", element: <InvoiceDetailPage /> },
+          { path: "/quotes", element: <QuotesPage /> },
+          { path: "/quotes/create", element: <CreateQuotePage /> },
+          { path: "/quotes/:id/edit", element: <EditQuotePage /> },
+          { path: "/quotes/:id", element: <QuoteDetailPage /> },
+          { path: "/customers", element: <CustomersPage /> },
+          { path: "/customers/:id", element: <CustomerDetailPage /> },
+          { path: "/statements/:id", element: <StatementDetailPage /> },
+          {
+            path: "/settings",
+            element: <SettingsLayout />,
+            children: [
+              { index: true, element: <Navigate to="/settings/general" replace /> },
+              { path: "general", element: <GeneralSettingsPage /> },
+              { path: "team", element: <TeamSettingsPage /> },
+              { path: "integrations", element: <IntegrationsSettingsPage /> },
+              { path: "billing", element: <BillingSettingsPage /> },
+            ],
+          },
+          {
+            path: "/account",
+            element: <AccountLayout />,
+            children: [
+              { index: true, element: <Navigate to="/account/profile" replace /> },
+              { path: "profile", element: <ProfilePage /> },
+              { path: "security", element: <SecurityPage /> },
+              { path: "notifications", element: <NotificationsPage /> },
+            ],
+          },
+        ],
+      },
+      {
+        path: "/accept-invite",
+        element: <AcceptInvitePage />,
+      },
+      {
+        path: "/i/:token",
+        element: <PublicInvoicePage />,
+      },
+      {
+        path: "/q/:token",
+        element: <PublicQuotePage />,
+      },
+      {
+        path: "/s/:token",
+        element: <PublicStatementPage />,
+      },
+      {
+        path: "/q/:token/confirmed",
+        element: <QuoteConfirmedPage />,
+      },
+      {
+        path: "/st/:token",
+        element: <PublicStatementPage />,
+      },
     ],
-  },
-  {
-    path: "/accept-invite",
-    element: <AcceptInvitePage />,
-  },
-  {
-    path: "/i/:token",
-    element: <PublicInvoicePage />,
-  },
-  {
-    path: "/q/:token",
-    element: <PublicQuotePage />,
-  },
-  {
-    path: "/s/:token",
-    element: <PublicStatementPage />,
-  },
-  {
-    path: "/q/:token/confirmed",
-    element: <QuoteConfirmedPage />,
-  },
-  {
-    path: "/st/:token",
-    element: <PublicStatementPage />,
   },
 ])
 

@@ -19,41 +19,27 @@ export type TeamInvitation = {
 }
 
 export async function listTeamMembers(orgId: string): Promise<TeamMember[]> {
-  const { data: members, error } = await supabase
-    .from("organization_members")
-    .select("id, user_id, role, created_at")
-    .eq("org_id", orgId)
+  const { data, error } = await supabase
+    .rpc("get_org_members", { p_org_id: orgId })
     .eq("status", "active")
     .order("created_at")
   if (error) throw new Error(error.message)
-  if (!members?.length) return []
+  if (!data?.length) return []
 
-  const userIds = members.map((m) => m.user_id).filter(Boolean) as string[]
-  const { data: users } = await supabase
-    .from("users")
-    .select("id, full_name, email, avatar_url")
-    .in("id", userIds)
-
-  return members.map((m) => {
-    const u = users?.find((u) => u.id === m.user_id)
-    return {
-      id: m.id,
-      user_id: m.user_id,
-      role: m.role,
-      created_at: m.created_at,
-      full_name: u?.full_name ?? null,
-      email: u?.email ?? null,
-      avatar_url: u?.avatar_url ?? null,
-    }
-  })
+  return data.map((m) => ({
+    id: m.id,
+    user_id: m.user_id,
+    role: m.role,
+    created_at: m.created_at,
+    full_name: m.full_name ?? null,
+    email: m.user_email ?? null,
+    avatar_url: m.avatar_url ?? null,
+  }))
 }
 
 export async function listTeamInvitations(orgId: string): Promise<TeamInvitation[]> {
   const { data, error } = await supabase
-    .from("organization_members")
-    .select("id, email, role, created_at, expires_at")
-    .eq("org_id", orgId)
-    .eq("status", "invited")
+    .rpc("get_org_invitations", { p_org_id: orgId })
     .order("created_at")
   if (error) throw new Error(error.message)
   return data ?? []
@@ -72,23 +58,23 @@ export async function inviteMember(
   email: string,
   role: "owner" | "member" = "member",
 ): Promise<string> {
+  const id = crypto.randomUUID()
   const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
-  const { data, error } = await supabase
+  const { error } = await supabase
     .from("organization_members")
     .insert({
+      id,
       org_id: orgId,
       email: email.trim().toLowerCase(),
       role,
       status: "invited",
       expires_at: expiresAt,
     })
-    .select("id")
-    .single()
   if (error) {
     if (error.code === "23505") throw new Error("This email has already been invited.")
     throw new Error(error.message)
   }
-  return data.id
+  return id
 }
 
 export async function getInviteInfo(token: string): Promise<InviteInfo | null> {

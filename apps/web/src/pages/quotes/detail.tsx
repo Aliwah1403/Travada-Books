@@ -143,8 +143,7 @@ export function QuoteDetailPage() {
 
   useEffect(() => {
     if (quote) setInternalNote(quote.internal_note ?? "");
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [quote?.id]);
+  }, [quote?.id, quote?.internal_note]);
 
   const { data: customer } = useQuery({
     queryKey: ["customer", quote?.customer_id],

@@ -28,7 +28,8 @@ export async function getCallerOrgId(req: Request): Promise<{ orgId: string } | 
     .single()
 
   if (memberError) {
-    return { error: new Response(JSON.stringify({ error: memberError.message }), { status: 500, headers: jsonHeaders }) }
+    console.error("getCallerOrgId: org membership lookup failed:", memberError.message)
+    return { error: new Response(JSON.stringify({ error: "Internal server error" }), { status: 500, headers: jsonHeaders }) }
   }
 
   if (!member) {

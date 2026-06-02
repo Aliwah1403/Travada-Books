@@ -3,6 +3,7 @@ import { render } from "npm:@react-email/render@1"
 import { resend, FROM_EMAIL } from "../_shared/resend.ts"
 import { db } from "../_shared/db.ts"
 import { getCallerOrgId } from "../_shared/auth.ts"
+import { triggerNovu } from "../_shared/novu.ts"
 import { InvoicePaidEmail } from "../_shared/emails/invoice-paid.tsx"
 
 const APP_URL = Deno.env.get("APP_URL") ?? "https://books.travadasys.com"
@@ -37,17 +38,20 @@ Deno.serve(async (req) => {
     const customerName = customer?.name ?? "your customer"
     const orgName = from?.name ?? "Travada Books"
 
-    // Resolve org owner email
     const { data: member } = await db
       .from("organization_members")
-      .select("users(email)")
+      .select("user_id, users(email)")
       .eq("org_id", orgId)
       .eq("role", "owner")
       .eq("status", "active")
       .single()
 
-    const ownerEmail = (member?.users as unknown as { email: string } | null)?.email
-    if (!ownerEmail) return new Response(JSON.stringify({ error: "Owner email not found" }), { status: 422, headers: corsHeaders })
+    const { data: org } = await db.from("organizations").select("email").eq("id", orgId).single()
+    const businessEmail = org?.email
+    if (!businessEmail) return new Response(JSON.stringify({ error: "Business email not found" }), { status: 422, headers: corsHeaders })
+
+    type UserEmail = { email: string } | null
+    const ownerEmail = (member?.users as unknown as UserEmail)?.email
 
     const viewUrl = `${APP_URL}/invoices/${invoiceId}`
     const html = await render(
@@ -63,10 +67,20 @@ Deno.serve(async (req) => {
     const label = invoice.invoice_number ? `Invoice ${invoice.invoice_number}` : "Invoice"
     await resend.emails.send({
       from: `Travada Books <${FROM_EMAIL}>`,
-      to: [ownerEmail],
+      to: [businessEmail],
       subject: `${label} from ${customerName} has been paid`,
       html,
     })
+
+    if (member?.user_id) {
+      triggerNovu("invoice-paid", { subscriberId: member.user_id, email: ownerEmail }, {
+        invoiceNumber: invoice.invoice_number,
+        customerName,
+        total: invoice.total,
+        currency: invoice.currency,
+        viewUrl,
+      }).catch((err) => console.error("notify-invoice-paid: novu trigger failed:", err))
+    }
 
     return new Response(JSON.stringify({ ok: true }), { headers: corsHeaders })
   } catch (err) {

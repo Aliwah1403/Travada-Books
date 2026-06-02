@@ -63,6 +63,7 @@ export function QuotesPage() {
     status: resolveStatus(q.status, q.valid_until),
     validUntil: q.valid_until ? format(new Date(q.valid_until), "dd/MM/yyyy") : "—",
     customer: q.customer_name ?? "—",
+    customerLogoUrl: q.customers?.logo_url ?? null,
     amount: q.total ?? 0,
     currency: q.currency,
     issueDate: q.issue_date ? format(new Date(q.issue_date), "dd/MM/yyyy") : "—",

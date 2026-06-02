@@ -12,6 +12,7 @@ type InvoiceTemplateRow = {
   accept_payments: boolean
   payment_terms: number | null
   default_note: string | null
+  default_payment_details: string | null
   cc: string
   bcc: string
   logo_url: string | null
@@ -20,7 +21,7 @@ type InvoiceTemplateRow = {
 }
 
 const TEMPLATE_SELECT =
-  "id, org_id, is_default, invoice_template, date_format, include_tax, show_qty_column, accept_payments, payment_terms, default_note, cc, bcc, logo_url, selected_payment_integration, reminder_days_after_due"
+  "id, org_id, is_default, invoice_template, date_format, include_tax, show_qty_column, accept_payments, payment_terms, default_note, default_payment_details, cc, bcc, logo_url, selected_payment_integration, reminder_days_after_due"
 
 export async function getOrgInvoiceTemplate(orgId: string): Promise<InvoiceSettings | null> {
   const { data, error } = await supabase
@@ -59,6 +60,7 @@ export async function upsertOrgInvoiceTemplate(
     accept_payments: settings.acceptPaymentsEnabled,
     payment_terms: settings.paymentTerms,
     default_note: settings.defaultNote || null,
+    default_payment_details: settings.defaultPaymentDetails || null,
     cc: settings.cc,
     bcc: settings.bcc,
     logo_url: settings.logoUrl || null,
@@ -86,6 +88,7 @@ function rowToSettings(row: InvoiceTemplateRow): InvoiceSettings {
     dateFormat: (row.date_format as InvoiceSettings["dateFormat"]) ?? "DD/MM/YYYY",
     paymentTerms: row.payment_terms ?? null,
     defaultNote: row.default_note ?? "",
+    defaultPaymentDetails: row.default_payment_details ?? "",
     showTaxColumn: row.include_tax ?? false,
     showQtyColumn: row.show_qty_column ?? true,
     acceptPaymentsEnabled: row.accept_payments ?? false,

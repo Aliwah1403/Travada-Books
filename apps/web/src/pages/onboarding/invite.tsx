@@ -82,7 +82,12 @@ export function OnboardingInvitePage() {
 
     const inviterName = profile?.full_name || org?.name || ""
     const invitations = (inserted ?? []).map((r) => ({ email: r.email as string, id: r.id as string }))
-    supabase.functions.invoke("invite-member", { body: { invitations, inviterName } }).catch(() => {})
+    const { error: inviteError } = await supabase.functions.invoke("invite-member", { body: { invitations, inviterName } })
+    if (inviteError) {
+      console.error("invite-member failed:", inviteError)
+      // Non-fatal — members were inserted; proceed but warn.
+      setError("Team members added, but invite emails failed to send. You can resend from Settings.")
+    }
 
     await finish()
   }

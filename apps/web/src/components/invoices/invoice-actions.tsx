@@ -27,6 +27,7 @@ import {
   updateInvoice,
   deleteInvoice,
 } from "@/lib/queries/invoices";
+import { updateInvoiceRecurringStatus } from "@/lib/queries/invoice-recurring";
 import { useAuth } from "@/contexts/auth-context";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
@@ -36,6 +37,8 @@ type InvoiceActionsProps = {
   status: InvoiceStatus;
   token: string;
   invoiceNumber?: string;
+  seriesId?: string;
+  seriesStatus?: "active" | "paused" | "completed" | "canceled";
 };
 
 export function InvoiceActions({
@@ -43,11 +46,14 @@ export function InvoiceActions({
   status,
   token,
   invoiceNumber,
+  seriesId,
+  seriesStatus,
 }: InvoiceActionsProps) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { orgId, user } = useAuth();
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [cancelSeriesOpen, setCancelSeriesOpen] = useState(false);
 
   async function handleDuplicate() {
     const invoice = await getInvoice(invoiceId);
@@ -81,6 +87,81 @@ export function InvoiceActions({
     queryClient.invalidateQueries({ queryKey: ["invoices", orgId] });
   }
 
+  function invalidateSeries() {
+    queryClient.invalidateQueries({ queryKey: ["invoice-recurring", orgId] });
+  }
+
+  if (seriesId) {
+    return (
+      <>
+        <DropdownMenu>
+          <DropdownMenuTrigger render={<Button variant='ghost' size='icon-sm' />}>
+            <MoreHorizontalIcon size={14} />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align='end'>
+            {seriesStatus === "active" && (
+              <DropdownMenuItem
+                onClick={() => {
+                  toast.promise(
+                    updateInvoiceRecurringStatus(seriesId, orgId!, "paused").then(invalidateSeries),
+                    { loading: "Pausing series…", success: "Series paused", error: "Failed to pause" },
+                  );
+                }}
+              >
+                Pause
+              </DropdownMenuItem>
+            )}
+            {seriesStatus === "paused" && (
+              <DropdownMenuItem
+                onClick={() => {
+                  toast.promise(
+                    updateInvoiceRecurringStatus(seriesId, orgId!, "active").then(invalidateSeries),
+                    { loading: "Resuming series…", success: "Series resumed", error: "Failed to resume" },
+                  );
+                }}
+              >
+                Resume
+              </DropdownMenuItem>
+            )}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              className='text-destructive focus:text-destructive'
+              onClick={() => setCancelSeriesOpen(true)}
+            >
+              Cancel series
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        <AlertDialog open={cancelSeriesOpen} onOpenChange={setCancelSeriesOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Cancel recurring series?</AlertDialogTitle>
+              <AlertDialogDescription>
+                No more invoices will be generated from this series. Invoices already sent are not affected.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Keep series</AlertDialogCancel>
+              <Button
+                variant='destructive'
+                onClick={() => {
+                  setCancelSeriesOpen(false);
+                  toast.promise(
+                    updateInvoiceRecurringStatus(seriesId, orgId!, "canceled").then(invalidateSeries),
+                    { loading: "Canceling series…", success: "Series canceled", error: "Failed to cancel" },
+                  );
+                }}
+              >
+                Cancel series
+              </Button>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </>
+    );
+  }
+
   return (
     <>
       <DropdownMenu>
@@ -109,6 +190,12 @@ export function InvoiceActions({
                     invalidate();
                     supabase.functions
                       .invoke("notify-invoice-paid", { body: { invoiceId } })
+                      .then((res) => {
+                        if (res.error) {
+                          console.error("notify-invoice-paid failed:", res.error);
+                          toast.warning("Invoice marked as paid, but the notification email failed to send.");
+                        }
+                      })
                       .catch((err) => {
                         console.error("notify-invoice-paid failed:", err);
                         toast.warning("Invoice marked as paid, but the notification email failed to send.");
