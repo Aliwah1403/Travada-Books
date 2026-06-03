@@ -37,6 +37,8 @@ export type InvoiceSettings = {
   bcc: string;
   logoUrl: string | null;
   reminderDaysAfterDue: 3 | 5 | 7 | 10 | null;
+  invoiceNumberPrefix: string;
+  invoiceNumberDigits: 3 | 4 | 5;
 };
 
 export const defaultInvoiceSettings: InvoiceSettings = {
@@ -53,6 +55,8 @@ export const defaultInvoiceSettings: InvoiceSettings = {
   bcc: "",
   logoUrl: null,
   reminderDaysAfterDue: null,
+  invoiceNumberPrefix: "INV-",
+  invoiceNumberDigits: 4,
 };
 
 const PAYMENT_TERMS_OPTIONS = [
@@ -381,6 +385,49 @@ export function InvoiceSettingsSheet({
                 </SelectItem>
               </SelectContent>
             </Select>
+          </div>
+
+          <Separator />
+
+          {/* Invoice Number Format */}
+          <div className='flex flex-col gap-2'>
+            <div className='flex flex-col gap-0.5'>
+              <Label className='text-xs font-medium'>Invoice Number</Label>
+              <p className='text-[11px] text-muted-foreground'>
+                Format used when generating invoice numbers.
+              </p>
+            </div>
+            <div className='flex items-center gap-2'>
+              <Input
+                value={settings.invoiceNumberPrefix}
+                onChange={(e) => update("invoiceNumberPrefix", e.target.value)}
+                placeholder='INV-'
+                className='text-xs w-24'
+                maxLength={10}
+              />
+              <Select
+                value={String(settings.invoiceNumberDigits)}
+                onValueChange={(v) =>
+                  update("invoiceNumberDigits", Number(v) as 3 | 4 | 5)
+                }
+              >
+                <SelectTrigger className='text-xs w-20'>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value='3' className='text-xs'>3 digits</SelectItem>
+                  <SelectItem value='4' className='text-xs'>4 digits</SelectItem>
+                  <SelectItem value='5' className='text-xs'>5 digits</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <p className='text-[11px] text-muted-foreground'>
+              Preview:{" "}
+              <span className='font-medium text-foreground'>
+                {(settings.invoiceNumberPrefix || "INV-") +
+                  "1".padStart(settings.invoiceNumberDigits, "0")}
+              </span>
+            </p>
           </div>
 
           <Separator />

@@ -6,19 +6,19 @@ DECLARE
 BEGIN
   -- ── CUSTOMERS ──────────────────────────────────────────────────────────────
   INSERT INTO customers (org_id, name, email, billing_email, phone, city, country, country_code, preferred_currency)
-  VALUES (v_org_id, 'Savanna Tech Ltd', 'hello@savannatech.co.ke', 'curtisaliwah5@gmail.com', '+254711000001', 'Nairobi', 'Kenya', 'KE', 'KES')
+  VALUES (v_org_id, 'Savanna Tech Ltd', 'hello@savannatech.co.ke', 'billing+test1@example.com', '+254711000001', 'Nairobi', 'Kenya', 'KE', 'KES')
   RETURNING id INTO c1_id;
 
   INSERT INTO customers (org_id, name, email, billing_email, phone, city, country, country_code, preferred_currency)
-  VALUES (v_org_id, 'Gulf Bridge Solutions', 'info@gulfbridge.ae', 'curtisaliwah5@gmail.com', '+971501000002', 'Dubai', 'United Arab Emirates', 'AE', 'AED')
+  VALUES (v_org_id, 'Gulf Bridge Solutions', 'info@gulfbridge.ae', 'billing+test2@example.com', '+971501000002', 'Dubai', 'United Arab Emirates', 'AE', 'AED')
   RETURNING id INTO c2_id;
 
   INSERT INTO customers (org_id, name, email, billing_email, phone, city, country, country_code, preferred_currency)
-  VALUES (v_org_id, 'Apex Creatives', 'accounts@apexcreatives.com', 'curtisaliwah5@gmail.com', '+15550001003', 'New York', 'United States', 'US', 'USD')
+  VALUES (v_org_id, 'Apex Creatives', 'accounts@apexcreatives.com', 'billing+test3@example.com', '+15550001003', 'New York', 'United States', 'US', 'USD')
   RETURNING id INTO c3_id;
 
   INSERT INTO customers (org_id, name, email, billing_email, phone, city, country, country_code, preferred_currency)
-  VALUES (v_org_id, 'Ndovu Logistics', 'pay@ndovulogistics.co.ke', 'curtisaliwah5@gmail.com', '+254722000004', 'Mombasa', 'Kenya', 'KE', 'KES')
+  VALUES (v_org_id, 'Ndovu Logistics', 'pay@ndovulogistics.co.ke', 'billing+test4@example.com', '+254722000004', 'Mombasa', 'Kenya', 'KE', 'KES')
   RETURNING id INTO c4_id;
 
   -- ── INVOICES ───────────────────────────────────────────────────────────────

@@ -164,11 +164,11 @@ export function EditQuotePage() {
       navigate(`/quotes/${updated.id}`);
     },
     onError: (err) => {
-      const msg = err instanceof Error ? err.message : "Failed to save quote";
+      const msg = err instanceof Error ? err.message : "";
       if (msg.includes("already been used")) {
         setQuoteNumberError(msg);
       } else {
-        toast.error(msg);
+        toast.error("Failed to save quote. Please try again.");
       }
     },
   });

@@ -36,6 +36,7 @@ import { toast } from "sonner";
 import { cn } from "@travada-books/ui/lib/utils";
 import { useAuth, type UserOrg } from "@/contexts/auth-context";
 import { createQuote, getNextQuoteNumber } from "@/lib/queries/quotes";
+import { getOrgInvoiceTemplate } from "@/lib/queries/invoice-templates";
 import { supabase } from "@/lib/supabase";
 
 type LineItem = {
@@ -89,6 +90,7 @@ function QuotePreview({
   notes,
   customer,
   org,
+  logoUrl,
 }: {
   quoteNumber: string;
   issueDate: Date | undefined;
@@ -101,6 +103,7 @@ function QuotePreview({
   notes: string;
   customer: SelectedCustomer | null;
   org: UserOrg | null;
+  logoUrl: string | null;
 }) {
   const { subtotal, tax_amount, discount, total } = computeTotals(
     items,
@@ -120,10 +123,10 @@ function QuotePreview({
     <div className="rounded-lg border bg-white p-8 text-sm dark:bg-card">
       <div className="flex items-start justify-between">
         <div>
-          {org?.logo_url ? (
+          {logoUrl ? (
             <img
-              src={org.logo_url}
-              alt={org.name}
+              src={logoUrl}
+              alt={org?.name ?? ""}
               className="h-8 w-auto max-w-[120px] object-contain"
             />
           ) : (
@@ -313,6 +316,13 @@ export function CreateQuotePage() {
     enabled: !!orgId,
   });
 
+  const { data: invoiceTemplate } = useQuery({
+    queryKey: ["invoice-template", orgId],
+    queryFn: () => getOrgInvoiceTemplate(orgId!),
+    enabled: !!orgId,
+  });
+  const logoUrl = invoiceTemplate?.logoUrl ?? null;
+
   useEffect(() => {
     if (nextQuoteNumber && !isManualQuoteNumber) setQuoteNumber(nextQuoteNumber);
   }, [nextQuoteNumber, isManualQuoteNumber]);
@@ -344,7 +354,7 @@ export function CreateQuotePage() {
       ...(isSend && org && {
         from_details: {
           name: org.name,
-          logo_url: org.logo_url ?? null,
+          logo_url: logoUrl,
           address_line1: org.address_line1 ?? null,
           address_line2: org.address_line2 ?? null,
           city: org.city ?? null,
@@ -648,6 +658,7 @@ export function CreateQuotePage() {
             notes={notes}
             customer={selectedCustomer}
             org={org}
+            logoUrl={logoUrl}
           />
         </div>
       </div>

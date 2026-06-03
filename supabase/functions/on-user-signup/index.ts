@@ -1,51 +1,56 @@
-import React from "npm:react"
-import { render } from "npm:@react-email/render@1"
-import { resend, FROM_EMAIL } from "../_shared/resend.ts"
-import { WelcomeEmail } from "../_shared/emails/welcome.tsx"
-
-const WORKER_SHARED_SECRET = Deno.env.get("WORKER_SHARED_SECRET") ?? ""
-
-function timingSafeEqual(a: string, b: string): boolean {
-  const enc = new TextEncoder()
-  const aBytes = enc.encode(a)
-  const bBytes = enc.encode(b)
-  if (aBytes.length !== bBytes.length) return false
-  let diff = 0
-  for (let i = 0; i < aBytes.length; i++) diff |= aBytes[i] ^ bBytes[i]
-  return diff === 0
-}
+import { render } from "npm:@react-email/render@1";
+import { resend, FROM_EMAIL } from "../_shared/resend.ts";
+import { WelcomeEmail } from "../_shared/emails/welcome.tsx";
 
 Deno.serve(async (req) => {
-  const secret = req.headers.get("X-Worker-Secret") ?? ""
-  if (!WORKER_SHARED_SECRET || !timingSafeEqual(secret, WORKER_SHARED_SECRET)) {
-    return new Response("Unauthorized", { status: 401 })
+  let body: unknown;
+  try {
+    body = await req.json();
+  } catch {
+    return new Response("Invalid JSON", { status: 400 });
   }
 
-  const body = await req.json()
-  const record = body.record as { id?: string; email?: string; full_name?: string }
+  const record = (
+    body as { record?: { id?: string; email?: string; full_name?: string } }
+  ).record;
 
   if (!record?.email) {
-    return new Response("Missing email", { status: 400 })
+    return new Response("Missing email", { status: 400 });
   }
 
-  const [firstName, ...rest] = (record.full_name ?? "").split(" ")
-  const lastName = rest.join(" ") || undefined
+  const [firstName, ...rest] = (record.full_name ?? "").split(" ");
+  const lastName = rest.join(" ") || undefined;
 
-  await resend.contacts.create({
-    email: record.email,
-    firstName: firstName || undefined,
-    lastName,
-    unsubscribed: false,
-  })
+  // Add to Resend contacts (non-blocking)
+  const RESEND_SEGMENT_ID = Deno.env.get("RESEND_SEGMENT_ID") ?? "";
+  try {
+    await resend.contacts.create({
+      email: record.email,
+      firstName: firstName || undefined,
+      lastName,
+      unsubscribed: false,
+      segmentIds: RESEND_SEGMENT_ID ? [RESEND_SEGMENT_ID] : [],
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error("Resend contacts error (non-fatal):", message);
+  }
 
-  await resend.emails.send({
-    from: `Travada Books <${FROM_EMAIL}>`,
-    to: record.email,
-    subject: "Welcome to Travada Books",
-    html: await render(WelcomeEmail({ firstName: firstName || undefined })),
-  })
+  try {
+    await resend.emails.send({
+      from: `Travada Books <${FROM_EMAIL}>`,
+      to: record.email,
+      replyTo: ["curtis.aliwah@travadasys.com", "nate.muliro@travadasys.com"],
+      subject: "Welcome to Travada Books",
+      html: await render(WelcomeEmail({ firstName: firstName || undefined })),
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error("Resend email error:", message);
+    return new Response("Failed to send welcome email", { status: 502 });
+  }
 
   return new Response(JSON.stringify({ success: true }), {
     headers: { "Content-Type": "application/json" },
-  })
-})
+  });
+});

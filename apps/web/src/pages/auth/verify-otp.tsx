@@ -8,6 +8,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@travada-books/ui/components/card";
+import * as Sentry from "@sentry/react";
 import { supabase } from "@/lib/supabase";
 
 const OTP_LENGTH = 8;
@@ -101,7 +102,12 @@ export function VerifyOtpPage() {
     });
     setLoading(false);
     if (error) {
-      setError(error.message);
+      if (error.message.toLowerCase().includes("expired") || error.message.toLowerCase().includes("invalid")) {
+        setError("This code is invalid or has expired. Please request a new one.");
+      } else {
+        Sentry.captureException(error);
+        setError("Verification failed. Please try again.");
+      }
       return;
     }
     navigate("/forgot-password/reset");
@@ -113,7 +119,8 @@ export function VerifyOtpPage() {
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email);
       if (error) {
-        setError(error.message);
+        Sentry.captureException(error);
+        setError("Failed to resend code. Please try again.");
         return;
       }
       setDigits(Array(OTP_LENGTH).fill(""));

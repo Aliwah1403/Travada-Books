@@ -1,4 +1,5 @@
 import { useRef, useState, useEffect } from "react"
+import * as Sentry from "@sentry/react"
 import { useMutation } from "@tanstack/react-query"
 import { toast } from "sonner"
 import { Button } from "@travada-books/ui/components/button"
@@ -65,7 +66,10 @@ export function GeneralSettingsPage() {
       setLogoUrl(url)
       await refreshOrg()
     },
-    onError: (err) => toast.error(String(err)),
+    onError: (err) => {
+      Sentry.captureException(err)
+      toast.error("Failed to upload logo. Please try again.")
+    },
   })
 
   const profileMutation = useMutation({

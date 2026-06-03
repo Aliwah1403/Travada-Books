@@ -1,4 +1,5 @@
 import { useRef, useState, useEffect } from "react"
+import * as Sentry from "@sentry/react"
 import { useMutation } from "@tanstack/react-query"
 import { toast } from "sonner"
 import { Button } from "@travada-books/ui/components/button"
@@ -76,14 +77,17 @@ export function ProfilePage() {
       const url = await uploadUserAvatar(user!.id, file)
       await updateUserProfile(user!.id, { full_name: profile?.full_name ?? null })
       const { error: updateError } = await supabase.from("users").update({ avatar_url: url }).eq("id", user!.id)
-      if (updateError) throw new Error(`Failed to save avatar: ${updateError.message}`)
+      if (updateError) throw updateError
       return url
     },
     onSuccess: async (url) => {
       setAvatarUrl(url)
       await refreshProfile()
     },
-    onError: (err) => toast.error(String(err)),
+    onError: (err) => {
+      Sentry.captureException(err)
+      toast.error("Failed to save avatar. Please try again.")
+    },
   })
 
   const profileMutation = useMutation({
@@ -104,7 +108,10 @@ export function ProfilePage() {
         toast.success("Profile saved.")
       }
     },
-    onError: (err) => toast.error(String(err)),
+    onError: (err) => {
+      Sentry.captureException(err)
+      toast.error("Failed to save profile. Please try again.")
+    },
   })
 
   const regionalMutation = useMutation({
@@ -123,7 +130,10 @@ export function ProfilePage() {
       await refreshProfile()
       toast.success("Regional settings saved.")
     },
-    onError: (err) => toast.error(String(err)),
+    onError: (err) => {
+      Sentry.captureException(err)
+      toast.error("Failed to save regional settings. Please try again.")
+    },
   })
 
   function getInitials() {

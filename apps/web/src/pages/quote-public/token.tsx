@@ -183,7 +183,7 @@ export function PublicQuotePage() {
       await callEdgeFunction("accept-quote", { token });
       navigate(`/q/${token}/confirmed?action=accepted`);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to accept quote");
+      toast.error("Failed to accept quote. Please try again.");
       setIsSubmitting(false);
     }
   }
@@ -194,7 +194,7 @@ export function PublicQuotePage() {
       await callEdgeFunction("decline-quote", { token, reason: declineReason || undefined });
       navigate(`/q/${token}/confirmed?action=declined`);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to decline quote");
+      toast.error("Failed to decline quote. Please try again.");
       setIsSubmitting(false);
     }
   }

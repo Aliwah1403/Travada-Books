@@ -1,8 +1,10 @@
+import NumberFlow from "@number-flow/react";
 import { Card, CardContent } from "@travada-books/ui/components/card";
 
 type StatCard = {
   label: string;
-  amount: string;
+  amount: number;
+  currency: string;
   count: number;
 };
 
@@ -12,12 +14,17 @@ type InvoiceStatsProps = {
   paid: StatCard;
 };
 
-function StatCard({ label, amount, count }: StatCard) {
+function StatCard({ label, amount, currency, count }: StatCard) {
   return (
     <Card>
       <CardContent className='p-4'>
         <div className='flex justify-between flex-col gap-3'>
-          <p className='text-xl font-semibold tracking-tight'>{amount}</p>
+          <NumberFlow
+            value={amount}
+            format={{ style: "currency", currency }}
+            locales="en-US"
+            className='text-xl font-semibold tracking-tight'
+          />
           <div>
             <p className='mt-1 text-sm '>{label}</p>
             <p className='mt-0.5 text-xs text-muted-foreground'>

@@ -414,6 +414,12 @@ s3_secret_key = "env(S3_SECRET_KEY)"
 # JSON string passed through to pg-delta SQL formatting.
 # format_options = "{\"keywordCase\":\"upper\",\"indent\":2,\"maxWidth\":80,\"commaStyle\":\"trailing\"}"
 
+[functions.delete-account]
+verify_jwt = true
+
+[functions.on-user-signup]
+verify_jwt = false
+
 [functions.accept-quote]
 verify_jwt = false
 
@@ -422,3 +428,9 @@ verify_jwt = false
 
 [functions.notify-team-joined]
 verify_jwt = true
+
+[functions.send-invoice-email]
+verify_jwt = false
+
+[functions.send-invoice-reminder]
+verify_jwt = false

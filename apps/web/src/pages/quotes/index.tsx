@@ -9,7 +9,6 @@ import { QuoteStats } from "@/components/quotes/quote-stats";
 import { QuoteTable, type Quote as UIQuote } from "@/components/quotes/quote-table";
 import { listQuotes } from "@/lib/queries/quotes";
 import { useAuth } from "@/contexts/auth-context";
-import { formatCurrency } from "@/lib/format";
 import { format } from "date-fns";
 
 function resolveStatus(status: string, validUntil: string | null): UIQuote["status"] {
@@ -27,28 +26,16 @@ function getStats(quotes: UIQuote[], currency: string) {
   const sum = (arr: UIQuote[]) => arr.reduce((acc, q) => acc + q.amount, 0);
 
   return {
-    open: {
-      label: "Open",
-      amount: formatCurrency(sum(open), currency),
-      count: open.length,
-    },
-    accepted: {
-      label: "Accepted",
-      amount: formatCurrency(sum(accepted), currency),
-      count: accepted.length,
-    },
-    expired: {
-      label: "Expired",
-      amount: formatCurrency(sum(expired), currency),
-      count: expired.length,
-    },
+    open: { label: "Open", amount: sum(open), currency, count: open.length },
+    accepted: { label: "Accepted", amount: sum(accepted), currency, count: accepted.length },
+    expired: { label: "Expired", amount: sum(expired), currency, count: expired.length },
   };
 }
 
 export function QuotesPage() {
   const navigate = useNavigate();
   const { orgId, org } = useAuth();
-  const orgCurrency = org?.currency ?? "KES";
+  const orgCurrency = org?.base_currency ?? "KES";
   const [search, setSearch] = useState("");
 
   const { data: rawQuotes = [], isLoading } = useQuery({

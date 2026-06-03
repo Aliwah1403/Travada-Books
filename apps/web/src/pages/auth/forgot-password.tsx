@@ -4,6 +4,7 @@ import { Button } from "@travada-books/ui/components/button"
 import { Input } from "@travada-books/ui/components/input"
 import { Label } from "@travada-books/ui/components/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@travada-books/ui/components/card"
+import * as Sentry from "@sentry/react"
 import { supabase } from "@/lib/supabase"
 
 export function ForgotPasswordPage() {
@@ -19,7 +20,8 @@ export function ForgotPasswordPage() {
     const { error } = await supabase.auth.resetPasswordForEmail(email)
     setLoading(false)
     if (error) {
-      setError(error.message)
+      Sentry.captureException(error)
+      setError("Failed to send reset code. Please try again.")
       return
     }
     sessionStorage.setItem("fp_email", email)

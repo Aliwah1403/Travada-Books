@@ -8,6 +8,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@travada-books/ui/components/card"
+import * as Sentry from "@sentry/react"
 import { useAuth } from "@/contexts/auth-context"
 import { getInviteInfo, acceptInvite, type InviteInfo } from "@/lib/queries/team"
 import { supabase } from "@/lib/supabase"
@@ -44,7 +45,8 @@ export function AcceptInvitePage() {
       setState({ kind: "ready", info })
     }).catch((err: unknown) => {
       console.error("getInviteInfo failed:", err)
-      setState({ kind: "error", message: err instanceof Error ? err.message : "Failed to load invite" })
+      Sentry.captureException(err)
+      setState({ kind: "error", message: "Failed to load invite. Please try again." })
     })
   }, [token])
 
@@ -70,7 +72,8 @@ export function AcceptInvitePage() {
         } else if (err.message === "already_accepted") {
           setState({ kind: "already_accepted" })
         } else {
-          setState({ kind: "error", message: err.message })
+          Sentry.captureException(err)
+          setState({ kind: "error", message: "Something went wrong. Please try again or contact support." })
         }
       })
   }, [authLoading, user, state.kind, token])

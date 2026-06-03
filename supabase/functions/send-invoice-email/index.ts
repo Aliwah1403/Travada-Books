@@ -13,6 +13,7 @@ const corsHeaders = {
 }
 
 const WORKER_SHARED_SECRET = Deno.env.get("WORKER_SHARED_SECRET") ?? ""
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
 
 function timingSafeEqual(a: string, b: string): boolean {
   const enc = new TextEncoder()
@@ -29,7 +30,11 @@ Deno.serve(async (req) => {
 
   try {
     const workerSecret = req.headers.get("X-Worker-Secret") ?? ""
-    const calledByWorker = WORKER_SHARED_SECRET.length > 0 && timingSafeEqual(workerSecret, WORKER_SHARED_SECRET)
+    const authBearer = (req.headers.get("Authorization") ?? "").replace(/^Bearer\s+/i, "")
+
+    const calledByWorker =
+      (WORKER_SHARED_SECRET.length > 0 && timingSafeEqual(workerSecret, WORKER_SHARED_SECRET)) ||
+      (SUPABASE_SERVICE_ROLE_KEY.length > 0 && timingSafeEqual(authBearer, SUPABASE_SERVICE_ROLE_KEY))
 
     let orgId: string | null = null
     if (!calledByWorker) {

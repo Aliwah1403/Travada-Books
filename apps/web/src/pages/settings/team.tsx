@@ -1,4 +1,5 @@
 import { useState } from "react";
+import * as Sentry from "@sentry/react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Button } from "@travada-books/ui/components/button";
@@ -154,8 +155,10 @@ function InviteDialog({
       setOpen(false);
       onInvited();
     },
-    onError: (err) =>
-      toast.error(err instanceof Error ? err.message : String(err)),
+    onError: (err) => {
+      Sentry.captureException(err);
+      toast.error("Failed to send invite. Please try again.");
+    },
   });
 
   return (
@@ -545,7 +548,10 @@ export function TeamSettingsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["team-members", orgId] });
     },
-    onError: (err) => toast.error(String(err)),
+    onError: (err) => {
+      Sentry.captureException(err);
+      toast.error("Failed to remove member. Please try again.");
+    },
   });
 
   const leaveMutation = useMutation({
@@ -553,7 +559,10 @@ export function TeamSettingsPage() {
     onSuccess: () => {
       window.location.href = "/";
     },
-    onError: (err) => toast.error(String(err)),
+    onError: (err) => {
+      Sentry.captureException(err);
+      toast.error("Failed to leave team. Please try again.");
+    },
   });
 
   const cancelMutation = useMutation({
@@ -561,7 +570,10 @@ export function TeamSettingsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["team-invitations", orgId] });
     },
-    onError: (err) => toast.error(String(err)),
+    onError: (err) => {
+      Sentry.captureException(err);
+      toast.error("Failed to cancel invitation. Please try again.");
+    },
   });
 
   const resendMutation = useMutation({

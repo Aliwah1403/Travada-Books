@@ -1,39 +1,123 @@
 import React from "npm:react"
-import { Text } from "../email-components.ts"
-import { EmailLayout, CtaButton, colors } from "../email-layout.tsx"
+import { Text, Link, Section, Row, Column, Hr } from "../email-components.ts"
+import { EmailLayout, colors } from "../email-layout.tsx"
 
 const font = "ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
-
 const APP_URL = "https://books.travadasys.com"
 
 interface Props {
   firstName?: string
 }
 
-export function WelcomeEmail({ firstName }: Props) {
-  const greeting = firstName ? `Welcome, ${firstName}` : "Welcome to Travada Books"
-
+export function WelcomeEmail({ firstName = "there" }: Props) {
   return (
-    <EmailLayout preview="Your Travada Books account is ready" orgName="Travada Books">
-      <Text style={{ margin: "0 0 8px", fontSize: 24, fontWeight: 600, color: colors.dark, letterSpacing: "-0.02em", textAlign: "center", fontFamily: font }}>
-        {greeting}
-      </Text>
-      <Text style={{ margin: "0 0 40px", fontSize: 13, color: colors.muted, textAlign: "center", fontFamily: font }}>
-        Your account is ready to go
-      </Text>
-
-      <Text style={{ margin: "0 0 24px", fontSize: 14, color: colors.body, lineHeight: "1.6", fontFamily: font }}>
-        Thanks for signing up. Travada Books helps you send professional invoices and quotes, track payments, and manage your customers — all in one place.
+    <EmailLayout
+      preview={`Welcome to Travada Books, ${firstName} — glad you're here.`}
+      orgName="Travada Books"
+    >
+      {/* Greeting */}
+      <Text style={{ margin: "0 0 24px", fontSize: 14, color: colors.body, lineHeight: "1.7", fontFamily: font }}>
+        Hi {firstName},
       </Text>
 
-      <Text style={{ margin: "0 0 32px", fontSize: 14, color: colors.body, lineHeight: "1.6", fontFamily: font }}>
-        To get started, set up your organization profile and send your first invoice.
+      {/* Founder story */}
+      <Text style={{ margin: "0 0 16px", fontSize: 14, color: colors.body, lineHeight: "1.7", fontFamily: font }}>
+        Welcome to Travada Books — I'm Curtis, one of the founders.
+      </Text>
+      <Text style={{ margin: "0 0 16px", fontSize: 14, color: colors.body, lineHeight: "1.7", fontFamily: font }}>
+        We built Travada Books because invoicing and bookkeeping for African
+        businesses has always felt like an afterthought — tools built elsewhere,
+        for different currencies, different contexts, and different realities.
+        Chasing payments, managing clients across WhatsApp threads, and
+        piecing together spreadsheets at the end of the month shouldn't be
+        part of running a business.
+      </Text>
+      <Text style={{ margin: "0 0 32px", fontSize: 14, color: colors.body, lineHeight: "1.7", fontFamily: font }}>
+        Travada Books is built with our customers — and it matters to us that
+        you know we're here when you need us. Take your time to explore at
+        your own pace. If you ever want to chat, just reply to this email.
+        We're always one message away.
       </Text>
 
-      <CtaButton href={`${APP_URL}/invoices`}>Go to Travada Books</CtaButton>
+      <Hr style={{ borderColor: colors.border, margin: "0 0 32px" }} />
 
-      <Text style={{ margin: "16px 0 0", fontSize: 12, color: colors.faint, textAlign: "center", fontFamily: font }}>
-        If you didn't create this account, you can safely ignore this email.
+      {/* Get started heading */}
+      <Text style={{ margin: "0 0 4px", fontSize: 11, fontWeight: 600, color: colors.muted, letterSpacing: "0.08em", textTransform: "uppercase", fontFamily: font }}>
+        Get started
+      </Text>
+      <Text style={{ margin: "0 0 24px", fontSize: 18, fontWeight: 600, color: colors.dark, letterSpacing: "-0.01em", fontFamily: font }}>
+        Three things to do first
+      </Text>
+
+      {/* Step 1 */}
+      <Section style={{ borderTop: `1px solid ${colors.border}`, paddingTop: 20, paddingBottom: 20 }}>
+        <Row>
+          <Column style={{ width: 28, verticalAlign: "top", paddingTop: 2 }}>
+            <Text style={{ margin: 0, fontSize: 13, fontWeight: 600, color: colors.faint, fontFamily: font }}>01</Text>
+          </Column>
+          <Column style={{ verticalAlign: "top" }}>
+            <Text style={{ margin: "0 0 4px", fontSize: 15, fontWeight: 600, color: colors.dark, fontFamily: font }}>
+              Send your first invoice
+            </Text>
+            <Text style={{ margin: "0 0 10px", fontSize: 13, color: colors.muted, lineHeight: "1.6", fontFamily: font }}>
+              Create a professional invoice and send it to a customer in under a minute.
+            </Text>
+            <Link href={`${APP_URL}/invoices/create`} style={{ fontSize: 13, fontWeight: 500, color: colors.dark, textDecoration: "none", fontFamily: font }}>
+              Create an invoice →
+            </Link>
+          </Column>
+        </Row>
+      </Section>
+
+      {/* Step 2 */}
+      <Section style={{ borderTop: `1px solid ${colors.border}`, paddingTop: 20, paddingBottom: 20 }}>
+        <Row>
+          <Column style={{ width: 28, verticalAlign: "top", paddingTop: 2 }}>
+            <Text style={{ margin: 0, fontSize: 13, fontWeight: 600, color: colors.faint, fontFamily: font }}>02</Text>
+          </Column>
+          <Column style={{ verticalAlign: "top" }}>
+            <Text style={{ margin: "0 0 4px", fontSize: 15, fontWeight: 600, color: colors.dark, fontFamily: font }}>
+              Add your team
+            </Text>
+            <Text style={{ margin: "0 0 10px", fontSize: 13, color: colors.muted, lineHeight: "1.6", fontFamily: font }}>
+              Invite colleagues so everyone has visibility on invoices, quotes, and customer accounts.
+            </Text>
+            <Link href={`${APP_URL}/settings/members`} style={{ fontSize: 13, fontWeight: 500, color: colors.dark, textDecoration: "none", fontFamily: font }}>
+              Invite teammates →
+            </Link>
+          </Column>
+        </Row>
+      </Section>
+
+      {/* Step 3 */}
+      <Section style={{ borderTop: `1px solid ${colors.border}`, borderBottom: `1px solid ${colors.border}`, paddingTop: 20, paddingBottom: 20, marginBottom: 32 }}>
+        <Row>
+          <Column style={{ width: 28, verticalAlign: "top", paddingTop: 2 }}>
+            <Text style={{ margin: 0, fontSize: 13, fontWeight: 600, color: colors.faint, fontFamily: font }}>03</Text>
+          </Column>
+          <Column style={{ verticalAlign: "top" }}>
+            <Text style={{ margin: "0 0 4px", fontSize: 15, fontWeight: 600, color: colors.dark, fontFamily: font }}>
+              Explore your dashboard
+            </Text>
+            <Text style={{ margin: "0 0 10px", fontSize: 13, color: colors.muted, lineHeight: "1.6", fontFamily: font }}>
+              See your invoices, quotes, customers, and statements all in one place.
+            </Text>
+            <Link href={`${APP_URL}/invoices`} style={{ fontSize: 13, fontWeight: 500, color: colors.dark, textDecoration: "none", fontFamily: font }}>
+              Go to dashboard →
+            </Link>
+          </Column>
+        </Row>
+      </Section>
+
+      {/* Sign-off */}
+      <Text style={{ margin: "0 0 4px", fontSize: 14, color: colors.body, lineHeight: "1.7", fontFamily: font }}>
+        Looking forward to seeing what you build,
+      </Text>
+      <Text style={{ margin: "0 0 4px", fontSize: 14, fontWeight: 600, color: colors.dark, fontFamily: font }}>
+        Curtis Aliwah
+      </Text>
+      <Text style={{ margin: 0, fontSize: 13, color: colors.muted, fontFamily: font }}>
+        Co-founder, Travada Books
       </Text>
     </EmailLayout>
   )
