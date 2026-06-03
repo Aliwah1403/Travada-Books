@@ -108,6 +108,7 @@ function InvoicePreview({
   showQtyColumn,
   customer,
   org,
+  logoUrl,
 }: {
   invoiceNumber: string;
   issueDate: Date | undefined;
@@ -124,6 +125,7 @@ function InvoicePreview({
   showQtyColumn: boolean;
   customer: SelectedCustomer | null;
   org: UserOrg | null;
+  logoUrl: string | null;
 }) {
   const { subtotal, taxAmount, discountAmt, total } = computeTotals(
     items,
@@ -143,10 +145,10 @@ function InvoicePreview({
     <div className="rounded-lg border bg-white p-8 text-sm dark:bg-card">
       <div className="flex items-start justify-between">
         <div>
-          {org?.logo_url ? (
+          {logoUrl ? (
             <img
-              src={org.logo_url}
-              alt={org.name}
+              src={logoUrl}
+              alt={org?.name ?? ""}
               className="h-8 w-auto max-w-[120px] object-contain"
             />
           ) : (
@@ -878,6 +880,7 @@ export function EditInvoicePage() {
             showQtyColumn={invoiceSettings.showQtyColumn}
             customer={selectedCustomer}
             org={org}
+            logoUrl={invoiceSettings.logoUrl ?? null}
           />
         </div>
       </div>

@@ -5,6 +5,7 @@ import { Input } from "@travada-books/ui/components/input"
 import { Label } from "@travada-books/ui/components/label"
 import { Separator } from "@travada-books/ui/components/separator"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@travada-books/ui/components/card"
+import * as Sentry from "@sentry/react"
 import { supabase } from "@/lib/supabase"
 import { trackEvent, LogEvents } from "@/lib/analytics"
 
@@ -32,7 +33,10 @@ export function LoginPage() {
       provider: "google",
       options: { redirectTo: `${window.location.origin}${destination}` },
     })
-    if (error) setError(error.message)
+    if (error) {
+      Sentry.captureException(error)
+      setError("Something went wrong. Please try again.")
+    }
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -42,7 +46,14 @@ export function LoginPage() {
     const { error } = await supabase.auth.signInWithPassword({ email, password })
     setLoading(false)
     if (error) {
-      setError(error.message)
+      if (error.message === "Invalid login credentials") {
+        setError("Incorrect email or password.")
+      } else if (error.message.toLowerCase().includes("email not confirmed")) {
+        setError("Please verify your email before signing in.")
+      } else {
+        Sentry.captureException(error)
+        setError("Something went wrong. Please try again.")
+      }
       return
     }
     trackEvent(LogEvents.SignIn)

@@ -1,10 +1,12 @@
+import type { ReactNode } from "react";
+import NumberFlow from "@number-flow/react";
 import { Card, CardContent } from "@travada-books/ui/components/card";
 import { cn } from "@travada-books/ui/lib/utils";
 import { formatCurrency } from "@/lib/format";
 
 type StatCardProps = {
   label: string;
-  value: string;
+  value: ReactNode;
   sub: string;
   subHighlight?: boolean;
 };
@@ -14,7 +16,7 @@ function StatCard({ label, value, sub, subHighlight }: StatCardProps) {
     <Card>
       <CardContent className="p-4">
         <div className="flex flex-col gap-3">
-          <p className="text-xl font-semibold tracking-tight">{value}</p>
+          <div className="text-xl font-semibold tracking-tight">{value}</div>
           <div>
             <p className="text-sm">{label}</p>
             <p className={cn("mt-0.5 text-xs", subHighlight ? "text-destructive font-medium" : "text-muted-foreground")}>
@@ -48,12 +50,16 @@ export function CustomerStats({
     <div className="grid grid-cols-4 gap-4">
       <StatCard
         label="Total Customers"
-        value={String(totalCount)}
+        value={<NumberFlow value={totalCount} />}
         sub={newThisMonth > 0 ? `+${newThisMonth} added this month` : "No new customers this month"}
       />
       <StatCard
         label="Outstanding Balance"
-        value={totalOutstanding !== undefined ? formatCurrency(totalOutstanding, currency) : "N/A"}
+        value={
+          totalOutstanding !== undefined
+            ? <NumberFlow value={totalOutstanding} format={{ style: "currency", currency }} locales="en-US" />
+            : "N/A"
+        }
         sub="Across all customers"
       />
       <StatCard
@@ -67,7 +73,11 @@ export function CustomerStats({
       />
       <StatCard
         label="Overdue Customers"
-        value={overdueCount !== undefined ? String(overdueCount) : "N/A"}
+        value={
+          overdueCount !== undefined
+            ? <NumberFlow value={overdueCount} />
+            : "N/A"
+        }
         sub={overdueCount === undefined ? "Not yet calculated" : overdueCount > 0 ? "Have at least one overdue invoice" : "All customers up to date"}
         subHighlight={!!overdueCount && overdueCount > 0}
       />

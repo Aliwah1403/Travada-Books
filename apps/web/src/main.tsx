@@ -29,7 +29,7 @@ if (import.meta.env.PROD) {
     tracesSampleRate: 0.1,
     replaysSessionSampleRate: 0.1,
     replaysOnErrorSampleRate: 1.0,
-    integrations: [Sentry.replayIntegration()],
+    integrations: [Sentry.browserTracingIntegration(), Sentry.replayIntegration()],
   })
 } // end Sentry (prod-only)
 

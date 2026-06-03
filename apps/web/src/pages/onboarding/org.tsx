@@ -10,6 +10,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@travada-books/ui/components/card"
+import * as Sentry from "@sentry/react"
 import { supabase } from "@/lib/supabase"
 import { useAuth } from "@/contexts/auth-context"
 
@@ -65,7 +66,8 @@ export function OnboardingOrgPage() {
       .insert({ id: orgId, name: name.trim(), email: email.trim(), base_currency: currency, country_code: country })
 
     if (orgError) {
-      setError(orgError.message)
+      Sentry.captureException(orgError)
+      setError("Failed to create your business. Please try again.")
       setLoading(false)
       return
     }
@@ -75,13 +77,13 @@ export function OnboardingOrgPage() {
       .insert({ org_id: orgId, user_id: user.id, role: "owner", status: "active" })
 
     if (memberError) {
+      Sentry.captureException(memberError)
       const { error: rbError } = await supabase.from("organizations").delete().eq("id", orgId)
       if (rbError) {
         console.error(`Rollback failed for org ${orgId}: ${rbError.message}`)
-        setError(`${memberError.message} (rollback failed: ${rbError.message})`)
-      } else {
-        setError(memberError.message)
+        Sentry.captureException(rbError, { extra: { context: "org_rollback_failed", orgId } })
       }
+      setError("Failed to set up your account. Please try again.")
       setLoading(false)
       return
     }

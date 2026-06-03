@@ -37,7 +37,8 @@ export type ClassicDocumentData = {
   publicUrl?: string | null
 }
 
-function fmt(n: number) {
+function fmt(n: number | null | undefined) {
+  if (n == null || Number.isNaN(n)) return "0.00"
   return n.toLocaleString("en-KE", { minimumFractionDigits: 2 })
 }
 

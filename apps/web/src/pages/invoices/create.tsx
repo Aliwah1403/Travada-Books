@@ -493,7 +493,7 @@ export function CreateInvoicePage() {
       ...((isSend || isSchedule) && org && {
         from_details: {
           name: org.name,
-          logo_url: org.logo_url ?? null,
+          logo_url: invoiceSettings.logoUrl ?? null,
           address_line1: org.address_line1 ?? null,
           address_line2: org.address_line2 ?? null,
           city: org.city ?? null,
@@ -756,7 +756,7 @@ export function CreateInvoicePage() {
                 id="invoice-number"
                 value={invoiceNumber}
                 onChange={(e) => { setInvoiceNumber(e.target.value); setInvoiceNumberError(null); setIsManualInvoiceNumber(true); }}
-                placeholder="Select a customer first"
+                placeholder="Auto-generated"
                 className={invoiceNumberError ? "border-destructive text-xs" : "text-xs"}
               />
               {invoiceNumberError && (

@@ -5,6 +5,7 @@ import { Input } from "@travada-books/ui/components/input"
 import { Label } from "@travada-books/ui/components/label"
 import { Separator } from "@travada-books/ui/components/separator"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@travada-books/ui/components/card"
+import * as Sentry from "@sentry/react"
 import { supabase } from "@/lib/supabase"
 import { trackEvent, LogEvents } from "@/lib/analytics"
 
@@ -33,7 +34,10 @@ export function SignupPage() {
       provider: "google",
       options: { redirectTo: `${window.location.origin}${destination}` },
     })
-    if (error) setError(error.message)
+    if (error) {
+      Sentry.captureException(error)
+      setError("Something went wrong. Please try again.")
+    }
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -58,7 +62,15 @@ export function SignupPage() {
     })
     setLoading(false)
     if (error) {
-      setError(error.message)
+      const msg = error.message
+      if (msg.toLowerCase().includes("password should contain")) {
+        setError("Password must include at least one uppercase letter, one lowercase letter, one number, and one special character (e.g. !@#$%).")
+      } else if (msg.toLowerCase().includes("user already registered")) {
+        setError("An account with this email already exists.")
+      } else {
+        Sentry.captureException(error)
+        setError("Something went wrong. Please try again.")
+      }
       return
     }
     trackEvent(LogEvents.Registered)

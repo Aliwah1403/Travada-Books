@@ -64,7 +64,7 @@ function HorizontalPagination({
 export function CustomersPage() {
   const navigate = useNavigate()
   const { orgId, org } = useAuth()
-  const orgCurrency = org?.currency ?? "KES"
+  const orgCurrency = org?.base_currency ?? "KES"
   const queryClient = useQueryClient()
   const [search, setSearch] = useState("")
   const [sheetOpen, setSheetOpen] = useState(false)
@@ -143,7 +143,7 @@ export function CustomersPage() {
     return (
       <div className="flex flex-col items-center justify-center gap-3 p-12 text-center">
         <p className="text-sm font-medium">Failed to load customers</p>
-        <p className="text-xs text-muted-foreground">{error.message}</p>
+        <p className="text-xs text-muted-foreground">Something went wrong loading customers.</p>
         <Button variant="outline" size="sm" onClick={() => refetch()}>
           Retry
         </Button>

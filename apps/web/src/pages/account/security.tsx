@@ -1,10 +1,23 @@
 import { useState } from "react"
+import * as Sentry from "@sentry/react"
+import { useNavigate } from "react-router"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 import type { UserIdentity } from "@supabase/supabase-js"
 import { Button } from "@travada-books/ui/components/button"
 import { Input } from "@travada-books/ui/components/input"
 import { Label } from "@travada-books/ui/components/label"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@travada-books/ui/components/alert-dialog"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -25,6 +38,7 @@ const GoogleIcon = () => (
 
 export function SecurityPage() {
   const { user } = useAuth()
+  const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [currentPassword, setCurrentPassword] = useState("")
   const [newPassword, setNewPassword] = useState("")
@@ -88,6 +102,28 @@ export function SecurityPage() {
       queryClient.invalidateQueries({ queryKey: ["user-identities"] })
     },
     onError: (err) => toast.error(err instanceof Error ? err.message : String(err)),
+  })
+
+  const [deleteConfirm, setDeleteConfirm] = useState("")
+
+  const deleteAccountMutation = useMutation({
+    mutationFn: async () => {
+      const { data: { session } } = await supabase.auth.getSession()
+      const res = await supabase.functions.invoke("delete-account", {
+        headers: { Authorization: `Bearer ${session?.access_token}` },
+      })
+      if (res.error) throw new Error(res.error.message)
+      const body = res.data as { error?: string }
+      if (body?.error) throw new Error(body.error)
+    },
+    onSuccess: async () => {
+      await supabase.auth.signOut()
+      navigate("/login")
+    },
+    onError: (err) => {
+      Sentry.captureException(err)
+      toast.error("Failed to delete account. Please try again.")
+    },
   })
 
   return (
@@ -201,6 +237,56 @@ export function SecurityPage() {
             </Button>
           )}
         </div>
+      </section>
+
+      <section className='flex flex-col gap-5'>
+        <div>
+          <h2 className='text-sm font-semibold text-destructive'>Delete account</h2>
+          <p className='text-xs text-muted-foreground mt-0.5'>
+            Permanently remove your account and all associated data. This cannot be undone.
+          </p>
+        </div>
+
+        <AlertDialog onOpenChange={(open) => { if (!open) setDeleteConfirm("") }}>
+          <AlertDialogTrigger asChild>
+            <Button variant='destructive' size='sm' className='w-fit'>
+              Delete account
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This will permanently delete your account, your organisation, and all invoices,
+                quotes, and customer data. This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <div className='flex flex-col gap-1.5 mt-2'>
+              <Label htmlFor='delete-confirm'>
+                Type <span className='font-semibold'>DELETE</span> to confirm
+              </Label>
+              <Input
+                id='delete-confirm'
+                value={deleteConfirm}
+                onChange={(e) => setDeleteConfirm(e.target.value)}
+                placeholder='DELETE'
+              />
+            </div>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                className='bg-destructive text-destructive-foreground hover:bg-destructive/90'
+                disabled={deleteConfirm !== "DELETE" || deleteAccountMutation.isPending}
+                onClick={(e) => {
+                  e.preventDefault()
+                  deleteAccountMutation.mutate()
+                }}
+              >
+                {deleteAccountMutation.isPending ? "Deleting…" : "Delete account"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </section>
     </div>
   )

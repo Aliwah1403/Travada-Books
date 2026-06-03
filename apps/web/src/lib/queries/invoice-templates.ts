@@ -18,10 +18,12 @@ type InvoiceTemplateRow = {
   logo_url: string | null
   selected_payment_integration: string | null
   reminder_days_after_due: number | null
+  invoice_number_prefix: string | null
+  invoice_number_digits: number | null
 }
 
 const TEMPLATE_SELECT =
-  "id, org_id, is_default, invoice_template, date_format, include_tax, show_qty_column, accept_payments, payment_terms, default_note, default_payment_details, cc, bcc, logo_url, selected_payment_integration, reminder_days_after_due"
+  "id, org_id, is_default, invoice_template, date_format, include_tax, show_qty_column, accept_payments, payment_terms, default_note, default_payment_details, cc, bcc, logo_url, selected_payment_integration, reminder_days_after_due, invoice_number_prefix, invoice_number_digits"
 
 export async function getOrgInvoiceTemplate(orgId: string): Promise<InvoiceSettings | null> {
   const { data, error } = await supabase
@@ -66,6 +68,8 @@ export async function upsertOrgInvoiceTemplate(
     logo_url: settings.logoUrl || null,
     selected_payment_integration: settings.selectedPaymentIntegration || null,
     reminder_days_after_due: settings.reminderDaysAfterDue ?? null,
+    invoice_number_prefix: settings.invoiceNumberPrefix || "INV-",
+    invoice_number_digits: settings.invoiceNumberDigits ?? 4,
   }
 
   if (existing) {
@@ -97,5 +101,9 @@ function rowToSettings(row: InvoiceTemplateRow): InvoiceSettings {
     bcc: row.bcc ?? "",
     logoUrl: row.logo_url ?? null,
     reminderDaysAfterDue: (row.reminder_days_after_due as InvoiceSettings["reminderDaysAfterDue"]) ?? null,
+    invoiceNumberPrefix: row.invoice_number_prefix ?? "INV-",
+    invoiceNumberDigits: ([3, 4, 5].includes(row.invoice_number_digits ?? 4)
+      ? row.invoice_number_digits
+      : 4) as InvoiceSettings["invoiceNumberDigits"],
   }
 }

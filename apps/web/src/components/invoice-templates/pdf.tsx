@@ -3,6 +3,7 @@ import { format, parseISO, isValid } from "date-fns";
 import { PdfxThemeProvider, usePdfxTheme } from "@/lib/pdfx-theme-context";
 import { PageHeader } from "@/components/pdfx/page-header/pdfx-page-header";
 import { PageFooter } from "@/components/pdfx/page-footer/pdfx-page-footer";
+import { PdfImage } from "@/components/pdfx/pdf-image/pdfx-pdf-image";
 import { Section } from "@/components/pdfx/section/pdfx-section";
 import {
   Table,
@@ -19,7 +20,11 @@ import type { ClassicDocumentData } from "./classic/preview";
 function fmtAmt(n: number | null | undefined, currency: string, locale?: string) {
   if (n == null) return "—";
   try {
-    return new Intl.NumberFormat(locale, { style: "currency", currency }).format(n);
+    return new Intl.NumberFormat(locale, {
+      style: "currency",
+      currency,
+      currencyDisplay: "code",
+    }).format(n);
   } catch {
     return `${currency} ${n.toFixed(2)}`;
   }
@@ -106,11 +111,28 @@ function InvoicePdfContent({ data }: { data: ClassicDocumentData }) {
   return (
     <Document title={`${documentLabel} ${data.number ?? ""}`}>
       <Page size="A4" style={styles.page}>
-        <PageHeader
-          variant="branded"
-          title={from.name ?? "Your Business"}
-          subtitle={fromSubtitle || undefined}
-        />
+        {from.logo_url ? (
+          <PageHeader
+            variant="logo-left"
+            logo={
+              <PdfImage
+                src={from.logo_url}
+                width={40}
+                height={40}
+                fit="contain"
+                style={{ margin: 0 }}
+              />
+            }
+            title={from.name ?? "Your Business"}
+            subtitle={fromSubtitle || undefined}
+          />
+        ) : (
+          <PageHeader
+            variant="simple"
+            title={from.name ?? "Your Business"}
+            subtitle={fromSubtitle || undefined}
+          />
+        )}
 
         <View style={styles.metaRow}>
           <View style={styles.metaCol}>
@@ -202,9 +224,15 @@ function InvoicePdfContent({ data }: { data: ClassicDocumentData }) {
         </Table>
 
         <Section noWrap style={{ flexDirection: "row", marginTop: 16 }}>
-          <View style={{ flex: 1, paddingRight: 20 }}>
+          <View style={{ marginLeft: "auto", width: 220 }}>
+            <KeyValue size="sm" dividerThickness={1} items={summaryItems} divided />
+          </View>
+        </Section>
+
+        {(data.paymentDetails || data.note) ? (
+          <Section noWrap style={{ marginTop: 16 }}>
             {data.paymentDetails ? (
-              <>
+              <View style={{ marginBottom: data.note ? 8 : 0 }}>
                 <Text style={styles.metaLabel} noMargin>
                   Payment Details
                 </Text>
@@ -216,36 +244,49 @@ function InvoicePdfContent({ data }: { data: ClassicDocumentData }) {
                     PIN: {from.tax_id}
                   </Text>
                 ) : null}
-              </>
+              </View>
             ) : null}
-          </View>
-          <View style={{ width: 220 }}>
-            <KeyValue size="sm" dividerThickness={1} items={summaryItems} divided />
-          </View>
-        </Section>
+            {data.note ? (
+              <View>
+                <Text style={styles.metaLabel} noMargin>
+                  Notes
+                </Text>
+                <Text variant="xs" noMargin>
+                  {data.note}
+                </Text>
+              </View>
+            ) : null}
+          </Section>
+        ) : null}
 
+        {/* Footer separator line */}
+        <View
+          style={{
+            position: "absolute",
+            bottom: 28,
+            left: theme.spacing.page.marginTop,
+            right: theme.spacing.page.marginTop,
+            height: 0.5,
+            backgroundColor: theme.colors.border,
+          }}
+        />
+
+        {/* QR code pinned to bottom-right, just above the separator */}
         {data.publicUrl ? (
           <View
             style={{
               position: "absolute",
-              bottom: theme.spacing.page.marginBottom + 45,
+              bottom: 32,
               right: theme.spacing.page.marginRight,
             }}
           >
             <PdfQRCode
               value={data.publicUrl}
-              size={64}
+              size={72}
               caption="Scan to view online"
             />
           </View>
         ) : null}
-
-        <PageFooter
-          leftText={data.note ?? undefined}
-          rightText="Powered by Travada Books"
-          sticky
-          pagePadding={theme.spacing.page.marginBottom}
-        />
       </Page>
     </Document>
   );

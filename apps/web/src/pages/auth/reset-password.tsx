@@ -5,6 +5,7 @@ import { Input } from "@travada-books/ui/components/input"
 import { Label } from "@travada-books/ui/components/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@travada-books/ui/components/card"
 import { EyeIcon, EyeOffIcon } from "@travada-books/ui/icons"
+import * as Sentry from "@sentry/react"
 import { supabase } from "@/lib/supabase"
 
 export function ResetPasswordPage() {
@@ -43,7 +44,12 @@ export function ResetPasswordPage() {
     const { error } = await supabase.auth.updateUser({ password })
     setLoading(false)
     if (error) {
-      setError(error.message)
+      if (error.message.toLowerCase().includes("different from the old password")) {
+        setError("New password must be different from your current password.")
+      } else {
+        Sentry.captureException(error)
+        setError("Failed to update password. Please try again.")
+      }
       return
     }
     sessionStorage.removeItem("fp_email")
