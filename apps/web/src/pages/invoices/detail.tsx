@@ -50,6 +50,7 @@ import {
   updateInvoiceRecurringStatus,
 } from "@/lib/queries/invoice-recurring";
 import { getCustomer } from "@/lib/queries/customers";
+import { getOrgInvoiceTemplate } from "@/lib/queries/invoice-templates";
 import { useAuth } from "@/contexts/auth-context";
 import { supabase } from "@/lib/supabase";
 import { Spinner } from "@/components/shared/spinner";
@@ -169,6 +170,12 @@ export function InvoiceDetailPage() {
     enabled: !!invoice?.invoice_recurring_id,
   });
 
+  const { data: invoiceTemplate } = useQuery({
+    queryKey: ["invoice-template", orgId],
+    queryFn: () => getOrgInvoiceTemplate(orgId!),
+    enabled: !!orgId,
+  });
+
   const seriesMutation = useMutation({
     mutationFn: (status: "active" | "paused" | "canceled") =>
       updateInvoiceRecurringStatus(invoice!.invoice_recurring_id!, orgId!, status),
@@ -255,7 +262,7 @@ export function InvoiceDetailPage() {
     org ?
       {
         name: org.name,
-        logo_url: org.logo_url ?? null,
+        logo_url: invoiceTemplate?.logoUrl ?? org.logo_url ?? null,
         address_line1: org.address_line1 ?? null,
         address_line2: org.address_line2 ?? null,
         city: org.city ?? null,
