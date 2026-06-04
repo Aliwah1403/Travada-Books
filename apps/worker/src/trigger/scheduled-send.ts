@@ -1,6 +1,13 @@
 import { schemaTask, wait, logger, AbortTaskRunError } from "@trigger.dev/sdk";
 import { z } from "zod";
+import React from "react";
+import { render } from "@react-email/render";
+import { Resend } from "resend";
 import { supabase } from "../lib/supabase";
+import { InvoiceSentEmail } from "../emails/invoice-sent";
+
+const FROM_EMAIL = "noreply@mail.travadasys.com";
+const APP_URL = "https://books.travadasys.com";
 
 export const scheduledSend = schemaTask({
   id: "scheduled-send",
@@ -19,18 +26,15 @@ export const scheduledSend = schemaTask({
   run: async (payload) => {
     const { invoiceId, scheduledAt } = payload;
 
-    logger.log("Scheduled send: waiting until send time", {
-      invoiceId,
-      scheduledAt,
-    });
+    logger.log("Scheduled send: waiting until send time", { invoiceId, scheduledAt });
 
     await wait.until({ date: new Date(scheduledAt) });
 
-    logger.log("Scheduled send: wait complete, checking invoice state", { invoiceId });
+    logger.log("Scheduled send: wait complete, fetching invoice", { invoiceId });
 
     const { data: invoice, error: fetchError } = await supabase
       .from("invoices")
-      .select("id, status, scheduled_at, currency, org_id, total")
+      .select("id, status, scheduled_at, currency, org_id, total, invoice_number, issue_date, due_date, token, from_details, customer_details, payment_details, note")
       .eq("id", invoiceId)
       .maybeSingle();
 
@@ -52,7 +56,17 @@ export const scheduledSend = schemaTask({
       return { skipped: true, reason: "invoice_no_longer_scheduled" };
     }
 
-    const now = new Date().toISOString();
+    const from = invoice.from_details as Record<string, string> | null;
+    const customer = invoice.customer_details as Record<string, string> | null;
+
+    if (!from || !customer) {
+      throw new AbortTaskRunError(`Invoice ${invoiceId} is missing from_details or customer_details — cannot send`);
+    }
+
+    const recipientEmail = customer.billing_email || customer.email;
+    if (!recipientEmail) {
+      throw new AbortTaskRunError(`Invoice ${invoiceId} customer has no email address`);
+    }
 
     // Look up exchange rate at actual send time
     const { data: org } = await supabase
@@ -78,29 +92,42 @@ export const scheduledSend = schemaTask({
       convertedAmount = exchangeRate != null ? (invoice.total ?? 0) * exchangeRate : null;
     }
 
-    logger.log("Scheduled send: calling send-invoice-email", { invoiceId });
+    logger.log("Scheduled send: sending email via Resend", { invoiceId, recipientEmail });
 
-    const res = await fetch(`${process.env.SUPABASE_URL}/functions/v1/send-invoice-email`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
-        "X-Worker-Secret": process.env.WORKER_SHARED_SECRET!,
-      },
-      body: JSON.stringify({ invoiceId }),
+    const publicUrl = invoice.token ? `${APP_URL}/i/${invoice.token}` : APP_URL;
+
+    const html = await render(
+      React.createElement(InvoiceSentEmail, {
+        orgName: from.name,
+        orgLogoUrl: from.logo_url ?? null,
+        orgEmail: from.email,
+        customerName: customer.name,
+        invoiceNumber: invoice.invoice_number,
+        dueDate: invoice.due_date,
+        total: invoice.total,
+        currency: invoice.currency,
+        publicUrl,
+      })
+    );
+
+    const subject = `Invoice${invoice.invoice_number ? ` ${invoice.invoice_number}` : ""} from ${from.name}`;
+
+    const resend = new Resend(process.env.RESEND_API_KEY);
+    const { error: emailError } = await resend.emails.send({
+      from: `${from.name} <${FROM_EMAIL}>`,
+      to: [recipientEmail],
+      replyTo: from.email,
+      subject,
+      html,
     });
 
-    if (!res.ok) {
-      // Invoice remains "scheduled" so retries can re-attempt delivery.
-      const body = await res.text().catch(() => "");
-      const msg = `send-invoice-email returned ${res.status} for invoice ${invoiceId}: ${body}`;
-      if (res.status >= 400 && res.status < 500) {
-        throw new AbortTaskRunError(msg);
-      }
-      throw new Error(msg);
+    if (emailError) {
+      throw new Error(`Resend error for invoice ${invoiceId}: ${(emailError as { message: string }).message}`);
     }
 
-    // Email delivered — now promote the invoice to "unpaid".
+    logger.log("Scheduled send: email sent, updating invoice to unpaid", { invoiceId });
+
+    const now = new Date().toISOString();
     const { data: updated, error: updateError } = await supabase
       .from("invoices")
       .update({
@@ -122,7 +149,7 @@ export const scheduledSend = schemaTask({
     }
 
     if (!updated) {
-      logger.log("Scheduled send: invoice was cancelled between send and update, skipping", { invoiceId });
+      logger.log("Scheduled send: invoice was cancelled between send and update", { invoiceId });
       return { skipped: true, reason: "cancelled_during_transition" };
     }
 
