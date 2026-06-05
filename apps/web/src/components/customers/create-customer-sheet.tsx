@@ -21,6 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@travada-books/ui/components/select";
+import { CurrencySelect } from "@travada-books/ui/components/currency-select";
 import { CountryDropdown } from "@/components/country-dropdown";
 import { countries } from "country-data-list";
 import {
@@ -90,18 +91,6 @@ const INDUSTRIES = [
   "Other",
 ];
 
-const CURRENCIES = [
-  { code: "KES", label: "KES — Kenyan Shilling" },
-  { code: "USD", label: "USD — US Dollar" },
-  { code: "EUR", label: "EUR — Euro" },
-  { code: "GBP", label: "GBP — British Pound" },
-  { code: "UGX", label: "UGX — Ugandan Shilling" },
-  { code: "TZS", label: "TZS — Tanzanian Shilling" },
-  { code: "RWF", label: "RWF — Rwandan Franc" },
-  { code: "ETB", label: "ETB — Ethiopian Birr" },
-  { code: "NGN", label: "NGN — Nigerian Naira" },
-  { code: "ZAR", label: "ZAR — South African Rand" },
-]
 
 const BUSINESS_TYPES = [
   "B2B",
@@ -487,26 +476,12 @@ export function CreateCustomerSheet({
                       render={({ field, fieldState }) => (
                         <Field data-invalid={fieldState.invalid}>
                           <FieldLabel htmlFor={field.name}>Default Currency</FieldLabel>
-                          <Select
+                          <CurrencySelect
                             name={field.name}
                             value={field.value}
                             onValueChange={field.onChange}
-                          >
-                            <SelectTrigger
-                              id={field.name}
-                              aria-invalid={fieldState.invalid}
-                              className='text-xs'
-                            >
-                              <SelectValue placeholder='Select currency' />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {CURRENCIES.map((c) => (
-                                <SelectItem key={c.code} value={c.code} className='text-xs'>
-                                  {c.label}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                            valid={!fieldState.invalid}
+                          />
                           <FieldDescription>
                             Pre-filled when creating invoices for this customer. You can always change it per invoice.
                           </FieldDescription>

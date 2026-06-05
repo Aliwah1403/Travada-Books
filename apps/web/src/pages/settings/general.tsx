@@ -6,26 +6,11 @@ import { Button } from "@travada-books/ui/components/button"
 import { Input } from "@travada-books/ui/components/input"
 import { Label } from "@travada-books/ui/components/label"
 import { Separator } from "@travada-books/ui/components/separator"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@travada-books/ui/components/select"
 import { Textarea } from "@travada-books/ui/components/textarea"
+import { CurrencySelect } from "@travada-books/ui/components/currency-select"
 import { useAuth } from "@/contexts/auth-context"
 import { updateOrg, uploadOrgLogo } from "@/lib/queries/org"
 
-const currencies = [
-  { code: "KES", name: "Kenyan Shilling" },
-  { code: "USD", name: "US Dollar" },
-  { code: "EUR", name: "Euro" },
-  { code: "GBP", name: "British Pound" },
-  { code: "ZAR", name: "South African Rand" },
-  { code: "UGX", name: "Ugandan Shilling" },
-  { code: "TZS", name: "Tanzanian Shilling" },
-]
 
 export function GeneralSettingsPage() {
   const { org, orgId, refreshOrg } = useAuth()
@@ -218,18 +203,7 @@ export function GeneralSettingsPage() {
 
         <div className='flex flex-col gap-1.5'>
           <Label>Currency</Label>
-          <Select value={currency} onValueChange={setCurrency}>
-            <SelectTrigger className='w-64'>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {currencies.map((c) => (
-                <SelectItem key={c.code} value={c.code}>
-                  {c.code} — {c.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <CurrencySelect value={currency} onValueChange={setCurrency} className="w-64" />
         </div>
 
         <Button
