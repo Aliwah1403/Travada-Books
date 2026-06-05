@@ -117,8 +117,8 @@ function InvoicePdfContent({ data }: { data: ClassicDocumentData }) {
             logo={
               <PdfImage
                 src={from.logo_url}
-                width={40}
-                height={40}
+                width={140}
+                height={48}
                 fit="contain"
                 style={{ margin: 0 }}
               />

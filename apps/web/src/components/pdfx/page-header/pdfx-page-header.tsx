@@ -173,7 +173,7 @@ function createPageHeaderStyles(t: PdfxTheme) {
     },
     logoContainer: {
       marginRight: spacing[4],
-      width: 48,
+      width: 140,
       height: 48,
     },
     logoContent: {

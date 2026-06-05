@@ -159,18 +159,43 @@ export function GeneralSettingsPage() {
               className='hidden'
               onChange={(e) => {
                 const file = e.target.files?.[0]
-                if (file) logoMutation.mutate(file)
-                e.target.value = ""
+                if (!file) return
+                if (file.size > 2 * 1024 * 1024) {
+                  toast.error("Logo must be under 2 MB.")
+                  e.target.value = ""
+                  return
+                }
+                if (file.type !== "image/svg+xml") {
+                  const url = URL.createObjectURL(file)
+                  const img = new Image()
+                  img.onload = () => {
+                    URL.revokeObjectURL(url)
+                    if (img.width > 1024 || img.height > 1024) {
+                      toast.error("Logo must be 1024 × 1024 px or smaller.")
+                      e.target.value = ""
+                      return
+                    }
+                    logoMutation.mutate(file)
+                    e.target.value = ""
+                  }
+                  img.src = url
+                } else {
+                  logoMutation.mutate(file)
+                  e.target.value = ""
+                }
               }}
             />
-            <Button
-              variant='outline'
-              size='sm'
-              onClick={() => fileInputRef.current?.click()}
-              disabled={logoMutation.isPending}
-            >
-              {logoMutation.isPending ? "Uploading…" : "Upload logo"}
-            </Button>
+            <div className='flex flex-col gap-1'>
+              <Button
+                variant='outline'
+                size='sm'
+                onClick={() => fileInputRef.current?.click()}
+                disabled={logoMutation.isPending}
+              >
+                {logoMutation.isPending ? "Uploading…" : "Upload logo"}
+              </Button>
+              <p className='text-xs text-muted-foreground'>PNG, JPG, WebP or SVG · Max 1024 × 1024 px · 2 MB</p>
+            </div>
           </div>
         </div>
 

@@ -5,6 +5,7 @@ PLANNED.md
 BACKEND.md
 MULTI_ORG.md
 SETUP.md
+SUPABASE.md
 .env
 .env.local
 .env.*.local
