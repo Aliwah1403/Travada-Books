@@ -649,7 +649,7 @@ export function CustomerDetailPage() {
           businessType: customer.company_type ?? "",
           website: customer.website ?? "",
           vatNumber: customer.vat_number ?? "",
-          country: customer.country ?? "",
+          country: customer.country_code ?? "",
           currency: customer.preferred_currency ?? undefined,
           addressLine1: customer.address_line1 ?? "",
           addressLine2: customer.address_line2 ?? "",
