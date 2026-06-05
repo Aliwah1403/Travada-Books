@@ -243,7 +243,8 @@ export function SecurityPage() {
         <div>
           <h2 className='text-sm font-semibold text-destructive'>Delete account</h2>
           <p className='text-xs text-muted-foreground mt-0.5'>
-            Permanently remove your account and all associated data. This cannot be undone.
+            Permanently delete your account. Organisations where you are the only member will be
+            removed along with all their data. Organisations with other members will not be affected.
           </p>
         </div>
 
@@ -257,8 +258,9 @@ export function SecurityPage() {
             <AlertDialogHeader>
               <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
               <AlertDialogDescription>
-                This will permanently delete your account, your organisation, and all invoices,
-                quotes, and customer data. This action cannot be undone.
+                This will permanently delete your account. Any organisation where you are the only
+                member will be removed, including all its invoices, quotes, and customer data.
+                Organisations shared with other members will remain intact. This action cannot be undone.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <div className='flex flex-col gap-1.5 mt-2'>

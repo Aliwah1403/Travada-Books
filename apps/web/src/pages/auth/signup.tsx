@@ -58,7 +58,7 @@ export function SignupPage() {
     const { error } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: { full_name: name }, emailRedirectTo },
+      options: { data: { full_name: name } },
     })
     setLoading(false)
     if (error) {
@@ -74,21 +74,22 @@ export function SignupPage() {
       return
     }
     trackEvent(LogEvents.Registered)
+    // Determine where to send the user after email confirmation
+    let destination = "/invoices"
     if (emailRedirectTo) {
-      navigate(emailRedirectTo)
-    } else {
-      let destination = "/invoices"
-      if (next) {
-        try {
-          const decoded = decodeURIComponent(next)
-          const resolved = new URL(decoded, window.location.origin)
-          if (resolved.origin === window.location.origin) destination = decoded
-        } catch {
-          // malformed next param — fall back to /invoices
-        }
+      destination = emailRedirectTo
+    } else if (next) {
+      try {
+        const decoded = decodeURIComponent(next)
+        const resolved = new URL(decoded, window.location.origin)
+        if (resolved.origin === window.location.origin) destination = decoded
+      } catch {
+        // malformed next param — fall back to /invoices
       }
-      navigate(destination)
     }
+    sessionStorage.setItem("signup_email", email.trim().toLowerCase())
+    sessionStorage.setItem("signup_next", destination)
+    navigate("/signup/verify")
   }
 
   return (

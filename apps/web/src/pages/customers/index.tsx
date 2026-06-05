@@ -3,7 +3,6 @@ import { useNavigate } from "react-router"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { trackEvent, LogEvents } from "@/lib/analytics"
 import { ArrowLeft01Icon, ArrowRight01Icon, Cancel01Icon, FilterIcon, PlusSignIcon, Search01Icon, User02Icon } from "@travada-books/ui/icons"
-import { format } from "date-fns"
 import { Button } from "@travada-books/ui/components/button"
 import { Input } from "@travada-books/ui/components/input"
 import { Avatar, AvatarFallback, AvatarImage } from "@travada-books/ui/components/avatar"
@@ -21,6 +20,7 @@ import { EmptyState } from "@/components/shared/empty-state"
 import { useTableScroll } from "@/hooks/use-table-scroll"
 import { cn } from "@travada-books/ui/lib/utils"
 import { useAuth } from "@/contexts/auth-context"
+import { useFormatDate } from "@/hooks/use-format-date"
 import { listCustomers, deleteCustomer } from "@/lib/queries/customers"
 import { listAllCustomerInvoiceSummaries } from "@/lib/queries/invoices"
 import { formatCurrency } from "@/lib/format"
@@ -64,6 +64,7 @@ function HorizontalPagination({
 export function CustomersPage() {
   const navigate = useNavigate()
   const { orgId, org } = useAuth()
+  const { formatDate } = useFormatDate()
   const orgCurrency = org?.base_currency ?? "KES"
   const queryClient = useQueryClient()
   const [search, setSearch] = useState("")
@@ -280,7 +281,7 @@ export function CustomersPage() {
                     </TableCell>
                     <TableCell className="py-3 text-xs text-muted-foreground">
                       {summaries[customer.id]?.lastInvoiceAt
-                        ? format(new Date(summaries[customer.id].lastInvoiceAt!), "dd/MM/yyyy")
+                        ? formatDate(summaries[customer.id].lastInvoiceAt!)
                         : <span className="text-muted-foreground/50">—</span>}
                     </TableCell>
                     <TableCell className="py-3" onClick={(e) => e.stopPropagation()}>

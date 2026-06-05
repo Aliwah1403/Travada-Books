@@ -10,7 +10,7 @@ export function AuthLayout() {
   const { pathname } = useLocation()
 
   if (loading || orgLoading) return null
-  if (user && pathname !== "/forgot-password/reset") {
+  if (user && pathname !== "/forgot-password/reset" && pathname !== "/signup/verify") {
     if (!org) {
       const pending = sessionStorage.getItem("pendingInviteToken")
       if (pending) return <Navigate to={`/accept-invite?token=${encodeURIComponent(pending)}`} replace />

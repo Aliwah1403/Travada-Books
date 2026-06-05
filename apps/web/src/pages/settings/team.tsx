@@ -27,7 +27,9 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
+  AlertDialogTrigger,
 } from "@travada-books/ui/components/alert-dialog";
+import { Separator } from "@travada-books/ui/components/separator";
 import {
   Dialog,
   DialogClose,
@@ -52,6 +54,7 @@ import {
   TabsTrigger,
 } from "@travada-books/ui/components/tabs";
 import { useAuth } from "@/contexts/auth-context";
+import { useFormatDate } from "@/hooks/use-format-date";
 import { supabase } from "@/lib/supabase";
 import {
   listTeamMembers,
@@ -75,13 +78,6 @@ function getInitials(name: string | null, email: string | null) {
     .join("");
 }
 
-function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString("en-GB", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
-}
 
 function expiryLabel(expiresAt: string | null): {
   text: string;
@@ -277,6 +273,7 @@ function MembersTab({
   onRemove: (member: TeamMember) => void;
   onLeave: (member: TeamMember) => void;
 }) {
+  const { formatMonthDay } = useFormatDate();
   const [confirmState, setConfirmState] = useState<{
     type: "remove" | "leave";
     member: TeamMember;
@@ -330,7 +327,7 @@ function MembersTab({
 
               <div className='flex items-center gap-3 shrink-0'>
                 <span className='text-xs text-muted-foreground hidden sm:block'>
-                  Joined {formatDate(member.created_at)}
+                  Joined {formatMonthDay(member.created_at)}
                 </span>
 
                 {!isOwner || cannotAct ?
@@ -445,6 +442,7 @@ function InvitationsTab({
   onCancel: (inv: TeamInvitation) => void;
   onResend: (inv: TeamInvitation) => void;
 }) {
+  const { formatMonthDay } = useFormatDate();
   if (!invitations.length) {
     return (
       <div className='rounded-lg border border-dashed p-10 text-center'>
@@ -472,7 +470,7 @@ function InvitationsTab({
             <div className='flex-1 min-w-0'>
               <p className='text-sm font-medium truncate'>{inv.email}</p>
               <p className='text-xs text-muted-foreground'>
-                Invited {formatDate(inv.created_at)}
+                Invited {formatMonthDay(inv.created_at)}
               </p>
             </div>
 
@@ -522,6 +520,7 @@ export function TeamSettingsPage() {
   const { orgId, orgRole, user, profile, org } = useAuth();
   const isOwner = orgRole === "owner";
   const queryClient = useQueryClient();
+  const [deleteOrgConfirm, setDeleteOrgConfirm] = useState("");
 
   const membersQuery = useQuery({
     queryKey: ["team-members", orgId],
@@ -614,6 +613,26 @@ export function TeamSettingsPage() {
     });
   }
 
+  const deleteOrgMutation = useMutation({
+    mutationFn: async () => {
+      const { data: { session } } = await supabase.auth.getSession()
+      const res = await supabase.functions.invoke("delete-organisation", {
+        headers: { Authorization: `Bearer ${session?.access_token}` },
+        body: { org_id: orgId },
+      })
+      if (res.error) throw new Error(res.error.message)
+      const body = res.data as { error?: string }
+      if (body?.error) throw new Error(body.error)
+    },
+    onSuccess: () => {
+      window.location.href = "/onboarding/org"
+    },
+    onError: (err) => {
+      Sentry.captureException(err)
+      toast.error("Failed to delete organisation. Please try again.")
+    },
+  });
+
   const members = membersQuery.data ?? [];
   const invitations = invitationsQuery.data ?? [];
 
@@ -705,6 +724,63 @@ export function TeamSettingsPage() {
           </TabsContent>
         )}
       </Tabs>
+
+      {isOwner && (
+        <>
+          <Separator />
+          <section className='flex flex-col gap-5'>
+            <div>
+              <h2 className='text-sm font-semibold text-destructive'>Delete organisation</h2>
+              <p className='text-xs text-muted-foreground mt-0.5'>
+                Permanently delete this organisation and all its data — invoices, quotes, and
+                customers. All members will lose access immediately. This cannot be undone.
+              </p>
+            </div>
+
+            <AlertDialog onOpenChange={(open) => { if (!open) setDeleteOrgConfirm("") }}>
+              <AlertDialogTrigger asChild>
+                <Button variant='destructive' size='sm' className='w-fit'>
+                  Delete organisation
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This will permanently delete <strong>{org?.name}</strong> and all its invoices,
+                    quotes, and customer data. All members will lose access immediately. This action
+                    cannot be undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <div className='flex flex-col gap-1.5 mt-2'>
+                  <Label htmlFor='delete-org-confirm'>
+                    Type <span className='font-semibold'>DELETE</span> to confirm
+                  </Label>
+                  <Input
+                    id='delete-org-confirm'
+                    value={deleteOrgConfirm}
+                    onChange={(e) => setDeleteOrgConfirm(e.target.value)}
+                    placeholder='DELETE'
+                  />
+                </div>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    className='bg-destructive text-destructive-foreground hover:bg-destructive/90'
+                    disabled={deleteOrgConfirm !== "DELETE" || deleteOrgMutation.isPending}
+                    onClick={(e) => {
+                      e.preventDefault()
+                      deleteOrgMutation.mutate()
+                    }}
+                  >
+                    {deleteOrgMutation.isPending ? "Deleting…" : "Delete organisation"}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </section>
+        </>
+      )}
     </div>
   );
 }

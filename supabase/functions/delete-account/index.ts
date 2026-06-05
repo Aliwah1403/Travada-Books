@@ -14,7 +14,6 @@ Deno.serve(async (req) => {
   const authorization = req.headers.get("Authorization")
   if (!authorization) return json({ error: "Unauthorized" }, 401)
 
-  // Verify the caller's JWT to get their user ID
   const userClient = createClient(
     Deno.env.get("SUPABASE_URL")!,
     Deno.env.get("SUPABASE_ANON_KEY")!,
@@ -23,16 +22,14 @@ Deno.serve(async (req) => {
   const { data: { user }, error: authError } = await userClient.auth.getUser()
   if (authError || !user) return json({ error: "Unauthorized" }, 401)
 
-  // Admin client for privileged operations
   const adminClient = createClient(
     Deno.env.get("SUPABASE_URL")!,
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
   )
 
-  // Find orgs where this user is the only member
   const { data: memberships, error: memberError } = await adminClient
     .from("organization_members")
-    .select("org_id, organizations(id, name)")
+    .select("org_id")
     .eq("user_id", user.id)
     .eq("status", "active")
 
@@ -43,7 +40,7 @@ Deno.serve(async (req) => {
 
   const orgIds = (memberships ?? []).map((m) => m.org_id)
 
-  // For each org, check if this user is the only active member
+  // Identify orgs where this user is the only real (non-invited) active member
   const orgsToDelete: string[] = []
   for (const orgId of orgIds) {
     const { count } = await adminClient
@@ -51,14 +48,34 @@ Deno.serve(async (req) => {
       .select("*", { count: "exact", head: true })
       .eq("org_id", orgId)
       .eq("status", "active")
+      .not("user_id", "is", null)
 
     if ((count ?? 0) <= 1) {
       orgsToDelete.push(orgId)
     }
   }
 
-  // Delete sole-member orgs — cascades to invoices, customers, quotes, statements, etc.
+  // Clean up Storage logos before deleting orgs
   if (orgsToDelete.length > 0) {
+    const { data: orgs } = await adminClient
+      .from("organizations")
+      .select("id, logo_url")
+      .in("id", orgsToDelete)
+
+    const logoPaths: string[] = []
+    for (const org of orgs ?? []) {
+      if (org.logo_url) {
+        const match = (org.logo_url as string).match(/\/org-assets\/(.+)$/)
+        if (match?.[1]) logoPaths.push(match[1])
+      }
+    }
+    if (logoPaths.length > 0) {
+      const { error: storageError } = await adminClient.storage.from("org-assets").remove(logoPaths)
+      if (storageError) {
+        console.error("delete-account: storage cleanup failed (non-fatal):", storageError.message)
+      }
+    }
+
     const { error: orgDeleteError } = await adminClient
       .from("organizations")
       .delete()
@@ -70,11 +87,24 @@ Deno.serve(async (req) => {
     }
   }
 
-  // Delete the auth user — cascades to public.users and organization_members
   const { error: deleteError } = await adminClient.auth.admin.deleteUser(user.id)
   if (deleteError) {
     console.error("delete-account: auth user delete failed:", deleteError.message)
     return json({ error: "Failed to delete account" }, 500)
+  }
+
+  // Remove from Resend audience via Trigger.dev task (fire-and-forget)
+  const TRIGGER_SECRET_KEY = Deno.env.get("TRIGGER_SECRET_KEY")
+  if (TRIGGER_SECRET_KEY && user.email) {
+    fetch("https://api.trigger.dev/api/v1/tasks/resend-remove-contact/trigger", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${TRIGGER_SECRET_KEY}`,
+        "Content-Type": "application/json",
+        "x-trigger-api-version": "2023-11-14",
+      },
+      body: JSON.stringify({ payload: { email: user.email } }),
+    }).catch((err) => console.error("delete-account: Trigger.dev resend-remove-contact fire failed (non-fatal):", err))
   }
 
   return json({ success: true })
