@@ -1,22 +1,22 @@
 import React from "react";
-import { Text } from "@react-email/components";
-import { EmailLayout, OutlinedButton, Hr, colors } from "./layout";
+import { Text, Section } from "@react-email/components";
+import { EmailLayout, Hr, colors } from "./layout";
 
 interface Props {
   email: string;
-  confirmationUrl: string;
+  code: string;
 }
 
 export default function AuthConfirmSignupEmail({
   email = "jane@example.com",
-  confirmationUrl = "https://books.travadasys.com",
+  code = "48291073",
 }: Partial<Props>) {
   const font =
     "ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
 
   return (
     <EmailLayout
-      preview="Verify your email address to activate your Travada Books account."
+      preview="Your Travada Books confirmation code is inside."
       orgName="Travada Books"
     >
       {/* Heading */}
@@ -31,13 +31,13 @@ export default function AuthConfirmSignupEmail({
           fontFamily: font,
         }}
       >
-        Verify your email address
+        Confirm your account
       </Text>
 
       {/* Meta */}
       <Text
         style={{
-          margin: "0 0 40px",
+          margin: "0 0 32px",
           fontSize: 13,
           color: colors.muted,
           textAlign: "center",
@@ -47,11 +47,29 @@ export default function AuthConfirmSignupEmail({
         {email}
       </Text>
 
-      {/* CTA */}
-      <OutlinedButton href={confirmationUrl}>Verify Email Address</OutlinedButton>
+      {/* OTP code */}
+      <Section
+        style={{
+          textAlign: "center",
+          margin: "0 0 32px",
+        }}
+      >
+        <Text
+          style={{
+            margin: 0,
+            fontSize: 36,
+            fontWeight: 700,
+            letterSpacing: "0.2em",
+            color: colors.dark,
+            fontFamily: "ui-monospace, 'Cascadia Code', 'Source Code Pro', Menlo, Consolas, monospace",
+          }}
+        >
+          {code}
+        </Text>
+      </Section>
 
       {/* Divider */}
-      <Hr style={{ borderColor: colors.border, margin: "8px 0 32px" }} />
+      <Hr style={{ borderColor: colors.border, margin: "0 0 32px" }} />
 
       {/* Body */}
       <Text
@@ -63,8 +81,7 @@ export default function AuthConfirmSignupEmail({
           fontFamily: font,
         }}
       >
-        Thanks for signing up for Travada Books. Click the button above to verify
-        your email address and activate your account.
+        Enter the code above on the verification page to activate your Travada Books account.
       </Text>
       <Text
         style={{
@@ -75,7 +92,7 @@ export default function AuthConfirmSignupEmail({
           lineHeight: "1.6",
         }}
       >
-        This link expires in <strong style={{ color: colors.body }}>24 hours</strong>.
+        This code expires in <strong style={{ color: colors.body }}>1 hour</strong>.
         If you did not create an account, you can safely ignore this email.
       </Text>
     </EmailLayout>

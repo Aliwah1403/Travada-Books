@@ -50,6 +50,7 @@ import {
   SortingDownIcon as SortingDownSvg,
   ColumnsThreeCogIcon as ColumnsThreeCogSvg,
   RepeatIcon as RepeatSvg,
+  Globe02Icon as Globe02Svg,
 } from "@hugeicons/core-free-icons";
 
 export type IconProps = Omit<HugeiconsIconProps, "icon">;
@@ -110,3 +111,4 @@ export const SortingUpIcon = make(SortingUpSvg);
 export const SortingDownIcon = make(SortingDownSvg);
 export const ColumnsThreeCogIcon = make(ColumnsThreeCogSvg);
 export const RepeatIcon = make(RepeatSvg);
+export const Globe02Icon = make(Globe02Svg);

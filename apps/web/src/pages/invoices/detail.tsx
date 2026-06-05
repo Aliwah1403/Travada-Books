@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate, useParams } from "react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { format } from "date-fns";
+import { useFormatDate } from "@/hooks/use-format-date";
 import {
   ArrowLeft01Icon,
   Cancel01Icon,
@@ -113,10 +113,12 @@ function ActivityItem({
   label,
   date,
   done,
+  formatActivityDate,
 }: {
   label: string;
   date: string | null;
   done: boolean;
+  formatActivityDate: (v: string | null) => string;
 }) {
   return (
     <div className='flex items-center gap-3 py-2.5 text-xs'>
@@ -131,7 +133,7 @@ function ActivityItem({
       </span>
       {date && (
         <span className='text-muted-foreground'>
-          {format(new Date(date), "MMM d, HH:mm")}
+          {formatActivityDate(date)}
         </span>
       )}
     </div>
@@ -142,6 +144,7 @@ export function InvoiceDetailPage() {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
   const { orgId, org, user } = useAuth();
+  const { formatDate, formatDateTime, formatActivityDate } = useFormatDate();
   const queryClient = useQueryClient();
   const [internalNote, setInternalNote] = useState("");
   const internalNoteDirtyRef = useRef(false);
@@ -622,20 +625,12 @@ export function InvoiceDetailPage() {
             <div className='px-5'>
               <DetailRow
                 label='Due date'
-                value={
-                  invoice.due_date ?
-                    format(new Date(invoice.due_date), "dd/MM/yyyy")
-                  : "—"
-                }
+                value={formatDate(invoice.due_date)}
               />
               <Separator />
               <DetailRow
                 label='Issue date'
-                value={
-                  invoice.issue_date ?
-                    format(new Date(invoice.issue_date), "dd/MM/yyyy")
-                  : "—"
-                }
+                value={formatDate(invoice.issue_date)}
               />
               <Separator />
               <DetailRow
@@ -652,10 +647,7 @@ export function InvoiceDetailPage() {
                   <Separator />
                   <DetailRow
                     label='Scheduled for'
-                    value={format(
-                      new Date(invoice.scheduled_at),
-                      "dd/MM/yyyy 'at' HH:mm",
-                    )}
+                    value={formatDateTime(invoice.scheduled_at)}
                   />
                 </>
               )}
@@ -690,7 +682,7 @@ export function InvoiceDetailPage() {
                       <div className='flex items-center justify-between py-2.5 text-xs'>
                         <span className='text-muted-foreground'>Next invoice</span>
                         <span className='font-medium'>
-                          {format(new Date(recurringSeries.next_scheduled_at), "MMM d, yyyy")}
+                          {formatDate(recurringSeries.next_scheduled_at)}
                         </span>
                       </div>
                     )}
@@ -698,7 +690,7 @@ export function InvoiceDetailPage() {
                       <span className='text-muted-foreground'>Ends</span>
                       <span className='font-medium'>
                         {recurringSeries.end_type === "on_date" && recurringSeries.end_on_date
-                          ? format(new Date(recurringSeries.end_on_date), "MMM d, yyyy")
+                          ? formatDate(recurringSeries.end_on_date)
                           : recurringSeries.end_type === "after_count" && recurringSeries.end_after_count
                           ? `After ${recurringSeries.end_after_count} invoices`
                           : "Never"}
@@ -765,16 +757,19 @@ export function InvoiceDetailPage() {
                     label='Created'
                     date={invoice.created_at}
                     done
+                    formatActivityDate={formatActivityDate}
                   />
                   <ActivityItem
                     label='Sent'
                     date={invoice.sent_at}
                     done={!!invoice.sent_at}
+                    formatActivityDate={formatActivityDate}
                   />
                   <ActivityItem
                     label='Paid'
                     date={invoice.paid_at}
                     done={!!invoice.paid_at}
+                    formatActivityDate={formatActivityDate}
                   />
                 </div>
               </CollapsibleSection>

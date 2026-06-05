@@ -9,9 +9,12 @@ import { InvoiceTable, type Invoice } from "@/components/invoices/invoice-table"
 import { QuotePreviewSheet } from "@/components/quotes/quote-preview-sheet";
 import { listInvoices, getInvoiceSummary } from "@/lib/queries/invoices";
 import { useAuth } from "@/contexts/auth-context";
-import { format } from "date-fns";
+import { useFormatDate } from "@/hooks/use-format-date";
 
-function toTableInvoice(inv: Awaited<ReturnType<typeof listInvoices>>[number]): Invoice {
+function toTableInvoice(
+  inv: Awaited<ReturnType<typeof listInvoices>>[number],
+  formatDate: (v: string | null | undefined) => string,
+): Invoice {
   const series = inv.invoice_recurring ?? null;
   return {
     id: inv.id,
@@ -23,8 +26,8 @@ function toTableInvoice(inv: Awaited<ReturnType<typeof listInvoices>>[number]): 
     currency: inv.currency,
     convertedAmount: inv.converted_amount ?? null,
     baseCurrency: inv.base_currency ?? null,
-    dueDate: inv.due_date ? format(new Date(inv.due_date), "dd/MM/yyyy") : null,
-    issueDate: inv.issue_date ? format(new Date(inv.issue_date), "dd/MM/yyyy") : null,
+    dueDate: inv.due_date ? formatDate(inv.due_date) : null,
+    issueDate: inv.issue_date ? formatDate(inv.issue_date) : null,
     recurring: (inv.recurring === "recurring" ? "monthly" : inv.recurring) as Invoice["recurring"],
     token: inv.token,
     quoteNumber: inv.quotes?.quote_number ?? undefined,
@@ -50,6 +53,7 @@ export function InvoicesPage() {
   const navigate = useNavigate();
   const { orgId, org } = useAuth();
   const orgCurrency = org?.base_currency ?? "KES";
+  const { formatDate } = useFormatDate();
   const [search, setSearch] = useState("");
   const [previewQuoteId, setPreviewQuoteId] = useState<string | null>(null);
 
@@ -76,7 +80,7 @@ export function InvoicesPage() {
   });
 
 
-  const invoices = rawInvoices.map(toTableInvoice);
+  const invoices = rawInvoices.map((inv) => toTableInvoice(inv, formatDate));
   const stats = {
     open: fmtSummary(openSummary, "Open", orgCurrency),
     overdue: fmtSummary(overdueSummary, "Overdue", orgCurrency),

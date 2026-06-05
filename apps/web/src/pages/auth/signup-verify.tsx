@@ -1,0 +1,184 @@
+import { useRef, useState, useCallback, useEffect } from "react"
+import { useNavigate } from "react-router"
+import { Button } from "@travada-books/ui/components/button"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@travada-books/ui/components/card"
+import * as Sentry from "@sentry/react"
+import { supabase } from "@/lib/supabase"
+
+const OTP_LENGTH = 8
+
+export function SignupVerifyPage() {
+  const navigate = useNavigate()
+  const [digits, setDigits] = useState<string[]>(Array(OTP_LENGTH).fill(""))
+  const [error, setError] = useState("")
+  const [loading, setLoading] = useState(false)
+  const [isResending, setIsResending] = useState(false)
+  const [resendCooldown, setResendCooldown] = useState(30)
+  const inputRefs = useRef<(HTMLInputElement | null)[]>([])
+
+  const email = sessionStorage.getItem("signup_email") ?? ""
+  const next = sessionStorage.getItem("signup_next") ?? "/invoices"
+  const isValidEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+
+  useEffect(() => {
+    if (!isValidEmail) navigate("/signup", { replace: true })
+  }, [isValidEmail, navigate])
+
+  useEffect(() => {
+    if (resendCooldown <= 0) return
+    const id = setTimeout(() => setResendCooldown((n) => n - 1), 1000)
+    return () => clearTimeout(id)
+  }, [resendCooldown])
+
+  const focusAt = (index: number) => inputRefs.current[index]?.focus()
+
+  const handleChange = useCallback((index: number, value: string) => {
+    const digit = value.replace(/\D/g, "").slice(-1)
+    setDigits((prev) => {
+      const next = [...prev]
+      next[index] = digit
+      return next
+    })
+    if (digit && index < OTP_LENGTH - 1) focusAt(index + 1)
+  }, [])
+
+  const handleKeyDown = useCallback(
+    (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
+      if (e.key === "Backspace") {
+        if (digits[index]) {
+          setDigits((prev) => {
+            const next = [...prev]
+            next[index] = ""
+            return next
+          })
+        } else if (index > 0) {
+          focusAt(index - 1)
+        }
+      } else if (e.key === "ArrowLeft" && index > 0) {
+        focusAt(index - 1)
+      } else if (e.key === "ArrowRight" && index < OTP_LENGTH - 1) {
+        focusAt(index + 1)
+      }
+    },
+    [digits],
+  )
+
+  const handlePaste = useCallback((e: React.ClipboardEvent) => {
+    e.preventDefault()
+    const pasted = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, OTP_LENGTH)
+    if (!pasted) return
+    setDigits((prev) => {
+      const next = [...prev]
+      pasted.split("").forEach((char, i) => { next[i] = char })
+      return next
+    })
+    focusAt(Math.min(pasted.length, OTP_LENGTH - 1))
+  }, [])
+
+  if (!isValidEmail) return null
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    const token = digits.join("")
+    if (token.length < OTP_LENGTH) return
+    setError("")
+    setLoading(true)
+    const { error } = await supabase.auth.verifyOtp({ email, token, type: "signup" })
+    setLoading(false)
+    if (error) {
+      if (error.message.toLowerCase().includes("expired") || error.message.toLowerCase().includes("invalid")) {
+        setError("This code is invalid or has expired. Please request a new one.")
+      } else {
+        Sentry.captureException(error)
+        setError("Verification failed. Please try again.")
+      }
+      return
+    }
+    sessionStorage.removeItem("signup_email")
+    sessionStorage.removeItem("signup_next")
+    window.location.href = next
+  }
+
+  async function handleResend() {
+    if (isResending || loading || resendCooldown > 0) return
+    setIsResending(true)
+    try {
+      const { error } = await supabase.auth.resend({ type: "signup", email })
+      if (error) {
+        Sentry.captureException(error)
+        setError("Failed to resend code. Please try again.")
+        return
+      }
+      setDigits(Array(OTP_LENGTH).fill(""))
+      setError("")
+      setResendCooldown(30)
+      focusAt(0)
+    } finally {
+      setIsResending(false)
+    }
+  }
+
+  const isFilled = digits.every(Boolean)
+
+  return (
+    <Card>
+      <CardHeader className="text-center">
+        <CardTitle className="text-base">Check your email</CardTitle>
+        <CardDescription>
+          We sent an 8-digit verification code to{" "}
+          <span className="font-medium text-foreground">{email}</span>
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <form onSubmit={handleSubmit} className="flex flex-col gap-6">
+          <div className="flex justify-center gap-2.5" onPaste={handlePaste}>
+            {digits.map((digit, i) => (
+              <input
+                key={i}
+                ref={(el) => { inputRefs.current[i] = el }}
+                type="text"
+                inputMode="numeric"
+                maxLength={1}
+                value={digit}
+                onChange={(e) => handleChange(i, e.target.value)}
+                onKeyDown={(e) => handleKeyDown(i, e)}
+                autoFocus={i === 0}
+                className="size-11 rounded-md border bg-background text-center text-base font-semibold tracking-widest caret-transparent outline-none ring-offset-background transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              />
+            ))}
+          </div>
+
+          {error && (
+            <p className="text-center text-xs text-destructive">{error}</p>
+          )}
+
+          <div className="flex flex-col gap-3">
+            <Button type="submit" className="w-full" disabled={!isFilled || loading}>
+              {loading ? "Verifying…" : "Verify code"}
+            </Button>
+
+            <p className="text-center text-xs text-muted-foreground">
+              Didn&apos;t receive it?{" "}
+              <button
+                type="button"
+                onClick={handleResend}
+                disabled={isResending || loading || resendCooldown > 0}
+                className="text-foreground underline-offset-4 hover:underline disabled:pointer-events-none disabled:opacity-50"
+              >
+                {isResending ? "Resending…"
+                  : resendCooldown > 0 ? `Resend code in ${resendCooldown}s`
+                  : "Resend code"}
+              </button>
+            </p>
+          </div>
+        </form>
+      </CardContent>
+    </Card>
+  )
+}

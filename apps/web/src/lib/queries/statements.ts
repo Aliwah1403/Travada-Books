@@ -58,3 +58,27 @@ export async function getStatementByToken(token: string): Promise<Statement> {
   if (error) throw error
   return data
 }
+
+export async function getStatement(id: string, orgId: string): Promise<Statement> {
+  const { data, error } = await supabase
+    .from("statements")
+    .select(STATEMENT_SELECT)
+    .eq("id", id)
+    .eq("org_id", orgId)
+    .single()
+
+  if (error) throw error
+  return data
+}
+
+export async function listCustomerStatements(customerId: string, orgId: string): Promise<Statement[]> {
+  const { data, error } = await supabase
+    .from("statements")
+    .select(STATEMENT_SELECT)
+    .eq("customer_id", customerId)
+    .eq("org_id", orgId)
+    .order("created_at", { ascending: false })
+
+  if (error) throw error
+  return data ?? []
+}

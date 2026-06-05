@@ -6,26 +6,11 @@ import { Button } from "@travada-books/ui/components/button"
 import { Input } from "@travada-books/ui/components/input"
 import { Label } from "@travada-books/ui/components/label"
 import { Separator } from "@travada-books/ui/components/separator"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@travada-books/ui/components/select"
 import { Textarea } from "@travada-books/ui/components/textarea"
+import { CurrencySelect } from "@travada-books/ui/components/currency-select"
 import { useAuth } from "@/contexts/auth-context"
 import { updateOrg, uploadOrgLogo } from "@/lib/queries/org"
 
-const currencies = [
-  { code: "KES", name: "Kenyan Shilling" },
-  { code: "USD", name: "US Dollar" },
-  { code: "EUR", name: "Euro" },
-  { code: "GBP", name: "British Pound" },
-  { code: "ZAR", name: "South African Rand" },
-  { code: "UGX", name: "Ugandan Shilling" },
-  { code: "TZS", name: "Tanzanian Shilling" },
-]
 
 export function GeneralSettingsPage() {
   const { org, orgId, refreshOrg } = useAuth()
@@ -174,18 +159,48 @@ export function GeneralSettingsPage() {
               className='hidden'
               onChange={(e) => {
                 const file = e.target.files?.[0]
-                if (file) logoMutation.mutate(file)
-                e.target.value = ""
+                if (!file) return
+                if (file.size > 2 * 1024 * 1024) {
+                  toast.error("Logo must be under 2 MB.")
+                  e.target.value = ""
+                  return
+                }
+                if (file.type !== "image/svg+xml") {
+                  const url = URL.createObjectURL(file)
+                  const img = new Image()
+                  img.onload = () => {
+                    URL.revokeObjectURL(url)
+                    if (img.width > 1024 || img.height > 1024) {
+                      toast.error("Logo must be 1024 × 1024 px or smaller.")
+                      e.target.value = ""
+                      return
+                    }
+                    logoMutation.mutate(file)
+                    e.target.value = ""
+                  }
+                  img.onerror = () => {
+                    URL.revokeObjectURL(url)
+                    toast.error("Unable to decode image.")
+                    e.target.value = ""
+                  }
+                  img.src = url
+                } else {
+                  logoMutation.mutate(file)
+                  e.target.value = ""
+                }
               }}
             />
-            <Button
-              variant='outline'
-              size='sm'
-              onClick={() => fileInputRef.current?.click()}
-              disabled={logoMutation.isPending}
-            >
-              {logoMutation.isPending ? "Uploading…" : "Upload logo"}
-            </Button>
+            <div className='flex flex-col gap-1'>
+              <Button
+                variant='outline'
+                size='sm'
+                onClick={() => fileInputRef.current?.click()}
+                disabled={logoMutation.isPending}
+              >
+                {logoMutation.isPending ? "Uploading…" : "Upload logo"}
+              </Button>
+              <p className='text-xs text-muted-foreground'>PNG, JPG, WebP or SVG · Max 1024 × 1024 px · 2 MB</p>
+            </div>
           </div>
         </div>
 
@@ -218,18 +233,7 @@ export function GeneralSettingsPage() {
 
         <div className='flex flex-col gap-1.5'>
           <Label>Currency</Label>
-          <Select value={currency} onValueChange={setCurrency}>
-            <SelectTrigger className='w-64'>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {currencies.map((c) => (
-                <SelectItem key={c.code} value={c.code}>
-                  {c.code} — {c.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <CurrencySelect value={currency} onValueChange={setCurrency} className="w-64" />
         </div>
 
         <Button

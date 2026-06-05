@@ -102,8 +102,8 @@ function rowToSettings(row: InvoiceTemplateRow): InvoiceSettings {
     logoUrl: row.logo_url ?? null,
     reminderDaysAfterDue: (row.reminder_days_after_due as InvoiceSettings["reminderDaysAfterDue"]) ?? null,
     invoiceNumberPrefix: row.invoice_number_prefix ?? "INV-",
-    invoiceNumberDigits: ([3, 4, 5].includes(row.invoice_number_digits ?? 4)
-      ? row.invoice_number_digits
+    invoiceNumberDigits: (([3, 4, 5] as number[]).includes(row.invoice_number_digits ?? 4)
+      ? (row.invoice_number_digits ?? 4)
       : 4) as InvoiceSettings["invoiceNumberDigits"],
   }
 }

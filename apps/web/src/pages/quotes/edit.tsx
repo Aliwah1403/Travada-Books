@@ -8,6 +8,7 @@ import {
   Delete01Icon,
   FloppyDiskIcon,
 } from "@travada-books/ui/icons";
+import { CurrencySelect } from "@travada-books/ui/components/currency-select";
 import { CustomerCombobox } from "@/components/invoices/customer-combobox";
 import { DatePicker } from "@/components/shared/date-picker";
 import { format } from "date-fns";
@@ -37,7 +38,6 @@ type LineItem = {
   tax: string;
 };
 
-const currencies = ["KES", "USD", "EUR", "GBP", "ZAR", "UGX", "TZS"];
 
 function buildTotals(
   items: LineItem[],
@@ -277,18 +277,7 @@ export function EditQuotePage() {
             </div>
             <div className="flex flex-col gap-1.5">
               <Label className="text-xs">Currency</Label>
-              <Select value={currency} onValueChange={(v) => v && setCurrency(v)}>
-                <SelectTrigger className="text-xs w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {currencies.map((c) => (
-                    <SelectItem key={c} value={c} className="text-xs">
-                      {c}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <CurrencySelect value={currency} onValueChange={(v) => v && setCurrency(v)} />
             </div>
           </div>
 

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery } from "@tanstack/react-query";
@@ -8,6 +9,7 @@ import {
   Copy01Icon,
   CheckmarkCircle01Icon,
   Sent02Icon,
+  ArrowRight01Icon,
 } from "@travada-books/ui/icons";
 import { Button } from "@travada-books/ui/components/button";
 import { Input } from "@travada-books/ui/components/input";
@@ -62,6 +64,7 @@ export function GenerateStatementSheet({
   customerId,
   customerDetails,
 }: GenerateStatementSheetProps) {
+  const navigate = useNavigate();
   const { orgId, org } = useAuth();
   const [generatedLink, setGeneratedLink] = useState<string | null>(null);
   const [generatedStatementId, setGeneratedStatementId] = useState<
@@ -228,26 +231,41 @@ export function GenerateStatementSheet({
               </div>
             </div>
             <Separator />
-            <div className='flex gap-2 px-6 py-4'>
-              <Button
-                variant='outline'
-                className='flex-1'
-                onClick={() => {
-                  form.reset();
-                  setGeneratedLink(null);
-                  setGeneratedStatementId(null);
-                  setIsSending(false);
-                  setHasSent(false);
-                }}
-              >
-                Generate another
-              </Button>
-              <Button
-                className='flex-1'
-                onClick={() => handleOpenChange(false)}
-              >
-                Done
-              </Button>
+            <div className='flex flex-col gap-2 px-6 py-4'>
+              {generatedStatementId && (
+                <Button
+                  variant='outline'
+                  className='w-full gap-1.5'
+                  onClick={() => {
+                    handleOpenChange(false);
+                    navigate(`/statements/${generatedStatementId}`);
+                  }}
+                >
+                  View statement
+                  <ArrowRight01Icon size={13} />
+                </Button>
+              )}
+              <div className='flex gap-2'>
+                <Button
+                  variant='outline'
+                  className='flex-1'
+                  onClick={() => {
+                    form.reset();
+                    setGeneratedLink(null);
+                    setGeneratedStatementId(null);
+                    setIsSending(false);
+                    setHasSent(false);
+                  }}
+                >
+                  Generate another
+                </Button>
+                <Button
+                  className='flex-1'
+                  onClick={() => handleOpenChange(false)}
+                >
+                  Done
+                </Button>
+              </div>
             </div>
           </div>
         : <form

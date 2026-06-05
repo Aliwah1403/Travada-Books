@@ -11,6 +11,7 @@ import { LoginPage } from "@/pages/auth/login"
 import { SignupPage } from "@/pages/auth/signup"
 import { ForgotPasswordPage } from "@/pages/auth/forgot-password"
 import { VerifyOtpPage } from "@/pages/auth/verify-otp"
+import { SignupVerifyPage } from "@/pages/auth/signup-verify"
 import { ResetPasswordPage } from "@/pages/auth/reset-password"
 import { InvoicesPage } from "@/pages/invoices/index"
 import { CreateInvoicePage } from "@/pages/invoices/create"
@@ -53,6 +54,7 @@ const router = createBrowserRouter([
         children: [
           { path: "/login", element: <LoginPage /> },
           { path: "/signup", element: <SignupPage /> },
+          { path: "/signup/verify", element: <SignupVerifyPage /> },
           { path: "/forgot-password", element: <ForgotPasswordPage /> },
           { path: "/forgot-password/verify", element: <VerifyOtpPage /> },
           { path: "/forgot-password/reset", element: <ResetPasswordPage /> },

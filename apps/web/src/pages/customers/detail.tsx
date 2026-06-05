@@ -42,9 +42,10 @@ import {
   listCustomerInvoices,
   getCustomerInvoiceSummary,
 } from "@/lib/queries/invoices";
+import { listCustomerStatements } from "@/lib/queries/statements";
 import { type Invoice } from "@/components/invoices/invoice-table";
 import { useAuth } from "@/contexts/auth-context";
-import { format } from "date-fns";
+import { useFormatDate } from "@/hooks/use-format-date";
 import { toast } from "sonner";
 
 function InfoRow({ label, value }: { label: string; value: string }) {
@@ -60,6 +61,7 @@ export function CustomerDetailPage() {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
   const { orgId } = useAuth();
+  const { formatDate, formatMonthDay } = useFormatDate();
   const queryClient = useQueryClient();
   const [editOpen, setEditOpen] = useState(false);
   const [statementOpen, setStatementOpen] = useState(false);
@@ -74,6 +76,12 @@ export function CustomerDetailPage() {
   const { data: customerInvoices = [] } = useQuery({
     queryKey: ["customer-invoices", id],
     queryFn: () => listCustomerInvoices(id!, orgId!),
+    enabled: !!id && !!orgId,
+  });
+
+  const { data: customerStatements = [] } = useQuery({
+    queryKey: ["customer-statements", id],
+    queryFn: () => listCustomerStatements(id!, orgId!),
     enabled: !!id && !!orgId,
   });
 
@@ -537,29 +545,54 @@ export function CustomerDetailPage() {
           )}
         </div>
 
-        {/* Right main area — invoice history */}
-        <div className='flex flex-1 flex-col overflow-y-auto p-6'>
-          <p className='mb-4 text-sm font-medium'>Invoice history</p>
-          <InvoiceTable
-            data={customerInvoices.map((inv) => ({
-              id: inv.id,
-              number: inv.invoice_number ?? "—",
-              status: inv.status as Invoice["status"],
-              customer: inv.customer_name,
-              amount: inv.total ?? 0,
-              currency: inv.currency,
-              dueDate:
-                inv.due_date ?
-                  format(new Date(inv.due_date), "dd/MM/yyyy")
-                : null,
-              issueDate:
-                inv.issue_date ?
-                  format(new Date(inv.issue_date), "dd/MM/yyyy")
-                : null,
-              recurring: inv.recurring,
-              token: inv.token,
-            }))}
-          />
+        {/* Right main area — invoice history + statement history */}
+        <div className='flex flex-1 flex-col overflow-y-auto p-6 gap-8'>
+          <div>
+            <p className='mb-4 text-sm font-medium'>Invoice history</p>
+            <InvoiceTable
+              data={customerInvoices.map((inv) => ({
+                id: inv.id,
+                number: inv.invoice_number ?? "—",
+                status: inv.status as Invoice["status"],
+                customer: inv.customer_name,
+                amount: inv.total ?? 0,
+                currency: inv.currency,
+                dueDate: inv.due_date ? formatDate(inv.due_date) : null,
+                issueDate: inv.issue_date ? formatDate(inv.issue_date) : null,
+                recurring: inv.recurring,
+                token: inv.token,
+              }))}
+            />
+          </div>
+
+          <div>
+            <p className='mb-4 text-sm font-medium'>Statement history</p>
+            {customerStatements.length === 0 ? (
+              <p className='text-xs text-muted-foreground'>No statements generated yet.</p>
+            ) : (
+              <div className='rounded-lg border bg-background divide-y'>
+                {customerStatements.map((stmt) => {
+                  const from = formatMonthDay(stmt.date_from)
+                  const to = formatMonthDay(stmt.date_to)
+                  return (
+                    <button
+                      key={stmt.id}
+                      onClick={() => navigate(`/statements/${stmt.id}`)}
+                      className='w-full flex items-center justify-between px-4 py-3 text-left hover:bg-muted/40 transition-colors'
+                    >
+                      <div>
+                        <p className='text-xs font-medium'>{from} – {to}</p>
+                        <p className='text-[11px] text-muted-foreground mt-0.5'>
+                          {stmt.snapshot_data?.length ?? 0} invoice{(stmt.snapshot_data?.length ?? 0) !== 1 ? "s" : ""} · Generated {formatMonthDay(stmt.created_at)}
+                        </p>
+                      </div>
+                      <ArrowLeft01Icon size={13} className='text-muted-foreground rotate-180 shrink-0' />
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -616,7 +649,7 @@ export function CustomerDetailPage() {
           businessType: customer.company_type ?? "",
           website: customer.website ?? "",
           vatNumber: customer.vat_number ?? "",
-          country: customer.country ?? "",
+          country: customer.country_code ?? customer.country ?? "",
           currency: customer.preferred_currency ?? undefined,
           addressLine1: customer.address_line1 ?? "",
           addressLine2: customer.address_line2 ?? "",

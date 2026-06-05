@@ -21,32 +21,45 @@ Deno.serve(async (req) => {
   const [firstName, ...rest] = (record.full_name ?? "").split(" ");
   const lastName = rest.join(" ") || undefined;
 
-  // Add to Resend contacts (non-blocking)
-  const RESEND_SEGMENT_ID = Deno.env.get("RESEND_SEGMENT_ID") ?? "";
-  try {
-    await resend.contacts.create({
-      email: record.email,
-      firstName: firstName || undefined,
-      lastName,
-      unsubscribed: false,
-      segmentIds: RESEND_SEGMENT_ID ? [RESEND_SEGMENT_ID] : [],
-    });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    console.error("Resend contacts error (non-fatal):", message);
-  }
+  const TRIGGER_SECRET_KEY = Deno.env.get("TRIGGER_SECRET_KEY");
 
-  try {
-    await resend.emails.send({
+  const triggerPromise = TRIGGER_SECRET_KEY
+    ? fetch("https://api.trigger.dev/api/v1/tasks/resend-add-contact/trigger", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${TRIGGER_SECRET_KEY}`,
+          "Content-Type": "application/json",
+          "x-trigger-api-version": "2023-11-14",
+        },
+        body: JSON.stringify({ payload: { email: record.email, firstName: firstName || undefined, lastName } }),
+      }).then(async (res) => {
+        if (!res.ok) {
+          const text = await res.text().catch(() => "");
+          throw new Error(`Trigger.dev resend-add-contact failed: ${res.status} ${res.statusText} - ${text}`);
+        }
+      }).catch((err) => console.error("Trigger.dev resend-add-contact failed (non-fatal):", err))
+    : Promise.resolve();
+
+  const emailHtml = await render(WelcomeEmail({ firstName: firstName || undefined }));
+
+  const [, emailResult] = await Promise.allSettled([
+    triggerPromise,
+    resend.emails.send({
       from: `Travada Books <${FROM_EMAIL}>`,
       to: record.email,
       replyTo: ["curtis.aliwah@travadasys.com", "nate.muliro@travadasys.com"],
       subject: "Welcome to Travada Books",
-      html: await render(WelcomeEmail({ firstName: firstName || undefined })),
-    });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
+      html: emailHtml,
+    }),
+  ]);
+
+  if (emailResult.status === "rejected") {
+    const message = emailResult.reason instanceof Error ? emailResult.reason.message : String(emailResult.reason);
     console.error("Resend email error:", message);
+    return new Response("Failed to send welcome email", { status: 502 });
+  }
+  if (emailResult.status === "fulfilled" && emailResult.value.error) {
+    console.error("Resend email error:", emailResult.value.error);
     return new Response("Failed to send welcome email", { status: 502 });
   }
 

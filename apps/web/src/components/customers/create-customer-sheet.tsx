@@ -21,6 +21,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@travada-books/ui/components/select";
+import { CurrencySelect } from "@travada-books/ui/components/currency-select";
+import { CountryDropdown } from "@/components/country-dropdown";
+import { countries } from "country-data-list";
 import {
   Accordion,
   AccordionContent,
@@ -88,18 +91,6 @@ const INDUSTRIES = [
   "Other",
 ];
 
-const CURRENCIES = [
-  { code: "KES", label: "KES — Kenyan Shilling" },
-  { code: "USD", label: "USD — US Dollar" },
-  { code: "EUR", label: "EUR — Euro" },
-  { code: "GBP", label: "GBP — British Pound" },
-  { code: "UGX", label: "UGX — Ugandan Shilling" },
-  { code: "TZS", label: "TZS — Tanzanian Shilling" },
-  { code: "RWF", label: "RWF — Rwandan Franc" },
-  { code: "ETB", label: "ETB — Ethiopian Birr" },
-  { code: "NGN", label: "NGN — Nigerian Naira" },
-  { code: "ZAR", label: "ZAR — South African Rand" },
-]
 
 const BUSINESS_TYPES = [
   "B2B",
@@ -111,23 +102,6 @@ const BUSINESS_TYPES = [
   "Other",
 ];
 
-const COUNTRIES = [
-  { name: "Kenya", code: "KE" },
-  { name: "Uganda", code: "UG" },
-  { name: "Tanzania", code: "TZ" },
-  { name: "Rwanda", code: "RW" },
-  { name: "Ethiopia", code: "ET" },
-  { name: "Nigeria", code: "NG" },
-  { name: "Ghana", code: "GH" },
-  { name: "South Africa", code: "ZA" },
-  { name: "United Kingdom", code: "GB" },
-  { name: "United States", code: "US" },
-  { name: "Other", code: "" },
-];
-
-const COUNTRY_CODE: Record<string, string> = Object.fromEntries(
-  COUNTRIES.map((c) => [c.name, c.code])
-);
 
 export function CreateCustomerSheet({
   open,
@@ -182,8 +156,10 @@ export function CreateCustomerSheet({
         city: data.city || undefined,
         state: data.state || undefined,
         zip: data.zip || undefined,
-        country: data.country || undefined,
-        country_code: data.country ? (COUNTRY_CODE[data.country] || undefined) : undefined,
+        country: data.country
+          ? (countries.all.find((c) => c.alpha2 === data.country)?.name ?? data.country)
+          : undefined,
+        country_code: data.country || undefined,
         vat_number: data.vatNumber || undefined,
         industry: data.industry || undefined,
         company_type: data.businessType || undefined,
@@ -500,26 +476,12 @@ export function CreateCustomerSheet({
                       render={({ field, fieldState }) => (
                         <Field data-invalid={fieldState.invalid}>
                           <FieldLabel htmlFor={field.name}>Default Currency</FieldLabel>
-                          <Select
+                          <CurrencySelect
                             name={field.name}
                             value={field.value}
                             onValueChange={field.onChange}
-                          >
-                            <SelectTrigger
-                              id={field.name}
-                              aria-invalid={fieldState.invalid}
-                              className='text-xs'
-                            >
-                              <SelectValue placeholder='Select currency' />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {CURRENCIES.map((c) => (
-                                <SelectItem key={c.code} value={c.code} className='text-xs'>
-                                  {c.label}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                            valid={!fieldState.invalid}
+                          />
                           <FieldDescription>
                             Pre-filled when creating invoices for this customer. You can always change it per invoice.
                           </FieldDescription>
@@ -647,30 +609,11 @@ export function CreateCustomerSheet({
                       render={({ field, fieldState }) => (
                         <Field data-invalid={fieldState.invalid}>
                           <FieldLabel htmlFor={field.name}>Country</FieldLabel>
-                          <Select
-                            name={field.name}
+                          <CountryDropdown
                             value={field.value}
-                            onValueChange={field.onChange}
-                          >
-                            <SelectTrigger
-                              id={field.name}
-                              aria-invalid={fieldState.invalid}
-                              className='text-xs'
-                            >
-                              <SelectValue placeholder='Select country' />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {COUNTRIES.map((c) => (
-                                <SelectItem
-                                  key={c.name}
-                                  value={c.name}
-                                  className='text-xs'
-                                >
-                                  {c.name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                            onChange={(c) => field.onChange(c.alpha2)}
+                            disabled={field.disabled}
+                          />
                           {fieldState.invalid && (
                             <FieldError errors={[fieldState.error]} />
                           )}
