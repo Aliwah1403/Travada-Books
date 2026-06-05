@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback } from "react";
 import { CircleFlag } from "react-circle-flags";
 import { countries } from "country-data-list";
 import {
@@ -49,19 +49,15 @@ export function CountryDropdown({
   className,
 }: CountryDropdownProps) {
   const [open, setOpen] = useState(false);
-  const [selected, setSelected] = useState<Country | undefined>(undefined);
+  const [internalSelected, setInternalSelected] = useState<Country | undefined>(undefined);
 
-  useEffect(() => {
-    if (value) {
-      setSelected(ALL_COUNTRIES.find((c) => c.alpha2 === value));
-    } else {
-      setSelected(undefined);
-    }
-  }, [value]);
+  const selected = value
+    ? ALL_COUNTRIES.find((c) => c.alpha2 === value)
+    : internalSelected;
 
   const handleSelect = useCallback(
     (country: Country) => {
-      setSelected(country);
+      setInternalSelected(country);
       onChange?.(country);
       setOpen(false);
     },

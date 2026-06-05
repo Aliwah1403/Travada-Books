@@ -10,6 +10,7 @@ const json = (body: unknown, status = 200) =>
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders })
+  if (req.method !== "DELETE") return new Response("Method Not Allowed", { status: 405, headers: corsHeaders })
 
   const authorization = req.headers.get("Authorization")
   if (!authorization) return json({ error: "Unauthorized" }, 401)

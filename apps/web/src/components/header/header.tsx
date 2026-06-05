@@ -44,11 +44,16 @@ export function Header({ title }: HeaderProps) {
   );
 
   useEffect(() => {
-    if (!user) return;
+    if (!user) {
+      setSubscriberHash(undefined);
+      return;
+    }
+    const controller = new AbortController();
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!session) return;
+      if (!session || controller.signal.aborted) return;
       fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/novu-hash`, {
         headers: { Authorization: `Bearer ${session.access_token}` },
+        signal: controller.signal,
       })
         .then((res) => res.json())
         .then((data: { hash?: string }) => {
@@ -56,6 +61,7 @@ export function Header({ title }: HeaderProps) {
         })
         .catch(() => {});
     });
+    return () => controller.abort();
   }, [user]);
 
   const toggleTheme = () => {

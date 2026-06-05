@@ -344,6 +344,9 @@ export function CreateInvoicePage() {
     }
   }, [preselectedCustomer, selectedCustomer]);
   const [currency, setCurrency] = useState(org?.base_currency ?? "KES");
+  useEffect(() => {
+    if (org?.base_currency) setCurrency(org.base_currency);
+  }, [org?.base_currency]);
   const [invoiceNumber, setInvoiceNumber] = useState("");
   const [issueDate, setIssueDate] = useState<Date | undefined>(undefined);
   const [dueDate, setDueDate] = useState<Date | undefined>(undefined);

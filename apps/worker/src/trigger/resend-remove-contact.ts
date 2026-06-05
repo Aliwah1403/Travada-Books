@@ -19,26 +19,28 @@ export const resendRemoveContact = task({
       return { skipped: true };
     }
 
-    // List contacts to find ID for this email, then remove by ID
-    const { data: listData, error: listError } = await resend.contacts.list({ audienceId });
-    if (listError) {
-      logger.error("resend-remove-contact: list failed", { error: listError, email: payload.email });
-      throw new Error(listError.message);
+    const { data: contact, error: getError } = await resend.contacts.get({ audienceId, email: payload.email });
+    if (getError) {
+      // 404-equivalent means the contact simply doesn't exist
+      if ("statusCode" in getError && (getError as { statusCode: number }).statusCode === 404) {
+        logger.info("resend-remove-contact: contact not found, nothing to remove");
+        return { notFound: true };
+      }
+      logger.error("resend-remove-contact: get failed", { error: getError });
+      throw new Error(getError.message);
     }
-
-    const contact = listData?.data?.find((c) => c.email === payload.email);
     if (!contact) {
-      logger.info("resend-remove-contact: contact not found, nothing to remove", { email: payload.email });
+      logger.info("resend-remove-contact: contact not found, nothing to remove");
       return { notFound: true };
     }
 
     const { error: removeError } = await resend.contacts.remove({ audienceId, id: contact.id });
     if (removeError) {
-      logger.error("resend-remove-contact: remove failed", { error: removeError, email: payload.email });
+      logger.error("resend-remove-contact: remove failed", { error: removeError });
       throw new Error(removeError.message);
     }
 
-    logger.info("resend-remove-contact: removed", { email: payload.email });
+    logger.info("resend-remove-contact: removed");
     return { removed: true };
   },
 });

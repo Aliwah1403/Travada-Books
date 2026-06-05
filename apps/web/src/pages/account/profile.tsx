@@ -49,7 +49,7 @@ export function ProfilePage() {
 
   const [autoTimezone, setAutoTimezone] = useState(true)
   const [timezone, setTimezone] = useState("Africa/Nairobi")
-  const [dateFormat, setDateFormat] = useState("dd-mm-yyyy")
+  const [dateFormat, setDateFormat] = useState("dd/MM/yyyy")
   const [timeFormat, setTimeFormat] = useState("24h")
   const [lastLoadedProfileId, setLastLoadedProfileId] = useState<string | null>(null)
 
@@ -65,10 +65,14 @@ export function ProfilePage() {
     setEmail(profile.email ?? user?.email ?? "")
     setAutoTimezone(profile.timezone_auto_sync)
     setTimezone(profile.timezone)
-    setDateFormat(profile.date_format === "DD/MM/YYYY" ? "dd-mm-yyyy"
-      : profile.date_format === "MM/DD/YYYY" ? "mm-dd-yyyy"
-      : profile.date_format === "YYYY-MM-DD" ? "yyyy-mm-dd"
-      : "d-mmm-yyyy")
+    // Remap legacy moment-style values that may still be in the DB
+    const legacyMap: Record<string, string> = {
+      "DD/MM/YYYY": "dd/MM/yyyy",
+      "MM/DD/YYYY": "MM/dd/yyyy",
+      "YYYY-MM-DD": "yyyy-MM-dd",
+      "D MMM YYYY": "d MMM yyyy",
+    }
+    setDateFormat(legacyMap[profile.date_format] ?? profile.date_format ?? "dd/MM/yyyy")
     setTimeFormat(profile.time_format === "12h" ? "12h" : "24h")
   }, [profile, user])
 
@@ -119,11 +123,7 @@ export function ProfilePage() {
       updateUserRegional(user!.id, {
         timezone_auto_sync: autoTimezone,
         timezone: autoTimezone ? deviceTimezone : timezone,
-        date_format:
-          dateFormat === "dd-mm-yyyy" ? "DD/MM/YYYY"
-          : dateFormat === "mm-dd-yyyy" ? "MM/DD/YYYY"
-          : dateFormat === "yyyy-mm-dd" ? "YYYY-MM-DD"
-          : "D MMM YYYY",
+        date_format: dateFormat,
         time_format: timeFormat,
       }),
     onSuccess: async () => {
@@ -267,10 +267,10 @@ export function ProfilePage() {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value='dd-mm-yyyy'>DD/MM/YYYY (31/12/2025)</SelectItem>
-              <SelectItem value='mm-dd-yyyy'>MM/DD/YYYY (12/31/2025)</SelectItem>
-              <SelectItem value='yyyy-mm-dd'>YYYY-MM-DD (2025-12-31)</SelectItem>
-              <SelectItem value='d-mmm-yyyy'>D MMM YYYY (31 Dec 2025)</SelectItem>
+              <SelectItem value='dd/MM/yyyy'>DD/MM/YYYY (31/12/2025)</SelectItem>
+              <SelectItem value='MM/dd/yyyy'>MM/DD/YYYY (12/31/2025)</SelectItem>
+              <SelectItem value='yyyy-MM-dd'>YYYY-MM-DD (2025-12-31)</SelectItem>
+              <SelectItem value='d MMM yyyy'>D MMM YYYY (31 Dec 2025)</SelectItem>
             </SelectContent>
           </Select>
         </div>

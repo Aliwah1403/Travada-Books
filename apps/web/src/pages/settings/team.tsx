@@ -616,8 +616,10 @@ export function TeamSettingsPage() {
   const deleteOrgMutation = useMutation({
     mutationFn: async () => {
       const { data: { session } } = await supabase.auth.getSession()
+      if (!session?.access_token) throw new Error("Not authenticated")
+      if (!orgId) throw new Error("No organisation selected")
       const res = await supabase.functions.invoke("delete-organisation", {
-        headers: { Authorization: `Bearer ${session?.access_token}` },
+        headers: { Authorization: `Bearer ${session.access_token}` },
         body: { org_id: orgId },
       })
       if (res.error) throw new Error(res.error.message)

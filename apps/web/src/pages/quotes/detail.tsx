@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useParams, Link } from "react-router";
-import { format } from "date-fns";
+import { useFormatDate } from "@/hooks/use-format-date";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft01Icon,
@@ -91,11 +91,13 @@ function ActivityItem({
   date,
   done,
   note,
+  formatActivityDate,
 }: {
   label: string;
   date: string | null;
   done: boolean;
   note?: string | null;
+  formatActivityDate: (v: string | null) => string;
 }) {
   return (
     <div className='flex items-start gap-3 py-2.5 text-xs'>
@@ -113,7 +115,7 @@ function ActivityItem({
       </div>
       {date && (
         <span className='shrink-0 text-muted-foreground'>
-          {format(new Date(date), "MMM d, HH:mm")}
+          {formatActivityDate(date)}
         </span>
       )}
     </div>
@@ -125,6 +127,7 @@ export function QuoteDetailPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { orgId, org, user } = useAuth();
+  const { formatDate, formatActivityDate } = useFormatDate();
   const [copied, setCopied] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [isPdfDownloading, setIsPdfDownloading] = useState(false);
@@ -596,19 +599,11 @@ export function QuoteDetailPage() {
               <div className='space-y-1'>
                 <div className='flex justify-between text-xs'>
                   <span className='text-muted-foreground'>Issue date:</span>
-                  <span className='font-medium'>
-                    {quote.issue_date ?
-                      format(new Date(quote.issue_date), "dd/MM/yyyy")
-                    : "—"}
-                  </span>
+                  <span className='font-medium'>{formatDate(quote.issue_date)}</span>
                 </div>
                 <div className='flex justify-between text-xs'>
                   <span className='text-muted-foreground'>Valid until:</span>
-                  <span className='font-medium'>
-                    {quote.valid_until ?
-                      format(new Date(quote.valid_until), "dd/MM/yyyy")
-                    : "—"}
-                  </span>
+                  <span className='font-medium'>{formatDate(quote.valid_until)}</span>
                 </div>
                 <div className='flex justify-between text-xs'>
                   <span className='text-muted-foreground'>Currency:</span>
@@ -717,20 +712,12 @@ export function QuoteDetailPage() {
             <div className='px-5'>
               <DetailRow
                 label='Valid until'
-                value={
-                  quote.valid_until ?
-                    format(new Date(quote.valid_until), "dd/MM/yyyy")
-                  : "—"
-                }
+                value={formatDate(quote.valid_until)}
               />
               <Separator />
               <DetailRow
                 label='Issue date'
-                value={
-                  quote.issue_date ?
-                    format(new Date(quote.issue_date), "dd/MM/yyyy")
-                  : "—"
-                }
+                value={formatDate(quote.issue_date)}
               />
               <Separator />
               <DetailRow label='Quote no.' value={quote.quote_number ?? "—"} />
@@ -740,9 +727,9 @@ export function QuoteDetailPage() {
             <div className='px-5'>
               <CollapsibleSection title='Activity'>
                 <div className='flex flex-col'>
-                  <ActivityItem label='Created' date={quote.created_at} done />
+                  <ActivityItem label='Created' date={quote.created_at} done formatActivityDate={formatActivityDate} />
                   {quote.sent_at && (
-                    <ActivityItem label='Sent' date={quote.sent_at} done />
+                    <ActivityItem label='Sent' date={quote.sent_at} done formatActivityDate={formatActivityDate} />
                   )}
                   {quote.declined_at && (
                     <ActivityItem
@@ -750,16 +737,18 @@ export function QuoteDetailPage() {
                       date={quote.declined_at}
                       done
                       note={quote.decline_reason}
+                      formatActivityDate={formatActivityDate}
                     />
                   )}
                   {quote.resent_at && (
-                    <ActivityItem label='Resent' date={quote.resent_at} done />
+                    <ActivityItem label='Resent' date={quote.resent_at} done formatActivityDate={formatActivityDate} />
                   )}
                   {quote.accepted_at && (
                     <ActivityItem
                       label='Accepted'
                       date={quote.accepted_at}
                       done
+                      formatActivityDate={formatActivityDate}
                     />
                   )}
                   {!quote.accepted_at &&
@@ -769,6 +758,7 @@ export function QuoteDetailPage() {
                         label='Awaiting response'
                         date={null}
                         done={false}
+                        formatActivityDate={formatActivityDate}
                       />
                     )}
                   {quote.declined_at &&
@@ -778,6 +768,7 @@ export function QuoteDetailPage() {
                         label='Awaiting response'
                         date={null}
                         done={false}
+                        formatActivityDate={formatActivityDate}
                       />
                     )}
                 </div>

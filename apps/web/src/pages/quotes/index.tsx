@@ -9,7 +9,7 @@ import { QuoteStats } from "@/components/quotes/quote-stats";
 import { QuoteTable, type Quote as UIQuote } from "@/components/quotes/quote-table";
 import { listQuotes } from "@/lib/queries/quotes";
 import { useAuth } from "@/contexts/auth-context";
-import { format } from "date-fns";
+import { useFormatDate } from "@/hooks/use-format-date";
 
 function resolveStatus(status: string, validUntil: string | null): UIQuote["status"] {
   if (status === "sent" && validUntil && new Date(validUntil) < new Date()) {
@@ -36,6 +36,7 @@ export function QuotesPage() {
   const navigate = useNavigate();
   const { orgId, org } = useAuth();
   const orgCurrency = org?.base_currency ?? "KES";
+  const { formatDate } = useFormatDate();
   const [search, setSearch] = useState("");
 
   const { data: rawQuotes = [], isLoading } = useQuery({
@@ -49,12 +50,12 @@ export function QuotesPage() {
     number: q.quote_number ?? "—",
     token: q.token,
     status: resolveStatus(q.status, q.valid_until),
-    validUntil: q.valid_until ? format(new Date(q.valid_until), "dd/MM/yyyy") : "—",
+    validUntil: q.valid_until ? formatDate(q.valid_until) : "—",
     customer: q.customer_name ?? "—",
     customerLogoUrl: q.customers?.logo_url ?? null,
     amount: q.total ?? 0,
     currency: q.currency,
-    issueDate: q.issue_date ? format(new Date(q.issue_date), "dd/MM/yyyy") : "—",
+    issueDate: q.issue_date ? formatDate(q.issue_date) : "—",
   }));
 
   const stats = getStats(quotes, orgCurrency);

@@ -178,6 +178,11 @@ export function GeneralSettingsPage() {
                     logoMutation.mutate(file)
                     e.target.value = ""
                   }
+                  img.onerror = () => {
+                    URL.revokeObjectURL(url)
+                    toast.error("Unable to decode image.")
+                    e.target.value = ""
+                  }
                   img.src = url
                 } else {
                   logoMutation.mutate(file)

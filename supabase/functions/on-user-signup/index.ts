@@ -32,6 +32,11 @@ Deno.serve(async (req) => {
           "x-trigger-api-version": "2023-11-14",
         },
         body: JSON.stringify({ payload: { email: record.email, firstName: firstName || undefined, lastName } }),
+      }).then(async (res) => {
+        if (!res.ok) {
+          const text = await res.text().catch(() => "");
+          throw new Error(`Trigger.dev resend-add-contact failed: ${res.status} ${res.statusText} - ${text}`);
+        }
       }).catch((err) => console.error("Trigger.dev resend-add-contact failed (non-fatal):", err))
     : Promise.resolve();
 
@@ -51,6 +56,10 @@ Deno.serve(async (req) => {
   if (emailResult.status === "rejected") {
     const message = emailResult.reason instanceof Error ? emailResult.reason.message : String(emailResult.reason);
     console.error("Resend email error:", message);
+    return new Response("Failed to send welcome email", { status: 502 });
+  }
+  if (emailResult.status === "fulfilled" && emailResult.value.error) {
+    console.error("Resend email error:", emailResult.value.error);
     return new Response("Failed to send welcome email", { status: 502 });
   }
 

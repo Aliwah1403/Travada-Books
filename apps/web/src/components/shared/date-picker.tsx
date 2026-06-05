@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { format } from "date-fns";
+import { useFormatDate } from "@/hooks/use-format-date";
 import type { DropdownNavProps, DropdownProps } from "react-day-picker";
 import { Calendar01Icon } from "@travada-books/ui/icons";
 import { Button } from "@travada-books/ui/components/button";
@@ -42,6 +42,7 @@ export function DatePicker({
   className,
 }: DatePickerProps) {
   const [open, setOpen] = useState(false);
+  const { formatDate } = useFormatDate();
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -57,7 +58,7 @@ export function DatePicker({
             )}
           >
             <Calendar01Icon size={13} className="shrink-0" />
-            <span>{value ? format(value, "dd/MM/yyyy") : placeholder}</span>
+            <span>{value ? formatDate(value) : placeholder}</span>
           </button>
         }
       />
