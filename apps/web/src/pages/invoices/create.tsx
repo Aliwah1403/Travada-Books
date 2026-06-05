@@ -343,7 +343,7 @@ export function CreateInvoicePage() {
       });
     }
   }, [preselectedCustomer, selectedCustomer]);
-  const [currency, setCurrency] = useState("KES");
+  const [currency, setCurrency] = useState(org?.base_currency ?? "KES");
   const [invoiceNumber, setInvoiceNumber] = useState("");
   const [issueDate, setIssueDate] = useState<Date | undefined>(undefined);
   const [dueDate, setDueDate] = useState<Date | undefined>(undefined);

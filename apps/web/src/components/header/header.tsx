@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router";
 import { toast } from "sonner";
 import { Inbox } from "@novu/react";
@@ -39,6 +39,24 @@ export function Header({ title }: HeaderProps) {
   const { user, avatarUrl } = useAuth();
   const navigate = useNavigate();
   const [signingOut, setSigningOut] = useState(false);
+  const [subscriberHash, setSubscriberHash] = useState<string | undefined>(
+    undefined,
+  );
+
+  useEffect(() => {
+    if (!user) return;
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!session) return;
+      fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/novu-hash`, {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      })
+        .then((res) => res.json())
+        .then((data: { hash?: string }) => {
+          if (data.hash) setSubscriberHash(data.hash);
+        })
+        .catch(() => {});
+    });
+  }, [user]);
 
   const toggleTheme = () => {
     setTheme(
@@ -81,7 +99,8 @@ export function Header({ title }: HeaderProps) {
           onClick={toggleTheme}
           aria-label={
             theme === "dark" ? "Switch to light theme"
-            : theme === "light" ? "Switch to system theme"
+            : theme === "light" ?
+              "Switch to system theme"
             : "Switch to dark theme"
           }
         >
@@ -92,6 +111,7 @@ export function Header({ title }: HeaderProps) {
         <Inbox
           applicationIdentifier={import.meta.env.VITE_NOVU_APP_ID ?? ""}
           subscriberId={user?.id ?? ""}
+          subscriberHash={subscriberHash}
           tabs={[
             { label: "All" },
             { label: "Invoices", filter: { tags: ["invoices"] } },

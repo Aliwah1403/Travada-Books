@@ -296,7 +296,7 @@ export function CreateQuotePage() {
 
   const [selectedCustomer, setSelectedCustomer] = useState<SelectedCustomer | null>(null);
   const [deliveryMode, setDeliveryMode] = useState<"draft" | "send">("draft");
-  const [currency, setCurrency] = useState("KES");
+  const [currency, setCurrency] = useState(org?.base_currency ?? "KES");
   const [quoteNumber, setQuoteNumber] = useState("");
   const [quoteNumberError, setQuoteNumberError] = useState<string | null>(null);
   const [isManualQuoteNumber, setIsManualQuoteNumber] = useState(false);
