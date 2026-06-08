@@ -116,9 +116,8 @@ export async function removeMember(memberId: string): Promise<void> {
 }
 
 export async function revokeInvitation(invitationId: string): Promise<void> {
-  const { error } = await supabase
-    .from("organization_members")
-    .delete()
-    .eq("id", invitationId)
+  const { error } = await supabase.rpc("revoke_invitation", {
+    invitation_id: invitationId,
+  })
   if (error) throw new Error(error.message)
 }
