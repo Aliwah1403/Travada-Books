@@ -1,4 +1,4 @@
-import { Outlet, Navigate, useLocation } from "react-router"
+import { Outlet, Navigate, useLocation, useSearchParams } from "react-router"
 import { useTheme } from "@/components/theme-provider"
 import { useAuth } from "@/contexts/auth-context"
 import LogoGreen from "@/assets/Logo-Green.svg"
@@ -13,13 +13,16 @@ export function OnboardingLayout() {
   const { theme } = useTheme()
   const { user, loading, orgId, orgLoading } = useAuth()
   const { pathname } = useLocation()
+  const [searchParams] = useSearchParams()
+  const isCreateMode = searchParams.get("mode") === "create"
 
   if (loading || orgLoading) return null
   if (!user) return <Navigate to="/login" replace />
-  if (orgId) return <Navigate to="/invoices" replace />
+  // Allow authenticated users with an org through when creating an additional org
+  if (orgId && !isCreateMode) return <Navigate to="/invoices" replace />
 
   const pending = sessionStorage.getItem("pendingInviteToken")
-  if (pending) return <Navigate to={`/accept-invite?token=${pending}`} replace />
+  if (pending && !isCreateMode) return <Navigate to={`/accept-invite?token=${pending}`} replace />
 
   const logo = theme === "dark" ? LogoLime : LogoGreen
   const currentStep = STEPS.findIndex((s) => s.path === pathname)

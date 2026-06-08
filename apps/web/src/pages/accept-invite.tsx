@@ -56,8 +56,12 @@ export function AcceptInvitePage() {
     const info = state.info
     setState({ kind: "accepting" })
     acceptInvite(token)
-      .then(() => {
+      .then(async (orgId) => {
         sessionStorage.removeItem("pendingInviteToken")
+        // Set the newly joined org as active
+        if (user) {
+          await supabase.from("users").update({ active_org_id: orgId }).eq("id", user.id)
+        }
         // Fire-and-forget — token IS the organization_members UUID (the memberId)
         supabase.functions
           .invoke("notify-team-joined", { body: { memberId: token } })

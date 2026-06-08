@@ -1,5 +1,6 @@
 import { render } from "npm:@react-email/render@1";
 import { resend, FROM_EMAIL } from "../_shared/resend.ts";
+import { db } from "../_shared/db.ts";
 import { WelcomeEmail } from "../_shared/emails/welcome.tsx";
 
 Deno.serve(async (req) => {
@@ -20,6 +21,38 @@ Deno.serve(async (req) => {
 
   const [firstName, ...rest] = (record.full_name ?? "").split(" ");
   const lastName = rest.join(" ") || undefined;
+
+  // Auto-accept any pending invite for this email (user signed up via invite link)
+  const { data: pendingInvite } = await db
+    .from("organization_members")
+    .select("id, org_id")
+    .eq("email", record.email.toLowerCase())
+    .eq("status", "invited")
+    .gt("expires_at", new Date().toISOString())
+    .limit(1)
+    .maybeSingle()
+
+  if (pendingInvite) {
+    await Promise.all([
+      db
+        .from("organization_members")
+        .update({ user_id: record.id, status: "active" })
+        .eq("id", pendingInvite.id),
+      db
+        .from("users")
+        .update({ active_org_id: pendingInvite.org_id })
+        .eq("id", record.id),
+    ])
+    // Fire-and-forget team joined notification
+    fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/notify-team-joined`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ memberId: pendingInvite.id }),
+    }).catch((err) => console.error("notify-team-joined failed (non-fatal):", err))
+  }
 
   const TRIGGER_SECRET_KEY = Deno.env.get("TRIGGER_SECRET_KEY");
 
