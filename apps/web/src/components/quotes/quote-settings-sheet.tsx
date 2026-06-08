@@ -11,6 +11,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@travada-books/ui/components/select";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@travada-books/ui/components/tooltip";
 import { cn } from "@travada-books/ui/lib/utils";
 import { Label } from "@travada-books/ui/components/label";
 import { Separator } from "@travada-books/ui/components/separator";
@@ -135,6 +140,7 @@ type Props = {
   onOpenChange: (open: boolean) => void;
   settings: QuoteSettings;
   onSettingsChange: (settings: QuoteSettings) => void;
+  lockNumberFormat?: boolean;
 };
 
 export function QuoteSettingsSheet({
@@ -142,6 +148,7 @@ export function QuoteSettingsSheet({
   onOpenChange,
   settings,
   onSettingsChange,
+  lockNumberFormat = false,
 }: Props) {
   function update<K extends keyof QuoteSettings>(
     key: K,
@@ -238,30 +245,46 @@ export function QuoteSettingsSheet({
                 Format used when generating quote numbers.
               </p>
             </div>
-            <div className='flex items-center gap-2'>
-              <Input
-                value={settings.quoteNumberPrefix}
-                onChange={(e) => update("quoteNumberPrefix", e.target.value)}
-                placeholder='QUO-'
-                className='text-xs w-24'
-                maxLength={10}
-              />
-              <Select
-                value={String(settings.quoteNumberDigits)}
-                onValueChange={(v) =>
-                  update("quoteNumberDigits", Number(v) as 3 | 4 | 5)
-                }
-              >
-                <SelectTrigger className='text-xs w-20'>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value='3' className='text-xs'>3 digits</SelectItem>
-                  <SelectItem value='4' className='text-xs'>4 digits</SelectItem>
-                  <SelectItem value='5' className='text-xs'>5 digits</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div
+                  className={cn(
+                    "flex items-center gap-2",
+                    lockNumberFormat && "cursor-not-allowed opacity-50",
+                  )}
+                >
+                  <Input
+                    value={settings.quoteNumberPrefix}
+                    onChange={(e) => update("quoteNumberPrefix", e.target.value)}
+                    placeholder='QUO-'
+                    className='text-xs w-24'
+                    maxLength={10}
+                    disabled={lockNumberFormat}
+                  />
+                  <Select
+                    value={String(settings.quoteNumberDigits)}
+                    onValueChange={(v) =>
+                      update("quoteNumberDigits", Number(v) as 3 | 4 | 5)
+                    }
+                    disabled={lockNumberFormat}
+                  >
+                    <SelectTrigger className='text-xs w-20'>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value='3' className='text-xs'>3 digits</SelectItem>
+                      <SelectItem value='4' className='text-xs'>4 digits</SelectItem>
+                      <SelectItem value='5' className='text-xs'>5 digits</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </TooltipTrigger>
+              {lockNumberFormat && (
+                <TooltipContent side='bottom'>
+                  Format is locked once quotes have been created
+                </TooltipContent>
+              )}
+            </Tooltip>
             <p className='text-[11px] text-muted-foreground'>
               Preview:{" "}
               <span className='font-medium text-foreground'>

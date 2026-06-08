@@ -388,6 +388,18 @@ export function CreateQuotePage() {
     enabled: !!orgId,
   });
 
+  const { data: quotesExist } = useQuery({
+    queryKey: ["quotes-exist", orgId],
+    queryFn: async () => {
+      const { count } = await supabase
+        .from("quotes")
+        .select("id", { count: "exact", head: true })
+        .eq("org_id", orgId!);
+      return (count ?? 0) > 0;
+    },
+    enabled: !!orgId,
+  });
+
   const { data: invoiceTemplate } = useQuery({
     queryKey: ["invoice-template", orgId],
     queryFn: () => getOrgInvoiceTemplate(orgId!),
@@ -852,6 +864,7 @@ export function CreateQuotePage() {
           setQuoteSettings(s);
           setSettingsDirty(true);
         }}
+        lockNumberFormat={quotesExist ?? false}
       />
     </div>
   );

@@ -456,6 +456,7 @@ export function EditQuotePage() {
           setQuoteSettings(s);
           setSettingsDirty(true);
         }}
+        lockNumberFormat
       />
     </div>
   );

@@ -688,6 +688,7 @@ export function EditInvoicePage() {
           setSettingsDirty(true);
         }}
         orgId={orgId ?? ""}
+        lockNumberFormat
       />
 
       {/* Split panel */}

@@ -19,17 +19,20 @@ export function makeDateFormatters(
   const tz = timezone || "UTC"
 
   function toZoned(value: string | Date): TZDate {
-    let d: Date
-    if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
-      const [year, month, day] = value.split("-").map(Number)
-      d = new Date(year, month - 1, day)
-    } else {
-      d = typeof value === "string" ? new Date(value) : value
-    }
     try {
-      return new TZDate(d, tz)
+      // Date-only string "YYYY-MM-DD": use parts directly so no timezone shift
+      if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+        const [year, month, day] = value.split("-").map(Number)
+        return new TZDate(year, month - 1, day, tz)
+      }
+      // Date object from a date picker: local parts represent the selected date
+      if (value instanceof Date) {
+        return new TZDate(value.getFullYear(), value.getMonth(), value.getDate(), tz)
+      }
+      // Timestamp string: apply full timezone conversion
+      return new TZDate(new Date(value), tz)
     } catch {
-      return new TZDate(d, "UTC")
+      return new TZDate(new Date(), "UTC")
     }
   }
 

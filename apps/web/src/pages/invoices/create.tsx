@@ -375,6 +375,18 @@ export function CreateInvoicePage() {
     enabled: !!orgId,
   });
 
+  const { data: invoicesExist } = useQuery({
+    queryKey: ["invoices-exist", orgId],
+    queryFn: async () => {
+      const { count } = await supabase
+        .from("invoices")
+        .select("id", { count: "exact", head: true })
+        .eq("org_id", orgId!);
+      return (count ?? 0) > 0;
+    },
+    enabled: !!orgId,
+  });
+
   const { data: savedTemplate } = useQuery({
     queryKey: ["invoice-template", orgId],
     queryFn: () => getOrgInvoiceTemplate(orgId!),
@@ -738,6 +750,7 @@ export function CreateInvoicePage() {
           setSettingsDirty(true);
         }}
         orgId={orgId ?? ""}
+        lockNumberFormat={invoicesExist ?? false}
       />
 
       {/* Split panel */}
