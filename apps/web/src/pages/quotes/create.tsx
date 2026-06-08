@@ -119,6 +119,7 @@ function QuotePreview({
   org: UserOrg | null;
   logoUrl: string | null;
 }) {
+  const { formatDate } = useFormatDate();
   const { subtotal, tax_amount, discount, total } = computeTotals(
     items,
     discountType,

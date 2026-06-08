@@ -55,7 +55,7 @@ import { useAuth } from "@/contexts/auth-context";
 import { supabase } from "@/lib/supabase";
 import { Spinner } from "@/components/shared/spinner";
 import { InvoicePreview, InvoicePdf } from "@/components/invoice-templates";
-import { downloadPdf } from "@/lib/pdf-download";
+import { downloadPdf, urlToDataUrl } from "@/lib/pdf-download";
 import { toast } from "sonner";
 
 const RECURRING_LABELS: Record<string, string> = {
@@ -388,9 +388,14 @@ export function InvoiceDetailPage() {
     if (!invoice) return;
     setIsPdfDownloading(true);
     try {
+      const rawLogoUrl = documentData.from?.logo_url ?? null;
+      const logoDataUrl = rawLogoUrl ? await urlToDataUrl(rawLogoUrl).catch(() => null) : null;
+      const pdfData = logoDataUrl
+        ? { ...documentData, from: { ...documentData.from, logo_url: logoDataUrl } }
+        : documentData;
       await downloadPdf(
         <InvoicePdf
-          data={documentData}
+          data={pdfData}
           invoiceTemplate={invoice.invoice_template}
         />,
         invoice.invoice_number ?? "Invoice",

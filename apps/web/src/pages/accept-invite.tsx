@@ -163,7 +163,10 @@ export function AcceptInvitePage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-2">
-            <Button className="w-full" onClick={() => navigate(`/login?next=${nextParam}`)}>
+            <Button className="w-full" onClick={async () => {
+              await supabase.auth.signOut({ scope: "local" })
+              navigate(`/login?next=${nextParam}`)
+            }}>
               Sign in with the right account
             </Button>
             <Button variant="ghost" className="w-full" onClick={() => navigate("/invoices")}>

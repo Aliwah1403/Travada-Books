@@ -48,7 +48,7 @@ import { getCustomer } from "@/lib/queries/customers";
 import { supabase } from "@/lib/supabase";
 import type { Invoice } from "@/lib/queries/invoices";
 import { InvoicePdf } from "@/components/invoice-templates";
-import { downloadPdf } from "@/lib/pdf-download";
+import { downloadPdf, urlToDataUrl } from "@/lib/pdf-download";
 
 function DetailRow({ label, value }: { label: string; value: string }) {
   return (
@@ -241,6 +241,8 @@ export function QuoteDetailPage() {
     try {
       const from = (quote.from_details ?? {}) as Record<string, string | null>;
       const customerSnap = (quote.customer_details ?? {}) as Record<string, string | null>;
+      const rawLogoUrl = from["logo_url"] ?? org?.logo_url ?? null;
+      const logoDataUrl = rawLogoUrl ? await urlToDataUrl(rawLogoUrl).catch(() => null) : null;
       const documentData = {
         label: "QUOTATION",
         number: quote.quote_number,
@@ -250,7 +252,7 @@ export function QuoteDetailPage() {
         secondaryDateLabel: "Valid until:",
         from: {
           name: from["name"] ?? org?.name,
-          logo_url: from["logo_url"] ?? org?.logo_url,
+          logo_url: logoDataUrl,
           address_line1: from["address_line1"] ?? org?.address_line1,
           address_line2: from["address_line2"] ?? org?.address_line2,
           city: from["city"] ?? org?.city,
