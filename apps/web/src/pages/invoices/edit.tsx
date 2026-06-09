@@ -677,6 +677,7 @@ export function EditInvoicePage() {
           setInvoiceSettingsOpen(open);
           if (!open && settingsDirty && orgId) {
             setSettingsDirty(false);
+            queryClient.setQueryData(["invoice-template", orgId], invoiceSettings);
             upsertOrgInvoiceTemplate(orgId, invoiceSettings).catch(() =>
               toast.error("Failed to save invoice settings"),
             );
@@ -688,6 +689,7 @@ export function EditInvoicePage() {
           setSettingsDirty(true);
         }}
         orgId={orgId ?? ""}
+        lockNumberFormat
       />
 
       {/* Split panel */}

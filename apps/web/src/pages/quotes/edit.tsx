@@ -7,6 +7,7 @@ import {
   PlusSignIcon,
   Delete01Icon,
   FloppyDiskIcon,
+  Settings02Icon,
 } from "@travada-books/ui/icons";
 import { CurrencySelect } from "@travada-books/ui/components/currency-select";
 import { CustomerCombobox } from "@/components/invoices/customer-combobox";
@@ -29,6 +30,12 @@ import { toast } from "sonner";
 import { cn } from "@travada-books/ui/lib/utils";
 import { useAuth } from "@/contexts/auth-context";
 import { getQuote, updateQuote } from "@/lib/queries/quotes";
+import { getOrgQuoteTemplate, upsertOrgQuoteTemplate } from "@/lib/queries/quote-templates";
+import { QuoteSettingsSheet } from "@/components/quotes/quote-settings-sheet";
+import {
+  defaultQuoteSettings,
+  type QuoteSettings,
+} from "@/components/quotes/quote-settings";
 
 type LineItem = {
   id: string;
@@ -96,6 +103,20 @@ export function EditQuotePage() {
     queryFn: () => getQuote(id!, orgId!),
     enabled: !!id && !!orgId,
   });
+
+  const [quoteSettingsOpen, setQuoteSettingsOpen] = useState(false);
+  const [quoteSettings, setQuoteSettings] = useState<QuoteSettings>(defaultQuoteSettings);
+  const [settingsDirty, setSettingsDirty] = useState(false);
+
+  const { data: quoteTemplate } = useQuery({
+    queryKey: ["quote-template", orgId],
+    queryFn: () => getOrgQuoteTemplate(orgId!),
+    enabled: !!orgId,
+  });
+
+  useEffect(() => {
+    if (quoteTemplate) setQuoteSettings(quoteTemplate);
+  }, [quoteTemplate]);
 
   // Pre-populate form from existing quote
   useEffect(() => {
@@ -238,14 +259,25 @@ export function EditQuotePage() {
             <p className="text-xs text-muted-foreground font-mono">{quote.quote_number}</p>
           </div>
         </div>
-        <Button
-          className="gap-1.5"
-          onClick={() => saveEdit()}
-          disabled={isPending || !customerId || !quoteNumber}
-        >
-          <FloppyDiskIcon size={13} />
-          Save Changes
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5 text-xs"
+            onClick={() => setQuoteSettingsOpen(true)}
+          >
+            <Settings02Icon size={13} />
+            Quote Settings
+          </Button>
+          <Button
+            className="gap-1.5"
+            onClick={() => saveEdit()}
+            disabled={isPending || !customerId || !quoteNumber}
+          >
+            <FloppyDiskIcon size={13} />
+            Save Changes
+          </Button>
+        </div>
       </div>
 
       {/* Split panel */}
@@ -407,6 +439,26 @@ export function EditQuotePage() {
           <p className="text-xs text-muted-foreground">Preview updates on save</p>
         </div>
       </div>
+
+      <QuoteSettingsSheet
+        open={quoteSettingsOpen}
+        onOpenChange={(open) => {
+          setQuoteSettingsOpen(open);
+          if (!open && settingsDirty && orgId) {
+            setSettingsDirty(false);
+            queryClient.setQueryData(["quote-template", orgId], quoteSettings);
+            upsertOrgQuoteTemplate(orgId, quoteSettings).catch(() =>
+              toast.error("Failed to save quote settings"),
+            );
+          }
+        }}
+        settings={quoteSettings}
+        onSettingsChange={(s) => {
+          setQuoteSettings(s);
+          setSettingsDirty(true);
+        }}
+        lockNumberFormat
+      />
     </div>
   );
 }

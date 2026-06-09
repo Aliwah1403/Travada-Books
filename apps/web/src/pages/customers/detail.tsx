@@ -578,7 +578,7 @@ export function CustomerDetailPage() {
                     <button
                       key={stmt.id}
                       onClick={() => navigate(`/statements/${stmt.id}`)}
-                      className='w-full flex items-center justify-between px-4 py-3 text-left hover:bg-muted/40 transition-colors'
+                      className='w-full flex items-center justify-between px-4 py-3 text-left fine-hover:bg-muted/40 transition-colors'
                     >
                       <div>
                         <p className='text-xs font-medium'>{from} – {to}</p>

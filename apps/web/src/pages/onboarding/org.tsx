@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { useNavigate } from "react-router"
+import { useNavigate, useSearchParams } from "react-router"
 import { Button } from "@travada-books/ui/components/button"
 import { Input } from "@travada-books/ui/components/input"
 import { Label } from "@travada-books/ui/components/label"
@@ -16,11 +16,11 @@ import * as Sentry from "@sentry/react"
 import { supabase } from "@/lib/supabase"
 import { useAuth } from "@/contexts/auth-context"
 
-
-
 export function OnboardingOrgPage() {
   const navigate = useNavigate()
-  const { user } = useAuth()
+  const [searchParams] = useSearchParams()
+  const isCreateMode = searchParams.get("mode") === "create"
+  const { user, refreshOrg } = useAuth()
 
   const [name, setName] = useState("")
   const [email, setEmail] = useState("")
@@ -64,13 +64,29 @@ export function OnboardingOrgPage() {
       return
     }
 
-    navigate("/onboarding/invite", { state: { orgId } })
+    // Always set active_org_id so the new org becomes the active one
+    const { error: updateError } = await supabase.from("users").update({ active_org_id: orgId }).eq("id", user.id)
+    if (updateError) {
+      setError("Failed to set up your account. Please try again.")
+      setLoading(false)
+      return
+    }
+
+    if (isCreateMode) {
+      // Adding an additional org: refresh context then go to dashboard
+      await refreshOrg()
+      navigate("/invoices")
+    } else {
+      navigate("/onboarding/invite", { state: { orgId } })
+    }
   }
 
   return (
     <Card>
       <CardHeader className="text-center">
-        <CardTitle className="text-base">Tell us about your business</CardTitle>
+        <CardTitle className="text-base">
+          {isCreateMode ? "Create a new organization" : "Tell us about your business"}
+        </CardTitle>
         <CardDescription>This is how your invoices will be identified</CardDescription>
       </CardHeader>
       <CardContent>

@@ -3,8 +3,8 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "npx trigger.dev@latest dev",
-    "deploy": "npx trigger.dev@latest deploy"
+    "dev": "npx trigger.dev@latest dev --profile travada",
+    "deploy": "npx trigger.dev@latest deploy --profile travada"
   },
   "keywords": [],
   "license": "ISC",

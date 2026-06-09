@@ -13,6 +13,8 @@ import {
   Settings02Icon,
   GridIcon,
   MoreVerticalIcon,
+  TickIcon,
+  PlusSignIcon,
 } from "@travada-books/ui/icons";
 import { Separator } from "@travada-books/ui/components/separator";
 import {
@@ -25,6 +27,9 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@travada-books/ui/components/dropdown-menu";
 import {
@@ -57,10 +62,11 @@ const mainNav = [
 ];
 
 function OrgSwitcher() {
-  const { org, orgRole } = useAuth();
+  const { org, orgRole, orgs, switchOrg } = useAuth();
   const isOwner = orgRole === "owner";
   const navigate = useNavigate();
   const [signingOut, setSigningOut] = useState(false);
+  const [switching, setSwitching] = useState<string | null>(null);
 
   const orgName = org?.name ?? "My Organization";
   const orgLogoUrl = org?.logo_url ?? null;
@@ -77,11 +83,21 @@ function OrgSwitcher() {
     navigate("/login");
   }
 
+  async function handleSwitchOrg(orgId: string) {
+    if (orgId === org?.id || switching) return;
+    setSwitching(orgId);
+    try {
+      await switchOrg(orgId);
+    } finally {
+      setSwitching(null);
+    }
+  }
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
         render={
-          <button className='flex w-full items-center gap-2.5 rounded-md px-2 py-2 text-sm hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring' />
+          <button className='flex w-full items-center gap-2.5 rounded-md px-2 py-2 text-sm fine-hover:bg-accent fine-hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring' />
         }
       >
         <Avatar className='size-6 rounded-md'>
@@ -93,30 +109,59 @@ function OrgSwitcher() {
         <span className='flex-1 truncate text-left text-xs font-medium'>
           {orgName}
         </span>
-        <MoreVerticalIcon
-          size={14}
-          className='shrink-0 text-muted-foreground'
-        />
+        <MoreVerticalIcon size={14} className='shrink-0 text-muted-foreground' />
       </DropdownMenuTrigger>
 
-      <DropdownMenuContent
-        side='right'
-        align='end'
-        sideOffset={8}
-        className='w-56'
-      >
-        {/* Team info card */}
-        <div className='flex items-center gap-2.5 px-2 py-2'>
-          <Avatar className='size-8 rounded-md'>
-            {orgLogoUrl && <AvatarImage src={orgLogoUrl} alt={orgName} />}
-            <AvatarFallback className='rounded-md text-xs font-semibold'>
-              {orgInitials}
-            </AvatarFallback>
-          </Avatar>
-          <div className='flex min-w-0 flex-col'>
-            <span className='truncate text-xs font-medium'>{orgName}</span>
-          </div>
-        </div>
+      <DropdownMenuContent side='right' align='end' sideOffset={8} className='w-56'>
+        {/* Org info card — clicking opens the org switcher submenu */}
+        <DropdownMenuSub>
+          <DropdownMenuSubTrigger className='gap-2.5 px-2 py-2'>
+            <Avatar className='size-8 shrink-0 rounded-md'>
+              {orgLogoUrl && <AvatarImage src={orgLogoUrl} alt={orgName} />}
+              <AvatarFallback className='rounded-md text-xs font-semibold'>
+                {orgInitials}
+              </AvatarFallback>
+            </Avatar>
+            <div className='flex min-w-0 flex-col'>
+              <span className='truncate text-xs font-medium'>{orgName}</span>
+              <span className='truncate text-[10px] capitalize text-muted-foreground'>
+                {orgRole}
+              </span>
+            </div>
+          </DropdownMenuSubTrigger>
+
+          <DropdownMenuSubContent className='w-52'>
+            {orgs.map(({ org: o }) => (
+              <DropdownMenuItem
+                key={o.id}
+                onClick={() => handleSwitchOrg(o.id)}
+                disabled={switching !== null}
+                className='gap-2.5'
+              >
+                <Avatar className='size-5 shrink-0 rounded-md'>
+                  {o.logo_url && <AvatarImage src={o.logo_url} alt={o.name} />}
+                  <AvatarFallback className='rounded-md text-[9px] font-semibold'>
+                    {o.name.slice(0, 2).toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+                <span className='flex-1 truncate text-xs'>{o.name}</span>
+                {o.id === org?.id && (
+                  <TickIcon size={12} className='shrink-0 text-muted-foreground' />
+                )}
+              </DropdownMenuItem>
+            ))}
+
+            <DropdownMenuSeparator />
+
+            <DropdownMenuItem
+              onClick={() => navigate("/onboarding/org?mode=create")}
+              className='gap-2.5'
+            >
+              <PlusSignIcon size={14} className='shrink-0 text-muted-foreground' />
+              <span className='text-xs'>Create organization</span>
+            </DropdownMenuItem>
+          </DropdownMenuSubContent>
+        </DropdownMenuSub>
 
         <DropdownMenuSeparator />
 

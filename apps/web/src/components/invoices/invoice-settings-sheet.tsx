@@ -22,6 +22,11 @@ import { useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import { Button } from "@travada-books/ui/components/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@travada-books/ui/components/tooltip";
 
 export type InvoiceSettings = {
   invoiceTemplate: string;
@@ -195,6 +200,7 @@ type Props = {
   settings: InvoiceSettings;
   onSettingsChange: (settings: InvoiceSettings) => void;
   orgId: string;
+  lockNumberFormat?: boolean;
 };
 
 export function InvoiceSettingsSheet({
@@ -203,6 +209,7 @@ export function InvoiceSettingsSheet({
   settings,
   onSettingsChange,
   orgId,
+  lockNumberFormat = false,
 }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
@@ -339,7 +346,7 @@ export function InvoiceSettingsSheet({
                   type='button'
                   onClick={() => update("invoiceTemplate", t.id)}
                   className={cn(
-                    "flex flex-col overflow-hidden rounded-lg border bg-card transition-all",
+                    "flex flex-col overflow-hidden rounded-lg border bg-card transition-[border-color,box-shadow]",
                     settings.invoiceTemplate === t.id ?
                       "border-primary ring-1 ring-primary"
                     : "border-border hover:border-muted-foreground/40",
@@ -397,30 +404,54 @@ export function InvoiceSettingsSheet({
                 Format used when generating invoice numbers.
               </p>
             </div>
-            <div className='flex items-center gap-2'>
-              <Input
-                value={settings.invoiceNumberPrefix}
-                onChange={(e) => update("invoiceNumberPrefix", e.target.value)}
-                placeholder='INV-'
-                className='text-xs w-24'
-                maxLength={10}
-              />
-              <Select
-                value={String(settings.invoiceNumberDigits)}
-                onValueChange={(v) =>
-                  update("invoiceNumberDigits", Number(v) as 3 | 4 | 5)
-                }
-              >
-                <SelectTrigger className='text-xs w-20'>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value='3' className='text-xs'>3 digits</SelectItem>
-                  <SelectItem value='4' className='text-xs'>4 digits</SelectItem>
-                  <SelectItem value='5' className='text-xs'>5 digits</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div
+                  role={lockNumberFormat ? "button" : undefined}
+                  tabIndex={lockNumberFormat ? 0 : undefined}
+                  aria-disabled={lockNumberFormat || undefined}
+                  aria-describedby={lockNumberFormat ? "invoice-number-lock-tooltip" : undefined}
+                  className={cn(
+                    "flex items-center gap-2",
+                    lockNumberFormat && "cursor-not-allowed opacity-50",
+                  )}
+                >
+                  <Input
+                    value={settings.invoiceNumberPrefix}
+                    onChange={(e) => update("invoiceNumberPrefix", e.target.value)}
+                    placeholder='INV-'
+                    className='text-xs w-24'
+                    maxLength={10}
+                    disabled={lockNumberFormat}
+                    aria-describedby={lockNumberFormat ? "invoice-number-lock-tooltip" : undefined}
+                  />
+                  <Select
+                    value={String(settings.invoiceNumberDigits)}
+                    onValueChange={(v) =>
+                      update("invoiceNumberDigits", Number(v) as 3 | 4 | 5)
+                    }
+                    disabled={lockNumberFormat}
+                  >
+                    <SelectTrigger
+                      className='text-xs w-20'
+                      aria-describedby={lockNumberFormat ? "invoice-number-lock-tooltip" : undefined}
+                    >
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value='3' className='text-xs'>3 digits</SelectItem>
+                      <SelectItem value='4' className='text-xs'>4 digits</SelectItem>
+                      <SelectItem value='5' className='text-xs'>5 digits</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </TooltipTrigger>
+              {lockNumberFormat && (
+                <TooltipContent id="invoice-number-lock-tooltip" side='bottom'>
+                  Format is locked once invoices have been created
+                </TooltipContent>
+              )}
+            </Tooltip>
             <p className='text-[11px] text-muted-foreground'>
               Preview:{" "}
               <span className='font-medium text-foreground'>
