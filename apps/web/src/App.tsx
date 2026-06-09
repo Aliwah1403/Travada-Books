@@ -27,6 +27,8 @@ import { PublicInvoicePage } from "@/pages/invoice-public/token"
 import { PublicQuotePage } from "@/pages/quote-public/token"
 import { QuoteConfirmedPage } from "@/pages/quote-public/confirmed"
 import { StatementDetailPage } from "@/pages/statements/detail"
+import { TransactionsPage } from "@/pages/transactions/index"
+import { CategoriesSettingsPage } from "@/pages/settings/categories"
 import { PublicStatementPage } from "@/pages/statement-public/token"
 
 import { GeneralSettingsPage } from "@/pages/settings/general"
@@ -80,6 +82,7 @@ const router = createBrowserRouter([
           { path: "/quotes/:id", element: <QuoteDetailPage /> },
           { path: "/customers", element: <CustomersPage /> },
           { path: "/customers/:id", element: <CustomerDetailPage /> },
+          { path: "/transactions", element: <TransactionsPage /> },
           { path: "/statements/:id", element: <StatementDetailPage /> },
           {
             path: "/settings",
@@ -90,6 +93,7 @@ const router = createBrowserRouter([
               { path: "team", element: <TeamSettingsPage /> },
               { path: "integrations", element: <IntegrationsSettingsPage /> },
               { path: "billing", element: <BillingSettingsPage /> },
+              { path: "categories", element: <CategoriesSettingsPage /> },
             ],
           },
           {

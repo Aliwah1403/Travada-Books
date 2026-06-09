@@ -55,7 +55,6 @@ const mainNav = [
     icon: Wallet01Icon,
     label: "Transactions",
     to: "/transactions",
-    comingSoon: true,
   },
   { icon: Timer01Icon, label: "Tracker", to: "/tracker", comingSoon: true },
   { icon: SafeIcon, label: "Vault", to: "/vault", comingSoon: true },

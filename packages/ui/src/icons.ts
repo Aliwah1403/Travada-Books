@@ -51,6 +51,10 @@ import {
   ColumnsThreeCogIcon as ColumnsThreeCogSvg,
   RepeatIcon as RepeatSvg,
   Globe02Icon as Globe02Svg,
+  ArrowUpRight01Icon as ArrowUpRight01Svg,
+  ArrowDownLeft01Icon as ArrowDownLeft01Svg,
+  Attachment01Icon as Attachment01Svg,
+  Tag01Icon as Tag01Svg,
 } from "@hugeicons/core-free-icons";
 
 export type IconProps = Omit<HugeiconsIconProps, "icon">;
@@ -112,3 +116,7 @@ export const SortingDownIcon = make(SortingDownSvg);
 export const ColumnsThreeCogIcon = make(ColumnsThreeCogSvg);
 export const RepeatIcon = make(RepeatSvg);
 export const Globe02Icon = make(Globe02Svg);
+export const ArrowUpRight01Icon = make(ArrowUpRight01Svg);
+export const ArrowDownLeft01Icon = make(ArrowDownLeft01Svg);
+export const Attachment01Icon = make(Attachment01Svg);
+export const Tag01Icon = make(Tag01Svg);
