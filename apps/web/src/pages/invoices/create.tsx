@@ -739,6 +739,11 @@ export function CreateInvoicePage() {
           setInvoiceSettingsOpen(open);
           if (!open && settingsDirty && orgId) {
             setSettingsDirty(false);
+            queryClient.setQueryData(["invoice-template", orgId], invoiceSettings);
+            if (!isManualInvoiceNumber) {
+              const n = parseInt(invoiceNumber.replace(/\D/g, ""), 10) || 1;
+              setInvoiceNumber(invoiceSettings.invoiceNumberPrefix + String(n).padStart(invoiceSettings.invoiceNumberDigits, "0"));
+            }
             upsertOrgInvoiceTemplate(orgId, invoiceSettings).catch(() =>
               toast.error("Failed to save invoice settings"),
             );
@@ -750,7 +755,7 @@ export function CreateInvoicePage() {
           setSettingsDirty(true);
         }}
         orgId={orgId ?? ""}
-        lockNumberFormat={invoicesExist ?? false}
+        lockNumberFormat={invoicesExist === true}
       />
 
       {/* Split panel */}

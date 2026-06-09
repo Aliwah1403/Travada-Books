@@ -41,7 +41,7 @@ export function NavItem({ icon: NavIcon, label, to, comingSoon, collapsed }: Nav
             "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
             isActive
               ? "bg-muted text-foreground"
-              : "text-muted-foreground hover:bg-muted hover:text-foreground",
+              : "text-muted-foreground fine-hover:bg-muted fine-hover:text-foreground",
             collapsed && "justify-center px-2"
           )}
         >

@@ -338,7 +338,7 @@ function MembersTab({
                     <DropdownMenuTrigger asChild>
                       <Badge
                         variant='outline'
-                        className='text-xs cursor-pointer select-none hover:bg-muted transition-colors'
+                        className='text-xs cursor-pointer select-none fine-hover:bg-muted transition-colors'
                       >
                         {member.role === "owner" ? "Owner" : "Member"}
                       </Badge>

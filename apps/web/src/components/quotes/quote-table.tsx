@@ -142,7 +142,7 @@ export function QuoteTable({ data, globalFilter }: QuoteTableProps) {
             {table.getRowModel().rows.map((row) => (
               <TableRow
                 key={row.id}
-                className="cursor-pointer"
+                className="cursor-pointer transition-opacity active:opacity-80"
                 onClick={() => navigate(`/quotes/${row.original.id}`)}
               >
                 {row.getVisibleCells().map((cell) => (

@@ -23,35 +23,60 @@ Deno.serve(async (req) => {
   const lastName = rest.join(" ") || undefined;
 
   // Auto-accept any pending invite for this email (user signed up via invite link)
-  const { data: pendingInvite } = await db
+  const { data: pendingInvites } = await db
     .from("organization_members")
-    .select("id, org_id")
+    .select("id, org_id, created_at")
     .eq("email", record.email.toLowerCase())
     .eq("status", "invited")
     .gt("expires_at", new Date().toISOString())
-    .limit(1)
-    .maybeSingle()
+    .order("created_at", { ascending: false })
+
+  if (pendingInvites && pendingInvites.length > 1) {
+    console.warn(
+      `on-user-signup: ${pendingInvites.length} pending invites found for ${record.email} — auto-accepting most recent (org_id: ${pendingInvites[0].org_id})`
+    )
+  }
+
+  const pendingInvite = pendingInvites?.[0] ?? null
 
   if (pendingInvite) {
-    await Promise.all([
-      db
-        .from("organization_members")
-        .update({ user_id: record.id, status: "active" })
-        .eq("id", pendingInvite.id),
-      db
+    const { error: memberError } = await db
+      .from("organization_members")
+      .update({ user_id: record.id, status: "active" })
+      .eq("id", pendingInvite.id)
+
+    if (memberError) {
+      console.error("on-user-signup: failed to activate organization_members row:", memberError)
+    } else {
+      const { error: userError } = await db
         .from("users")
         .update({ active_org_id: pendingInvite.org_id })
-        .eq("id", record.id),
-    ])
-    // Fire-and-forget team joined notification
-    fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/notify-team-joined`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ memberId: pendingInvite.id }),
-    }).catch((err) => console.error("notify-team-joined failed (non-fatal):", err))
+        .eq("id", record.id)
+
+      if (userError) {
+        console.error("on-user-signup: failed to set active_org_id — rolling back membership:", userError)
+        await db
+          .from("organization_members")
+          .update({ user_id: null, status: "invited" })
+          .eq("id", pendingInvite.id)
+      } else {
+        // Fire-and-forget team joined notification — only on full success
+        fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/notify-team-joined`, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ memberId: pendingInvite.id }),
+        }).then((res) => {
+          if (!res.ok) {
+            res.text().then((body) =>
+              console.error(`notify-team-joined failed (non-fatal): ${res.status} ${res.statusText} — ${body}`)
+            ).catch(() => console.error(`notify-team-joined failed (non-fatal): ${res.status} ${res.statusText}`))
+          }
+        }).catch((err) => console.error("notify-team-joined failed (non-fatal):", err))
+      }
+    }
   }
 
   const TRIGGER_SECRET_KEY = Deno.env.get("TRIGGER_SECRET_KEY");

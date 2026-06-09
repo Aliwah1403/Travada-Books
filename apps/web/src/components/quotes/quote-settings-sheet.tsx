@@ -21,26 +21,7 @@ import { Label } from "@travada-books/ui/components/label";
 import { Separator } from "@travada-books/ui/components/separator";
 import { Input } from "@travada-books/ui/components/input";
 import { Textarea } from "@travada-books/ui/components/textarea";
-
-export type QuoteSettings = {
-  quoteTemplate: string;
-  defaultNote: string;
-  cc: string;
-  bcc: string;
-  validityDays: number | null;
-  quoteNumberPrefix: string;
-  quoteNumberDigits: 3 | 4 | 5;
-};
-
-export const defaultQuoteSettings: QuoteSettings = {
-  quoteTemplate: "classic",
-  defaultNote: "",
-  cc: "",
-  bcc: "",
-  validityDays: null,
-  quoteNumberPrefix: "QUO-",
-  quoteNumberDigits: 4,
-};
+import type { QuoteSettings } from "@/components/quotes/quote-settings";
 
 const VALIDITY_OPTIONS = [
   { value: "7", label: "7 days" },
@@ -175,7 +156,7 @@ export function QuoteSettingsSheet({
                   type='button'
                   onClick={() => update("quoteTemplate", t.id)}
                   className={cn(
-                    "flex flex-col overflow-hidden rounded-lg border bg-card transition-all",
+                    "flex flex-col overflow-hidden rounded-lg border bg-card transition-[border-color,box-shadow]",
                     settings.quoteTemplate === t.id ?
                       "border-primary ring-1 ring-primary"
                     : "border-border hover:border-muted-foreground/40",

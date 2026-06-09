@@ -47,11 +47,11 @@ import {
   getOrgQuoteTemplate,
   upsertOrgQuoteTemplate,
 } from "@/lib/queries/quote-templates";
+import { QuoteSettingsSheet } from "@/components/quotes/quote-settings-sheet";
 import {
-  QuoteSettingsSheet,
   defaultQuoteSettings,
   type QuoteSettings,
-} from "@/components/quotes/quote-settings-sheet";
+} from "@/components/quotes/quote-settings";
 import { supabase } from "@/lib/supabase";
 
 type LineItem = {
@@ -391,10 +391,11 @@ export function CreateQuotePage() {
   const { data: quotesExist } = useQuery({
     queryKey: ["quotes-exist", orgId],
     queryFn: async () => {
-      const { count } = await supabase
+      const { count, error } = await supabase
         .from("quotes")
         .select("id", { count: "exact", head: true })
         .eq("org_id", orgId!);
+      if (error) throw error;
       return (count ?? 0) > 0;
     },
     enabled: !!orgId,
@@ -427,6 +428,14 @@ export function CreateQuotePage() {
         setNotes(quoteTemplate.defaultNote);
     }
   }, [quoteTemplate, settingsLoaded, notes]);
+
+  useEffect(() => {
+    setSettingsLoaded(false);
+    setQuoteSettings(defaultQuoteSettings);
+    setSettingsDirty(false);
+    setQuoteSettingsOpen(false);
+    setNotes("");
+  }, [orgId]);
 
   useEffect(() => {
     if (!issueDate || quoteSettings.validityDays == null) return;
@@ -854,6 +863,11 @@ export function CreateQuotePage() {
           setQuoteSettingsOpen(open);
           if (!open && settingsDirty && orgId) {
             setSettingsDirty(false);
+            queryClient.setQueryData(["quote-template", orgId], quoteSettings);
+            if (!isManualQuoteNumber) {
+              const n = parseInt(quoteNumber.replace(/\D/g, ""), 10) || 1;
+              setQuoteNumber(quoteSettings.quoteNumberPrefix + String(n).padStart(quoteSettings.quoteNumberDigits, "0"));
+            }
             upsertOrgQuoteTemplate(orgId, quoteSettings).catch(() =>
               toast.error("Failed to save quote settings"),
             );
@@ -864,7 +878,7 @@ export function CreateQuotePage() {
           setQuoteSettings(s);
           setSettingsDirty(true);
         }}
-        lockNumberFormat={quotesExist ?? false}
+        lockNumberFormat={quotesExist === true}
       />
     </div>
   );

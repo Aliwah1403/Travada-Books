@@ -18,20 +18,28 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders })
 
   try {
-    // Verify the caller's JWT and extract their user ID
     const authorization = req.headers.get("Authorization")
     if (!authorization) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: corsHeaders })
     }
 
-    const userClient = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_ANON_KEY")!,
-      { global: { headers: { Authorization: authorization } } },
-    )
-    const { data: { user }, error: authError } = await userClient.auth.getUser()
-    if (authError || !user) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: corsHeaders })
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+    const isServiceRole = authorization === `Bearer ${serviceRoleKey}`
+
+    // Service-role callers (e.g. on-user-signup webhook) bypass user JWT validation.
+    // All other callers must present a valid user JWT and own the membership row.
+    let callerId: string | null = null
+    if (!isServiceRole) {
+      const userClient = createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_ANON_KEY")!,
+        { global: { headers: { Authorization: authorization } } },
+      )
+      const { data: { user }, error: authError } = await userClient.auth.getUser()
+      if (authError || !user) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: corsHeaders })
+      }
+      callerId = user.id
     }
 
     const { memberId } = await req.json()
@@ -39,7 +47,7 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: "memberId required" }), { status: 400, headers: corsHeaders })
     }
 
-    // Look up the membership — must be active and belong to the calling user
+    // Look up the membership — must be active
     const { data: member, error: memberError } = await db
       .from("organization_members")
       .select("user_id, org_id, role, team_joined_notified_at, users(email, full_name)")
@@ -51,8 +59,8 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: "Member not found" }), { status: 404, headers: corsHeaders })
     }
 
-    // Verify the caller is the member who just joined — prevents anyone else triggering this
-    if (member.user_id !== user.id) {
+    // Non-service callers must be the member who just joined
+    if (!isServiceRole && member.user_id !== callerId) {
       return new Response(JSON.stringify({ error: "Forbidden" }), { status: 403, headers: corsHeaders })
     }
 

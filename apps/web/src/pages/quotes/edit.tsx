@@ -31,11 +31,11 @@ import { cn } from "@travada-books/ui/lib/utils";
 import { useAuth } from "@/contexts/auth-context";
 import { getQuote, updateQuote } from "@/lib/queries/quotes";
 import { getOrgQuoteTemplate, upsertOrgQuoteTemplate } from "@/lib/queries/quote-templates";
+import { QuoteSettingsSheet } from "@/components/quotes/quote-settings-sheet";
 import {
-  QuoteSettingsSheet,
   defaultQuoteSettings,
   type QuoteSettings,
-} from "@/components/quotes/quote-settings-sheet";
+} from "@/components/quotes/quote-settings";
 
 type LineItem = {
   id: string;
@@ -446,6 +446,7 @@ export function EditQuotePage() {
           setQuoteSettingsOpen(open);
           if (!open && settingsDirty && orgId) {
             setSettingsDirty(false);
+            queryClient.setQueryData(["quote-template", orgId], quoteSettings);
             upsertOrgQuoteTemplate(orgId, quoteSettings).catch(() =>
               toast.error("Failed to save quote settings"),
             );

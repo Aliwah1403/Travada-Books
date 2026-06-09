@@ -109,11 +109,19 @@ async function fetchUserData(userId: string): Promise<FetchResult> {
       role: m.role as "owner" | "member",
     }))
 
-  // Find active org: match active_org_id, fallback to first membership
-  let activeMembership = orgs.find((m) => m.org.id === activeOrgId) ?? orgs[0] ?? null
+  // Find active org: DB active_org_id → localStorage backup → first membership
+  const localOrgId = localStorage.getItem("travada:active_org_id")
+  const activeMembership =
+    orgs.find((m) => m.org.id === activeOrgId) ??
+    orgs.find((m) => m.org.id === localOrgId) ??
+    orgs[0] ??
+    null
 
-  // If fallback was used, fix active_org_id in DB (fire-and-forget)
-  if (activeMembership && activeMembership.org.id !== activeOrgId) {
+  // Only bootstrap active_org_id when it has never been set (null).
+  // Never overwrite a non-null value — the stored ID might be valid but simply
+  // absent from this query due to a transient RLS evaluation, which would
+  // permanently lock the user into the wrong org.
+  if (activeMembership && activeOrgId === null) {
     supabase
       .from("users")
       .update({ active_org_id: activeMembership.org.id })
@@ -161,6 +169,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const target = orgs.find((m) => m.org.id === orgId)
     if (!target) return
     await supabase.from("users").update({ active_org_id: orgId }).eq("id", userId)
+    localStorage.setItem("travada:active_org_id", orgId)
     setOrg(target.org)
     setOrgRole(target.role)
     // All React Query queries are keyed on orgId — they refetch automatically when orgId changes.
@@ -194,6 +203,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setOrgRole(null)
         setOrgs([])
         setOrgLoading(false)
+        localStorage.removeItem("travada:active_org_id")
         posthog.reset()
         if (import.meta.env.PROD) {
           Sentry.setUser(null)

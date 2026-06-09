@@ -346,7 +346,7 @@ export function InvoiceSettingsSheet({
                   type='button'
                   onClick={() => update("invoiceTemplate", t.id)}
                   className={cn(
-                    "flex flex-col overflow-hidden rounded-lg border bg-card transition-all",
+                    "flex flex-col overflow-hidden rounded-lg border bg-card transition-[border-color,box-shadow]",
                     settings.invoiceTemplate === t.id ?
                       "border-primary ring-1 ring-primary"
                     : "border-border hover:border-muted-foreground/40",
@@ -407,6 +407,10 @@ export function InvoiceSettingsSheet({
             <Tooltip>
               <TooltipTrigger asChild>
                 <div
+                  role={lockNumberFormat ? "button" : undefined}
+                  tabIndex={lockNumberFormat ? 0 : undefined}
+                  aria-disabled={lockNumberFormat || undefined}
+                  aria-describedby={lockNumberFormat ? "invoice-number-lock-tooltip" : undefined}
                   className={cn(
                     "flex items-center gap-2",
                     lockNumberFormat && "cursor-not-allowed opacity-50",
@@ -419,6 +423,7 @@ export function InvoiceSettingsSheet({
                     className='text-xs w-24'
                     maxLength={10}
                     disabled={lockNumberFormat}
+                    aria-describedby={lockNumberFormat ? "invoice-number-lock-tooltip" : undefined}
                   />
                   <Select
                     value={String(settings.invoiceNumberDigits)}
@@ -427,7 +432,10 @@ export function InvoiceSettingsSheet({
                     }
                     disabled={lockNumberFormat}
                   >
-                    <SelectTrigger className='text-xs w-20'>
+                    <SelectTrigger
+                      className='text-xs w-20'
+                      aria-describedby={lockNumberFormat ? "invoice-number-lock-tooltip" : undefined}
+                    >
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -439,7 +447,7 @@ export function InvoiceSettingsSheet({
                 </div>
               </TooltipTrigger>
               {lockNumberFormat && (
-                <TooltipContent side='bottom'>
+                <TooltipContent id="invoice-number-lock-tooltip" side='bottom'>
                   Format is locked once invoices have been created
                 </TooltipContent>
               )}

@@ -86,15 +86,18 @@ function OrgSwitcher() {
   async function handleSwitchOrg(orgId: string) {
     if (orgId === org?.id || switching) return;
     setSwitching(orgId);
-    await switchOrg(orgId);
-    setSwitching(null);
+    try {
+      await switchOrg(orgId);
+    } finally {
+      setSwitching(null);
+    }
   }
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
         render={
-          <button className='flex w-full items-center gap-2.5 rounded-md px-2 py-2 text-sm hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring' />
+          <button className='flex w-full items-center gap-2.5 rounded-md px-2 py-2 text-sm fine-hover:bg-accent fine-hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring' />
         }
       >
         <Avatar className='size-6 rounded-md'>

@@ -158,7 +158,7 @@ export function InvoiceTable({ data, globalFilter, onQuoteClick }: InvoiceTableP
             {table.getRowModel().rows.map((row) => (
               <TableRow
                 key={row.id}
-                className="cursor-pointer"
+                className="cursor-pointer transition-opacity active:opacity-80"
                 onClick={() => navigate(`/invoices/${row.original.id}`)}
               >
                 {row.getVisibleCells().map((cell) => (

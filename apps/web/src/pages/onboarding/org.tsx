@@ -65,7 +65,12 @@ export function OnboardingOrgPage() {
     }
 
     // Always set active_org_id so the new org becomes the active one
-    await supabase.from("users").update({ active_org_id: orgId }).eq("id", user.id)
+    const { error: updateError } = await supabase.from("users").update({ active_org_id: orgId }).eq("id", user.id)
+    if (updateError) {
+      setError("Failed to set up your account. Please try again.")
+      setLoading(false)
+      return
+    }
 
     if (isCreateMode) {
       // Adding an additional org: refresh context then go to dashboard

@@ -1,5 +1,5 @@
 import { supabase } from "@/lib/supabase"
-import type { QuoteSettings } from "@/components/quotes/quote-settings-sheet"
+import type { QuoteSettings } from "@/components/quotes/quote-settings"
 
 type QuoteTemplateRow = {
   id: string

@@ -135,7 +135,20 @@ export function CustomersPage() {
             <div key={i} className="h-24 rounded-lg border bg-muted/40 animate-pulse" />
           ))}
         </div>
-        <div className="h-96 rounded-lg border bg-muted/40 animate-pulse" />
+        <div className="rounded-lg border overflow-hidden">
+          <div className="h-12 border-b bg-muted/20" />
+          {[0, 1, 2, 3, 4, 5, 6, 7].map((i) => (
+            <div key={i} className="flex items-center gap-4 px-4 py-3 border-b last:border-b-0">
+              <div className="h-6 w-6 rounded-sm bg-muted animate-pulse shrink-0" />
+              <div className="h-3 w-28 rounded bg-muted animate-pulse" />
+              <div className="h-3 w-36 rounded bg-muted animate-pulse" />
+              <div className="h-3 w-24 rounded bg-muted animate-pulse" />
+              <div className="ml-auto h-3 w-16 rounded bg-muted animate-pulse" />
+              <div className="h-3 w-20 rounded bg-muted animate-pulse" />
+              <div className="h-3 w-20 rounded bg-muted animate-pulse" />
+            </div>
+          ))}
+        </div>
       </div>
     )
   }
@@ -227,7 +240,7 @@ export function CustomersPage() {
                 {filtered.map((customer) => (
                   <TableRow
                     key={customer.id}
-                    className="cursor-pointer"
+                    className="cursor-pointer transition-opacity active:opacity-80"
                     onClick={() => navigate(`/customers/${customer.id}`)}
                   >
                     <TableCell className="py-3 sticky left-0 z-20 bg-background">

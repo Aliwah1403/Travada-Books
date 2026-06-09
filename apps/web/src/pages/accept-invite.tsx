@@ -58,9 +58,14 @@ export function AcceptInvitePage() {
     acceptInvite(token)
       .then(async (orgId) => {
         sessionStorage.removeItem("pendingInviteToken")
-        // Set the newly joined org as active
+        // Set the newly joined org as active in DB and localStorage
         if (user) {
-          await supabase.from("users").update({ active_org_id: orgId }).eq("id", user.id)
+          const { error: updateError } = await supabase.from("users").update({ active_org_id: orgId }).eq("id", user.id)
+          if (updateError) {
+            setState({ kind: "error", message: "Something went wrong. Please try again or contact support." })
+            return
+          }
+          localStorage.setItem("travada:active_org_id", orgId)
         }
         // Fire-and-forget — token IS the organization_members UUID (the memberId)
         supabase.functions
@@ -153,21 +158,28 @@ export function AcceptInvitePage() {
   }
 
   if (state.kind === "email_mismatch") {
+    const encodedEmail = encodeURIComponent(state.info.email)
     return (
       <div className="flex items-center justify-center min-h-screen p-4">
         <Card className="w-full max-w-sm text-center">
           <CardHeader>
-            <CardTitle className="text-base">Wrong account</CardTitle>
+            <CardTitle className="text-base">You&apos;re signed in with a different account</CardTitle>
             <CardDescription>
-              This invitation was sent to <strong>{state.info.email}</strong>. Please sign in with that email address.
+              This invitation was sent to <strong>{state.info.email}</strong>. Sign in or create an account with that email to accept.
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-2">
             <Button className="w-full" onClick={async () => {
               await supabase.auth.signOut({ scope: "local" })
-              navigate(`/login?next=${nextParam}`)
+              navigate(`/login?next=${nextParam}&email=${encodedEmail}`)
             }}>
-              Sign in with the right account
+              Sign in as {state.info.email}
+            </Button>
+            <Button variant="outline" className="w-full" onClick={async () => {
+              await supabase.auth.signOut({ scope: "local" })
+              navigate(`/signup?next=${nextParam}&email=${encodedEmail}`)
+            }}>
+              Create account for {state.info.email}
             </Button>
             <Button variant="ghost" className="w-full" onClick={() => navigate("/invoices")}>
               Continue to app
@@ -207,21 +219,12 @@ export function AcceptInvitePage() {
           <CardTitle className="text-base">You&apos;ve been invited</CardTitle>
           <CardDescription>
             Join <strong>{info.org_name}</strong> on Travada Books as a{" "}
-            <strong>{roleName}</strong>.
+            <strong>{roleName}</strong>. Your invitation was sent to{" "}
+            <strong>{info.email}</strong>.
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-2">
           <Button
-            className="w-full"
-            onClick={() => {
-              sessionStorage.setItem("pendingInviteToken", token)
-              navigate(`/login?next=${nextParam}&email=${encodeURIComponent(info.email)}`)
-            }}
-          >
-            Sign in to accept
-          </Button>
-          <Button
-            variant="outline"
             className="w-full"
             onClick={() => {
               sessionStorage.setItem("pendingInviteToken", token)
@@ -230,9 +233,17 @@ export function AcceptInvitePage() {
           >
             Create account to accept
           </Button>
-          <p className="text-center text-xs text-muted-foreground mt-1">
-            Invite sent to {info.email}
-          </p>
+          <p className="text-center text-xs text-muted-foreground">Already have an account?</p>
+          <Button
+            variant="outline"
+            className="w-full"
+            onClick={() => {
+              sessionStorage.setItem("pendingInviteToken", token)
+              navigate(`/login?next=${nextParam}&email=${encodeURIComponent(info.email)}`)
+            }}
+          >
+            Sign in to accept
+          </Button>
         </CardContent>
       </Card>
     </div>
