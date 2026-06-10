@@ -55,6 +55,13 @@ import {
   ArrowDownLeft01Icon as ArrowDownLeft01Svg,
   Attachment01Icon as Attachment01Svg,
   Tag01Icon as Tag01Svg,
+  Upload01Icon as Upload01Svg,
+  File01Icon as File01Svg,
+  Image01Icon as Image01Svg,
+  Pdf01Icon as Pdf01Svg,
+  ListViewIcon as ListViewSvg,
+  FolderFileStorageIcon as FolderFileSvg,
+  SparklesIcon as SparklesSvg,
 } from "@hugeicons/core-free-icons";
 
 export type IconProps = Omit<HugeiconsIconProps, "icon">;
@@ -120,3 +127,10 @@ export const ArrowUpRight01Icon = make(ArrowUpRight01Svg);
 export const ArrowDownLeft01Icon = make(ArrowDownLeft01Svg);
 export const Attachment01Icon = make(Attachment01Svg);
 export const Tag01Icon = make(Tag01Svg);
+export const Upload01Icon = make(Upload01Svg);
+export const File01Icon = make(File01Svg);
+export const Image01Icon = make(Image01Svg);
+export const Pdf01Icon = make(Pdf01Svg);
+export const ListViewIcon = make(ListViewSvg);
+export const VaultIcon = make(FolderFileSvg);
+export const SparklesIcon = make(SparklesSvg);

@@ -28,6 +28,7 @@ import { PublicQuotePage } from "@/pages/quote-public/token"
 import { QuoteConfirmedPage } from "@/pages/quote-public/confirmed"
 import { StatementDetailPage } from "@/pages/statements/detail"
 import { TransactionsPage } from "@/pages/transactions/index"
+import { VaultPage } from "@/pages/vault/index"
 import { CategoriesSettingsPage } from "@/pages/settings/categories"
 import { PublicStatementPage } from "@/pages/statement-public/token"
 
@@ -83,6 +84,7 @@ const router = createBrowserRouter([
           { path: "/customers", element: <CustomersPage /> },
           { path: "/customers/:id", element: <CustomerDetailPage /> },
           { path: "/transactions", element: <TransactionsPage /> },
+          { path: "/vault", element: <VaultPage /> },
           { path: "/statements/:id", element: <StatementDetailPage /> },
           {
             path: "/settings",

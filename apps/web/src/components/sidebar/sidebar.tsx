@@ -7,7 +7,6 @@ import {
   User02Icon,
   Wallet01Icon,
   Timer01Icon,
-  SafeIcon,
   SortingIcon,
   Logout02Icon,
   Settings02Icon,
@@ -15,6 +14,7 @@ import {
   MoreVerticalIcon,
   TickIcon,
   PlusSignIcon,
+  VaultIcon,
 } from "@travada-books/ui/icons";
 import { Separator } from "@travada-books/ui/components/separator";
 import {
@@ -57,7 +57,7 @@ const mainNav = [
     to: "/transactions",
   },
   { icon: Timer01Icon, label: "Tracker", to: "/tracker", comingSoon: true },
-  { icon: SafeIcon, label: "Vault", to: "/vault", comingSoon: true },
+  { icon: VaultIcon, label: "Vault", to: "/vault" },
 ];
 
 function OrgSwitcher() {
@@ -108,10 +108,18 @@ function OrgSwitcher() {
         <span className='flex-1 truncate text-left text-xs font-medium'>
           {orgName}
         </span>
-        <MoreVerticalIcon size={14} className='shrink-0 text-muted-foreground' />
+        <MoreVerticalIcon
+          size={14}
+          className='shrink-0 text-muted-foreground'
+        />
       </DropdownMenuTrigger>
 
-      <DropdownMenuContent side='right' align='end' sideOffset={8} className='w-56'>
+      <DropdownMenuContent
+        side='right'
+        align='end'
+        sideOffset={8}
+        className='w-56'
+      >
         {/* Org info card — clicking opens the org switcher submenu */}
         <DropdownMenuSub>
           <DropdownMenuSubTrigger className='gap-2.5 px-2 py-2'>
@@ -145,7 +153,10 @@ function OrgSwitcher() {
                 </Avatar>
                 <span className='flex-1 truncate text-xs'>{o.name}</span>
                 {o.id === org?.id && (
-                  <TickIcon size={12} className='shrink-0 text-muted-foreground' />
+                  <TickIcon
+                    size={12}
+                    className='shrink-0 text-muted-foreground'
+                  />
                 )}
               </DropdownMenuItem>
             ))}
@@ -156,7 +167,10 @@ function OrgSwitcher() {
               onClick={() => navigate("/onboarding/org?mode=create")}
               className='gap-2.5'
             >
-              <PlusSignIcon size={14} className='shrink-0 text-muted-foreground' />
+              <PlusSignIcon
+                size={14}
+                className='shrink-0 text-muted-foreground'
+              />
               <span className='text-xs'>Create organization</span>
             </DropdownMenuItem>
           </DropdownMenuSubContent>
