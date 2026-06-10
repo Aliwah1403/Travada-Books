@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -47,6 +47,7 @@ import { type Invoice } from "@/components/invoices/invoice-table";
 import { useAuth } from "@/contexts/auth-context";
 import { useFormatDate } from "@/hooks/use-format-date";
 import { toast } from "sonner";
+import { trackEvent, LogEvents } from "@/lib/analytics";
 
 function InfoRow({ label, value }: { label: string; value: string }) {
   return (
@@ -94,6 +95,11 @@ export function CustomerDetailPage() {
     queryFn: () => getCustomer(id!, orgId!),
     enabled: !!id && !!orgId,
   });
+
+  useEffect(() => {
+    if (!customer) return;
+    trackEvent(LogEvents.CustomerViewed);
+  }, [customer?.id]);
 
   const deleteMutation = useMutation({
     mutationFn: () => deleteCustomer(id!, orgId!),

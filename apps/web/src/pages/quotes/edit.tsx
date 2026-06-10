@@ -181,7 +181,10 @@ export function EditQuotePage() {
     onSuccess: (updated) => {
       queryClient.invalidateQueries({ queryKey: ["quote", id] });
       queryClient.invalidateQueries({ queryKey: ["quotes", orgId] });
-      trackEvent(LogEvents.QuoteCreated);
+      trackEvent(LogEvents.QuoteCreated, {
+        quote_value: updated.total,
+        line_item_count: updated.line_items?.length ?? 0,
+      });
       navigate(`/quotes/${updated.id}`);
     },
     onError: (err) => {

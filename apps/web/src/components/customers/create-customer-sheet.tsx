@@ -167,7 +167,10 @@ export function CreateCustomerSheet({
         main_contact: data.mainContact || undefined,
         note: data.note || undefined,
       });
-      trackEvent(LogEvents.CustomerCreated);
+      trackEvent(LogEvents.CustomerCreated, {
+        customer_type: data.businessType || "individual",
+        industry: data.industry,
+      });
       toast.success("Customer created");
       handleOpenChange(false);
       onCreated?.();

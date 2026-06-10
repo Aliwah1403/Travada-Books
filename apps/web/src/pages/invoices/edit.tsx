@@ -431,7 +431,10 @@ export function EditInvoicePage() {
     onSuccess: (updated, { patch }) => {
       queryClient.invalidateQueries({ queryKey: ["invoices"] });
       queryClient.invalidateQueries({ queryKey: ["invoice", id] });
-      if (patch.status === "unpaid") trackEvent(LogEvents.InvoiceSent);
+      if (patch.status === "unpaid") trackEvent(LogEvents.InvoiceSent, {
+        invoice_amount: updated.total,
+        recipient_email: selectedCustomer?.billing_email || selectedCustomer?.email,
+      });
       toast.success("Invoice updated");
       navigate(`/invoices/${updated.id}`);
     },

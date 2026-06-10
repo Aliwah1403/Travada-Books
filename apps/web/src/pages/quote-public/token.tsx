@@ -20,6 +20,7 @@ const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
 import LogoGreen from "@/assets/Logo-Green.svg";
 import LogoLime from "@/assets/Logo-Lime.svg";
 import { toast } from "sonner";
+import { trackEvent, LogEvents } from "@/lib/analytics";
 
 export function PublicQuotePage() {
   const { token } = useParams<{ token: string }>();
@@ -181,6 +182,10 @@ export function PublicQuotePage() {
     setIsSubmitting(true);
     try {
       await callEdgeFunction("accept-quote", { token });
+      trackEvent(LogEvents.QuoteAccepted, {
+        quote_value: quote?.total,
+        currency: quote?.currency,
+      });
       navigate(`/q/${token}/confirmed?action=accepted`);
     } catch (err) {
       toast.error("Failed to accept quote. Please try again.");
@@ -192,6 +197,10 @@ export function PublicQuotePage() {
     setIsSubmitting(true);
     try {
       await callEdgeFunction("decline-quote", { token, reason: declineReason || undefined });
+      trackEvent(LogEvents.QuoteRejected, {
+        quote_value: quote?.total,
+        currency: quote?.currency,
+      });
       navigate(`/q/${token}/confirmed?action=declined`);
     } catch (err) {
       toast.error("Failed to decline quote. Please try again.");

@@ -417,7 +417,12 @@ export function CreateInvoicePage() {
     onSuccess: (invoice) => {
       queryClient.invalidateQueries({ queryKey: ["invoices", orgId] });
       toast.success("Invoice created");
-      trackEvent(LogEvents.InvoiceCreated);
+      trackEvent(LogEvents.InvoiceCreated, {
+        invoice_amount: invoice.total,
+        currency: invoice.currency,
+        line_item_count: invoice.line_items?.length ?? 0,
+        due_date: invoice.due_date,
+      });
       navigate(`/invoices/${invoice.id}`);
     },
     onError: (error) => {
@@ -540,7 +545,10 @@ export function CreateInvoicePage() {
     try {
       const invoice = await createMutation.mutateAsync(await buildInput(action, scheduleDate));
       if (action === "send") {
-        trackEvent(LogEvents.InvoiceSent);
+        trackEvent(LogEvents.InvoiceSent, {
+          invoice_amount: invoice.total,
+          recipient_email: selectedCustomer.billing_email || selectedCustomer.email,
+        });
         supabase.functions.invoke("send-invoice-email", { body: { invoiceId: invoice.id } }).catch(() => {
           toast.warning("Invoice created, but email delivery failed.");
         });
@@ -741,7 +749,8 @@ export function CreateInvoicePage() {
             setSettingsDirty(false);
             queryClient.setQueryData(["invoice-template", orgId], invoiceSettings);
             if (!isManualInvoiceNumber) {
-              const n = parseInt(invoiceNumber.replace(/\D/g, ""), 10) || 1;
+              const trailingDigits = invoiceNumber.match(/(\d+)$/)?.[1] ?? "1";
+              const n = parseInt(trailingDigits, 10) || 1;
               setInvoiceNumber(invoiceSettings.invoiceNumberPrefix + String(n).padStart(invoiceSettings.invoiceNumberDigits, "0"));
             }
             upsertOrgInvoiceTemplate(orgId, invoiceSettings).catch(() =>

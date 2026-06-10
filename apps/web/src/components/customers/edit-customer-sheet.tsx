@@ -37,6 +37,7 @@ import {
 import { updateCustomer } from "@/lib/queries/customers";
 import { useAuth } from "@/contexts/auth-context";
 import { toast } from "sonner";
+import { trackEvent, LogEvents } from "@/lib/analytics";
 
 const schema = z.object({
   name: z.string().min(1, "Name is required."),
@@ -154,6 +155,7 @@ export function EditCustomerSheet({
         main_contact: data.mainContact || undefined,
         note: data.note || undefined,
       });
+      trackEvent(LogEvents.CustomerEdited);
       toast.success("Customer updated");
       handleOpenChange(false);
       onUpdated?.();

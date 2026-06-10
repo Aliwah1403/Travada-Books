@@ -67,6 +67,7 @@ import {
   type TeamMember,
   type TeamInvitation,
 } from "@/lib/queries/team";
+import { trackEvent, LogEvents } from "@/lib/analytics";
 
 function getInitials(name: string | null, email: string | null) {
   const src = name || email || "";
@@ -141,6 +142,7 @@ function InviteDialog({
       return { emailFailed: !!invokeError };
     },
     onSuccess: ({ emailFailed }) => {
+      trackEvent(LogEvents.UserInvited, { role });
       if (emailFailed) {
         toast.warning(`Invite created for ${email.trim()}, but the email failed to send. Use "Resend invitation" from the Invitations tab to retry.`);
       } else {
@@ -386,7 +388,8 @@ function MembersTab({
                         >
                           Leave team
                         </DropdownMenuItem>
-                      : <DropdownMenuItem
+                      : member.role !== "owner" &&
+                        <DropdownMenuItem
                           className='text-destructive focus:text-destructive'
                           onClick={() =>
                             setConfirmState({ type: "remove", member })

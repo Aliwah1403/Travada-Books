@@ -1,4 +1,6 @@
 import { useState, useRef, useEffect, useMemo } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import {
   Sheet,
   SheetContent,
@@ -30,65 +32,63 @@ import {
   CommandList,
 } from "@travada-books/ui/components/command";
 import { CURRENCY_LIST } from "@travada-books/ui/components/currency-select";
-import { Attachment01Icon, Delete01Icon, ArrowDown01Icon } from "@travada-books/ui/icons";
+import {
+  Attachment01Icon,
+  Delete01Icon,
+  ArrowDown01Icon,
+} from "@travada-books/ui/icons";
 import { cn } from "@travada-books/ui/lib/utils";
-import { COLOR_PALETTE } from "@/components/shared/color-picker";
 import { useAuth } from "@/contexts/auth-context";
 import { DatePicker } from "@/components/shared/date-picker";
+import {
+  listTransactionCategories,
+  createTransaction,
+  updateTransaction,
+  addAttachments,
+  uploadTransactionAttachment,
+  deleteAttachment,
+  createTransactionCategory,
+  type TransactionCategory,
+  type AttachmentInput,
+} from "@/lib/queries/transactions";
+import { supabase } from "@/lib/supabase";
 import type {
   Transaction,
   TransactionStatus,
   PaymentMode,
   TransactionFrequency,
+  TransactionAttachmentInfo,
 } from "./transaction-columns";
+
+type OpenInvoice = {
+  id: string;
+  invoice_number: string | null;
+  customer_name: string | null;
+  total: number | null;
+  currency: string;
+  due_date: string | null;
+};
 
 type TransactionSheetProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   transaction?: Transaction | null;
+  onSaved?: () => void;
 };
-
-type Category = { slug: string; name: string; color: string };
-
-const DEFAULT_CATEGORIES: Category[] = [
-  { slug: "consulting-fees",       name: "Consulting Fees",          color: "#6366f1" },
-  { slug: "sales-revenue",         name: "Sales Revenue",            color: "#8b5cf6" },
-  { slug: "service-income",        name: "Service Income",           color: "#10b981" },
-  { slug: "rental-income",         name: "Rental Income",            color: "#f43f5e" },
-  { slug: "commission",            name: "Commission",               color: "#14b8a6" },
-  { slug: "interest-income",       name: "Interest Income",          color: "#f59e0b" },
-  { slug: "refund-received",       name: "Refund Received",          color: "#84cc16" },
-  { slug: "grant",                 name: "Grant / Donation",         color: "#3b82f6" },
-  { slug: "other-income",          name: "Other Income",             color: "#a855f7" },
-  { slug: "rent",                  name: "Rent & Facilities",        color: "#f97316" },
-  { slug: "software",              name: "Software & Subscriptions", color: "#06b6d4" },
-  { slug: "utilities",             name: "Utilities",                color: "#f43f5e" },
-  { slug: "internet",              name: "Internet & Phone",         color: "#8b5cf6" },
-  { slug: "travel",                name: "Travel & Transport",       color: "#3b82f6" },
-  { slug: "meals",                 name: "Meals & Entertainment",    color: "#ec4899" },
-  { slug: "marketing",             name: "Marketing & Advertising",  color: "#f43f5e" },
-  { slug: "salary",                name: "Salaries & Wages",         color: "#f97316" },
-  { slug: "contractor",            name: "Contractors & Freelancers",color: "#f59e0b" },
-  { slug: "equipment",             name: "Equipment & Hardware",     color: "#84cc16" },
-  { slug: "office-supplies",       name: "Office Supplies",          color: "#10b981" },
-  { slug: "professional-services", name: "Professional Services",    color: "#14b8a6" },
-  { slug: "insurance",             name: "Insurance",                color: "#06b6d4" },
-  { slug: "bank-fees",             name: "Bank & M-Pesa Fees",       color: "#3b82f6" },
-  { slug: "taxes",                 name: "Taxes & Licenses",         color: "#a855f7" },
-  { slug: "training",              name: "Training & Education",     color: "#6366f1" },
-  { slug: "shipping",              name: "Shipping & Delivery",      color: "#8b5cf6" },
-  { slug: "other-expenses",        name: "Other Expenses",           color: "#ec4899" },
-];
 
 export function TransactionSheet({
   open,
   onOpenChange,
   transaction,
+  onSaved,
 }: TransactionSheetProps) {
-  const { org } = useAuth();
+  const { org, orgId, user } = useAuth();
+  const queryClient = useQueryClient();
   const isEditing = !!transaction;
   const today = new Date().toISOString().split("T")[0];
 
+  const [txId] = useState(() => crypto.randomUUID());
+  const [type, setType] = useState<"income" | "expense">("expense");
   const [date, setDate] = useState(today);
   const [status, setStatus] = useState<TransactionStatus>("completed");
   const [name, setName] = useState("");
@@ -97,7 +97,7 @@ export function TransactionSheet({
   const [currency, setCurrency] = useState(org?.base_currency ?? "KES");
   const [paymentMode, setPaymentMode] = useState<PaymentMode | "">("");
   const [referenceNumber, setReferenceNumber] = useState("");
-  const [categorySlug, setCategorySlug] = useState("");
+  const [categoryId, setCategoryId] = useState("");
   const [taxAmount, setTaxAmount] = useState("");
   const [taxRate, setTaxRate] = useState("");
   const [taxType, setTaxType] = useState<"vat" | "wht" | "other" | "">("");
@@ -105,13 +105,43 @@ export function TransactionSheet({
   const [frequency, setFrequency] = useState<TransactionFrequency | "">("");
   const [internal, setInternal] = useState(false);
   const [note, setNote] = useState("");
-  const [attachments, setAttachments] = useState<File[]>([]);
+  const [invoiceId, setInvoiceId] = useState("");
+  const [markInvoicePaid, setMarkInvoicePaid] = useState(false);
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+  const [existingAttachments, setExistingAttachments] = useState<
+    TransactionAttachmentInfo[]
+  >([]);
+  const [attachmentsToRemove, setAttachmentsToRemove] = useState<
+    TransactionAttachmentInfo[]
+  >([]);
   const [currencyOpen, setCurrencyOpen] = useState(false);
   const [currencySearch, setCurrencySearch] = useState("");
-  const [categories, setCategories] = useState<Category[]>(DEFAULT_CATEGORIES);
   const [categoryOpen, setCategoryOpen] = useState(false);
   const [categorySearch, setCategorySearch] = useState("");
+  const [invoiceOpen, setInvoiceOpen] = useState(false);
+  const [invoiceSearch, setInvoiceSearch] = useState("");
+  const [saving, setSaving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const { data: categories = [] } = useQuery({
+    queryKey: ["transaction-categories", orgId],
+    queryFn: () => listTransactionCategories(orgId!),
+    enabled: !!orgId && open,
+  });
+
+  const { data: openInvoices = [] } = useQuery<OpenInvoice[]>({
+    queryKey: ["open-invoices-for-linking", orgId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("invoices")
+        .select("id, invoice_number, customer_name, total, currency, due_date")
+        .eq("org_id", orgId!)
+        .in("status", ["unpaid", "draft"])
+        .order("due_date", { ascending: true });
+      return (data as OpenInvoice[]) ?? [];
+    },
+    enabled: !!orgId && open && type === "income",
+  });
 
   const filteredCurrencies = useMemo(() => {
     if (!currencySearch.trim()) return CURRENCY_LIST;
@@ -127,18 +157,33 @@ export function TransactionSheet({
   const filteredCategories = useMemo(() => {
     if (!categorySearch.trim()) return categories;
     const q = categorySearch.toLowerCase();
-    return categories.filter((c) => c.name.toLowerCase().includes(q));
+    return categories.filter((c: TransactionCategory) =>
+      c.name.toLowerCase().includes(q),
+    );
   }, [categories, categorySearch]);
 
-  const selectedCategory = categories.find((c) => c.slug === categorySlug) ?? null;
+  const filteredInvoices = useMemo(() => {
+    if (!invoiceSearch.trim()) return openInvoices;
+    const q = invoiceSearch.toLowerCase();
+    return openInvoices.filter(
+      (inv) =>
+        inv.invoice_number?.toLowerCase().includes(q) ||
+        inv.customer_name?.toLowerCase().includes(q),
+    );
+  }, [openInvoices, invoiceSearch]);
 
-  // Populate or reset state when the sheet opens or the transaction changes
+  const selectedCategory =
+    categories.find((c: TransactionCategory) => c.id === categoryId) ?? null;
+  const selectedInvoice =
+    openInvoices.find((inv) => inv.id === invoiceId) ?? null;
+
   useEffect(() => {
     if (!open) return;
     if (transaction) {
       const parsed = new Date(transaction.date);
       const isoDate =
         !isNaN(parsed.getTime()) ? parsed.toISOString().split("T")[0] : today;
+      setType(transaction.type);
       setDate(isoDate);
       setStatus(transaction.status);
       setName(transaction.name);
@@ -147,16 +192,21 @@ export function TransactionSheet({
       setCurrency(transaction.currency);
       setPaymentMode(transaction.paymentMode ?? "");
       setReferenceNumber(transaction.referenceNumber ?? "");
-      setCategorySlug(categories.find((c) => c.name === transaction.categoryName)?.slug ?? "");
+      setCategoryId(transaction.categoryId ?? "");
       setTaxAmount(transaction.taxAmount ? String(transaction.taxAmount) : "");
       setTaxRate(transaction.taxRate ? String(transaction.taxRate) : "");
       setTaxType(transaction.taxType ?? "");
       setRecurring(transaction.recurring);
       setFrequency(transaction.frequency ?? "");
       setInternal(transaction.internal);
-      setNote("");
-      setAttachments([]);
+      setNote(transaction.note ?? "");
+      setInvoiceId(transaction.linkedInvoiceId ?? "");
+      setMarkInvoicePaid(false);
+      setPendingFiles([]);
+      setExistingAttachments(transaction.attachments ?? []);
+      setAttachmentsToRemove([]);
     } else {
+      setType("expense");
       setDate(today);
       setStatus("completed");
       setName("");
@@ -165,7 +215,7 @@ export function TransactionSheet({
       setCurrency(org?.base_currency ?? "KES");
       setPaymentMode("");
       setReferenceNumber("");
-      setCategorySlug("");
+      setCategoryId("");
       setTaxAmount("");
       setTaxRate("");
       setTaxType("");
@@ -173,42 +223,167 @@ export function TransactionSheet({
       setFrequency("");
       setInternal(false);
       setNote("");
-      setAttachments([]);
+      setInvoiceId("");
+      setMarkInvoicePaid(false);
+      setPendingFiles([]);
+      setExistingAttachments([]);
+      setAttachmentsToRemove([]);
     }
   }, [open, transaction?.id]);
 
-  const amountValue = parseFloat(amount) || 0;
-  const isIncome = amountValue > 0;
+  // When type changes to expense, clear invoice link
+  useEffect(() => {
+    if (type === "expense") {
+      setInvoiceId("");
+      setMarkInvoicePaid(false);
+    }
+  }, [type]);
 
   function handleTaxRateChange(val: string) {
     setTaxRate(val);
     const rate = parseFloat(val);
-    const amt = Math.abs(parseFloat(amount));
-    if (!isNaN(rate) && !isNaN(amt)) {
+    const amt = parseFloat(amount);
+    if (!isNaN(rate) && !isNaN(amt) && amt > 0) {
       setTaxAmount(((amt * rate) / 100).toFixed(2));
     }
   }
 
+  function handleTaxAmountChange(val: string) {
+    setTaxAmount(val);
+    setTaxRate(""); // one-way: editing amount clears rate
+  }
+
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files ?? []);
-    setAttachments((prev) => [
+    setPendingFiles((prev) => [
       ...prev,
       ...files.filter((f) => f.size <= 10 * 1024 * 1024),
     ]);
     e.target.value = "";
   }
 
-  function removeAttachment(index: number) {
-    setAttachments((prev) => prev.filter((_, i) => i !== index));
+  function removeFile(index: number) {
+    setPendingFiles((prev) => prev.filter((_, i) => i !== index));
   }
 
+  function markAttachmentForRemoval(att: TransactionAttachmentInfo) {
+    setExistingAttachments((prev) => prev.filter((a) => a.id !== att.id));
+    setAttachmentsToRemove((prev) => [...prev, att]);
+  }
+
+  async function handleSave() {
+    if (!orgId || !user || !name.trim() || !amount) return;
+    const amtValue = parseFloat(amount);
+    if (isNaN(amtValue) || amtValue <= 0) return;
+
+    setSaving(true);
+    try {
+      // Delete removed attachments first
+      if (attachmentsToRemove.length > 0) {
+        await Promise.all(
+          attachmentsToRemove.map((a) => deleteAttachment(a.id, a.file_path)),
+        );
+      }
+
+      // Upload pending attachments — use the existing transaction ID when editing
+      const uploadTargetId = isEditing ? transaction.id : txId;
+      let attachmentInputs: AttachmentInput[] = [];
+      if (pendingFiles.length > 0) {
+        const uploadResults = await Promise.all(
+          pendingFiles.map((f) => uploadTransactionAttachment(orgId, uploadTargetId, f)),
+        );
+        attachmentInputs = uploadResults;
+      }
+
+      if (isEditing) {
+        await updateTransaction(transaction.id, orgId, {
+          date,
+          name: name.trim(),
+          counterparty_name: counterparty.trim() || undefined,
+          amount: amtValue,
+          currency,
+          type,
+          status,
+          payment_mode: paymentMode || undefined,
+          reference_number: referenceNumber.trim() || undefined,
+          category_id: categoryId || undefined,
+          invoice_id: type === "income" && invoiceId ? invoiceId : undefined,
+          tax_amount: taxAmount ? parseFloat(taxAmount) : undefined,
+          tax_rate: taxRate ? parseFloat(taxRate) : undefined,
+          tax_type: taxType || undefined,
+          recurring,
+          frequency: recurring && frequency ? frequency : undefined,
+          internal,
+          note: note.trim() || undefined,
+        });
+        if (attachmentInputs.length > 0) {
+          await addAttachments(transaction.id, orgId, attachmentInputs);
+        }
+        toast.success("Transaction updated");
+      } else {
+        await createTransaction(orgId, user.id, {
+          id: txId,
+          date,
+          name: name.trim(),
+          counterparty_name: counterparty.trim() || undefined,
+          amount: amtValue,
+          currency,
+          type,
+          status,
+          payment_mode: paymentMode || undefined,
+          reference_number: referenceNumber.trim() || undefined,
+          category_id: categoryId || undefined,
+          invoice_id: type === "income" && invoiceId ? invoiceId : undefined,
+          tax_amount: taxAmount ? parseFloat(taxAmount) : undefined,
+          tax_rate: taxRate ? parseFloat(taxRate) : undefined,
+          tax_type: taxType || undefined,
+          recurring,
+          frequency: recurring && frequency ? frequency : undefined,
+          internal,
+          note: note.trim() || undefined,
+          markInvoicePaid: type === "income" && !!invoiceId && markInvoicePaid,
+          attachments: attachmentInputs.length ? attachmentInputs : undefined,
+        });
+        toast.success("Transaction saved");
+      }
+
+      queryClient.invalidateQueries({ queryKey: ["transactions", orgId] });
+      if (invoiceId && markInvoicePaid) {
+        queryClient.invalidateQueries({ queryKey: ["invoices", orgId] });
+        queryClient.invalidateQueries({ queryKey: ["invoice", invoiceId] });
+      }
+      onSaved?.();
+      onOpenChange(false);
+    } catch (err) {
+      toast.error("Failed to save transaction", {
+        description: err instanceof Error ? err.message : "Please try again.",
+      });
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleCreateCategory(categoryName: string) {
+    if (!orgId) return;
+    try {
+      const newCat = await createTransactionCategory(orgId, {
+        name: categoryName.trim(),
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["transaction-categories", orgId],
+      });
+      setCategoryId(newCat.id);
+      setCategoryOpen(false);
+      setCategorySearch("");
+    } catch {
+      toast.error("Failed to create category");
+    }
+  }
+
+  const canSave = name.trim() && parseFloat(amount) > 0;
+
   return (
-    <Sheet
-      open={open}
-      onOpenChange={(o) => {
-        onOpenChange(o);
-      }}
-    >
+    <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side='right'
         className='w-full sm:max-w-md flex flex-col gap-0 p-0 overflow-hidden'
@@ -217,11 +392,33 @@ export function TransactionSheet({
           {isEditing ? "Edit Transaction" : "New Transaction"}
         </SheetTitle>
 
-        {/* Scrollable body */}
         <div className='flex-1 overflow-y-auto'>
-          {/* Midday-style detail header */}
+          {/* Header: type toggle + amount + description */}
           <div className='px-6 pt-6 pb-5 border-b'>
-            {/* Description — heading-style input */}
+            {/* Income / Expense toggle */}
+            <div className='flex rounded-md  border-input overflow-hidden mb-5 w-fit gap-2'>
+              <Button
+                type='button'
+                onClick={() => setType("income")}
+                className={cn(
+                  "px-4 py-1.5 text-xs font-medium transition-colors border-l border-input",
+                )}
+              >
+                Income
+              </Button>
+              <Button
+                type='button'
+                variant="secondary"
+                onClick={() => setType("expense")}
+                className={cn(
+                  "px-4 py-1.5 text-xs font-medium transition-colors",
+                )}
+              >
+                Expense
+              </Button>
+            </div>
+
+            {/* Description */}
             <input
               placeholder='Description'
               value={name}
@@ -229,15 +426,15 @@ export function TransactionSheet({
               className='w-full border-none bg-transparent text-base font-semibold outline-none placeholder:text-muted-foreground/50 mb-0.5'
             />
 
-            {/* Counterparty — small, muted */}
+            {/* Counterparty */}
             <input
-              placeholder='To / From'
+              placeholder={type === "income" ? "Received from" : "Paid to"}
               value={counterparty}
               onChange={(e) => setCounterparty(e.target.value)}
               className='w-full border-none bg-transparent text-xs text-muted-foreground outline-none placeholder:text-muted-foreground/40 mb-5'
             />
 
-            {/* Amount — large, sign-colored */}
+            {/* Amount */}
             <div className='flex items-baseline gap-2'>
               <Popover
                 open={currencyOpen}
@@ -297,24 +494,22 @@ export function TransactionSheet({
               <input
                 type='number'
                 step='0.01'
+                min='0'
                 placeholder='0.00'
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 className={cn(
                   "flex-1 min-w-0 border-none bg-transparent text-4xl font-semibold tabular-nums outline-none placeholder:text-muted-foreground/30",
-                  isIncome ?
+                  type === "income" ?
                     "text-green-600 dark:text-green-400"
                   : "text-foreground",
                 )}
               />
             </div>
-            <p className='text-[10px] text-muted-foreground/50 mt-1.5'>
-              Negative = expense · Positive = income
-            </p>
           </div>
 
           {/* Date + Status */}
-          <div className='flex items-center gap-2 px-6 py-5 '>
+          <div className='flex items-center gap-2 px-6 py-5'>
             <DatePicker
               className='h-10'
               value={date ? new Date(date) : undefined}
@@ -347,7 +542,7 @@ export function TransactionSheet({
             </Select>
           </div>
 
-          {/* Form fields */}
+          {/* Fields */}
           <div className='px-6 py-5 flex flex-col gap-4'>
             {/* Category + Payment mode */}
             <div className='grid grid-cols-2 gap-3'>
@@ -366,22 +561,32 @@ export function TransactionSheet({
                         type='button'
                         className='flex h-9 w-full items-center justify-between rounded-md border border-input bg-transparent px-3 py-2 text-xs shadow-sm ring-offset-background focus:outline-none focus:ring-1 focus:ring-ring'
                       >
-                        {selectedCategory ? (
+                        {selectedCategory ?
                           <div className='flex items-center gap-2 min-w-0'>
                             <div
                               className='size-2 rounded-full shrink-0'
-                              style={{ backgroundColor: selectedCategory.color }}
+                              style={{
+                                backgroundColor:
+                                  selectedCategory.color ?? "#888",
+                              }}
                             />
-                            <span className='truncate'>{selectedCategory.name}</span>
+                            <span className='truncate'>
+                              {selectedCategory.name}
+                            </span>
                           </div>
-                        ) : (
-                          <span className='text-muted-foreground'>Select</span>
-                        )}
-                        <ArrowDown01Icon size={12} className='shrink-0 text-muted-foreground ml-1' />
+                        : <span className='text-muted-foreground'>Select</span>}
+                        <ArrowDown01Icon
+                          size={12}
+                          className='shrink-0 text-muted-foreground ml-1'
+                        />
                       </button>
                     }
                   />
-                  <PopoverContent className='w-56 p-0' align='start' sideOffset={4}>
+                  <PopoverContent
+                    className='w-56 p-0'
+                    align='start'
+                    sideOffset={4}
+                  >
                     <Command shouldFilter={false}>
                       <CommandInput
                         placeholder='Search category…'
@@ -389,59 +594,55 @@ export function TransactionSheet({
                         onValueChange={setCategorySearch}
                       />
                       <CommandList>
-                        {filteredCategories.length > 0 ? (
+                        {filteredCategories.length > 0 ?
                           <CommandGroup>
-                            {filteredCategories.map((cat) => (
-                              <CommandItem
-                                key={cat.slug}
-                                value={cat.slug}
-                                onSelect={() => {
-                                  setCategorySlug(cat.slug);
-                                  setCategoryOpen(false);
-                                  setCategorySearch("");
-                                }}
-                                className='flex items-center gap-2'
-                              >
-                                <div
-                                  className='size-2 rounded-full shrink-0'
-                                  style={{ backgroundColor: cat.color }}
-                                />
-                                <span className='text-xs'>{cat.name}</span>
-                              </CommandItem>
-                            ))}
+                            {filteredCategories.map(
+                              (cat: TransactionCategory) => (
+                                <CommandItem
+                                  key={cat.id}
+                                  value={cat.id}
+                                  onSelect={() => {
+                                    setCategoryId(cat.id);
+                                    setCategoryOpen(false);
+                                    setCategorySearch("");
+                                  }}
+                                  className='flex items-center gap-2'
+                                >
+                                  <div
+                                    className='size-2 rounded-full shrink-0'
+                                    style={{
+                                      backgroundColor: cat.color ?? "#888",
+                                    }}
+                                  />
+                                  <span className='text-xs'>{cat.name}</span>
+                                </CommandItem>
+                              ),
+                            )}
                           </CommandGroup>
-                        ) : categorySearch.trim() ? (
+                        : categorySearch.trim() ?
                           <CommandGroup>
                             <CommandItem
                               value={`create:${categorySearch}`}
-                              onSelect={() => {
-                                const trimmed = categorySearch.trim();
-                                const slug = trimmed
-                                  .toLowerCase()
-                                  .replace(/\s+/g, "-")
-                                  .replace(/[^a-z0-9-]/g, "");
-                                const color = COLOR_PALETTE[categories.length % COLOR_PALETTE.length];
-                                const newCat: Category = { slug, name: trimmed, color };
-                                setCategories((prev) => [...prev, newCat]);
-                                setCategorySlug(slug);
-                                setCategoryOpen(false);
-                                setCategorySearch("");
-                              }}
+                              onSelect={() =>
+                                handleCreateCategory(categorySearch)
+                              }
                               className='flex items-center gap-2'
                             >
                               <span className='text-xs'>
-                                Create <span className='font-medium'>"{categorySearch.trim()}"</span>
+                                Create{" "}
+                                <span className='font-medium'>
+                                  "{categorySearch.trim()}"
+                                </span>
                               </span>
                             </CommandItem>
                           </CommandGroup>
-                        ) : (
-                          <CommandEmpty>No categories found.</CommandEmpty>
-                        )}
+                        : <CommandEmpty>No categories.</CommandEmpty>}
                       </CommandList>
                     </Command>
                   </PopoverContent>
                 </Popover>
               </div>
+
               <div className='flex flex-col gap-1.5'>
                 <Label className='text-xs'>Payment mode</Label>
                 <Select
@@ -509,7 +710,7 @@ export function TransactionSheet({
                   step='0.01'
                   placeholder='0.00'
                   value={taxAmount}
-                  onChange={(e) => setTaxAmount(e.target.value)}
+                  onChange={(e) => handleTaxAmountChange(e.target.value)}
                 />
               </div>
             </div>
@@ -588,20 +789,118 @@ export function TransactionSheet({
               <Switch checked={internal} onCheckedChange={setInternal} />
             </div>
 
-            {/* Link to invoice */}
-            <div className='flex flex-col gap-1.5'>
-              <Label className='text-xs'>Link to invoice</Label>
-              <Select>
-                <SelectTrigger className='text-xs w-1/2'>
-                  <SelectValue placeholder='Select invoice (optional)' />
-                </SelectTrigger>
-                <SelectContent>
-                  <div className='py-3 text-center text-xs text-muted-foreground'>
-                    No open invoices
-                  </div>
-                </SelectContent>
-              </Select>
-            </div>
+            {/* Invoice link — income only */}
+            {type === "income" && (
+              <div className='flex flex-col gap-1.5'>
+                <Label className='text-xs'>Link to invoice</Label>
+                <Popover
+                  open={invoiceOpen}
+                  onOpenChange={(o) => {
+                    setInvoiceOpen(o);
+                    if (!o) setInvoiceSearch("");
+                  }}
+                >
+                  <PopoverTrigger
+                    render={
+                      <button
+                        type='button'
+                        className='flex h-9 w-full items-center justify-between rounded-md border border-input bg-transparent px-3 py-2 text-xs shadow-sm ring-offset-background focus:outline-none focus:ring-1 focus:ring-ring'
+                      >
+                        {selectedInvoice ?
+                          <span className='truncate'>
+                            {selectedInvoice.invoice_number ?? "Invoice"} —{" "}
+                            {selectedInvoice.customer_name}
+                          </span>
+                        : <span className='text-muted-foreground'>
+                            Select invoice (optional)
+                          </span>
+                        }
+                        <ArrowDown01Icon
+                          size={12}
+                          className='shrink-0 text-muted-foreground ml-1'
+                        />
+                      </button>
+                    }
+                  />
+                  <PopoverContent
+                    className='w-72 p-0'
+                    align='start'
+                    sideOffset={4}
+                  >
+                    <Command shouldFilter={false}>
+                      <CommandInput
+                        placeholder='Search by invoice # or customer…'
+                        value={invoiceSearch}
+                        onValueChange={setInvoiceSearch}
+                      />
+                      <CommandList>
+                        {invoiceId && (
+                          <CommandGroup>
+                            <CommandItem
+                              value='clear'
+                              onSelect={() => {
+                                setInvoiceId("");
+                                setMarkInvoicePaid(false);
+                                setInvoiceOpen(false);
+                              }}
+                              className='text-muted-foreground text-xs'
+                            >
+                              Clear selection
+                            </CommandItem>
+                          </CommandGroup>
+                        )}
+                        {filteredInvoices.length > 0 ?
+                          <CommandGroup>
+                            {filteredInvoices.map((inv) => (
+                              <CommandItem
+                                key={inv.id}
+                                value={inv.id}
+                                onSelect={() => {
+                                  setInvoiceId(inv.id);
+                                  setInvoiceOpen(false);
+                                  setInvoiceSearch("");
+                                }}
+                              >
+                                <div className='flex flex-col min-w-0'>
+                                  <span className='text-xs font-medium'>
+                                    {inv.invoice_number ?? "—"} ·{" "}
+                                    {inv.customer_name}
+                                  </span>
+                                  {inv.due_date && (
+                                    <span className='text-[10px] text-muted-foreground'>
+                                      Due{" "}
+                                      {new Date(
+                                        inv.due_date,
+                                      ).toLocaleDateString("en-KE")}
+                                      {inv.total != null &&
+                                        ` · ${inv.currency} ${inv.total.toLocaleString("en-KE")}`}
+                                    </span>
+                                  )}
+                                </div>
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        : <CommandEmpty>No open invoices.</CommandEmpty>}
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+
+                {invoiceId && !isEditing && (
+                  <label className='flex items-center gap-2 cursor-pointer mt-0.5'>
+                    <input
+                      type='checkbox'
+                      className='size-3.5 rounded accent-foreground'
+                      checked={markInvoicePaid}
+                      onChange={(e) => setMarkInvoicePaid(e.target.checked)}
+                    />
+                    <span className='text-xs text-muted-foreground'>
+                      Mark invoice as paid when saving
+                    </span>
+                  </label>
+                )}
+              </div>
+            )}
 
             {/* Note */}
             <div className='flex flex-col gap-1.5'>
@@ -617,6 +916,40 @@ export function TransactionSheet({
             {/* Attachments */}
             <div className='flex flex-col gap-1.5'>
               <Label className='text-xs'>Attachments</Label>
+
+              {/* Existing attachments (edit mode) */}
+              {existingAttachments.length > 0 && (
+                <div className='flex flex-col gap-1'>
+                  {existingAttachments.map((att) => (
+                    <div
+                      key={att.id}
+                      className='flex items-center gap-2 rounded-md border px-3 py-1.5'
+                    >
+                      <Attachment01Icon
+                        size={12}
+                        className='shrink-0 text-muted-foreground'
+                      />
+                      <span className='flex-1 truncate text-xs'>
+                        {att.file_name}
+                      </span>
+                      {att.file_size && (
+                        <span className='text-[10px] text-muted-foreground shrink-0'>
+                          {(att.file_size / 1024).toFixed(0)} KB
+                        </span>
+                      )}
+                      <button
+                        type='button'
+                        onClick={() => markAttachmentForRemoval(att)}
+                        className='text-muted-foreground fine-hover:text-destructive transition-colors shrink-0'
+                      >
+                        <Delete01Icon size={12} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* New file uploads */}
               <input
                 ref={fileInputRef}
                 type='file'
@@ -638,9 +971,9 @@ export function TransactionSheet({
                   PDF, PNG, JPG · Max 10 MB
                 </span>
               </button>
-              {attachments.length > 0 && (
-                <div className='flex flex-col gap-1 mt-1'>
-                  {attachments.map((file, i) => (
+              {pendingFiles.length > 0 && (
+                <div className='flex flex-col gap-1'>
+                  {pendingFiles.map((file, i) => (
                     <div
                       key={i}
                       className='flex items-center gap-2 rounded-md border px-3 py-1.5'
@@ -654,7 +987,7 @@ export function TransactionSheet({
                       </span>
                       <button
                         type='button'
-                        onClick={() => removeAttachment(i)}
+                        onClick={() => removeFile(i)}
                         className='text-muted-foreground fine-hover:text-destructive transition-colors'
                       >
                         <Delete01Icon size={12} />
@@ -667,13 +1000,21 @@ export function TransactionSheet({
           </div>
         </div>
 
-        {/* Sticky footer */}
+        {/* Footer */}
         <div className='border-t px-6 py-4 flex items-center justify-end gap-2'>
-          <Button variant='outline' onClick={() => onOpenChange(false)}>
+          <Button
+            variant='outline'
+            onClick={() => onOpenChange(false)}
+            disabled={saving}
+          >
             Cancel
           </Button>
-          <Button disabled={!name.trim() || !amount || amountValue === 0}>
-            {isEditing ? "Save changes" : "Add transaction"}
+          <Button onClick={handleSave} disabled={!canSave || saving}>
+            {saving ?
+              "Saving…"
+            : isEditing ?
+              "Save changes"
+            : "Add transaction"}
           </Button>
         </div>
       </SheetContent>

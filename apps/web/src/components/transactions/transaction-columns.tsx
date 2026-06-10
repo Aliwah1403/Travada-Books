@@ -1,6 +1,6 @@
 import { type ColumnDef } from "@tanstack/react-table";
 import { Link } from "react-router";
-import { RepeatIcon } from "@travada-books/ui/icons";
+import { RepeatIcon, Attachment01Icon } from "@travada-books/ui/icons";
 import { TransactionActions } from "./transaction-actions";
 
 declare module "@tanstack/react-table" {
@@ -31,16 +31,25 @@ export type TransactionFrequency =
   | "annually"
   | "irregular";
 
+export type TransactionAttachmentInfo = {
+  id: string;
+  file_path: string;
+  file_name: string;
+  file_size: number | null;
+  content_type: string | null;
+};
+
 export type Transaction = {
   id: string;
   date: string;
   name: string;
   counterpartyName: string | null;
-  /** Signed: positive = income, negative = expense */
-  amount: number;
+  type: "income" | "expense";
+  amount: number; // always positive
   taxAmount: number | null;
   taxRate: number | null;
   taxType: "vat" | "wht" | "other" | null;
+  categoryId: string | null;
   categoryName: string | null;
   categoryColor: string | null;
   currency: string;
@@ -50,7 +59,11 @@ export type Transaction = {
   frequency: TransactionFrequency | null;
   internal: boolean;
   referenceNumber: string | null;
+  note: string | null;
+  linkedInvoiceId: string | null;
   linkedInvoiceNumber: string | null;
+  hasAttachments: boolean;
+  attachments: TransactionAttachmentInfo[];
 };
 
 const PAYMENT_MODE_LABELS: Record<PaymentMode, string> = {
@@ -166,17 +179,16 @@ export const transactionColumns: ColumnDef<Transaction>[] = [
     header: "Amount",
     enableSorting: true,
     cell: ({ row }) => {
-      const { amount, currency } = row.original;
-      const isIncome = amount > 0;
+      const { amount, currency, type } = row.original;
       return (
         <span
           className={
-            isIncome ?
+            type === "income" ?
               "text-xs font-medium text-green-600 dark:text-green-400"
             : "text-xs"
           }
         >
-          {currency}{" "}
+          {type === "expense" ? "–" : "+"}{currency}{" "}
           {amount.toLocaleString("en-KE", { minimumFractionDigits: 2 })}
         </span>
       );
@@ -212,19 +224,28 @@ export const transactionColumns: ColumnDef<Transaction>[] = [
     header: "Invoice",
     enableHiding: true,
     cell: ({ row }) => {
-      const num = row.original.linkedInvoiceNumber;
-      if (!num)
+      const { linkedInvoiceId, linkedInvoiceNumber } = row.original;
+      if (!linkedInvoiceId || !linkedInvoiceNumber)
         return <span className='text-xs text-muted-foreground/40'>—</span>;
       return (
         <Link
-          to='/invoices'
+          to={`/invoices/${linkedInvoiceId}`}
           onClick={(e) => e.stopPropagation()}
           className='text-xs font-medium text-foreground underline decoration-muted-foreground/40 underline-offset-2 fine-hover:decoration-foreground transition-colors'
         >
-          {num}
+          {linkedInvoiceNumber}
         </Link>
       );
     },
+  },
+  {
+    id: "attachments",
+    header: "Attachment",
+    enableHiding: false,
+    cell: ({ row }) =>
+      row.original.hasAttachments ? (
+        <Attachment01Icon size={13} className='text-muted-foreground' />
+      ) : null,
   },
   {
     id: "actions",

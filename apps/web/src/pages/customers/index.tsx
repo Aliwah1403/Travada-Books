@@ -233,7 +233,7 @@ export function CustomersPage() {
                   <TableHead style={{ minWidth: 150 }} className="h-12 px-4 text-xs">Total Paid</TableHead>
                   <TableHead style={{ minWidth: 150 }} className="h-12 px-4 text-xs">Outstanding</TableHead>
                   <TableHead style={{ minWidth: 130 }} className="h-12 px-4 text-xs">Last Invoice</TableHead>
-                  <TableHead style={{ minWidth: 52 }} className="h-12 w-13" />
+                  <TableHead style={{ minWidth: 52 }} className="h-12 w-13 sticky right-0 z-30 bg-background" />
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -297,7 +297,7 @@ export function CustomersPage() {
                         ? formatDate(summaries[customer.id].lastInvoiceAt!)
                         : <span className="text-muted-foreground/50">—</span>}
                     </TableCell>
-                    <TableCell className="py-3" onClick={(e) => e.stopPropagation()}>
+                    <TableCell className="py-3 sticky right-0 z-20 bg-background" onClick={(e) => e.stopPropagation()}>
                       <CustomerActions
                         customerId={customer.id}
                         customer={{

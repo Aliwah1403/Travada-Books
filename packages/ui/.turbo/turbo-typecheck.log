@@ -1,0 +1,12 @@
+
+> @travada-books/ui@0.0.0 typecheck
+> tsc --noEmit
+
+src/components/calendar.tsx(89,9): error TS2353: Object literal may only specify known properties, and 'table' does not exist in type 'Partial<ClassNames>'.
+npm error Lifecycle script `typecheck` failed with error:
+npm error code 2
+npm error path /Users/curtisaliwah/Desktop/coding/Ongoing-Projects/Travada Systems/Travada-Books/packages/ui
+npm error workspace @travada-books/ui@0.0.0
+npm error location /Users/curtisaliwah/Desktop/coding/Ongoing-Projects/Travada Systems/Travada-Books/packages/ui
+npm error command failed
+npm error command sh -c tsc --noEmit

@@ -1,105 +1,122 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { Button } from "@travada-books/ui/components/button";
 import { Input } from "@travada-books/ui/components/input";
 import {
   Search01Icon,
   Cancel01Icon,
-  FilterIcon,
 } from "@travada-books/ui/icons";
 import { TransactionTable } from "@/components/transactions/transaction-table";
 import { TransactionSheet } from "@/components/transactions/transaction-sheet";
-import { type Transaction } from "@/components/transactions/transaction-columns";
+import {
+  type Transaction as UITransaction,
+} from "@/components/transactions/transaction-columns";
+import {
+  listTransactions,
+  deleteTransaction,
+  type Transaction as DbTransaction,
+  type TransactionFilters,
+} from "@/lib/queries/transactions";
+import { useAuth } from "@/contexts/auth-context";
 
-const DUMMY_TRANSACTIONS: Transaction[] = [
-  {
-    id: "1", date: "09 Jun 2026", name: "Consulting – Acme Ltd",
-    counterpartyName: "Acme Ltd",
-    categoryName: "Consulting Fees", categoryColor: "#6366f1",
-    amount: 85000, currency: "KES",
-    taxAmount: 13600, taxRate: 16, taxType: "vat",
-    status: "completed", paymentMode: "bank_transfer",
-    recurring: false, frequency: null, internal: false,
-    referenceNumber: null, linkedInvoiceNumber: "INV-0042",
-  },
-  {
-    id: "2", date: "08 Jun 2026", name: "AWS subscription",
-    counterpartyName: "Amazon Web Services",
-    categoryName: "Software & Subscriptions", categoryColor: "#06b6d4",
-    amount: -3200, currency: "KES",
-    taxAmount: null, taxRate: null, taxType: null,
-    status: "completed", paymentMode: "card",
-    recurring: true, frequency: "monthly", internal: false,
-    referenceNumber: null, linkedInvoiceNumber: null,
-  },
-  {
-    id: "3", date: "07 Jun 2026", name: "Office rent – June",
-    counterpartyName: "Westlands Business Park",
-    categoryName: "Rent & Facilities", categoryColor: "#f97316",
-    amount: -45000, currency: "KES",
-    taxAmount: null, taxRate: null, taxType: null,
-    status: "completed", paymentMode: "bank_transfer",
-    recurring: true, frequency: "monthly", internal: false,
-    referenceNumber: "CHCK-0042", linkedInvoiceNumber: null,
-  },
-  {
-    id: "4", date: "05 Jun 2026", name: "Service retainer – Zenith Co.",
-    counterpartyName: "Zenith Co.",
-    categoryName: "Service Income", categoryColor: "#10b981",
-    amount: 120000, currency: "KES",
-    taxAmount: 19200, taxRate: 16, taxType: "vat",
-    status: "completed", paymentMode: "mpesa",
-    recurring: false, frequency: null, internal: false,
-    referenceNumber: "QGH7X23YK", linkedInvoiceNumber: "INV-0038",
-  },
-  {
-    id: "5", date: "03 Jun 2026", name: "Safaricom internet",
-    counterpartyName: "Safaricom PLC",
-    categoryName: "Internet & Phone", categoryColor: "#8b5cf6",
-    amount: -6000, currency: "KES",
-    taxAmount: null, taxRate: null, taxType: null,
-    status: "pending", paymentMode: "mpesa",
-    recurring: true, frequency: "monthly", internal: false,
-    referenceNumber: null, linkedInvoiceNumber: null,
-  },
-  {
-    id: "6", date: "02 Jun 2026", name: "Team lunch – client meeting",
-    counterpartyName: "Java House",
-    categoryName: "Meals & Entertainment", categoryColor: "#ec4899",
-    amount: -8400, currency: "KES",
-    taxAmount: null, taxRate: null, taxType: null,
-    status: "completed", paymentMode: "cash",
-    recurring: false, frequency: null, internal: false,
-    referenceNumber: null, linkedInvoiceNumber: null,
-  },
-  {
-    id: "7", date: "01 Jun 2026", name: "Freelance design invoice",
-    counterpartyName: "Wanjiku Creative Studio",
-    categoryName: "Contractors & Freelancers", categoryColor: "#f59e0b",
-    amount: -25000, currency: "KES",
-    taxAmount: 5000, taxRate: null, taxType: "wht",
-    status: "completed", paymentMode: "mpesa",
-    recurring: false, frequency: null, internal: false,
-    referenceNumber: "QBX9K12ZT", linkedInvoiceNumber: null,
-  },
-  {
-    id: "8", date: "28 May 2026", name: "Sales commission – May",
-    counterpartyName: null,
-    categoryName: "Commission", categoryColor: "#14b8a6",
-    amount: 32500, currency: "KES",
-    taxAmount: null, taxRate: null, taxType: null,
-    status: "completed", paymentMode: "bank_transfer",
-    recurring: false, frequency: null, internal: false,
-    referenceNumber: null, linkedInvoiceNumber: null,
-  },
-];
+const PAGE_SIZE = 50;
+
+function mapDbTx(row: DbTransaction): UITransaction {
+  const dateStr = row.date ? row.date.slice(0, 10) : "";
+  return {
+    id: row.id,
+    date: dateStr,
+    name: row.name,
+    counterpartyName: row.counterparty_name,
+    type: row.type,
+    amount: row.amount,
+    taxAmount: row.tax_amount,
+    taxRate: row.tax_rate,
+    taxType: row.tax_type,
+    categoryId: row.category?.id ?? null,
+    categoryName: row.category?.name ?? null,
+    categoryColor: row.category?.color ?? null,
+    currency: row.currency,
+    status: row.status,
+    paymentMode: row.payment_mode,
+    recurring: row.recurring,
+    frequency: row.frequency,
+    internal: row.internal,
+    referenceNumber: row.reference_number,
+    note: row.note,
+    linkedInvoiceId: row.invoice_id,
+    linkedInvoiceNumber: row.invoice?.invoice_number ?? null,
+    hasAttachments: (row.attachments?.length ?? 0) > 0,
+    attachments: row.attachments ?? [],
+  };
+}
+
+function SkeletonRows() {
+  return (
+    <div className="rounded-lg border overflow-hidden">
+      {Array.from({ length: 8 }).map((_, i) => (
+        <div key={i} className="flex items-center gap-4 px-4 py-3 border-b last:border-0">
+          <div className="h-3 w-20 rounded bg-muted animate-pulse" />
+          <div className="h-3 flex-1 rounded bg-muted animate-pulse" />
+          <div className="h-3 w-24 rounded bg-muted animate-pulse" />
+          <div className="h-3 w-16 rounded bg-muted animate-pulse" />
+          <div className="h-3 w-20 rounded bg-muted animate-pulse" />
+        </div>
+      ))}
+    </div>
+  );
+}
 
 export function TransactionsPage() {
+  const { orgId } = useAuth();
+  const queryClient = useQueryClient();
+
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [page, setPage] = useState(0);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
 
+  // Debounce search to avoid FTS on every keystroke
+  const searchRef = { current: 0 };
+  function handleSearchChange(val: string) {
+    setSearch(val);
+    clearTimeout(searchRef.current);
+    searchRef.current = window.setTimeout(() => {
+      setDebouncedSearch(val);
+      setPage(0);
+    }, 350);
+  }
+
+  const filters: TransactionFilters = useMemo(
+    () => ({ search: debouncedSearch || undefined }),
+    [debouncedSearch],
+  );
+
+  const { data, isLoading } = useQuery({
+    queryKey: ["transactions", orgId, filters, page],
+    queryFn: () => listTransactions(orgId!, filters, page),
+    enabled: !!orgId,
+    placeholderData: (prev) => prev,
+  });
+
+  const transactions = useMemo(
+    () => (data?.data ?? []).map(mapDbTx),
+    [data],
+  );
+  const totalCount = data?.count ?? 0;
+  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => deleteTransaction(id, orgId!),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["transactions", orgId] });
+    },
+  });
+
   const editingTransaction = editingId
-    ? (DUMMY_TRANSACTIONS.find((t) => t.id === editingId) ?? null)
+    ? (transactions.find((t) => t.id === editingId) ?? null)
     : null;
 
   function handleEdit(id: string) {
@@ -107,8 +124,12 @@ export function TransactionsPage() {
     setSheetOpen(true);
   }
 
-  function handleDelete(_id: string) {
-    // no-op until data layer is wired
+  function handleDelete(id: string) {
+    toast.promise(deleteMutation.mutateAsync(id), {
+      loading: "Deleting transaction…",
+      success: "Transaction deleted",
+      error: "Failed to delete transaction",
+    });
   }
 
   function handleNewTransaction() {
@@ -117,46 +138,79 @@ export function TransactionsPage() {
   }
 
   return (
-    <div className='flex flex-col gap-6 p-6'>
+    <div className="flex flex-col gap-6 p-6">
       {/* Toolbar */}
-      <div className='flex items-center justify-between gap-2'>
-        <div className='flex items-center justify-center gap-2'>
-          <div className='relative'>
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <div className="relative">
             <Search01Icon
               size={14}
-              className='absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground'
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
             />
             <Input
-              placeholder='Search transactions…'
-              className='h-10 w-80 pl-8 pr-8 text-xs'
+              placeholder="Search transactions…"
+              className="h-10 w-80 pl-8 pr-8 text-xs"
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => handleSearchChange(e.target.value)}
             />
             {search && (
               <button
-                onClick={() => setSearch("")}
-                className='absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground fine-hover:text-foreground transition-colors'
+                onClick={() => {
+                  setSearch("");
+                  setDebouncedSearch("");
+                  setPage(0);
+                }}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground fine-hover:text-foreground transition-colors"
               >
                 <Cancel01Icon size={13} />
               </button>
             )}
           </div>
-          <Button variant='outline' size='icon' className='size-10'>
-            <FilterIcon size={14} />
-          </Button>
         </div>
 
-        <Button className='h-10' onClick={handleNewTransaction}>
+        <Button className="h-10" onClick={handleNewTransaction}>
           + New Transaction
         </Button>
       </div>
 
-      <TransactionTable
-        data={DUMMY_TRANSACTIONS}
-        globalFilter={search}
-        onEdit={handleEdit}
-        onDelete={handleDelete}
-      />
+      {isLoading ? (
+        <SkeletonRows />
+      ) : (
+        <TransactionTable
+          data={transactions}
+          globalFilter={search}
+          onEdit={handleEdit}
+          onDelete={handleDelete}
+        />
+      )}
+
+      {/* Pagination */}
+      {totalCount > PAGE_SIZE && (
+        <div className="flex items-center justify-between">
+          <span className="text-xs text-muted-foreground">
+            {totalCount} transaction{totalCount !== 1 ? "s" : ""}
+            {totalPages > 1 && ` · Page ${page + 1} of ${totalPages}`}
+          </span>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={page === 0}
+              onClick={() => setPage((p) => Math.max(0, p - 1))}
+            >
+              Previous
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={page >= totalPages - 1}
+              onClick={() => setPage((p) => p + 1)}
+            >
+              Next
+            </Button>
+          </div>
+        </div>
+      )}
 
       <TransactionSheet
         open={sheetOpen}
@@ -165,6 +219,9 @@ export function TransactionsPage() {
           if (!o) setEditingId(null);
         }}
         transaction={editingTransaction}
+        onSaved={() => {
+          queryClient.invalidateQueries({ queryKey: ["transactions", orgId] });
+        }}
       />
     </div>
   );

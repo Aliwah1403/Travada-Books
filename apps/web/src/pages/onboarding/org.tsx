@@ -67,9 +67,27 @@ export function OnboardingOrgPage() {
     // Always set active_org_id so the new org becomes the active one
     const { error: updateError } = await supabase.from("users").update({ active_org_id: orgId }).eq("id", user.id)
     if (updateError) {
+      Sentry.captureException(updateError)
+      const { error: rbMemberError } = await supabase.from("organization_members").delete().eq("org_id", orgId).eq("user_id", user.id)
+      if (rbMemberError) {
+        console.error(`Rollback failed for membership org=${orgId} user=${user.id}: ${rbMemberError.message}`)
+        Sentry.captureException(rbMemberError, { extra: { context: "membership_rollback_failed", orgId } })
+      }
+      const { error: rbOrgError } = await supabase.from("organizations").delete().eq("id", orgId)
+      if (rbOrgError) {
+        console.error(`Rollback failed for org ${orgId}: ${rbOrgError.message}`)
+        Sentry.captureException(rbOrgError, { extra: { context: "org_rollback_failed", orgId } })
+      }
       setError("Failed to set up your account. Please try again.")
       setLoading(false)
       return
+    }
+
+    // Seed system transaction categories — non-blocking, failure doesn't block onboarding
+    const { error: seedError } = await supabase.rpc("seed_org_categories", { p_org_id: orgId })
+    if (seedError) {
+      console.warn("Failed to seed transaction categories:", seedError.message)
+      Sentry.captureException(seedError, { extra: { context: "seed_org_categories", orgId } })
     }
 
     if (isCreateMode) {
