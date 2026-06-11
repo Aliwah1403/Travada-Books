@@ -60,6 +60,7 @@ export type Transaction = {
   internal: boolean;
   referenceNumber: string | null;
   note: string | null;
+  customerId: string | null;
   linkedInvoiceId: string | null;
   linkedInvoiceNumber: string | null;
   hasAttachments: boolean;

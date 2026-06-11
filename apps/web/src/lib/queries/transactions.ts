@@ -30,6 +30,7 @@ export type Transaction = {
   date: string
   name: string
   counterparty_name: string | null
+  customer_id: string | null
   amount: number
   currency: string
   type: "income" | "expense"
@@ -57,6 +58,7 @@ export type TransactionInput = {
   date: string
   name: string
   counterparty_name?: string
+  customer_id?: string
   amount: number
   currency: string
   type: "income" | "expense"
@@ -100,7 +102,7 @@ export type TransactionsPage = {
 }
 
 const TRANSACTION_SELECT = `
-  id, org_id, created_by, date, name, counterparty_name, amount, currency,
+  id, org_id, created_by, date, name, counterparty_name, customer_id, amount, currency,
   type, status, payment_mode, category_id, invoice_id,
   tax_amount, tax_rate, tax_type, recurring, frequency, internal,
   reference_number, note, manual, created_at,
@@ -170,6 +172,7 @@ export async function createTransaction(
       p_date: rest.date,
       p_name: rest.name,
       p_counterparty_name: rest.counterparty_name ?? null,
+      p_customer_id: rest.customer_id ?? null,
       p_amount: rest.amount,
       p_currency: rest.currency,
       p_type: rest.type,
@@ -198,6 +201,7 @@ export async function createTransaction(
     date: rest.date,
     name: rest.name,
     counterparty_name: rest.counterparty_name ?? null,
+    customer_id: rest.customer_id ?? null,
     amount: rest.amount,
     currency: rest.currency,
     type: rest.type,

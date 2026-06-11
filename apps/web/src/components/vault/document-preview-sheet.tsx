@@ -30,6 +30,7 @@ import {
   renameDocument,
   listRelatedDocuments,
   type VaultDocument,
+  type VaultFolder,
 } from "@/lib/queries/vault"
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -255,9 +256,10 @@ type Props = {
   onOpenChange: (open: boolean) => void
   onDeleted: () => void
   onOpenDoc?: (doc: VaultDocument) => void
+  folders?: VaultFolder[]
 }
 
-export function DocumentPreviewSheet({ doc, open, onOpenChange, onDeleted, onOpenDoc }: Props) {
+export function DocumentPreviewSheet({ doc, open, onOpenChange, onDeleted, onOpenDoc, folders = [] }: Props) {
   const queryClient = useQueryClient()
 
   const [summary, setSummary] = useState("")
@@ -418,6 +420,24 @@ export function DocumentPreviewSheet({ doc, open, onOpenChange, onDeleted, onOpe
               <p className="text-muted-foreground">Added</p>
               <p className="mt-1 font-medium">{formatDate(doc.created_at)}</p>
             </div>
+            {folders.length > 0 && (
+              <div className="col-span-2">
+                <p className="text-muted-foreground">Folder</p>
+                <select
+                  className="mt-1 w-full rounded-md border bg-background px-2 py-1 text-xs font-medium text-foreground outline-none focus:ring-1 focus:ring-ring"
+                  value={doc.folder_id ?? ""}
+                  onChange={(e) => {
+                    const folderId = e.target.value || null
+                    updateMutation.mutate({ folder_id: folderId })
+                  }}
+                >
+                  <option value="">No folder</option>
+                  {folders.map((f) => (
+                    <option key={f.id} value={f.id}>{f.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
             {doc.transaction_id && (
               <div className="col-span-2">
                 <p className="text-muted-foreground">Linked transaction</p>

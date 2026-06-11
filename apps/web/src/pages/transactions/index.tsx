@@ -29,6 +29,7 @@ function mapDbTx(row: DbTransaction): UITransaction {
     date: dateStr,
     name: row.name,
     counterpartyName: row.counterparty_name,
+    customerId: row.customer_id,
     type: row.type,
     amount: row.amount,
     taxAmount: row.tax_amount,

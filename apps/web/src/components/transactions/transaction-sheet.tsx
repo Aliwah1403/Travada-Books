@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo } from "react";
+import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
@@ -52,6 +52,7 @@ import {
   type AttachmentInput,
 } from "@/lib/queries/transactions";
 import { supabase } from "@/lib/supabase";
+import { listCustomers } from "@/lib/queries/customers";
 import type {
   Transaction,
   TransactionStatus,
@@ -93,6 +94,9 @@ export function TransactionSheet({
   const [status, setStatus] = useState<TransactionStatus>("completed");
   const [name, setName] = useState("");
   const [counterparty, setCounterparty] = useState("");
+  const [customerId, setCustomerId] = useState("");
+  const [counterpartySuggestionsOpen, setCounterpartySuggestionsOpen] = useState(false);
+  const counterpartyBlurTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [amount, setAmount] = useState("");
   const [currency, setCurrency] = useState(org?.base_currency ?? "KES");
   const [paymentMode, setPaymentMode] = useState<PaymentMode | "">("");
@@ -143,6 +147,20 @@ export function TransactionSheet({
     enabled: !!orgId && open && type === "income",
   });
 
+  const { data: customers = [] } = useQuery({
+    queryKey: ["customers", orgId],
+    queryFn: () => listCustomers(orgId!),
+    enabled: !!orgId && open,
+    select: (data) => data.map((c) => ({ id: c.id, name: c.name })),
+  });
+
+
+  const counterpartySuggestions = useMemo(() => {
+    if (!counterparty.trim() || customerId) return [];
+    const q = counterparty.toLowerCase();
+    return customers.filter((c) => c.name.toLowerCase().includes(q)).slice(0, 6);
+  }, [counterparty, customerId, customers]);
+
   const filteredCurrencies = useMemo(() => {
     if (!currencySearch.trim()) return CURRENCY_LIST;
     const q = currencySearch.toLowerCase();
@@ -188,6 +206,7 @@ export function TransactionSheet({
       setStatus(transaction.status);
       setName(transaction.name);
       setCounterparty(transaction.counterpartyName ?? "");
+      setCustomerId(transaction.customerId ?? "");
       setAmount(String(transaction.amount));
       setCurrency(transaction.currency);
       setPaymentMode(transaction.paymentMode ?? "");
@@ -211,6 +230,7 @@ export function TransactionSheet({
       setStatus("completed");
       setName("");
       setCounterparty("");
+      setCustomerId("");
       setAmount("");
       setCurrency(org?.base_currency ?? "KES");
       setPaymentMode("");
@@ -253,6 +273,29 @@ export function TransactionSheet({
     setTaxRate(""); // one-way: editing amount clears rate
   }
 
+  const selectCustomer = useCallback((id: string, name: string) => {
+    setCustomerId(id);
+    setCounterparty(name);
+    setCounterpartySuggestionsOpen(false);
+  }, []);
+
+  function handleCounterpartyChange(val: string) {
+    setCounterparty(val);
+    setCustomerId("");
+    setCounterpartySuggestionsOpen(true);
+  }
+
+  function handleCounterpartyFocus() {
+    if (counterpartyBlurTimeout.current) clearTimeout(counterpartyBlurTimeout.current);
+    if (!customerId) setCounterpartySuggestionsOpen(true);
+  }
+
+  function handleCounterpartyBlur() {
+    counterpartyBlurTimeout.current = setTimeout(() => {
+      setCounterpartySuggestionsOpen(false);
+    }, 150);
+  }
+
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files ?? []);
     setPendingFiles((prev) => [
@@ -278,72 +321,57 @@ export function TransactionSheet({
 
     setSaving(true);
     try {
-      // Delete removed attachments first
-      if (attachmentsToRemove.length > 0) {
-        await Promise.all(
-          attachmentsToRemove.map((a) => deleteAttachment(a.id, a.file_path)),
-        );
-      }
-
-      // Upload pending attachments — use the existing transaction ID when editing
-      const uploadTargetId = isEditing ? transaction.id : txId;
-      let attachmentInputs: AttachmentInput[] = [];
-      if (pendingFiles.length > 0) {
-        const uploadResults = await Promise.all(
-          pendingFiles.map((f) => uploadTransactionAttachment(orgId, uploadTargetId, f)),
-        );
-        attachmentInputs = uploadResults;
-      }
+      const txFields = {
+        date,
+        name: name.trim(),
+        counterparty_name: counterparty.trim() || undefined,
+        customer_id: customerId || undefined,
+        amount: amtValue,
+        currency,
+        type,
+        status,
+        payment_mode: paymentMode || undefined,
+        reference_number: referenceNumber.trim() || undefined,
+        category_id: categoryId || undefined,
+        invoice_id: type === "income" && invoiceId ? invoiceId : undefined,
+        tax_amount: taxAmount ? parseFloat(taxAmount) : undefined,
+        tax_rate: taxRate ? parseFloat(taxRate) : undefined,
+        tax_type: taxType || undefined,
+        recurring,
+        frequency: recurring && frequency ? frequency : undefined,
+        internal,
+        note: note.trim() || undefined,
+      };
 
       if (isEditing) {
-        await updateTransaction(transaction.id, orgId, {
-          date,
-          name: name.trim(),
-          counterparty_name: counterparty.trim() || undefined,
-          amount: amtValue,
-          currency,
-          type,
-          status,
-          payment_mode: paymentMode || undefined,
-          reference_number: referenceNumber.trim() || undefined,
-          category_id: categoryId || undefined,
-          invoice_id: type === "income" && invoiceId ? invoiceId : undefined,
-          tax_amount: taxAmount ? parseFloat(taxAmount) : undefined,
-          tax_rate: taxRate ? parseFloat(taxRate) : undefined,
-          tax_type: taxType || undefined,
-          recurring,
-          frequency: recurring && frequency ? frequency : undefined,
-          internal,
-          note: note.trim() || undefined,
-        });
-        if (attachmentInputs.length > 0) {
-          await addAttachments(transaction.id, orgId, attachmentInputs);
+        // 1. Delete removed attachments
+        if (attachmentsToRemove.length > 0) {
+          await Promise.all(attachmentsToRemove.map((a) => deleteAttachment(a.id, a.file_path)));
+        }
+        // 2. Update transaction row
+        await updateTransaction(transaction.id, orgId, txFields);
+        // 3. Upload new files — transaction exists so vault trigger FK succeeds
+        if (pendingFiles.length > 0) {
+          const uploads = await Promise.all(
+            pendingFiles.map((f) => uploadTransactionAttachment(orgId, transaction.id, f)),
+          );
+          await addAttachments(transaction.id, orgId, uploads);
         }
         toast.success("Transaction updated");
       } else {
+        // 1. Create transaction row first — vault trigger needs this FK to exist
         await createTransaction(orgId, user.id, {
           id: txId,
-          date,
-          name: name.trim(),
-          counterparty_name: counterparty.trim() || undefined,
-          amount: amtValue,
-          currency,
-          type,
-          status,
-          payment_mode: paymentMode || undefined,
-          reference_number: referenceNumber.trim() || undefined,
-          category_id: categoryId || undefined,
-          invoice_id: type === "income" && invoiceId ? invoiceId : undefined,
-          tax_amount: taxAmount ? parseFloat(taxAmount) : undefined,
-          tax_rate: taxRate ? parseFloat(taxRate) : undefined,
-          tax_type: taxType || undefined,
-          recurring,
-          frequency: recurring && frequency ? frequency : undefined,
-          internal,
-          note: note.trim() || undefined,
+          ...txFields,
           markInvoicePaid: type === "income" && !!invoiceId && markInvoicePaid,
-          attachments: attachmentInputs.length ? attachmentInputs : undefined,
         });
+        // 2. Upload files — transaction now exists, trigger succeeds
+        if (pendingFiles.length > 0) {
+          const uploads = await Promise.all(
+            pendingFiles.map((f) => uploadTransactionAttachment(orgId, txId, f)),
+          );
+          await addAttachments(txId, orgId, uploads);
+        }
         toast.success("Transaction saved");
       }
 
@@ -426,13 +454,32 @@ export function TransactionSheet({
               className='w-full border-none bg-transparent text-base font-semibold outline-none placeholder:text-muted-foreground/50 mb-0.5'
             />
 
-            {/* Counterparty */}
-            <input
-              placeholder={type === "income" ? "Received from" : "Paid to"}
-              value={counterparty}
-              onChange={(e) => setCounterparty(e.target.value)}
-              className='w-full border-none bg-transparent text-xs text-muted-foreground outline-none placeholder:text-muted-foreground/40 mb-5'
-            />
+            {/* Counterparty — inline autocomplete from customers */}
+            <div className='relative mb-5'>
+              <input
+                placeholder={type === "income" ? "Received from" : "Paid to"}
+                value={counterparty}
+                onChange={(e) => handleCounterpartyChange(e.target.value)}
+                onFocus={handleCounterpartyFocus}
+                onBlur={handleCounterpartyBlur}
+                className='w-full border-none bg-transparent text-xs text-muted-foreground outline-none placeholder:text-muted-foreground/40'
+              />
+              {counterpartySuggestionsOpen && counterpartySuggestions.length > 0 && (
+                <div className='absolute left-0 top-full z-50 mt-1 w-full min-w-[200px] rounded-md border bg-popover shadow-md overflow-hidden'>
+                  {counterpartySuggestions.map((c) => (
+                    <button
+                      key={c.id}
+                      type='button'
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => selectCustomer(c.id, c.name)}
+                      className='w-full px-3 py-2 text-left text-xs fine-hover:bg-accent fine-hover:text-accent-foreground transition-colors'
+                    >
+                      {c.name}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
 
             {/* Amount */}
             <div className='flex items-baseline gap-2'>

@@ -90,6 +90,13 @@ export function OnboardingOrgPage() {
       Sentry.captureException(seedError, { extra: { context: "seed_org_categories", orgId } })
     }
 
+    // Seed system vault folders — non-blocking
+    const { error: seedFoldersError } = await supabase.rpc("seed_org_vault_folders", { p_org_id: orgId })
+    if (seedFoldersError) {
+      console.warn("Failed to seed vault folders:", seedFoldersError.message)
+      Sentry.captureException(seedFoldersError, { extra: { context: "seed_org_vault_folders", orgId } })
+    }
+
     if (isCreateMode) {
       // Adding an additional org: refresh context then go to dashboard
       await refreshOrg()
