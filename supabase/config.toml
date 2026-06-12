@@ -438,3 +438,19 @@ verify_jwt = false
 
 [functions.send-invoice-reminder]
 verify_jwt = false
+
+[functions.suggest-csv-mapping]
+verify_jwt = true
+
+[functions.extract-document-data]
+verify_jwt = true
+
+[functions.categorize-transactions]
+verify_jwt = true
+
+[functions.import-transactions]
+verify_jwt = true
+
+[functions.trigger-csv-import]
+verify_jwt = true
+

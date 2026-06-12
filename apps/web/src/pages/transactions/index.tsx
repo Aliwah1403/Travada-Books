@@ -9,6 +9,7 @@ import {
 } from "@travada-books/ui/icons";
 import { TransactionTable } from "@/components/transactions/transaction-table";
 import { TransactionSheet } from "@/components/transactions/transaction-sheet";
+import { ImportCsvDialog } from "@/components/transactions/import-csv-dialog";
 import {
   type Transaction as UITransaction,
 } from "@/components/transactions/transaction-columns";
@@ -19,11 +20,12 @@ import {
   type TransactionFilters,
 } from "@/lib/queries/transactions";
 import { useAuth } from "@/contexts/auth-context";
+import { useFormatDate } from "@/hooks/use-format-date";
 
 const PAGE_SIZE = 50;
 
-function mapDbTx(row: DbTransaction): UITransaction {
-  const dateStr = row.date ? row.date.slice(0, 10) : "";
+function mapDbTx(row: DbTransaction, formatDate: (v: string | null | undefined) => string): UITransaction {
+  const dateStr = row.date ? formatDate(row.date.slice(0, 10)) : "";
   return {
     id: row.id,
     date: dateStr,
@@ -71,6 +73,7 @@ function SkeletonRows() {
 
 export function TransactionsPage() {
   const { orgId } = useAuth();
+  const { formatDate } = useFormatDate();
   const queryClient = useQueryClient();
 
   const [search, setSearch] = useState("");
@@ -78,6 +81,7 @@ export function TransactionsPage() {
   const [page, setPage] = useState(0);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [importOpen, setImportOpen] = useState(false);
 
   // Debounce search to avoid FTS on every keystroke
   const searchRef = { current: 0 };
@@ -103,8 +107,8 @@ export function TransactionsPage() {
   });
 
   const transactions = useMemo(
-    () => (data?.data ?? []).map(mapDbTx),
-    [data],
+    () => (data?.data ?? []).map((row) => mapDbTx(row, formatDate)),
+    [data, formatDate],
   );
   const totalCount = data?.count ?? 0;
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
@@ -169,9 +173,14 @@ export function TransactionsPage() {
           </div>
         </div>
 
-        <Button className="h-10" onClick={handleNewTransaction}>
-          + New Transaction
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" className="h-10" onClick={() => setImportOpen(true)}>
+            Import CSV
+          </Button>
+          <Button className="h-10" onClick={handleNewTransaction}>
+            + New Transaction
+          </Button>
+        </div>
       </div>
 
       {isLoading ? (
@@ -212,6 +221,8 @@ export function TransactionsPage() {
           </div>
         </div>
       )}
+
+      <ImportCsvDialog open={importOpen} onOpenChange={setImportOpen} />
 
       <TransactionSheet
         open={sheetOpen}

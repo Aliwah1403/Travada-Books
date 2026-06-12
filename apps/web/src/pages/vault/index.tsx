@@ -36,10 +36,13 @@ import {
   MoreVerticalIcon,
   PlusSignIcon,
   FolderAddIcon,
+  SparklesIcon,
 } from "@travada-books/ui/icons";
 import { EmptyState } from "@/components/shared/empty-state";
 import { cn } from "@travada-books/ui/lib/utils";
 import { useAuth } from "@/contexts/auth-context";
+import { TransactionSheet } from "@/components/transactions/transaction-sheet";
+import { extractDocumentData } from "@/lib/queries/ai";
 import { DocumentPreviewSheet } from "@/components/vault/document-preview-sheet";
 import {
   listDocuments,
@@ -323,12 +326,14 @@ function DocActions({
   onDownload,
   onRename,
   onDelete,
+  onExtract,
   onMoveToFolder,
   folders = [],
 }: {
   onDownload: () => void;
   onRename: () => void;
   onDelete: () => void;
+  onExtract?: () => void;
   onMoveToFolder?: (folderId: string | null) => void;
   folders?: VaultFolder[];
 }) {
@@ -350,6 +355,12 @@ function DocActions({
           <PencilEdit01Icon size={13} className='shrink-0' />
           Rename
         </DropdownMenuItem>
+        {onExtract && (
+          <DropdownMenuItem onClick={onExtract} className='gap-2'>
+            <SparklesIcon size={13} className='shrink-0' />
+            Extract to transaction
+          </DropdownMenuItem>
+        )}
         {onMoveToFolder && (
           <DropdownMenuSub>
             <DropdownMenuSubTrigger className='gap-2'>
@@ -424,6 +435,7 @@ function DocumentCard({
   onDownload,
   onRename,
   onDelete,
+  onExtract,
   onMoveToFolder,
   folders,
 }: {
@@ -432,6 +444,7 @@ function DocumentCard({
   onDownload: (doc: VaultDocument) => void;
   onRename: (doc: VaultDocument) => void;
   onDelete: (doc: VaultDocument) => void;
+  onExtract?: (doc: VaultDocument) => void;
   onMoveToFolder?: (doc: VaultDocument, folderId: string | null) => void;
   folders?: VaultFolder[];
 }) {
@@ -450,6 +463,7 @@ function DocumentCard({
             onDownload={() => onDownload(doc)}
             onRename={() => onRename(doc)}
             onDelete={() => onDelete(doc)}
+            onExtract={onExtract ? () => onExtract(doc) : undefined}
             onMoveToFolder={onMoveToFolder ? (fid) => onMoveToFolder(doc, fid) : undefined}
             folders={folders}
           />
@@ -486,6 +500,7 @@ function DocumentRow({
   onDownload,
   onRename,
   onDelete,
+  onExtract,
   onMoveToFolder,
   folders,
 }: {
@@ -494,6 +509,7 @@ function DocumentRow({
   onDownload: (doc: VaultDocument) => void;
   onRename: (doc: VaultDocument) => void;
   onDelete: (doc: VaultDocument) => void;
+  onExtract?: (doc: VaultDocument) => void;
   onMoveToFolder?: (doc: VaultDocument, folderId: string | null) => void;
   folders?: VaultFolder[];
 }) {
@@ -544,6 +560,7 @@ function DocumentRow({
           onDownload={() => onDownload(doc)}
           onRename={() => onRename(doc)}
           onDelete={() => onDelete(doc)}
+          onExtract={onExtract ? () => onExtract(doc) : undefined}
           onMoveToFolder={onMoveToFolder ? (fid) => onMoveToFolder(doc, fid) : undefined}
           folders={folders}
         />
@@ -686,6 +703,9 @@ export function VaultPage() {
   const [renamingDoc, setRenamingDoc] = useState<VaultDocument | null>(null);
   const [previewDoc, setPreviewDoc] = useState<VaultDocument | null>(null);
   const [createFolderOpen, setCreateFolderOpen] = useState(false);
+  const [txSheetOpen, setTxSheetOpen] = useState(false);
+  const [txInitialData, setTxInitialData] = useState<Parameters<typeof TransactionSheet>[0]["initialData"]>(undefined);
+  const [txInitialVaultDocs, setTxInitialVaultDocs] = useState<Parameters<typeof TransactionSheet>[0]["initialVaultDocs"]>(undefined);
 
   const searchTimer = useRef(0);
   function handleSearchChange(val: string) {
@@ -840,6 +860,38 @@ export function VaultPage() {
     });
   }
 
+  function handleExtractToTransaction(doc: VaultDocument) {
+    const isExtractable =
+      doc.content_type?.startsWith("image/") ||
+      doc.content_type === "application/pdf";
+    if (!isExtractable) {
+      toast.error("Only images and PDFs can be extracted");
+      return;
+    }
+    toast.promise(
+      extractDocumentData({ filePath: doc.file_path }).then((extracted) => {
+        setTxInitialData({
+          date: extracted.date ?? undefined,
+          amount: extracted.amount ?? undefined,
+          type: extracted.type ?? undefined,
+          counterpartyName: extracted.counterparty_name ?? undefined,
+          description: extracted.description ?? undefined,
+          referenceNumber: extracted.reference_number ?? undefined,
+          currency: extracted.currency ?? undefined,
+          taxAmount: extracted.tax_amount ?? undefined,
+          paymentMode: extracted.payment_mode ?? undefined,
+        });
+        setTxInitialVaultDocs([{ id: doc.id, org_id: doc.org_id, file_path: doc.file_path, name: doc.name, file_size: doc.file_size, content_type: doc.content_type }]);
+        setTxSheetOpen(true);
+      }),
+      {
+        loading: "Extracting data from document…",
+        success: "Data extracted — review the pre-filled fields",
+        error: "Could not extract data from this file",
+      },
+    );
+  }
+
   function handleMoveToFolder(doc: VaultDocument, folderId: string | null) {
     const folderName = folderId
       ? allFolders.find((f) => f.id === folderId)?.name ?? "folder"
@@ -872,6 +924,12 @@ export function VaultPage() {
 
   return (
     <div className='flex flex-col gap-6 p-6'>
+      <TransactionSheet
+        open={txSheetOpen}
+        onOpenChange={setTxSheetOpen}
+        initialData={txInitialData}
+        initialVaultDocs={txInitialVaultDocs}
+      />
       <DocumentPreviewSheet
         doc={previewDoc}
         open={!!previewDoc}
@@ -1032,6 +1090,7 @@ export function VaultPage() {
               onDownload={handleDownload}
               onRename={setRenamingDoc}
               onDelete={handleDelete}
+              onExtract={handleExtractToTransaction}
               onMoveToFolder={handleMoveToFolder}
               folders={allFolders}
             />
@@ -1062,6 +1121,7 @@ export function VaultPage() {
               onDownload={handleDownload}
               onRename={setRenamingDoc}
               onDelete={handleDelete}
+              onExtract={handleExtractToTransaction}
               onMoveToFolder={handleMoveToFolder}
               folders={allFolders}
             />

@@ -382,6 +382,53 @@ export async function deleteTransactionCategory(id: string, orgId: string): Prom
   if (error) throw error
 }
 
+export async function bulkSetCategories(
+  assignments: { transactionId: string; categoryId: string }[],
+): Promise<void> {
+  await Promise.all(
+    assignments.map(({ transactionId, categoryId }) =>
+      supabase
+        .from("transactions")
+        .update({ category_id: categoryId })
+        .eq("id", transactionId),
+    ),
+  )
+}
+
+export async function bulkCreateTransactions(
+  orgId: string,
+  userId: string,
+  inputs: Omit<TransactionInput, "attachments" | "markInvoicePaid">[],
+): Promise<number> {
+  const rows = inputs.map((input) => ({
+    id: input.id,
+    org_id: orgId,
+    created_by: userId,
+    date: input.date,
+    name: input.name,
+    counterparty_name: input.counterparty_name ?? null,
+    amount: input.amount,
+    currency: input.currency,
+    type: input.type,
+    status: input.status ?? "completed",
+    payment_mode: input.payment_mode ?? null,
+    category_id: input.category_id ?? null,
+    tax_amount: input.tax_amount ?? null,
+    tax_rate: input.tax_rate ?? null,
+    tax_type: input.tax_type ?? null,
+    recurring: input.recurring ?? false,
+    frequency: input.frequency ?? null,
+    internal: input.internal ?? false,
+    reference_number: input.reference_number ?? null,
+    note: input.note ?? null,
+    manual: true,
+  }))
+
+  const { error } = await supabase.from("transactions").insert(rows)
+  if (error) throw error
+  return rows.length
+}
+
 // ─── Storage helpers ──────────────────────────────────────────────────────────
 
 export function transactionStoragePath(orgId: string, transactionId: string, fileName: string): string {

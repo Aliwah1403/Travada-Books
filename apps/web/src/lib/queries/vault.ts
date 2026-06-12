@@ -109,6 +109,31 @@ export async function updateDocument(
   if (error) throw error
 }
 
+export async function linkDocumentsToTransaction(
+  docs: Pick<VaultDocument, "id" | "file_path" | "name" | "file_size" | "content_type" | "org_id">[],
+  transactionId: string,
+): Promise<void> {
+  const { error: docError } = await supabase
+    .from("documents")
+    .update({ transaction_id: transactionId, source: "transaction", updated_at: new Date().toISOString() })
+    .in("id", docs.map((d) => d.id))
+  if (docError) throw docError
+
+  const { error: attError } = await supabase
+    .from("transaction_attachments")
+    .insert(
+      docs.map((doc) => ({
+        transaction_id: transactionId,
+        org_id: doc.org_id,
+        file_path: doc.file_path,
+        file_name: doc.name,
+        file_size: doc.file_size,
+        content_type: doc.content_type,
+      })),
+    )
+  if (attError) throw attError
+}
+
 export async function setDocumentFolder(filePath: string, folderId: string | null): Promise<void> {
   const { error } = await supabase
     .from("documents")
@@ -146,6 +171,16 @@ export async function uploadDocument(
       .eq("file_path", path)
   }
 }
+
+export async function uploadFileForImport(orgId: string, file: File): Promise<string> {
+  const safe = file.name.replace(/[^a-zA-Z0-9._-]/g, "_")
+  const path = `${orgId}/imports/${Date.now()}_${safe}`
+  const { error } = await supabase.storage.from("vault").upload(path, file, { upsert: false })
+  if (error) throw error
+  return path
+}
+
+export const uploadCsvForImport = uploadFileForImport
 
 // ─── Folders ──────────────────────────────────────────────────────────────────
 

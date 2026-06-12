@@ -36,6 +36,7 @@ import {
   Attachment01Icon,
   Delete01Icon,
   ArrowDown01Icon,
+  SparklesIcon,
 } from "@travada-books/ui/icons";
 import { cn } from "@travada-books/ui/lib/utils";
 import { useAuth } from "@/contexts/auth-context";
@@ -51,6 +52,8 @@ import {
   type TransactionCategory,
   type AttachmentInput,
 } from "@/lib/queries/transactions";
+import { extractDocumentData } from "@/lib/queries/ai";
+import { linkDocumentsToTransaction } from "@/lib/queries/vault";
 import { supabase } from "@/lib/supabase";
 import { listCustomers } from "@/lib/queries/customers";
 import type {
@@ -70,10 +73,33 @@ type OpenInvoice = {
   due_date: string | null;
 };
 
+type ExtractedInitialData = {
+  date?: string;
+  amount?: number;
+  type?: "income" | "expense";
+  counterpartyName?: string;
+  description?: string;
+  referenceNumber?: string;
+  currency?: string;
+  taxAmount?: number;
+  paymentMode?: PaymentMode;
+};
+
+type VaultDocRef = {
+  id: string;
+  org_id: string;
+  file_path: string;
+  name: string;
+  file_size: number | null;
+  content_type: string | null;
+};
+
 type TransactionSheetProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   transaction?: Transaction | null;
+  initialData?: ExtractedInitialData;
+  initialVaultDocs?: VaultDocRef[];
   onSaved?: () => void;
 };
 
@@ -81,6 +107,8 @@ export function TransactionSheet({
   open,
   onOpenChange,
   transaction,
+  initialData,
+  initialVaultDocs,
   onSaved,
 }: TransactionSheetProps) {
   const { org, orgId, user } = useAuth();
@@ -118,6 +146,7 @@ export function TransactionSheet({
   const [attachmentsToRemove, setAttachmentsToRemove] = useState<
     TransactionAttachmentInfo[]
   >([]);
+  const [vaultDocs, setVaultDocs] = useState<VaultDocRef[]>([]);
   const [currencyOpen, setCurrencyOpen] = useState(false);
   const [currencySearch, setCurrencySearch] = useState("");
   const [categoryOpen, setCategoryOpen] = useState(false);
@@ -125,6 +154,7 @@ export function TransactionSheet({
   const [invoiceOpen, setInvoiceOpen] = useState(false);
   const [invoiceSearch, setInvoiceSearch] = useState("");
   const [saving, setSaving] = useState(false);
+  const [extracting, setExtracting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { data: categories = [] } = useQuery({
@@ -224,19 +254,20 @@ export function TransactionSheet({
       setPendingFiles([]);
       setExistingAttachments(transaction.attachments ?? []);
       setAttachmentsToRemove([]);
+      setVaultDocs([]);
     } else {
-      setType("expense");
-      setDate(today);
+      setType(initialData?.type ?? "expense");
+      setDate(initialData?.date ?? today);
       setStatus("completed");
-      setName("");
-      setCounterparty("");
+      setName(initialData?.description ?? "");
+      setCounterparty(initialData?.counterpartyName ?? "");
       setCustomerId("");
-      setAmount("");
-      setCurrency(org?.base_currency ?? "KES");
-      setPaymentMode("");
-      setReferenceNumber("");
+      setAmount(initialData?.amount ? String(initialData.amount) : "");
+      setCurrency(initialData?.currency ?? org?.base_currency ?? "KES");
+      setPaymentMode(initialData?.paymentMode ?? "");
+      setReferenceNumber(initialData?.referenceNumber ?? "");
       setCategoryId("");
-      setTaxAmount("");
+      setTaxAmount(initialData?.taxAmount ? String(initialData.taxAmount) : "");
       setTaxRate("");
       setTaxType("");
       setRecurring(false);
@@ -248,6 +279,7 @@ export function TransactionSheet({
       setPendingFiles([]);
       setExistingAttachments([]);
       setAttachmentsToRemove([]);
+      setVaultDocs(initialVaultDocs ?? []);
     }
   }, [open, transaction?.id]);
 
@@ -307,6 +339,38 @@ export function TransactionSheet({
 
   function removeFile(index: number) {
     setPendingFiles((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  async function handleExtractFromFile(file: File) {
+    setExtracting(true);
+    try {
+      const buffer = await file.arrayBuffer();
+      const bytes = new Uint8Array(buffer);
+      let binary = "";
+      for (let i = 0; i < bytes.length; i += 8192) {
+        binary += String.fromCharCode(...bytes.subarray(i, i + 8192));
+      }
+      const base64 = btoa(binary);
+      const extracted = await extractDocumentData({ fileData: base64, contentType: file.type });
+
+      if (extracted.date) setDate(extracted.date);
+      if (extracted.amount) setAmount(String(extracted.amount));
+      if (extracted.type) setType(extracted.type);
+      if (extracted.counterparty_name) setCounterparty(extracted.counterparty_name);
+      if (extracted.description && !name.trim()) setName(extracted.description);
+      if (extracted.reference_number) setReferenceNumber(extracted.reference_number);
+      if (extracted.currency) setCurrency(extracted.currency);
+      if (extracted.tax_amount) setTaxAmount(String(extracted.tax_amount));
+      if (extracted.payment_mode) setPaymentMode(extracted.payment_mode as PaymentMode);
+
+      toast.success("Data extracted", { description: "Review the pre-filled fields before saving." });
+    } catch (err) {
+      toast.error("Extraction failed", {
+        description: err instanceof Error ? err.message : "Could not read data from this file.",
+      });
+    } finally {
+      setExtracting(false);
+    }
   }
 
   function markAttachmentForRemoval(att: TransactionAttachmentInfo) {
@@ -371,6 +435,10 @@ export function TransactionSheet({
             pendingFiles.map((f) => uploadTransactionAttachment(orgId, txId, f)),
           );
           await addAttachments(txId, orgId, uploads);
+        }
+        // 3. Link any vault docs that were the source of extraction
+        if (vaultDocs.length > 0) {
+          await linkDocumentsToTransaction(vaultDocs.map((d) => d.id), txId);
         }
         toast.success("Transaction saved");
       }
@@ -964,6 +1032,38 @@ export function TransactionSheet({
             <div className='flex flex-col gap-1.5'>
               <Label className='text-xs'>Attachments</Label>
 
+              {/* Vault docs pre-linked from extraction */}
+              {vaultDocs.length > 0 && (
+                <div className='flex flex-col gap-1'>
+                  {vaultDocs.map((doc) => (
+                    <div
+                      key={doc.id}
+                      className='flex items-center gap-2 rounded-md border px-3 py-1.5'
+                    >
+                      <Attachment01Icon
+                        size={12}
+                        className='shrink-0 text-muted-foreground'
+                      />
+                      <span className='flex-1 truncate text-xs'>{doc.name}</span>
+                      {doc.file_size && (
+                        <span className='text-[10px] text-muted-foreground shrink-0'>
+                          {(doc.file_size / 1024).toFixed(0)} KB
+                        </span>
+                      )}
+                      <button
+                        type='button'
+                        onClick={() =>
+                          setVaultDocs((prev) => prev.filter((d) => d.id !== doc.id))
+                        }
+                        className='text-muted-foreground fine-hover:text-destructive transition-colors shrink-0'
+                      >
+                        <Delete01Icon size={12} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
               {/* Existing attachments (edit mode) */}
               {existingAttachments.length > 0 && (
                 <div className='flex flex-col gap-1'>
@@ -1020,27 +1120,44 @@ export function TransactionSheet({
               </button>
               {pendingFiles.length > 0 && (
                 <div className='flex flex-col gap-1'>
-                  {pendingFiles.map((file, i) => (
-                    <div
-                      key={i}
-                      className='flex items-center gap-2 rounded-md border px-3 py-1.5'
-                    >
-                      <Attachment01Icon
-                        size={12}
-                        className='shrink-0 text-muted-foreground'
-                      />
-                      <span className='flex-1 truncate text-xs'>
-                        {file.name}
-                      </span>
-                      <button
-                        type='button'
-                        onClick={() => removeFile(i)}
-                        className='text-muted-foreground fine-hover:text-destructive transition-colors'
+                  {pendingFiles.map((file, i) => {
+                    const isExtractable =
+                      file.type.startsWith("image/") ||
+                      file.type === "application/pdf";
+                    return (
+                      <div
+                        key={i}
+                        className='flex items-center gap-2 rounded-md border px-3 py-1.5'
                       >
-                        <Delete01Icon size={12} />
-                      </button>
-                    </div>
-                  ))}
+                        <Attachment01Icon
+                          size={12}
+                          className='shrink-0 text-muted-foreground'
+                        />
+                        <span className='flex-1 truncate text-xs'>
+                          {file.name}
+                        </span>
+                        {isExtractable && (
+                          <button
+                            type='button'
+                            disabled={extracting}
+                            onClick={() => handleExtractFromFile(file)}
+                            className='flex items-center gap-1 text-[10px] text-muted-foreground fine-hover:text-foreground transition-colors shrink-0 disabled:opacity-40'
+                            title='Extract transaction data with AI'
+                          >
+                            <SparklesIcon size={11} />
+                            {extracting ? "Extracting…" : "Extract"}
+                          </button>
+                        )}
+                        <button
+                          type='button'
+                          onClick={() => removeFile(i)}
+                          className='text-muted-foreground fine-hover:text-destructive transition-colors'
+                        >
+                          <Delete01Icon size={12} />
+                        </button>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>

@@ -3,7 +3,7 @@ import { db } from "./db.ts"
 
 const jsonHeaders = { "Content-Type": "application/json" }
 
-export async function getCallerOrgId(req: Request): Promise<{ orgId: string } | { error: Response }> {
+export async function getCallerOrgId(req: Request): Promise<{ orgId: string; userId: string } | { error: Response }> {
   const authorization = req.headers.get("Authorization")
   if (!authorization) {
     return { error: new Response(JSON.stringify({ error: "Missing authorization header" }), { status: 401, headers: jsonHeaders }) }

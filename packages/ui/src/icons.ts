@@ -63,6 +63,7 @@ import {
   FolderFileStorageIcon as FolderFileSvg,
   FolderAddIcon as FolderAddSvg,
   SparklesIcon as SparklesSvg,
+  Alert02Icon as Alert02Svg,
 } from "@hugeicons/core-free-icons";
 
 export type IconProps = Omit<HugeiconsIconProps, "icon">;
@@ -136,3 +137,4 @@ export const ListViewIcon = make(ListViewSvg);
 export const VaultIcon = make(FolderFileSvg);
 export const FolderAddIcon = make(FolderAddSvg);
 export const SparklesIcon = make(SparklesSvg);
+export const Alert02Icon = make(Alert02Svg);
