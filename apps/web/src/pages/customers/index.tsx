@@ -17,6 +17,7 @@ import { CustomerActions } from "@/components/customers/customer-actions"
 import { CustomerStats } from "@/components/customers/customer-stats"
 import { CreateCustomerSheet } from "@/components/customers/create-customer-sheet"
 import { EmptyState } from "@/components/shared/empty-state"
+import { Spinner } from "@/components/shared/spinner"
 import { useTableScroll } from "@/hooks/use-table-scroll"
 import { cn } from "@travada-books/ui/lib/utils"
 import { useAuth } from "@/contexts/auth-context"
@@ -269,7 +270,7 @@ export function CustomersPage() {
                     <TableCell className="py-3 text-xs text-muted-foreground">
                       {(customer.enrichment_status === "pending" || customer.enrichment_status === "processing") ? (
                         <span className="flex items-center gap-1.5 text-muted-foreground/70">
-                          <span className="inline-block size-3 rounded-full border-2 border-muted-foreground/30 border-t-muted-foreground animate-spin" />
+                          <Spinner size={12} />
                           Enriching
                         </span>
                       ) : customer.industry ?? <span className="text-muted-foreground/50">—</span>}

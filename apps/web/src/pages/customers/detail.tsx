@@ -40,6 +40,7 @@ import { InvoiceTable } from "@/components/invoices/invoice-table";
 import { EditCustomerSheet } from "@/components/customers/edit-customer-sheet";
 import { GenerateStatementSheet } from "@/components/customers/generate-statement-sheet";
 import { getCustomer, deleteCustomer, triggerEnrichment, cancelEnrichment, clearEnrichment } from "@/lib/queries/customers";
+import { Spinner } from "@/components/shared/spinner";
 import { supabase } from "@/lib/supabase";
 import {
   listCustomerInvoices,
@@ -380,7 +381,12 @@ export function CustomerDetailPage() {
           <div className='rounded-lg border bg-background p-4'>
             <div className='flex flex-col items-center gap-3 text-center'>
               {isEnriching ? (
-                <div className='size-14 rounded-full animate-pulse bg-muted' />
+                <div className='relative size-14'>
+                  <div className='size-14 rounded-full bg-muted animate-pulse' />
+                  <div className='absolute inset-0 flex items-center justify-center'>
+                    <Spinner size={20} />
+                  </div>
+                </div>
               ) : (
                 <Avatar className='size-14'>
                   <AvatarImage src={customer.logo_url ?? undefined} />
@@ -493,9 +499,10 @@ export function CustomerDetailPage() {
                         Enriched
                       </span>
                     )}
-                    {customer.enrichment_status === "pending" && (
-                      <span className='rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-medium text-amber-600 dark:text-amber-400'>
-                        Pending
+                    {isEnriching && (
+                      <span className='flex items-center gap-1.5 rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-medium text-amber-600 dark:text-amber-400'>
+                        <Spinner size={10} />
+                        {customer.enrichment_status === "processing" ? "Processing" : "Pending"}
                       </span>
                     )}
                     {customer.enrichment_status === "failed" && (
@@ -513,6 +520,10 @@ export function CustomerDetailPage() {
                 <AccordionContent>
                   {isEnriching ? (
                     <div className='flex flex-col gap-3 pb-4'>
+                      <div className='flex items-center gap-2 text-muted-foreground'>
+                        <Spinner size={14} />
+                        <span className='text-xs'>Enriching profile…</span>
+                      </div>
                       {/* description lines */}
                       <div className='flex flex-col gap-1.5'>
                         <div className='h-3 w-full rounded-sm bg-muted animate-pulse' />
