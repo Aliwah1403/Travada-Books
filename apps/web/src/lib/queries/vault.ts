@@ -16,6 +16,7 @@ export type VaultDocument = {
   org_id: string
   created_by: string | null
   name: string
+  title: string | null
   file_path: string
   file_size: number | null
   content_type: string | null
@@ -24,11 +25,12 @@ export type VaultDocument = {
   folder_id: string | null
   tags: string[] | null
   summary: string | null
+  processing_status: "pending" | "processing" | "completed" | "failed"
   created_at: string
 }
 
 const DOCUMENT_SELECT =
-  "id, org_id, created_by, name, file_path, file_size, content_type, source, transaction_id, folder_id, tags, summary, created_at"
+  "id, org_id, created_by, name, title, file_path, file_size, content_type, source, transaction_id, folder_id, tags, summary, processing_status, created_at"
 
 export type VaultFilters = {
   source?: "upload" | "transaction" | "inbox"
@@ -37,6 +39,16 @@ export type VaultFilters = {
 }
 
 // ─── Documents ────────────────────────────────────────────────────────────────
+
+export async function getDocument(id: string): Promise<VaultDocument | null> {
+  const { data, error } = await supabase
+    .from("documents")
+    .select(DOCUMENT_SELECT)
+    .eq("id", id)
+    .single()
+  if (error) return null
+  return data as VaultDocument
+}
 
 export async function listDocuments(orgId: string, filters: VaultFilters = {}): Promise<VaultDocument[]> {
   let query = supabase
@@ -154,7 +166,7 @@ export async function uploadDocument(
   orgId: string,
   file: File,
   folderId?: string | null,
-): Promise<void> {
+): Promise<string> {
   const safe = file.name.replace(/[^a-zA-Z0-9._-]/g, "_")
   const path = `${orgId}/upload/${Date.now()}_${safe}`
 
@@ -168,6 +180,8 @@ export async function uploadDocument(
   const patch: Record<string, unknown> = { name: file.name.trim() }
   if (folderId) patch.folder_id = folderId
   await supabase.from("documents").update(patch).eq("file_path", path)
+
+  return path
 }
 
 export async function uploadFileForImport(orgId: string, file: File): Promise<string> {

@@ -68,6 +68,12 @@ export async function importTransactions(
   return data as { imported: number }
 }
 
+export async function classifyDocument(args: { filePath: string }): Promise<{ runId: string }> {
+  const { data, error } = await supabase.functions.invoke("classify-document", { body: args })
+  if (error) throw error
+  return data as { runId: string }
+}
+
 export async function categorizeTransactions(
   rows: { id: string; description: string; counterparty: string }[],
   categoryNames: string[],

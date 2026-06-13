@@ -42,7 +42,7 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { cn } from "@travada-books/ui/lib/utils";
 import { useAuth } from "@/contexts/auth-context";
 import { TransactionSheet } from "@/components/transactions/transaction-sheet";
-import { extractDocumentData } from "@/lib/queries/ai";
+import { extractDocumentData, classifyDocument } from "@/lib/queries/ai";
 import { DocumentPreviewSheet } from "@/components/vault/document-preview-sheet";
 import {
   listDocuments,
@@ -400,6 +400,17 @@ function DocActions({
   );
 }
 
+// ─── Processing indicator ─────────────────────────────────────────────────────
+
+function ProcessingDot() {
+  return (
+    <span
+      className='inline-block size-1.5 shrink-0 animate-pulse rounded-full bg-amber-400'
+      title='AI classification in progress…'
+    />
+  );
+}
+
 // ─── Tag pills ────────────────────────────────────────────────────────────────
 
 const MAX_VISIBLE_TAGS = 3;
@@ -471,9 +482,14 @@ function DocumentCard({
       </div>
 
       <div className='min-w-0 flex-1'>
-        <p className='line-clamp-2 text-xs font-medium leading-relaxed'>
-          {doc.name}
-        </p>
+        <div className='flex items-start gap-1.5'>
+          {(doc.processing_status === "pending" || doc.processing_status === "processing") && (
+            <ProcessingDot />
+          )}
+          <p className='line-clamp-2 text-xs font-medium leading-relaxed'>
+            {doc.title ?? doc.name}
+          </p>
+        </div>
       </div>
 
       <TagPills tags={doc.tags} />
@@ -521,7 +537,12 @@ function DocumentRow({
       <FileTypeIcon contentType={doc.content_type} size='sm' />
 
       <div className='min-w-0 flex-1'>
-        <p className='truncate text-xs font-medium'>{doc.name}</p>
+        <div className='flex items-center gap-1.5'>
+          {(doc.processing_status === "pending" || doc.processing_status === "processing") && (
+            <ProcessingDot />
+          )}
+          <p className='truncate text-xs font-medium'>{doc.title ?? doc.name}</p>
+        </div>
       </div>
 
       {doc.tags && doc.tags.length > 0 && (
@@ -741,6 +762,13 @@ export function VaultPage() {
     queryFn: () => listDocuments(orgId!, docFilters),
     enabled: !!orgId,
     placeholderData: (prev) => prev,
+    refetchInterval: (query) => {
+      const data = query.state.data as VaultDocument[] | undefined;
+      const hasPending = data?.some(
+        (d) => d.processing_status === "pending" || d.processing_status === "processing",
+      );
+      return hasPending ? 3000 : false;
+    },
   });
 
   // Fetch folders at the current level
@@ -782,7 +810,12 @@ export function VaultPage() {
   });
 
   const uploadMutation = useMutation({
-    mutationFn: (file: File) => uploadDocument(orgId!, file, currentFolderId),
+    mutationFn: async (file: File) => {
+      const filePath = await uploadDocument(orgId!, file, currentFolderId);
+      // Fire-and-forget — classification runs in the background via Trigger.dev
+      classifyDocument({ filePath }).catch(() => {});
+      return filePath;
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["vault", orgId] });
     },

@@ -22,9 +22,11 @@ import {
   Image01Icon,
   File01Icon,
 } from "@travada-books/ui/icons"
+import { Spinner } from "@/components/shared/spinner"
 import { cn } from "@travada-books/ui/lib/utils"
 import {
   getDocumentSignedUrl,
+  getDocument,
   updateDocument,
   deleteDocument,
   renameDocument,
@@ -32,6 +34,7 @@ import {
   type VaultDocument,
   type VaultFolder,
 } from "@/lib/queries/vault"
+import { classifyDocument } from "@/lib/queries/ai"
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -265,6 +268,10 @@ export function DocumentPreviewSheet({ doc, open, onOpenChange, onDeleted, onOpe
   const [summary, setSummary] = useState("")
   const [tags, setTags] = useState<string[]>([])
   const [summaryDirty, setSummaryDirty] = useState(false)
+  const [isClassifying, setIsClassifying] = useState(false)
+  // pollingEnabled is separate so we only start polling after the edge fn resolves,
+  // preventing the race where the old 'completed' status kills the skeleton immediately.
+  const [pollingEnabled, setPollingEnabled] = useState(false)
 
   // Sync local state when doc changes
   useEffect(() => {
@@ -272,8 +279,48 @@ export function DocumentPreviewSheet({ doc, open, onOpenChange, onDeleted, onOpe
       setSummary(doc.summary ?? "")
       setTags(doc.tags ?? [])
       setSummaryDirty(false)
+      setIsClassifying(false)
+      setPollingEnabled(false)
     }
   }, [doc?.id])
+
+  // Poll for classification completion — only enabled after edge fn confirms task queued
+  const { data: freshDoc } = useQuery({
+    queryKey: ["vault-doc-poll", doc?.id],
+    queryFn: () => getDocument(doc!.id),
+    enabled: pollingEnabled && !!doc,
+    refetchInterval: 2000,
+  })
+
+  useEffect(() => {
+    if (!freshDoc || !isClassifying) return
+    if (freshDoc.processing_status === "completed") {
+      setSummary(freshDoc.summary ?? "")
+      setTags(freshDoc.tags ?? [])
+      setSummaryDirty(false)
+      setIsClassifying(false)
+      setPollingEnabled(false)
+      queryClient.invalidateQueries({ queryKey: ["vault"] })
+    } else if (freshDoc.processing_status === "failed") {
+      setIsClassifying(false)
+      setPollingEnabled(false)
+      toast.error("AI analysis failed — try again")
+    }
+  }, [freshDoc?.processing_status, isClassifying])
+
+  async function handleAutoFill() {
+    if (!doc || isClassifying) return
+    setIsClassifying(true)
+    try {
+      await classifyDocument({ filePath: doc.file_path })
+      // Edge fn has now reset processing_status to 'pending' and queued the task —
+      // safe to start polling.
+      setPollingEnabled(true)
+    } catch {
+      setIsClassifying(false)
+      toast.error("Couldn't start AI analysis")
+    }
+  }
 
   // Signed URL — fetched once per doc open
   const { data: signedUrl, isLoading: isLoadingUrl } = useQuery({
@@ -292,7 +339,7 @@ export function DocumentPreviewSheet({ doc, open, onOpenChange, onDeleted, onOpe
   })
 
   const updateMutation = useMutation({
-    mutationFn: (patch: { summary?: string | null; tags?: string[] | null }) =>
+    mutationFn: (patch: { summary?: string | null; tags?: string[] | null; folder_id?: string | null }) =>
       updateDocument(doc!.id, patch),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["vault"] }),
   })
@@ -428,7 +475,15 @@ export function DocumentPreviewSheet({ doc, open, onOpenChange, onDeleted, onOpe
                   value={doc.folder_id ?? ""}
                   onChange={(e) => {
                     const folderId = e.target.value || null
-                    updateMutation.mutate({ folder_id: folderId })
+                    const folderName = folders.find((f) => f.id === folderId)?.name
+                    toast.promise(
+                      updateMutation.mutateAsync({ folder_id: folderId }),
+                      {
+                        loading: folderId ? `Moving to ${folderName}…` : "Removing from folder…",
+                        success: folderId ? `Moved to ${folderName}` : "Removed from folder",
+                        error: "Failed to move document",
+                      },
+                    )
                   }}
                 >
                   <option value="">No folder</option>
@@ -462,20 +517,28 @@ export function DocumentPreviewSheet({ doc, open, onOpenChange, onDeleted, onOpe
                 variant="ghost"
                 size="sm"
                 className="h-7 gap-1.5 text-[11px] text-muted-foreground"
-                disabled
-                title="AI generation coming soon"
+                onClick={handleAutoFill}
+                disabled={isClassifying}
               >
-                <SparklesIcon size={12} />
-                Generate with AI
+                {isClassifying ? <Spinner size={12} /> : <SparklesIcon size={12} />}
+                {isClassifying ? "Analysing…" : "Auto-fill"}
               </Button>
             </div>
-            <Textarea
-              value={summary}
-              onChange={(e) => { setSummary(e.target.value); setSummaryDirty(true) }}
-              onBlur={handleSummaryBlur}
-              placeholder="Add a description for this document…"
-              className="min-h-24 resize-none text-xs"
-            />
+            {isClassifying ? (
+              <div className="flex min-h-24 flex-col gap-2 rounded-lg border bg-muted/40 p-3 animate-in fade-in-0 zoom-in-95 duration-150 [animation-timing-function:var(--ease-out)]">
+                <div className="h-2.5 w-4/5 animate-pulse rounded bg-muted" />
+                <div className="h-2.5 w-full animate-pulse rounded bg-muted" />
+                <div className="h-2.5 w-3/5 animate-pulse rounded bg-muted" />
+              </div>
+            ) : (
+              <Textarea
+                value={summary}
+                onChange={(e) => { setSummary(e.target.value); setSummaryDirty(true) }}
+                onBlur={handleSummaryBlur}
+                placeholder="Add a description for this document…"
+                className="min-h-24 resize-none text-xs"
+              />
+            )}
           </div>
 
           {/* Tags */}
@@ -484,10 +547,24 @@ export function DocumentPreviewSheet({ doc, open, onOpenChange, onDeleted, onOpe
               <Tag01Icon size={13} className="text-muted-foreground" />
               <p className="text-xs font-medium">Tags</p>
             </div>
-            <TagsInput tags={tags} onChange={handleTagsChange} />
-            <p className="text-[10px] text-muted-foreground">
-              Press Enter or comma to add a tag
-            </p>
+            {isClassifying ? (
+              <div className="flex flex-wrap gap-1.5 rounded-lg border bg-muted/40 px-2.5 py-2 animate-in fade-in-0 zoom-in-95 duration-150 [animation-timing-function:var(--ease-out)]">
+                {[40, 60, 50, 72].map((w) => (
+                  <div
+                    key={w}
+                    className="h-5 animate-pulse rounded-md bg-muted"
+                    style={{ width: w }}
+                  />
+                ))}
+              </div>
+            ) : (
+              <TagsInput tags={tags} onChange={handleTagsChange} />
+            )}
+            {!isClassifying && (
+              <p className="text-[10px] text-muted-foreground">
+                Press Enter or comma to add a tag
+              </p>
+            )}
           </div>
 
           {/* Related documents */}
