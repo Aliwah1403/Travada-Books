@@ -14,6 +14,7 @@ import {
   FileEditIcon,
 } from "@travada-books/ui/icons";
 import { CurrencySelect } from "@travada-books/ui/components/currency-select";
+import { Spokes } from "@travada-books/ui/components/spokes";
 import { CustomerCombobox, type SelectedCustomer } from "@/components/invoices/customer-combobox";
 import { RecurringDialog, type RecurringFrequency } from "@/components/invoices/recurring-dialog";
 import { ScheduleDialog } from "@/components/invoices/schedule-dialog";
@@ -543,7 +544,7 @@ export function EditInvoicePage() {
   if (isLoading) {
     return (
       <div className="flex h-full items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+        <Spokes className="h-8 w-8 text-primary" />
       </div>
     );
   }

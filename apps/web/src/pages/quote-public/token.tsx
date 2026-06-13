@@ -9,6 +9,7 @@ import {
   Cancel01Icon,
 } from "@travada-books/ui/icons";
 import { Button } from "@travada-books/ui/components/button";
+import { Spokes } from "@travada-books/ui/components/spokes";
 import { Textarea } from "@travada-books/ui/components/textarea";
 import { Label } from "@travada-books/ui/components/label";
 import { useTheme } from "@/components/theme-provider";
@@ -62,7 +63,7 @@ export function PublicQuotePage() {
   if (isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-muted/30">
-        <div className="h-7 w-7 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+        <Spokes className="h-7 w-7 text-primary" />
       </div>
     );
   }

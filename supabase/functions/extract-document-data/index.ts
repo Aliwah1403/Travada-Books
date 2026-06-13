@@ -1,7 +1,8 @@
 import OpenAI from "npm:openai@4"
 import { getCallerOrgId } from "../_shared/auth.ts"
 import { db } from "../_shared/db.ts"
-import { createExtractDocumentPrompt, extractDocumentJsonSchema } from "../_shared/prompts/extract-document.ts"
+import { createExtractDocumentPrompt } from "../_shared/prompts/extract-document.ts"
+import { trackAIGeneration } from "../_shared/posthog.ts"
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -18,24 +19,17 @@ Deno.serve(async (req) => {
     if ("error" in auth) return new Response(auth.error.body, { status: auth.error.status, headers: corsHeaders })
 
     const { orgId } = auth
-    // Accept either a vault filePath or inline base64 fileData
     const body = await req.json() as {
       filePath?: string
-      fileData?: string      // base64-encoded
-      contentType?: string   // mime type when using fileData
+      fileData?: string
+      contentType?: string
     }
 
     if (!body.filePath && !body.fileData) {
       return new Response(JSON.stringify({ error: "filePath or fileData required" }), { status: 400, headers: corsHeaders })
     }
 
-    // Fetch org name for context
-    const { data: org } = await db
-      .from("organizations")
-      .select("name")
-      .eq("id", orgId)
-      .single()
-
+    const { data: org } = await db.from("organizations").select("name").eq("id", orgId).single()
     const orgName = org?.name ?? "the organization"
 
     let base64: string
@@ -45,7 +39,6 @@ Deno.serve(async (req) => {
       base64 = body.fileData
       contentType = body.contentType ?? "image/jpeg"
     } else {
-      // Verify the document belongs to the caller's org before issuing a signed URL
       const { data: docRow } = await db
         .from("documents")
         .select("id, file_path")
@@ -57,7 +50,6 @@ Deno.serve(async (req) => {
         return new Response(JSON.stringify({ error: "Not found" }), { status: 404, headers: corsHeaders })
       }
 
-      // Fetch from vault storage
       const { data: signedUrlData, error: urlError } = await db.storage
         .from("vault")
         .createSignedUrl(body.filePath!, 60)
@@ -80,27 +72,35 @@ Deno.serve(async (req) => {
     }
 
     const prompt = createExtractDocumentPrompt(orgName)
+    const t0 = Date.now()
 
-    const completion = await openai.chat.completions.create({
+    const response = await openai.chat.completions.create({
       model: "gpt-4o",
       temperature: 0,
-      response_format: { type: "json_schema", json_schema: extractDocumentJsonSchema },
+      response_format: { type: "json_object" },
       messages: [
         {
           role: "user",
           content: [
             { type: "text", text: prompt },
-            {
-              type: "image_url",
-              image_url: { url: `data:${contentType};base64,${base64}`, detail: "high" },
-            },
+            { type: "image_url", image_url: { url: `data:${contentType};base64,${base64}` } },
           ],
         },
       ],
     })
 
-    const content = completion.choices[0]?.message?.content ?? "{}"
-    const extracted = JSON.parse(content)
+    const extracted = JSON.parse(response.choices[0].message.content ?? "{}")
+
+    trackAIGeneration({
+      distinctId: orgId,
+      model: "gpt-4o",
+      provider: "openai",
+      functionId: "extract_document_data",
+      inputTokens: response.usage?.prompt_tokens ?? 0,
+      outputTokens: response.usage?.completion_tokens ?? 0,
+      latencyMs: Date.now() - t0,
+      input: prompt,
+    })
 
     return new Response(JSON.stringify(extracted), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

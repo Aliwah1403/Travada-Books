@@ -12,11 +12,15 @@
     "@trigger.dev/build": "^4.4.6"
   },
   "dependencies": {
+    "@ai-sdk/google": "^3.0.81",
+    "@ai-sdk/mistral": "^3.0.38",
+    "@ai-sdk/openai": "^3.0.70",
     "@react-email/components": "^0.0.22",
     "@react-email/render": "^1.0.0",
     "@supabase/supabase-js": "^2.106.2",
     "@trigger.dev/sdk": "^4.4.6",
     "@types/papaparse": "^5.5.2",
+    "ai": "^6.0.202",
     "chrono-node": "^2.9.1",
     "openai": "^6.42.0",
     "papaparse": "^5.5.3",

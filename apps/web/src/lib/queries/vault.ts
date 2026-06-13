@@ -164,12 +164,10 @@ export async function uploadDocument(
 
   if (storageError) throw storageError
 
-  if (folderId) {
-    await supabase
-      .from("documents")
-      .update({ folder_id: folderId })
-      .eq("file_path", path)
-  }
+  // Set clean display name (storage path keeps timestamp for uniqueness, display name does not)
+  const patch: Record<string, unknown> = { name: file.name.trim() }
+  if (folderId) patch.folder_id = folderId
+  await supabase.from("documents").update(patch).eq("file_path", path)
 }
 
 export async function uploadFileForImport(orgId: string, file: File): Promise<string> {

@@ -3,6 +3,7 @@ import { toast } from "sonner"
 import { useRealtimeRun } from "@trigger.dev/react-hooks"
 import { useQueryClient } from "@tanstack/react-query"
 import { cn } from "@travada-books/ui/lib/utils"
+import { Spokes } from "@travada-books/ui/components/spokes"
 import { supabase } from "@/lib/supabase"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -22,23 +23,24 @@ type Output = {
 
 const STATUS_LABELS: Record<string, string> = {
   downloading: "Downloading file…",
+  extracting: "Reading bank statement…",
   parsing: "Reading CSV…",
-  cleaning: "Cleaning descriptions…",
   importing: "Importing transactions…",
-  categorizing: "Categorizing…",
+  categorizing: "Analyzing transactions…",
   done: "Done",
 }
 
 function getProgress(meta: ImportMeta): number {
-  if (meta.status === "done" || meta.status === "categorizing") return 90
+  if (meta.status === "done") return 100
+  if (meta.status === "categorizing") return 92
   if (meta.status === "importing" && meta.total) {
-    return 30 + Math.round(((meta.imported ?? 0) / meta.total) * 55)
+    return 20 + Math.round(((meta.imported ?? 0) / meta.total) * 65)
   }
   const map: Record<string, number> = {
     downloading: 5,
+    extracting: 15,
     parsing: 15,
-    cleaning: 30,
-    importing: 30,
+    importing: 20,
   }
   return map[meta.status ?? ""] ?? 5
 }
@@ -113,7 +115,7 @@ function ImportProgressToast({
         <div className="flex items-center gap-2.5">
           {/* Spinner / status indicator */}
           {!isDone && !isFailed && (
-            <div className="shrink-0 h-4 w-4 rounded-full border-2 border-muted border-t-foreground animate-spin" />
+            <Spokes className="shrink-0 h-4 w-4 text-foreground" />
           )}
           {isDone && (
             <div className="shrink-0 h-4 w-4 rounded-full bg-green-500 flex items-center justify-center">

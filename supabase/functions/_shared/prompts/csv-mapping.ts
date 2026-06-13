@@ -1,3 +1,4 @@
+import { z } from "npm:zod"
 import { composePrompt } from "./_compose.ts"
 
 export function createCsvMappingPrompt(
@@ -30,41 +31,19 @@ Output: { "date": "Transaction Date", "description": "Particulars", "debit_colum
   })
 }
 
-export interface CsvMapping {
-  date?: string
-  description?: string
-  amount?: string
-  debit_column?: string
-  credit_column?: string
-  type?: string
-  counterparty?: string
-  category?: string
-  reference?: string
-  notes?: string
-  currency?: string
-  amount_sign?: boolean
-}
+export const csvMappingSchema = z.object({
+  date: z.string().optional().describe("CSV column name for the transaction date"),
+  description: z.string().optional().describe("CSV column name for transaction description/narration"),
+  amount: z.string().optional().describe("CSV column name for a single signed amount column"),
+  debit_column: z.string().optional().describe("CSV column name for debit/withdrawal amounts"),
+  credit_column: z.string().optional().describe("CSV column name for credit/deposit amounts"),
+  type: z.string().optional().describe("CSV column name for transaction type (income/expense/debit/credit)"),
+  counterparty: z.string().optional().describe("CSV column name for counterparty/payee/payer name"),
+  category: z.string().optional().describe("CSV column name for transaction category"),
+  reference: z.string().optional().describe("CSV column name for reference number"),
+  notes: z.string().optional().describe("CSV column name for notes or remarks"),
+  currency: z.string().optional().describe("CSV column name OR detected ISO 4217 currency code"),
+  amount_sign: z.boolean().optional().describe("true if positive amounts = income, false if positive = expense"),
+})
 
-export const csvMappingJsonSchema = {
-  name: "csv_mapping",
-  strict: true,
-  schema: {
-    type: "object",
-    properties: {
-      date: { type: "string", description: "CSV column name for the transaction date" },
-      description: { type: "string", description: "CSV column name for transaction description/narration" },
-      amount: { type: "string", description: "CSV column name for a single signed amount column" },
-      debit_column: { type: "string", description: "CSV column name for debit/withdrawal amounts" },
-      credit_column: { type: "string", description: "CSV column name for credit/deposit amounts" },
-      type: { type: "string", description: "CSV column name for transaction type (income/expense/debit/credit)" },
-      counterparty: { type: "string", description: "CSV column name for counterparty/payee/payer name" },
-      category: { type: "string", description: "CSV column name for transaction category" },
-      reference: { type: "string", description: "CSV column name for reference number" },
-      notes: { type: "string", description: "CSV column name for notes or remarks" },
-      currency: { type: "string", description: "CSV column name OR detected ISO 4217 currency code" },
-      amount_sign: { type: "boolean", description: "true if positive amounts = income, false if positive = expense" },
-    },
-    required: [],
-    additionalProperties: false,
-  },
-}
+export type CsvMapping = z.infer<typeof csvMappingSchema>

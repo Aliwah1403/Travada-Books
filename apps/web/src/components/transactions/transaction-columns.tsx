@@ -1,6 +1,7 @@
 import { type ColumnDef } from "@tanstack/react-table";
 import { Link } from "react-router";
 import { RepeatIcon, Attachment01Icon } from "@travada-books/ui/icons";
+import { Spokes } from "@travada-books/ui/components/spokes";
 import { TransactionActions } from "./transaction-actions";
 
 declare module "@tanstack/react-table" {
@@ -65,6 +66,7 @@ export type Transaction = {
   linkedInvoiceNumber: string | null;
   hasAttachments: boolean;
   attachments: TransactionAttachmentInfo[];
+  enrichmentCompleted: boolean;
 };
 
 const PAYMENT_MODE_LABELS: Record<PaymentMode, string> = {
@@ -129,8 +131,16 @@ export const transactionColumns: ColumnDef<Transaction>[] = [
     accessorKey: "categoryName",
     header: "Category",
     cell: ({ row }) => {
-      const { categoryName, categoryColor } = row.original;
+      const { categoryName, categoryColor, enrichmentCompleted } = row.original;
       if (!categoryName) {
+        if (!enrichmentCompleted) {
+          return (
+            <div className='flex items-center gap-1.5'>
+              <Spokes className='h-3 w-3 shrink-0 text-muted-foreground' />
+              <span className='text-[11px] text-muted-foreground/60'>Analyzing</span>
+            </div>
+          );
+        }
         return <span className='text-xs text-muted-foreground'>—</span>;
       }
       return (

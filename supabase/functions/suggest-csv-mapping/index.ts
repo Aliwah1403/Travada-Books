@@ -1,6 +1,7 @@
 import OpenAI from "npm:openai@4"
 import { getCallerOrgId } from "../_shared/auth.ts"
 import { createCsvMappingPrompt } from "../_shared/prompts/csv-mapping.ts"
+import { trackAIGeneration } from "../_shared/posthog.ts"
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -23,16 +24,27 @@ Deno.serve(async (req) => {
     }
 
     const prompt = createCsvMappingPrompt(headers, sampleRows ?? [])
+    const t0 = Date.now()
 
-    const completion = await openai.chat.completions.create({
+    const response = await openai.chat.completions.create({
       model: "gpt-4o-mini",
       temperature: 0,
       response_format: { type: "json_object" },
       messages: [{ role: "user", content: prompt }],
     })
 
-    const content = completion.choices[0]?.message?.content ?? "{}"
-    const mapping = JSON.parse(content)
+    const mapping = JSON.parse(response.choices[0].message.content ?? "{}")
+
+    trackAIGeneration({
+      distinctId: auth.orgId,
+      model: "gpt-4o-mini",
+      provider: "openai",
+      functionId: "suggest_csv_mapping",
+      inputTokens: response.usage?.prompt_tokens ?? 0,
+      outputTokens: response.usage?.completion_tokens ?? 0,
+      latencyMs: Date.now() - t0,
+      input: prompt,
+    })
 
     return new Response(JSON.stringify(mapping), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

@@ -52,6 +52,7 @@ function mapDbTx(row: DbTransaction, formatDate: (v: string | null | undefined) 
     linkedInvoiceNumber: row.invoice?.invoice_number ?? null,
     hasAttachments: (row.attachments?.length ?? 0) > 0,
     attachments: row.attachments ?? [],
+    enrichmentCompleted: row.enrichment_completed,
   };
 }
 
@@ -175,7 +176,7 @@ export function TransactionsPage() {
 
         <div className="flex items-center gap-2">
           <Button variant="outline" className="h-10" onClick={() => setImportOpen(true)}>
-            Import CSV
+            Import
           </Button>
           <Button className="h-10" onClick={handleNewTransaction}>
             + New Transaction

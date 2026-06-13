@@ -454,3 +454,6 @@ verify_jwt = true
 [functions.trigger-csv-import]
 verify_jwt = true
 
+[functions.trigger-pdf-import]
+verify_jwt = true
+

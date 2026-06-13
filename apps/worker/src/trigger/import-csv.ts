@@ -1,11 +1,9 @@
 import { task, logger, metadata } from "@trigger.dev/sdk";
-import OpenAI from "openai";
 import Papa from "papaparse";
 import { z } from "zod";
 import { createHash } from "crypto";
 import { supabase } from "../lib/supabase";
-
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! });
+import { enrichTransactionsTask } from "./enrich-transactions";
 
 // ─── Schema ───────────────────────────────────────────────────────────────────
 
@@ -184,138 +182,16 @@ function mapRow(
     name: description,
     counterparty_name: mapping.counterparty ? raw[mapping.counterparty]?.trim() || undefined : undefined,
     amount,
-    currency: (mapping.currency && raw[mapping.currency]?.trim().toUpperCase()) || defaultCurrency,
+    currency: (() => {
+      if (!mapping.currency) return defaultCurrency;
+      // If the value is a known column header, look it up; otherwise treat as an ISO code
+      const isColumn = Object.keys(raw).includes(mapping.currency);
+      return (isColumn ? raw[mapping.currency]?.trim().toUpperCase() : mapping.currency.toUpperCase()) || defaultCurrency;
+    })(),
     type,
     reference_number: reference,
     note: mapping.notes ? raw[mapping.notes]?.trim() || undefined : undefined,
   };
-}
-
-// ─── AI helpers ───────────────────────────────────────────────────────────────
-
-const ENRICH_SYSTEM_PROMPT = `You are a Kenyan bank/M-Pesa transaction parser. Given a raw transaction description, extract two fields:
-
-1. "name" — A short, clean description of WHAT the transaction was (max 40 chars)
-2. "counterparty" — WHO the other party is (person or business). Use null if the description is already short and clean.
-
-Rules by transaction type:
-- "Customer Transfer to 254708***466 - CAROLINE KARITHI MURAGE" → name: "M-Pesa Transfer", counterparty: "Caroline Karithi Murage"
-- "Customer Payment to Small Business to 254720***218 - mohamed ahmed aden" → name: "M-Pesa Payment", counterparty: "Mohamed Ahmed Aden"
-- "Funds received from 254704***069 - Nate Amani Muliro" → name: "M-Pesa Received", counterparty: "Nate Amani Muliro"
-- "Merchant Payment to 5464614 - Fastmart Supermarket Limited-Kipawa Branch" → name: "Fastmart Supermarket", counterparty: "Fastmart Supermarket"
-- "Pay Bill Online to 644028 - MOJA EXPRESSWAY CO. LTD Acc. XXXXXX" → name: "Moja Expressway", counterparty: "Moja Expressway"
-- "Receive International Transfer From 573388 - TERRAPAY MONEY TRANSFER..." → name: "International Transfer", counterparty: "TerraPay"
-- "Business Payment from 859551 - MALI. via API..." → name: "Business Payment", counterparty: "Mali"
-- "Transfer from Bank 517819 - IM BANK LIMITED- APP to Customer via API" → name: "Bank Transfer", counterparty: "IM Bank"
-- "Customer Withdrawal At Agent Till 378674 - THINK CREATIVE Les les outlet..." → name: "Agent Withdrawal", counterparty: "Think Creative"
-
-General rules:
-- For M-Pesa person transfers (masked phone numbers like 0729***827 or 254721***911): name = "M-Pesa Transfer" / "M-Pesa Payment" / "M-Pesa Received", counterparty = person name (properly capitalized, remove phone number)
-- For merchants: name = clean merchant name, counterparty = same
-- For bill payments: name = payee name, counterparty = same
-- For bank transfers: name = transaction type, counterparty = bank/service name
-- Capitalize names: "CAROLINE KARITHI MURAGE" → "Caroline Karithi Murage"
-- If already short and clean (under 30 chars, no reference numbers): return as-is with counterparty: null
-- Return JSON: { "0": { "name": "...", "counterparty": "..." }, "1": { ... }, ... }`;
-
-type EnrichedRow = { name: string; counterparty: string | null };
-
-async function cleanDescriptions(rows: ParsedRow[]): Promise<void> {
-  const CLEAN_BATCH = 80;
-
-  for (let i = 0; i < rows.length; i += CLEAN_BATCH) {
-    const batch = rows.slice(i, i + CLEAN_BATCH);
-    const input: Record<string, string> = {};
-    batch.forEach((r, idx) => { input[String(idx)] = r.name; });
-
-    try {
-      const completion = await openai.chat.completions.create({
-        model: "gpt-4o-mini",
-        temperature: 0,
-        response_format: { type: "json_object" },
-        messages: [
-          { role: "system", content: ENRICH_SYSTEM_PROMPT },
-          { role: "user", content: `Parse these transactions:\n${JSON.stringify(input)}` },
-        ],
-      });
-
-      const result = JSON.parse(completion.choices[0]?.message?.content ?? "{}") as Record<string, EnrichedRow>;
-      batch.forEach((row, idx) => {
-        const r = result[String(idx)];
-        if (r?.name?.trim()) {
-          row.name = r.name.trim();
-          if (r.counterparty?.trim()) {
-            row.counterparty_name = r.counterparty.trim();
-          }
-        }
-      });
-    } catch (err) {
-      logger.warn("Description cleaning batch failed — using raw names", { error: String(err) });
-    }
-  }
-}
-
-async function categorizeRows(
-  rows: ParsedRow[],
-  orgId: string,
-): Promise<void> {
-  const { data: categories } = await supabase
-    .from("transaction_categories")
-    .select("id, name")
-    .eq("org_id", orgId);
-
-  if (!categories?.length) return;
-
-  const categoryNames = categories.map((c) => c.name);
-  const BATCH = 50;
-
-  for (let i = 0; i < rows.length; i += BATCH) {
-    const batch = rows.slice(i, i + BATCH);
-    const input = batch.map((r) => ({ id: r.id, description: r.name, counterparty: r.counterparty_name ?? "" }));
-
-    try {
-      const completion = await openai.chat.completions.create({
-        model: "gpt-4o-mini",
-        temperature: 0,
-        response_format: { type: "json_object" },
-        messages: [
-          {
-            role: "user",
-            content: `Assign a category to each transaction from the list below. Return JSON: { "id": "Category Name", ... }
-
-Available categories: ${categoryNames.join(", ")}
-
-Use "Uncategorized" if nothing fits. Kenya-specific hints:
-- M-Pesa fees / bank charges → "Bank & Transaction Fees"
-- Kenya Power, Nairobi Water → "Utilities"
-- Safaricom, Airtel → "Communication"
-- Salary, payroll → "Salaries & Wages"
-
-Transactions:
-${JSON.stringify(input)}`,
-          },
-        ],
-      });
-
-      const result = JSON.parse(completion.choices[0]?.message?.content ?? "{}") as Record<string, string>;
-
-      const updates = Object.entries(result)
-        .filter(([, name]) => name !== "Uncategorized" && categoryNames.includes(name))
-        .map(([id, name]) => ({
-          id,
-          category_id: categories.find((c) => c.name === name)?.id,
-        }))
-        .filter((u): u is { id: string; category_id: string } => !!u.category_id);
-
-      await Promise.all(
-        updates.map(({ id, category_id }) =>
-          supabase.from("transactions").update({ category_id }).eq("id", id),
-        ),
-      );
-    } catch (err) {
-      logger.warn("Categorization batch failed", { error: String(err) });
-    }
-  }
 }
 
 // ─── Task ─────────────────────────────────────────────────────────────────────
@@ -371,12 +247,7 @@ export const importCsvTask = task({
     const skipped = rawRows.length - rows.length;
     if (skipped > 0) logger.warn("Skipped rows with missing date/amount", { skipped });
 
-    // 4. Clean descriptions with AI
-    metadata.set("status", "cleaning");
-    logger.log("Cleaning descriptions", { count: rows.length });
-    await cleanDescriptions(rows);
-
-    // 5. Upsert in batches — internal_id deduplicates re-imports
+    // 4. Upsert in batches — internal_id deduplicates re-imports
     metadata.set("status", "importing");
     const INSERT_BATCH = 500;
     let inserted = 0;
@@ -413,12 +284,15 @@ export const importCsvTask = task({
       logger.log("Batch upserted", { inserted, total: rows.length });
     }
 
-    // 6. Categorize all imported rows
+    // 5. Enrich — merchant name extraction + categorization (Gemini 2.5 Flash Lite, batch 50)
     metadata.set("status", "categorizing");
-    logger.log("Categorizing transactions", { count: rows.length });
-    await categorizeRows(rows, orgId);
+    logger.log("Enriching transactions", { count: rows.length });
+    await enrichTransactionsTask.triggerAndWait({
+      transactionIds: rows.map((r) => r.id),
+      orgId,
+    });
 
-    // 7. Clean up the import file from vault
+    // 6. Clean up the import file from vault
     await supabase.storage.from("vault").remove([filePath]);
 
     metadata.set("status", "done");

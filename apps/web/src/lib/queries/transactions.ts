@@ -47,6 +47,7 @@ export type Transaction = {
   reference_number: string | null
   note: string | null
   manual: boolean
+  enrichment_completed: boolean
   created_at: string
   category: Pick<TransactionCategory, "id" | "name" | "slug" | "color"> | null
   invoice: { id: string; invoice_number: string | null } | null
@@ -105,7 +106,7 @@ const TRANSACTION_SELECT = `
   id, org_id, created_by, date, name, counterparty_name, customer_id, amount, currency,
   type, status, payment_mode, category_id, invoice_id,
   tax_amount, tax_rate, tax_type, recurring, frequency, internal,
-  reference_number, note, manual, created_at,
+  reference_number, note, manual, enrichment_completed, created_at,
   category:transaction_categories(id, name, slug, color),
   invoice:invoices(id, invoice_number),
   attachments:transaction_attachments(id, file_path, file_name, file_size, content_type)

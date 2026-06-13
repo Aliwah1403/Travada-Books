@@ -1,3 +1,4 @@
+import { z } from "npm:zod"
 import { composePrompt } from "./_compose.ts"
 
 export function createExtractDocumentPrompt(orgName: string): string {
@@ -31,39 +32,16 @@ Never include commas, currency symbols, or spaces in the amount field — number
   })
 }
 
-export interface ExtractedDocument {
-  date: string | null
-  amount: number | null
-  type: "income" | "expense" | null
-  counterparty_name: string | null
-  description: string | null
-  reference_number: string | null
-  currency: string | null
-  tax_amount: number | null
-  payment_mode: "mpesa" | "bank_transfer" | "cash" | "cheque" | "card" | "other" | null
-}
+export const extractDocumentSchema = z.object({
+  date: z.string().nullable().describe("Transaction date in YYYY-MM-DD format"),
+  amount: z.number().nullable().describe("Transaction amount as a positive number"),
+  type: z.enum(["income", "expense"]).nullable().describe("income if org is receiving money, expense if paying"),
+  counterparty_name: z.string().nullable().describe("Vendor name (expense) or customer/sender name (income)"),
+  description: z.string().nullable().describe("Short description of the transaction"),
+  reference_number: z.string().nullable().describe("Reference, confirmation, or receipt number"),
+  currency: z.string().nullable().describe("ISO 4217 currency code (e.g. KES, USD)"),
+  tax_amount: z.number().nullable().describe("Tax amount if explicitly shown on the document"),
+  payment_mode: z.enum(["mpesa", "bank_transfer", "cash", "cheque", "card", "other"]).nullable().describe("Payment method used"),
+})
 
-export const extractDocumentJsonSchema = {
-  name: "extracted_document",
-  strict: true,
-  schema: {
-    type: "object",
-    properties: {
-      date: { type: ["string", "null"], description: "Transaction date in YYYY-MM-DD format" },
-      amount: { type: ["number", "null"], description: "Transaction amount as a positive number" },
-      type: { type: ["string", "null"], enum: ["income", "expense", null], description: "income if org is receiving money, expense if paying" },
-      counterparty_name: { type: ["string", "null"], description: "Vendor name (expense) or customer/sender name (income)" },
-      description: { type: ["string", "null"], description: "Short description of the transaction" },
-      reference_number: { type: ["string", "null"], description: "Reference, confirmation, or receipt number" },
-      currency: { type: ["string", "null"], description: "ISO 4217 currency code (e.g. KES, USD)" },
-      tax_amount: { type: ["number", "null"], description: "Tax amount if explicitly shown on the document" },
-      payment_mode: {
-        type: ["string", "null"],
-        enum: ["mpesa", "bank_transfer", "cash", "cheque", "card", "other", null],
-        description: "Payment method used in the transaction",
-      },
-    },
-    required: ["date", "amount", "type", "counterparty_name", "description", "reference_number", "currency", "tax_amount", "payment_mode"],
-    additionalProperties: false,
-  },
-}
+export type ExtractedDocument = z.infer<typeof extractDocumentSchema>
