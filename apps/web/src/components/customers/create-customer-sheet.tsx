@@ -37,7 +37,7 @@ import {
   FieldError,
 } from "@travada-books/ui/components/field";
 import { useAuth } from "@/contexts/auth-context";
-import { createCustomer } from "@/lib/queries/customers";
+import { createCustomer, triggerEnrichment } from "@/lib/queries/customers";
 import { toast } from "sonner";
 
 const schema = z.object({
@@ -145,7 +145,7 @@ export function CreateCustomerSheet({
   async function onSubmit(data: FormValues) {
     if (!orgId) return;
     try {
-      await createCustomer(orgId, {
+      const newCustomer = await createCustomer(orgId, {
         name: data.name,
         email: data.email || undefined,
         billing_email: data.billToEmail || undefined,
@@ -171,6 +171,10 @@ export function CreateCustomerSheet({
         customer_type: data.businessType || "individual",
         industry: data.industry,
       });
+      // Fire-and-forget: enrichment status will update via realtime
+      if (data.email || data.website) {
+        triggerEnrichment(newCustomer.id).catch(() => {});
+      }
       toast.success("Customer created");
       handleOpenChange(false);
       onCreated?.();

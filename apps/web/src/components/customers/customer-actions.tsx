@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router";
+import { useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { MoreHorizontalIcon } from "@travada-books/ui/icons";
 import {
   DropdownMenu,
@@ -22,10 +24,13 @@ import {
   EditCustomerSheet,
   type CustomerEditValues,
 } from "./edit-customer-sheet";
+import { triggerEnrichment } from "@/lib/queries/customers";
 
 type CustomerActionsProps = {
   customerId: string;
   customer: CustomerEditValues;
+  enrichmentStatus?: string | null;
+  email?: string | null;
   onDelete: () => void;
   onUpdated?: () => void;
 };
@@ -33,12 +38,27 @@ type CustomerActionsProps = {
 export function CustomerActions({
   customerId,
   customer,
+  enrichmentStatus,
+  email,
   onDelete,
   onUpdated,
 }: CustomerActionsProps) {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+
+  function handleEnrich() {
+    toast.promise(triggerEnrichment(customerId), {
+      loading: "Queuing enrichment…",
+      success: () => {
+        queryClient.invalidateQueries({ queryKey: ["customer", customerId] });
+        queryClient.invalidateQueries({ queryKey: ["customers"] });
+        return "Enrichment started";
+      },
+      error: "Failed to start enrichment",
+    });
+  }
 
   return (
     <>
@@ -60,6 +80,19 @@ export function CustomerActions({
           <DropdownMenuItem onClick={() => navigate("/invoices/create")}>
             New invoice
           </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          {enrichmentStatus === "done" ? (
+            <DropdownMenuItem onClick={handleEnrich}>
+              Refresh enrichment
+            </DropdownMenuItem>
+          ) : (
+            <DropdownMenuItem
+              onClick={handleEnrich}
+              disabled={!email}
+            >
+              Enrich with AI
+            </DropdownMenuItem>
+          )}
           <DropdownMenuSeparator />
           <DropdownMenuItem
             className='text-destructive focus:text-destructive'

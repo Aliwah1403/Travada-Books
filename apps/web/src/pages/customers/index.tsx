@@ -267,15 +267,32 @@ export function CustomersPage() {
                       {customer.country ?? <span className="text-muted-foreground/50">—</span>}
                     </TableCell>
                     <TableCell className="py-3 text-xs text-muted-foreground">
-                      {customer.industry ?? <span className="text-muted-foreground/50">—</span>}
+                      {(customer.enrichment_status === "pending" || customer.enrichment_status === "processing") ? (
+                        <span className="flex items-center gap-1.5 text-muted-foreground/70">
+                          <span className="inline-block size-3 rounded-full border-2 border-muted-foreground/30 border-t-muted-foreground animate-spin" />
+                          Enriching
+                        </span>
+                      ) : customer.industry ?? <span className="text-muted-foreground/50">—</span>}
                     </TableCell>
                     <TableCell className="py-3 text-xs">
                       {customer.company_type
                         ? <span className="rounded-md bg-muted px-2 py-0.5 text-[11px] font-medium">{customer.company_type}</span>
                         : <span className="text-muted-foreground/50">—</span>}
                     </TableCell>
-                    <TableCell className="py-3 text-xs text-muted-foreground">
-                      {customer.website ?? <span className="text-muted-foreground/50">—</span>}
+                    <TableCell className="py-3 text-xs">
+                      {customer.website ? (
+                        <a
+                          href={customer.website.startsWith("http") ? customer.website : `https://${customer.website}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          className="text-muted-foreground underline-offset-4 hover:underline hover:text-foreground transition-colors"
+                        >
+                          {customer.website.replace(/^https?:\/\/(www\.)?/, "")}
+                        </a>
+                      ) : (
+                        <span className="text-muted-foreground/50">—</span>
+                      )}
                     </TableCell>
                     <TableCell className="py-3 text-xs text-muted-foreground">
                       {summaries[customer.id]?.invoiceCount ?? <span className="text-muted-foreground/50">—</span>}
@@ -319,6 +336,8 @@ export function CustomersPage() {
                           zip: customer.zip ?? "",
                           note: customer.note ?? "",
                         }}
+                        enrichmentStatus={customer.enrichment_status}
+                        email={customer.email}
                         onDelete={() => deleteMutation.mutate(customer.id)}
                         onUpdated={handleCustomerUpdated}
                       />
