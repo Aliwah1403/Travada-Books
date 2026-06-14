@@ -68,7 +68,7 @@ export function CustomerActions({
             <MoreHorizontalIcon size={14} />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align='end'>
+        <DropdownMenuContent align='end' className="w-full">
           <DropdownMenuItem
             onClick={() => navigate(`/customers/${customerId}`)}
           >

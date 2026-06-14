@@ -771,6 +771,13 @@ export function VaultPage() {
     },
   });
 
+  // Keep previewDoc in sync with fresh list data so sheet reflects updates immediately
+  useEffect(() => {
+    if (!previewDoc) return;
+    const fresh = docs.find((d) => d.id === previewDoc.id);
+    if (fresh && fresh !== previewDoc) setPreviewDoc(fresh);
+  }, [docs]);
+
   // Fetch folders at the current level
   const { data: folders = [] } = useQuery({
     queryKey: ["vault-folders", orgId, currentFolderId],

@@ -115,6 +115,23 @@ function validateTotalFunding(funding: string | null, stage: string | null): str
 
 // ─── Domain helper ────────────────────────────────────────────────────────────
 
+const PERSONAL_EMAIL_DOMAINS = new Set([
+  "gmail.com", "googlemail.com",
+  "yahoo.com", "yahoo.co.uk", "yahoo.com.au", "yahoo.co.in", "yahoo.fr", "yahoo.de", "yahoo.es",
+  "hotmail.com", "hotmail.co.uk", "hotmail.fr", "hotmail.de", "hotmail.es",
+  "outlook.com", "outlook.co.uk",
+  "live.com", "live.co.uk",
+  "icloud.com", "me.com", "mac.com",
+  "aol.com",
+  "protonmail.com", "proton.me",
+  "zoho.com",
+  "yandex.com", "yandex.ru",
+  "mail.com", "email.com",
+  "gmx.com", "gmx.net", "gmx.de",
+  "web.de", "t-online.de",
+  "msn.com",
+]);
+
 function extractDomain(source: string): string | null {
   let s = source.trim();
   if (s.startsWith("https://")) s = s.slice(8);
@@ -212,9 +229,20 @@ export const enrichCustomerTask = task({
 
     try {
       // Derive domain from website or email
-      const domain =
-        (customer.website ? extractDomain(customer.website) : null) ??
-        (customer.email ? customer.email.split("@")[1] ?? null : null);
+      const websiteDomain = customer.website ? extractDomain(customer.website) : null;
+      const emailDomain = customer.email ? (customer.email.split("@")[1] ?? null) : null;
+
+      // Skip enrichment when the only signal is a personal email (no company website)
+      if (!websiteDomain && emailDomain && PERSONAL_EMAIL_DOMAINS.has(emailDomain.toLowerCase())) {
+        logger.log("Personal email domain, skipping enrichment", { customerId, emailDomain });
+        await supabase
+          .from("customers")
+          .update({ enrichment_status: "done", enriched_at: new Date().toISOString() })
+          .eq("id", customerId);
+        return;
+      }
+
+      const domain = websiteDomain ?? emailDomain;
 
       // 3. Phase 1: Agentic research
       logger.log("Starting research phase", { name: customer.name, domain });
@@ -264,12 +292,10 @@ export const enrichCustomerTask = task({
         vat_number: extracted.vatNumber?.trim()?.toUpperCase() || customer.vat_number || null,
       };
 
-      // 6. Derive logo via logo.dev (same as Midday)
+      // 6. Derive logo via logo.dev
       const logoToken = process.env.LOGO_DEV_TOKEN;
       const logo_url = domain && logoToken
         ? `https://img.logo.dev/${domain}?token=${logoToken}&size=128&retina=true`
-        : domain
-        ? `https://logo.clearbit.com/${domain}`
         : null;
 
       // 7. Save (backfill website from discovered domain if not set)
