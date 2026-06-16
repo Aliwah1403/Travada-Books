@@ -52,7 +52,7 @@ import {
   defaultQuoteSettings,
   type QuoteSettings,
 } from "@/components/quotes/quote-settings";
-import { LineItem, QuotePreview } from "@/components/quotes/quote-preview";
+import { type LineItem, QuotePreview } from "@/components/quotes/quote-preview";
 import { computeQuoteTotals } from "@/components/quotes/quote-utils";
 import { supabase } from "@/lib/supabase";
 
@@ -149,7 +149,12 @@ export function CreateQuotePage() {
   }, [nextQuoteNumber, isManualQuoteNumber]);
 
   async function buildInput(action: "draft" | "send") {
-    const totals = computeQuoteTotals(items, discountType, discountValue, vatRate);
+    const totals = computeQuoteTotals(
+      items,
+      discountType,
+      discountValue,
+      vatRate,
+    );
     const lineItems = items.map((item) => ({
       description: item.description,
       quantity: parseFloat(item.qty) || 0,
@@ -163,7 +168,8 @@ export function CreateQuotePage() {
     if (org) {
       try {
         exchangeRate = await lookupRate(currency, org.base_currency);
-        convertedAmount = exchangeRate != null ? totals.total * exchangeRate : null;
+        convertedAmount =
+          exchangeRate != null ? totals.total * exchangeRate : null;
       } catch {
         // non-fatal: stats will fall back to raw total
       }
@@ -219,7 +225,8 @@ export function CreateQuotePage() {
   }
 
   const { mutate: handleSubmit, isPending } = useMutation({
-    mutationFn: async (action: "draft" | "send") => createQuote(await buildInput(action)),
+    mutationFn: async (action: "draft" | "send") =>
+      createQuote(await buildInput(action)),
     onSuccess: (quote, action) => {
       queryClient.invalidateQueries({ queryKey: ["quotes", orgId] });
       queryClient.invalidateQueries({ queryKey: ["next-quote-number", orgId] });
@@ -579,7 +586,10 @@ export function CreateQuotePage() {
             queryClient.setQueryData(["quote-template", orgId], quoteSettings);
             if (!isManualQuoteNumber) {
               const n = parseInt(quoteNumber.replace(/\D/g, ""), 10) || 1;
-              setQuoteNumber(quoteSettings.quoteNumberPrefix + String(n).padStart(quoteSettings.quoteNumberDigits, "0"));
+              setQuoteNumber(
+                quoteSettings.quoteNumberPrefix +
+                  String(n).padStart(quoteSettings.quoteNumberDigits, "0"),
+              );
             }
             upsertOrgQuoteTemplate(orgId, quoteSettings).catch(() =>
               toast.error("Failed to save quote settings"),
