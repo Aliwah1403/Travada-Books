@@ -18,17 +18,25 @@ function resolveStatus(status: string, validUntil: string | null): UIQuote["stat
   return status as UIQuote["status"];
 }
 
-function getStats(quotes: UIQuote[], currency: string) {
+function getStats(quotes: UIQuote[], orgCurrency: string) {
   const open = quotes.filter((q) => q.status === "draft" || q.status === "sent");
   const accepted = quotes.filter((q) => q.status === "accepted");
   const expired = quotes.filter((q) => q.status === "expired");
 
-  const sum = (arr: UIQuote[]) => arr.reduce((acc, q) => acc + q.amount, 0);
+  const sum = (arr: UIQuote[]) =>
+    arr.reduce(
+      (acc, q) =>
+        acc +
+        (q.baseCurrency === orgCurrency && q.convertedAmount != null
+          ? q.convertedAmount
+          : q.amount),
+      0,
+    );
 
   return {
-    open: { label: "Open", amount: sum(open), currency, count: open.length },
-    accepted: { label: "Accepted", amount: sum(accepted), currency, count: accepted.length },
-    expired: { label: "Expired", amount: sum(expired), currency, count: expired.length },
+    open: { label: "Open", amount: sum(open), currency: orgCurrency, count: open.length },
+    accepted: { label: "Accepted", amount: sum(accepted), currency: orgCurrency, count: accepted.length },
+    expired: { label: "Expired", amount: sum(expired), currency: orgCurrency, count: expired.length },
   };
 }
 
@@ -55,6 +63,8 @@ export function QuotesPage() {
     customerLogoUrl: q.customers?.logo_url ?? null,
     amount: q.total ?? 0,
     currency: q.currency,
+    convertedAmount: q.converted_amount ?? null,
+    baseCurrency: q.base_currency ?? null,
     issueDate: q.issue_date ? formatDate(q.issue_date) : "—",
   }));
 

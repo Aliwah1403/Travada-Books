@@ -10,7 +10,7 @@ import {
   Settings02Icon,
 } from "@travada-books/ui/icons";
 import { CurrencySelect } from "@travada-books/ui/components/currency-select";
-import { CustomerCombobox } from "@/components/invoices/customer-combobox";
+import { CustomerCombobox, type SelectedCustomer } from "@/components/invoices/customer-combobox";
 import { DatePicker } from "@/components/shared/date-picker";
 import { format } from "date-fns";
 import { Button } from "@travada-books/ui/components/button";
@@ -30,61 +30,25 @@ import { toast } from "sonner";
 import { cn } from "@travada-books/ui/lib/utils";
 import { useAuth } from "@/contexts/auth-context";
 import { getQuote, updateQuote } from "@/lib/queries/quotes";
+import { lookupRate } from "@/lib/queries/exchange-rates";
+import { getOrgInvoiceTemplate } from "@/lib/queries/invoice-templates";
 import { getOrgQuoteTemplate, upsertOrgQuoteTemplate } from "@/lib/queries/quote-templates";
 import { QuoteSettingsSheet } from "@/components/quotes/quote-settings-sheet";
 import {
   defaultQuoteSettings,
   type QuoteSettings,
 } from "@/components/quotes/quote-settings";
-
-type LineItem = {
-  id: string;
-  description: string;
-  qty: string;
-  rate: string;
-  tax: string;
-};
-
-
-function buildTotals(
-  items: LineItem[],
-  discountType: "%" | "fixed",
-  discountValue: string,
-  vatRate: string,
-) {
-  const subtotal = items.reduce(
-    (sum, item) => sum + (parseFloat(item.qty) || 0) * (parseFloat(item.rate) || 0),
-    0,
-  );
-  const lineItemTax = items.reduce(
-    (sum, item) =>
-      sum +
-      (parseFloat(item.qty) || 0) *
-        (parseFloat(item.rate) || 0) *
-        ((parseFloat(item.tax) || 0) / 100),
-    0,
-  );
-  const discountAmt =
-    discountType === "%"
-      ? subtotal * ((parseFloat(discountValue) || 0) / 100)
-      : parseFloat(discountValue) || 0;
-  const vat = (subtotal - discountAmt) * ((parseFloat(vatRate) || 0) / 100);
-  return {
-    subtotal,
-    tax_amount: lineItemTax + vat,
-    discount: discountAmt,
-    total: subtotal - discountAmt + lineItemTax + vat,
-  };
-}
+import { LineItem, QuotePreview } from "@/components/quotes/quote-preview";
+import { computeQuoteTotals } from "@/components/quotes/quote-utils";
 
 export function EditQuotePage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { orgId } = useAuth();
+  const { orgId, org } = useAuth();
   const [initialized, setInitialized] = useState(false);
 
-  const [customerId, setCustomerId] = useState<string | null>(null);
+  const [selectedCustomer, setSelectedCustomer] = useState<SelectedCustomer | null>(null);
   const [currency, setCurrency] = useState("KES");
   const [quoteNumber, setQuoteNumber] = useState("");
   const [quoteNumberError, setQuoteNumberError] = useState<string | null>(null);
@@ -108,6 +72,13 @@ export function EditQuotePage() {
   const [quoteSettings, setQuoteSettings] = useState<QuoteSettings>(defaultQuoteSettings);
   const [settingsDirty, setSettingsDirty] = useState(false);
 
+  const { data: invoiceTemplate } = useQuery({
+    queryKey: ["invoice-template", orgId],
+    queryFn: () => getOrgInvoiceTemplate(orgId!),
+    enabled: !!orgId,
+  });
+  const logoUrl = invoiceTemplate?.logoUrl ?? null;
+
   const { data: quoteTemplate } = useQuery({
     queryKey: ["quote-template", orgId],
     queryFn: () => getOrgQuoteTemplate(orgId!),
@@ -121,7 +92,23 @@ export function EditQuotePage() {
   // Pre-populate form from existing quote
   useEffect(() => {
     if (!quote || initialized) return;
-    setCustomerId(quote.customer_id);
+    const cd = quote.customer_details as Record<string, string | null> | null;
+    setSelectedCustomer(
+      quote.customer_id
+        ? {
+            id: quote.customer_id,
+            name: quote.customer_name,
+            email: cd?.["email"] ?? null,
+            billing_email: cd?.["billing_email"] ?? null,
+            phone: cd?.["phone"] ?? null,
+            address_line1: cd?.["address_line1"] ?? null,
+            address_line2: cd?.["address_line2"] ?? null,
+            city: cd?.["city"] ?? null,
+            zip: cd?.["zip"] ?? null,
+            country: cd?.["country"] ?? null,
+          }
+        : null,
+    );
     setCurrency(quote.currency);
     setQuoteNumber(quote.quote_number ?? "");
     if (quote.issue_date) setIssueDate(new Date(quote.issue_date));
@@ -156,9 +143,9 @@ export function EditQuotePage() {
   }, [quote, initialized]);
 
   const { mutate: saveEdit, isPending } = useMutation({
-    mutationFn: () => {
+    mutationFn: async () => {
       if (!id) throw new Error("No quote id");
-      const totals = buildTotals(items, discountType, discountValue, vatRate);
+      const totals = computeQuoteTotals(items, discountType, discountValue, vatRate);
       const dbItems = items.map((item) => ({
         description: item.description,
         quantity: parseFloat(item.qty) || 0,
@@ -166,13 +153,29 @@ export function EditQuotePage() {
         tax_rate: parseFloat(item.tax) || 0,
       }));
 
+      let exchangeRate: number | null = null;
+      let convertedAmount: number | null = null;
+      if (org) {
+        try {
+          exchangeRate = await lookupRate(currency, org.base_currency);
+          convertedAmount = exchangeRate != null ? totals.total * exchangeRate : null;
+        } catch {
+          // non-fatal: stats will fall back to raw total
+        }
+      }
+
       return updateQuote(id, orgId!, {
+        customer_id: selectedCustomer!.id,
+        customer_name: selectedCustomer!.name,
         quote_number: quoteNumber,
         currency,
         issue_date: issueDate ? format(issueDate, "yyyy-MM-dd") : null,
         valid_until: validUntil ? format(validUntil, "yyyy-MM-dd") : null,
         line_items: dbItems,
         ...totals,
+        exchange_rate: exchangeRate,
+        converted_amount: convertedAmount,
+        base_currency: org?.base_currency ?? null,
         note: notes || null,
         // Reset declined quotes to draft so they can be reviewed and resent
         ...(quote?.status === "declined" ? { status: "draft" } : {}),
@@ -272,7 +275,7 @@ export function EditQuotePage() {
           <Button
             className="gap-1.5"
             onClick={() => saveEdit()}
-            disabled={isPending || !customerId || !quoteNumber}
+            disabled={isPending || !selectedCustomer || !quoteNumber}
           >
             <FloppyDiskIcon size={13} />
             Save Changes
@@ -286,7 +289,10 @@ export function EditQuotePage() {
         <div className="flex w-1/2 flex-col gap-5 overflow-y-auto border-r p-6">
           <div className="flex flex-col gap-1.5">
             <Label className="text-xs text-muted-foreground">Prepared For</Label>
-            <CustomerCombobox value={customerId} onChange={setCustomerId} />
+            <CustomerCombobox
+              value={selectedCustomer?.id ?? null}
+              onChange={(customer) => setSelectedCustomer(customer)}
+            />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -434,9 +440,23 @@ export function EditQuotePage() {
           </div>
         </div>
 
-        {/* Right: placeholder preview */}
-        <div className="flex w-1/2 items-center justify-center bg-muted/30 p-6">
-          <p className="text-xs text-muted-foreground">Preview updates on save</p>
+        {/* Right: Preview */}
+        <div className="flex w-1/2 flex-col overflow-y-auto bg-muted/30 p-6">
+          <p className="mb-4 text-xs font-medium text-muted-foreground">Preview</p>
+          <QuotePreview
+            quoteNumber={quoteNumber}
+            issueDate={issueDate}
+            validUntil={validUntil}
+            currency={currency}
+            items={items}
+            discountType={discountType}
+            discountValue={discountValue}
+            vatRate={vatRate}
+            notes={notes}
+            customer={selectedCustomer}
+            org={org}
+            logoUrl={logoUrl}
+          />
         </div>
       </div>
 

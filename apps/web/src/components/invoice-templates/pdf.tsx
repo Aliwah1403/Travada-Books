@@ -251,7 +251,7 @@ function InvoicePdfContent({ data }: { data: ClassicDocumentData }) {
                 <Text style={styles.metaLabel} noMargin>
                   Notes
                 </Text>
-                <Text variant="xs" noMargin>
+                <Text variant="xs" noMargin style={{ whiteSpace: "pre-wrap" }}>
                   {data.note}
                 </Text>
               </View>
