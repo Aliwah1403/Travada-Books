@@ -22,6 +22,9 @@ export type Quote = {
   tax_amount: number | null
   discount: number | null
   total: number | null
+  exchange_rate: number | null
+  converted_amount: number | null
+  base_currency: string | null
   customer_details: Record<string, unknown> | null
   from_details: Record<string, unknown> | null
   note: string | null
@@ -51,6 +54,9 @@ export type QuoteInput = {
   tax_amount: number
   discount: number
   total: number
+  exchange_rate?: number | null
+  converted_amount?: number | null
+  base_currency?: string | null
   note: string | null
   internal_note: string | null
   status?: QuoteStatus
@@ -61,7 +67,7 @@ export type QuoteInput = {
 }
 
 const QUOTE_SELECT =
-  "id, created_at, updated_at, org_id, user_id, customer_id, customer_name, token, quote_number, status, issue_date, valid_until, currency, line_items, subtotal, tax_amount, discount, total, customer_details, from_details, note, internal_note, sent_at, resent_at, accepted_at, declined_at, decline_reason, viewed_at, customers(logo_url)"
+  "id, created_at, updated_at, org_id, user_id, customer_id, customer_name, token, quote_number, status, issue_date, valid_until, currency, line_items, subtotal, tax_amount, discount, total, exchange_rate, converted_amount, base_currency, customer_details, from_details, note, internal_note, sent_at, resent_at, accepted_at, declined_at, decline_reason, viewed_at, customers(logo_url)"
 
 const PUBLIC_QUOTE_SELECT =
   "id, created_at, updated_at, customer_id, customer_name, token, quote_number, status, issue_date, valid_until, currency, line_items, subtotal, tax_amount, discount, total, customer_details, from_details, note, sent_at, resent_at, accepted_at, declined_at, decline_reason, viewed_at"

@@ -42,6 +42,7 @@ import { toast } from "sonner";
 import { cn } from "@travada-books/ui/lib/utils";
 import { useAuth, type UserOrg } from "@/contexts/auth-context";
 import { createQuote, getNextQuoteNumber } from "@/lib/queries/quotes";
+import { lookupRate } from "@/lib/queries/exchange-rates";
 import { getOrgInvoiceTemplate } from "@/lib/queries/invoice-templates";
 import {
   getOrgQuoteTemplate,
@@ -449,7 +450,7 @@ export function CreateQuotePage() {
       setQuoteNumber(nextQuoteNumber);
   }, [nextQuoteNumber, isManualQuoteNumber]);
 
-  function buildInput(action: "draft" | "send") {
+  async function buildInput(action: "draft" | "send") {
     const totals = computeTotals(items, discountType, discountValue, vatRate);
     const lineItems = items.map((item) => ({
       description: item.description,
@@ -458,6 +459,17 @@ export function CreateQuotePage() {
       tax_rate: parseFloat(item.tax) || 0,
     }));
     const isSend = action === "send";
+
+    let exchangeRate: number | null = null;
+    let convertedAmount: number | null = null;
+    if (org) {
+      try {
+        exchangeRate = await lookupRate(currency, org.base_currency);
+        convertedAmount = exchangeRate != null ? totals.total * exchangeRate : null;
+      } catch {
+        // non-fatal: stats will fall back to raw total
+      }
+    }
 
     return {
       org_id: orgId!,
@@ -470,6 +482,9 @@ export function CreateQuotePage() {
       valid_until: validUntil ? format(validUntil, "yyyy-MM-dd") : null,
       line_items: lineItems,
       ...totals,
+      exchange_rate: exchangeRate,
+      converted_amount: convertedAmount,
+      base_currency: org?.base_currency ?? null,
       note: notes || null,
       internal_note: null,
       ...(isSend && { sent_at: new Date().toISOString() }),
@@ -506,7 +521,7 @@ export function CreateQuotePage() {
   }
 
   const { mutate: handleSubmit, isPending } = useMutation({
-    mutationFn: (action: "draft" | "send") => createQuote(buildInput(action)),
+    mutationFn: async (action: "draft" | "send") => createQuote(await buildInput(action)),
     onSuccess: (quote, action) => {
       queryClient.invalidateQueries({ queryKey: ["quotes", orgId] });
       queryClient.invalidateQueries({ queryKey: ["next-quote-number", orgId] });

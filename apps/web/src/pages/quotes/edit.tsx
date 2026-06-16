@@ -10,9 +10,10 @@ import {
   Settings02Icon,
 } from "@travada-books/ui/icons";
 import { CurrencySelect } from "@travada-books/ui/components/currency-select";
-import { CustomerCombobox } from "@/components/invoices/customer-combobox";
+import { CustomerCombobox, type SelectedCustomer } from "@/components/invoices/customer-combobox";
 import { DatePicker } from "@/components/shared/date-picker";
 import { format } from "date-fns";
+import { useFormatDate } from "@/hooks/use-format-date";
 import { Button } from "@travada-books/ui/components/button";
 import { Input } from "@travada-books/ui/components/input";
 import { Label } from "@travada-books/ui/components/label";
@@ -28,8 +29,10 @@ import { Separator } from "@travada-books/ui/components/separator";
 import { Skeleton } from "@travada-books/ui/components/skeleton";
 import { toast } from "sonner";
 import { cn } from "@travada-books/ui/lib/utils";
-import { useAuth } from "@/contexts/auth-context";
+import { useAuth, type UserOrg } from "@/contexts/auth-context";
 import { getQuote, updateQuote } from "@/lib/queries/quotes";
+import { lookupRate } from "@/lib/queries/exchange-rates";
+import { getOrgInvoiceTemplate } from "@/lib/queries/invoice-templates";
 import { getOrgQuoteTemplate, upsertOrgQuoteTemplate } from "@/lib/queries/quote-templates";
 import { QuoteSettingsSheet } from "@/components/quotes/quote-settings-sheet";
 import {
@@ -77,14 +80,196 @@ function buildTotals(
   };
 }
 
+function QuotePreview({
+  quoteNumber,
+  issueDate,
+  validUntil,
+  currency,
+  items,
+  discountType,
+  discountValue,
+  vatRate,
+  notes,
+  customer,
+  org,
+  logoUrl,
+}: {
+  quoteNumber: string;
+  issueDate: Date | undefined;
+  validUntil: Date | undefined;
+  currency: string;
+  items: LineItem[];
+  discountType: "%" | "fixed";
+  discountValue: string;
+  vatRate: string;
+  notes: string;
+  customer: SelectedCustomer | null;
+  org: UserOrg | null;
+  logoUrl: string | null;
+}) {
+  const { formatDate } = useFormatDate();
+  const subtotal = items.reduce(
+    (sum, item) => sum + (parseFloat(item.qty) || 0) * (parseFloat(item.rate) || 0),
+    0,
+  );
+  const lineItemTax = items.reduce((sum, item) => {
+    const qty = parseFloat(item.qty) || 0;
+    const rate = parseFloat(item.rate) || 0;
+    const taxRate = parseFloat(item.tax) || 0;
+    return sum + qty * rate * (taxRate / 100);
+  }, 0);
+  const discountAmt =
+    discountType === "%" ?
+      subtotal * ((parseFloat(discountValue) || 0) / 100)
+    : parseFloat(discountValue) || 0;
+  const vat = (subtotal - discountAmt) * ((parseFloat(vatRate) || 0) / 100);
+  const total = subtotal - discountAmt + lineItemTax + vat;
+
+  return (
+    <div className="rounded-lg border bg-white p-8 text-sm dark:bg-card">
+      <div className="flex items-start justify-between">
+        <div>
+          {logoUrl ?
+            <img src={logoUrl} alt={org?.name ?? ""} className="h-8 w-auto max-w-[120px] object-contain" />
+          : <div className="flex size-8 items-center justify-center rounded bg-foreground text-background text-[10px] font-bold">
+              {org?.name?.slice(0, 2).toUpperCase() ?? "TB"}
+            </div>
+          }
+          <div className="mt-2 space-y-0.5">
+            <p className="font-semibold text-foreground">{org?.name ?? "Your Business"}</p>
+            {org?.address_line1 && <p className="text-xs text-muted-foreground">{org.address_line1}</p>}
+            {org?.address_line2 && <p className="text-xs text-muted-foreground">{org.address_line2}</p>}
+            {(org?.city || org?.zip) && (
+              <p className="text-xs text-muted-foreground">{[org.city, org.zip].filter(Boolean).join(" ")}</p>
+            )}
+            {org?.country_code && <p className="text-xs text-muted-foreground">{org.country_code}</p>}
+            {org?.phone && <p className="text-xs text-muted-foreground">{org.phone}</p>}
+            {org?.email && <p className="text-xs text-muted-foreground">{org.email}</p>}
+            {org?.tax_id && <p className="text-xs text-muted-foreground">PIN: {org.tax_id}</p>}
+          </div>
+        </div>
+        <div className="text-right">
+          <p className="text-lg font-bold text-foreground">QUOTATION</p>
+          <p className="text-xs text-muted-foreground">{quoteNumber || "QUO-0001"}</p>
+        </div>
+      </div>
+
+      <Separator className="my-5" />
+
+      <div className="grid grid-cols-2 gap-4 text-xs">
+        <div>
+          <p className="font-medium text-foreground">Prepared For</p>
+          {customer ?
+            <div className="mt-1 space-y-0.5">
+              <p className="font-medium text-foreground">{customer.name}</p>
+              {customer.address_line1 && <p className="text-muted-foreground">{customer.address_line1}</p>}
+              {customer.address_line2 && <p className="text-muted-foreground">{customer.address_line2}</p>}
+              {(customer.city || customer.zip) && (
+                <p className="text-muted-foreground">{[customer.city, customer.zip].filter(Boolean).join(" ")}</p>
+              )}
+              {customer.country && <p className="text-muted-foreground">{customer.country}</p>}
+              {customer.phone && <p className="text-muted-foreground">{customer.phone}</p>}
+              {(customer.billing_email || customer.email) && (
+                <p className="text-muted-foreground">{customer.billing_email ?? customer.email}</p>
+              )}
+            </div>
+          : <p className="mt-1 text-muted-foreground/50 italic">No customer selected</p>
+          }
+        </div>
+        <div className="text-right">
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Issue date:</span>
+            <span className="font-medium">{issueDate ? formatDate(issueDate) : "—"}</span>
+          </div>
+          <div className="mt-1 flex justify-between">
+            <span className="text-muted-foreground">Valid until:</span>
+            <span className="font-medium">{validUntil ? formatDate(validUntil) : "—"}</span>
+          </div>
+        </div>
+      </div>
+
+      <Separator className="my-5" />
+
+      <table className="w-full text-xs">
+        <thead>
+          <tr className="border-b text-muted-foreground">
+            <th className="w-1/2 pb-2 text-left font-medium">Description</th>
+            <th className="whitespace-nowrap pb-2 pl-4 text-right font-medium">Qty</th>
+            <th className="whitespace-nowrap pb-2 pl-4 text-right font-medium">Rate</th>
+            <th className="whitespace-nowrap pb-2 pl-4 text-right font-medium">Amount</th>
+          </tr>
+        </thead>
+        <tbody>
+          {items.map((item) => {
+            const amount = (parseFloat(item.qty) || 0) * (parseFloat(item.rate) || 0);
+            return (
+              <tr key={item.id} className="border-b border-dashed">
+                <td className="py-2 break-words">{item.description || "—"}</td>
+                <td className="whitespace-nowrap py-2 pl-4 text-right">{item.qty || "0"}</td>
+                <td className="whitespace-nowrap py-2 pl-4 text-right">{item.rate || "0.00"}</td>
+                <td className="whitespace-nowrap py-2 pl-4 text-right">
+                  {currency} {amount.toLocaleString("en-KE", { minimumFractionDigits: 2 })}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+
+      <div className="mt-4 flex flex-col items-end gap-1.5 text-xs">
+        <div className="flex w-48 justify-between">
+          <span className="text-muted-foreground">Subtotal</span>
+          <span>{currency} {subtotal.toLocaleString("en-KE", { minimumFractionDigits: 2 })}</span>
+        </div>
+        {lineItemTax > 0 && (
+          <div className="flex w-48 justify-between">
+            <span className="text-muted-foreground">Tax</span>
+            <span>{currency} {lineItemTax.toLocaleString("en-KE", { minimumFractionDigits: 2 })}</span>
+          </div>
+        )}
+        {discountAmt > 0 && (
+          <div className="flex w-48 justify-between text-green-600 dark:text-green-400">
+            <span>Discount{discountType === "%" ? ` (${discountValue}%)` : ""}</span>
+            <span>− {currency} {discountAmt.toLocaleString("en-KE", { minimumFractionDigits: 2 })}</span>
+          </div>
+        )}
+        {vat > 0 && (
+          <div className="flex w-48 justify-between">
+            <span className="text-muted-foreground">VAT ({vatRate}%)</span>
+            <span>{currency} {vat.toLocaleString("en-KE", { minimumFractionDigits: 2 })}</span>
+          </div>
+        )}
+        <Separator className="my-1 w-48" />
+        <div className="flex w-48 justify-between font-semibold text-sm">
+          <span>Total</span>
+          <span>{currency} {total.toLocaleString("en-KE", { minimumFractionDigits: 2 })}</span>
+        </div>
+      </div>
+
+      {notes && (
+        <>
+          <Separator className="my-5" />
+          <div>
+            <p className="text-xs font-medium text-foreground">Notes</p>
+            <p className="mt-1 text-xs text-muted-foreground whitespace-pre-wrap">{notes}</p>
+          </div>
+        </>
+      )}
+
+      <Separator className="my-5" />
+      <p className="text-center text-[10px] text-muted-foreground">Powered by Travada Books</p>
+    </div>
+  );
+}
+
 export function EditQuotePage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { orgId } = useAuth();
+  const { orgId, org } = useAuth();
   const [initialized, setInitialized] = useState(false);
 
-  const [customerId, setCustomerId] = useState<string | null>(null);
+  const [selectedCustomer, setSelectedCustomer] = useState<SelectedCustomer | null>(null);
   const [currency, setCurrency] = useState("KES");
   const [quoteNumber, setQuoteNumber] = useState("");
   const [quoteNumberError, setQuoteNumberError] = useState<string | null>(null);
@@ -108,6 +293,13 @@ export function EditQuotePage() {
   const [quoteSettings, setQuoteSettings] = useState<QuoteSettings>(defaultQuoteSettings);
   const [settingsDirty, setSettingsDirty] = useState(false);
 
+  const { data: invoiceTemplate } = useQuery({
+    queryKey: ["invoice-template", orgId],
+    queryFn: () => getOrgInvoiceTemplate(orgId!),
+    enabled: !!orgId,
+  });
+  const logoUrl = invoiceTemplate?.logoUrl ?? null;
+
   const { data: quoteTemplate } = useQuery({
     queryKey: ["quote-template", orgId],
     queryFn: () => getOrgQuoteTemplate(orgId!),
@@ -121,7 +313,22 @@ export function EditQuotePage() {
   // Pre-populate form from existing quote
   useEffect(() => {
     if (!quote || initialized) return;
-    setCustomerId(quote.customer_id);
+    setSelectedCustomer(
+      quote.customer_id
+        ? {
+            id: quote.customer_id,
+            name: quote.customer_name,
+            email: null,
+            billing_email: null,
+            phone: null,
+            address_line1: null,
+            address_line2: null,
+            city: null,
+            zip: null,
+            country: null,
+          }
+        : null,
+    );
     setCurrency(quote.currency);
     setQuoteNumber(quote.quote_number ?? "");
     if (quote.issue_date) setIssueDate(new Date(quote.issue_date));
@@ -156,7 +363,7 @@ export function EditQuotePage() {
   }, [quote, initialized]);
 
   const { mutate: saveEdit, isPending } = useMutation({
-    mutationFn: () => {
+    mutationFn: async () => {
       if (!id) throw new Error("No quote id");
       const totals = buildTotals(items, discountType, discountValue, vatRate);
       const dbItems = items.map((item) => ({
@@ -166,13 +373,29 @@ export function EditQuotePage() {
         tax_rate: parseFloat(item.tax) || 0,
       }));
 
+      let exchangeRate: number | null = null;
+      let convertedAmount: number | null = null;
+      if (org) {
+        try {
+          exchangeRate = await lookupRate(currency, org.base_currency);
+          convertedAmount = exchangeRate != null ? totals.total * exchangeRate : null;
+        } catch {
+          // non-fatal: stats will fall back to raw total
+        }
+      }
+
       return updateQuote(id, orgId!, {
+        customer_id: selectedCustomer!.id,
+        customer_name: selectedCustomer!.name,
         quote_number: quoteNumber,
         currency,
         issue_date: issueDate ? format(issueDate, "yyyy-MM-dd") : null,
         valid_until: validUntil ? format(validUntil, "yyyy-MM-dd") : null,
         line_items: dbItems,
         ...totals,
+        exchange_rate: exchangeRate,
+        converted_amount: convertedAmount,
+        base_currency: org?.base_currency ?? null,
         note: notes || null,
         // Reset declined quotes to draft so they can be reviewed and resent
         ...(quote?.status === "declined" ? { status: "draft" } : {}),
@@ -272,7 +495,7 @@ export function EditQuotePage() {
           <Button
             className="gap-1.5"
             onClick={() => saveEdit()}
-            disabled={isPending || !customerId || !quoteNumber}
+            disabled={isPending || !selectedCustomer || !quoteNumber}
           >
             <FloppyDiskIcon size={13} />
             Save Changes
@@ -286,7 +509,10 @@ export function EditQuotePage() {
         <div className="flex w-1/2 flex-col gap-5 overflow-y-auto border-r p-6">
           <div className="flex flex-col gap-1.5">
             <Label className="text-xs text-muted-foreground">Prepared For</Label>
-            <CustomerCombobox value={customerId} onChange={setCustomerId} />
+            <CustomerCombobox
+              value={selectedCustomer?.id ?? null}
+              onChange={(customer) => setSelectedCustomer(customer)}
+            />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -434,9 +660,23 @@ export function EditQuotePage() {
           </div>
         </div>
 
-        {/* Right: placeholder preview */}
-        <div className="flex w-1/2 items-center justify-center bg-muted/30 p-6">
-          <p className="text-xs text-muted-foreground">Preview updates on save</p>
+        {/* Right: Preview */}
+        <div className="flex w-1/2 flex-col overflow-y-auto bg-muted/30 p-6">
+          <p className="mb-4 text-xs font-medium text-muted-foreground">Preview</p>
+          <QuotePreview
+            quoteNumber={quoteNumber}
+            issueDate={issueDate}
+            validUntil={validUntil}
+            currency={currency}
+            items={items}
+            discountType={discountType}
+            discountValue={discountValue}
+            vatRate={vatRate}
+            notes={notes}
+            customer={selectedCustomer}
+            org={org}
+            logoUrl={logoUrl}
+          />
         </div>
       </div>
 

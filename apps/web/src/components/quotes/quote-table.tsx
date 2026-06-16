@@ -41,6 +41,8 @@ export type Quote = {
   customerLogoUrl: string | null;
   amount: number;
   currency: string;
+  convertedAmount: number | null;
+  baseCurrency: string | null;
   issueDate: string;
 };
 

@@ -40,7 +40,7 @@ import { toast } from "sonner";
 
 const schema = z.object({
   name: z.string().min(1, "Name is required."),
-  email: z.string().email("Enter a valid email."),
+  email: z.string().email("Enter a valid email.").or(z.literal("")).optional(),
   billToEmail: z
     .string()
     .email("Enter a valid email.")
@@ -220,7 +220,7 @@ export function EditCustomerSheet({
                       render={({ field, fieldState }) => (
                         <Field data-invalid={fieldState.invalid}>
                           <FieldLabel htmlFor={field.name}>
-                            Email <span className='text-destructive'>*</span>
+                            Email
                           </FieldLabel>
                           <Input
                             {...field}
