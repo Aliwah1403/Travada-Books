@@ -38,7 +38,7 @@ export type Quote = {
   customers: { logo_url: string | null } | null
 }
 
-export type PublicQuote = Omit<Quote, "org_id" | "user_id" | "internal_note" | "customers">
+export type PublicQuote = Omit<Quote, "org_id" | "user_id" | "internal_note" | "customers" | "exchange_rate" | "converted_amount" | "base_currency">
 
 export type QuoteInput = {
   org_id: string

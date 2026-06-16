@@ -6,7 +6,8 @@ import { supabase } from "../lib/supabase";
 import { InvoiceReminderEmail } from "../emails/invoice-reminder";
 
 const FROM_EMAIL = "noreply@mail.travadasys.com";
-const APP_URL = "https://books.travadasys.com";
+const APP_URL = process.env.APP_URL ?? "https://books.travadasys.com";
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
@@ -132,6 +133,14 @@ export const invoiceReminders = schedules.task({
             logger.warn("Could not resolve org details for reminder, skipping", { invoiceId: invoice.id });
             continue;
           }
+          if (!from.name) {
+            logger.warn("Org name missing, skipping reminder", { invoiceId: invoice.id });
+            continue;
+          }
+          if (!from.email) {
+            logger.warn("Org email missing, skipping reminder", { invoiceId: invoice.id });
+            continue;
+          }
           if (!customer) {
             logger.warn("Could not resolve customer details for reminder, skipping", { invoiceId: invoice.id });
             continue;
@@ -164,7 +173,6 @@ export const invoiceReminders = schedules.task({
           );
 
           const label = invoice.invoice_number ? `Invoice ${invoice.invoice_number}` : "Invoice";
-          const resend = new Resend(process.env.RESEND_API_KEY);
           const { error: emailError } = await resend.emails.send({
             from: `${from.name} <${FROM_EMAIL}>`,
             to: [recipientEmail],

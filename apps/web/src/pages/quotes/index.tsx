@@ -24,7 +24,14 @@ function getStats(quotes: UIQuote[], orgCurrency: string) {
   const expired = quotes.filter((q) => q.status === "expired");
 
   const sum = (arr: UIQuote[]) =>
-    arr.reduce((acc, q) => acc + (q.convertedAmount ?? q.amount), 0);
+    arr.reduce(
+      (acc, q) =>
+        acc +
+        (q.baseCurrency === orgCurrency && q.convertedAmount != null
+          ? q.convertedAmount
+          : q.amount),
+      0,
+    );
 
   return {
     open: { label: "Open", amount: sum(open), currency: orgCurrency, count: open.length },
