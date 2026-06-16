@@ -190,6 +190,9 @@ export async function duplicateQuote(quote: Quote, orgId: string, userId: string
       tax_amount: quote.tax_amount,
       discount: quote.discount,
       total: quote.total,
+      exchange_rate: quote.exchange_rate,
+      converted_amount: quote.converted_amount,
+      base_currency: quote.base_currency,
       note: quote.note,
       internal_note: quote.internal_note,
     })

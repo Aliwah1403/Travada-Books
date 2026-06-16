@@ -38,11 +38,8 @@ import {
   defaultQuoteSettings,
   type QuoteSettings,
 } from "@/components/quotes/quote-settings";
-import {
-  LineItem,
-  QuotePreview,
-  computeQuoteTotals,
-} from "@/components/quotes/quote-preview";
+import { LineItem, QuotePreview } from "@/components/quotes/quote-preview";
+import { computeQuoteTotals } from "@/components/quotes/quote-utils";
 
 export function EditQuotePage() {
   const { id } = useParams<{ id: string }>();

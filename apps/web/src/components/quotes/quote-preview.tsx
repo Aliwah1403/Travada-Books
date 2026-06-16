@@ -2,44 +2,9 @@ import { useFormatDate } from "@/hooks/use-format-date";
 import { Separator } from "@travada-books/ui/components/separator";
 import { type SelectedCustomer } from "@/components/invoices/customer-combobox";
 import { type UserOrg } from "@/contexts/auth-context";
+import { type LineItem, computeQuoteTotals } from "@/components/quotes/quote-utils";
 
-export type LineItem = {
-  id: string;
-  description: string;
-  qty: string;
-  rate: string;
-  tax: string;
-};
-
-export function computeQuoteTotals(
-  items: LineItem[],
-  discountType: "%" | "fixed",
-  discountValue: string,
-  vatRate: string,
-) {
-  const subtotal = items.reduce(
-    (sum, item) =>
-      sum + (parseFloat(item.qty) || 0) * (parseFloat(item.rate) || 0),
-    0,
-  );
-  const lineItemTax = items.reduce((sum, item) => {
-    const qty = parseFloat(item.qty) || 0;
-    const rate = parseFloat(item.rate) || 0;
-    const taxRate = parseFloat(item.tax) || 0;
-    return sum + qty * rate * (taxRate / 100);
-  }, 0);
-  const discount =
-    discountType === "%" ?
-      subtotal * ((parseFloat(discountValue) || 0) / 100)
-    : parseFloat(discountValue) || 0;
-  const vat = (subtotal - discount) * ((parseFloat(vatRate) || 0) / 100);
-  return {
-    subtotal,
-    tax_amount: lineItemTax + vat,
-    discount,
-    total: subtotal - discount + lineItemTax + vat,
-  };
-}
+export type { LineItem };
 
 export function QuotePreview({
   quoteNumber,
