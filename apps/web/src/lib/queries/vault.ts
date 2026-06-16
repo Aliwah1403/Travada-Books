@@ -36,6 +36,8 @@ export type VaultFilters = {
   source?: "upload" | "transaction" | "inbox"
   search?: string
   folderId?: string
+  dateFrom?: string
+  dateTo?: string
 }
 
 // ─── Documents ────────────────────────────────────────────────────────────────
@@ -62,6 +64,8 @@ export async function listDocuments(orgId: string, filters: VaultFilters = {}): 
   if (filters.search) {
     query = query.textSearch("fts_vector", filters.search, { type: "websearch", config: "english" })
   }
+  if (filters.dateFrom) query = query.gte("created_at", filters.dateFrom)
+  if (filters.dateTo) query = query.lte("created_at", filters.dateTo + "T23:59:59")
 
   const { data, error } = await query
   if (error) throw error

@@ -74,6 +74,80 @@ export async function classifyDocument(args: { filePath: string }): Promise<{ ru
   return data as { runId: string }
 }
 
+export type ParsedTransactionFilters = {
+  name?: string | null
+  dateFrom?: string | null
+  dateTo?: string | null
+  type?: "income" | "expense" | null
+  status?: "pending" | "completed" | "excluded" | "archived" | null
+  categoryName?: string | null
+  paymentMode?: "mpesa" | "bank_transfer" | "cash" | "cheque" | "card" | "other" | null
+  recurring?: boolean | null
+}
+
+export async function parseTransactionFilters(args: {
+  input: string
+  categories?: string[]
+  currentDate?: string
+  timezone?: string
+}): Promise<ParsedTransactionFilters> {
+  const { data, error } = await supabase.functions.invoke("parse-transaction-filters", {
+    body: args,
+  })
+  if (error) throw error
+  return data as ParsedTransactionFilters
+}
+
+export type ParsedInvoiceFilters = {
+  name?: string | null
+  statuses?: string[] | null
+  dateFrom?: string | null
+  dateTo?: string | null
+}
+
+export async function parseInvoiceFilters(args: {
+  input: string
+  currentDate?: string
+  timezone?: string
+}): Promise<ParsedInvoiceFilters> {
+  const { data, error } = await supabase.functions.invoke("parse-invoice-filters", { body: args })
+  if (error) throw error
+  return data as ParsedInvoiceFilters
+}
+
+export type ParsedQuoteFilters = {
+  name?: string | null
+  statuses?: string[] | null
+  dateFrom?: string | null
+  dateTo?: string | null
+}
+
+export async function parseQuoteFilters(args: {
+  input: string
+  currentDate?: string
+  timezone?: string
+}): Promise<ParsedQuoteFilters> {
+  const { data, error } = await supabase.functions.invoke("parse-quote-filters", { body: args })
+  if (error) throw error
+  return data as ParsedQuoteFilters
+}
+
+export type ParsedVaultFilters = {
+  name?: string | null
+  dateFrom?: string | null
+  dateTo?: string | null
+}
+
+export async function parseVaultFilters(args: {
+  input: string
+  currentDate?: string
+  timezone?: string
+}): Promise<ParsedVaultFilters> {
+  const { data, error } = await supabase.functions.invoke("parse-vault-filters", { body: args })
+  if (error) throw error
+  return data as ParsedVaultFilters
+}
+
 export async function categorizeTransactions(
   rows: { id: string; description: string; counterparty: string }[],
   categoryNames: string[],

@@ -1,4 +1,5 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
+import { format } from "date-fns";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Button } from "@travada-books/ui/components/button";
@@ -39,10 +40,11 @@ import {
   SparklesIcon,
 } from "@travada-books/ui/icons";
 import { EmptyState } from "@/components/shared/empty-state";
+import { Spinner } from "@/components/shared/spinner";
 import { cn } from "@travada-books/ui/lib/utils";
 import { useAuth } from "@/contexts/auth-context";
 import { TransactionSheet } from "@/components/transactions/transaction-sheet";
-import { extractDocumentData, classifyDocument } from "@/lib/queries/ai";
+import { extractDocumentData, classifyDocument, parseVaultFilters } from "@/lib/queries/ai";
 import { DocumentPreviewSheet } from "@/components/vault/document-preview-sheet";
 import {
   listDocuments,
@@ -195,6 +197,19 @@ function SourceBadge({ source }: { source: DocumentSource }) {
       )}
     >
       {SOURCE_LABELS[source]}
+    </span>
+  );
+}
+
+// ─── Filter chip ─────────────────────────────────────────────────────────────
+
+function FilterChip({ label, onRemove }: { label: string; onRemove: () => void }) {
+  return (
+    <span className="inline-flex items-center gap-1 border bg-muted px-2.5 py-0.5 text-xs text-muted-foreground">
+      {label}
+      <button type="button" onClick={onRemove} className="fine-hover:text-foreground transition-colors">
+        <Cancel01Icon size={11} />
+      </button>
     </span>
   );
 }
@@ -718,8 +733,12 @@ export function VaultPage() {
   const [folderPath, setFolderPath] = useState<BreadcrumbEntry[]>([]);
   const currentFolderId = folderPath.at(-1)?.id ?? null;
 
-  const [search, setSearch] = useState("");
-  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [input, setInput] = useState("");
+  const [vaultSearch, setVaultSearch] = useState("");
+  const [vaultDateFrom, setVaultDateFrom] = useState<string | undefined>();
+  const [vaultDateTo, setVaultDateTo] = useState<string | undefined>();
+  const [isAIParsing, setIsAIParsing] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [renamingDoc, setRenamingDoc] = useState<VaultDocument | null>(null);
   const [previewDoc, setPreviewDoc] = useState<VaultDocument | null>(null);
@@ -728,17 +747,54 @@ export function VaultPage() {
   const [txInitialData, setTxInitialData] = useState<Parameters<typeof TransactionSheet>[0]["initialData"]>(undefined);
   const [txInitialVaultDocs, setTxInitialVaultDocs] = useState<Parameters<typeof TransactionSheet>[0]["initialVaultDocs"]>(undefined);
 
-  const searchTimer = useRef(0);
-  function handleSearchChange(val: string) {
-    setSearch(val);
-    clearTimeout(searchTimer.current);
-    searchTimer.current = window.setTimeout(() => setDebouncedSearch(val), 350);
+  async function handleSearchSubmit(e?: React.FormEvent) {
+    e?.preventDefault();
+    const trimmed = input.trim();
+    if (!trimmed) { clearSearch(); return; }
+
+    const words = trimmed.split(/\s+/);
+    if (words.length === 1) {
+      setVaultSearch(trimmed);
+      setVaultDateFrom(undefined);
+      setVaultDateTo(undefined);
+      return;
+    }
+
+    setIsAIParsing(true);
+    try {
+      const parsed = await parseVaultFilters({
+        input: trimmed,
+        currentDate: new Date().toISOString().split("T")[0],
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      });
+      setVaultSearch(parsed.name ?? "");
+      setVaultDateFrom(parsed.dateFrom ?? undefined);
+      setVaultDateTo(parsed.dateTo ?? undefined);
+    } catch {
+      setVaultSearch(trimmed);
+      setVaultDateFrom(undefined);
+      setVaultDateTo(undefined);
+    } finally {
+      setIsAIParsing(false);
+    }
+  }
+
+  function handleSearchInputChange(val: string) {
+    setInput(val);
+    if (!val) clearSearch();
+  }
+
+  function clearSearch() {
+    setInput("");
+    setVaultSearch("");
+    setVaultDateFrom(undefined);
+    setVaultDateTo(undefined);
+    searchInputRef.current?.focus();
   }
 
   // Reset search when navigating
   function navigateTo(index: number | null) {
-    setSearch("");
-    setDebouncedSearch("");
+    clearSearch();
     if (index === null) {
       setFolderPath([]);
     } else {
@@ -747,18 +803,26 @@ export function VaultPage() {
   }
 
   function navigateInto(folder: VaultFolder) {
-    setSearch("");
-    setDebouncedSearch("");
+    clearSearch();
     setFolderPath((p) => [...p, { id: folder.id, name: folder.name }]);
   }
 
   const docFilters: VaultFilters = {
     folderId: currentFolderId ?? undefined,
-    search: debouncedSearch || undefined,
+    search: vaultSearch || undefined,
+    dateFrom: vaultDateFrom,
+    dateTo: vaultDateTo,
   };
 
+  const dateChipLabel = useMemo(() => {
+    if (!vaultDateFrom && !vaultDateTo) return null;
+    const from = vaultDateFrom ? format(new Date(vaultDateFrom), "MMM d") : null;
+    const to = vaultDateTo ? format(new Date(vaultDateTo), "MMM d") : null;
+    return from && to ? `${from} – ${to}` : from ? `From ${from}` : `Until ${to}`;
+  }, [vaultDateFrom, vaultDateTo]);
+
   const { data: docs = [], isLoading: docsLoading } = useQuery({
-    queryKey: ["vault", orgId, currentFolderId, debouncedSearch],
+    queryKey: ["vault", orgId, currentFolderId, vaultSearch, vaultDateFrom, vaultDateTo],
     queryFn: () => listDocuments(orgId!, docFilters),
     enabled: !!orgId,
     placeholderData: (prev) => prev,
@@ -959,7 +1023,7 @@ export function VaultPage() {
     }
   }
 
-  const isFiltered = !!debouncedSearch;
+  const isFiltered = !!vaultSearch || !!vaultDateFrom || !!vaultDateTo;
   const isInsideFolder = folderPath.length > 0;
 
   return (
@@ -1038,28 +1102,36 @@ export function VaultPage() {
       />
 
       {/* Toolbar */}
+      <div className='flex flex-col gap-2'>
       <div className='flex items-center gap-2'>
         <div className='relative flex-1 max-w-72'>
-          <Search01Icon
-            size={14}
-            className='absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground'
-          />
-          <Input
-            placeholder={
-              isInsideFolder ?
-                `Search in ${folderPath.at(-1)!.name}…`
-              : "Search documents…"
-            }
-            className='h-9 pl-8 pr-8 text-xs'
-            value={search}
-            onChange={(e) => handleSearchChange(e.target.value)}
-          />
-          {search && (
+          {isAIParsing ? (
+            <span className='absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground'>
+              <Spinner size={14} />
+            </span>
+          ) : (
+            <Search01Icon
+              size={14}
+              className='absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground'
+            />
+          )}
+          <form onSubmit={handleSearchSubmit}>
+            <Input
+              ref={searchInputRef}
+              placeholder={isInsideFolder ? `Search in ${folderPath.at(-1)!.name}…` : "Search documents…"}
+              className='h-9 pl-8 pr-8 text-xs'
+              value={input}
+              onChange={(e) => handleSearchInputChange(e.target.value)}
+              autoComplete="off"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
+              disabled={isAIParsing}
+            />
+          </form>
+          {isFiltered && (
             <button
-              onClick={() => {
-                setSearch("");
-                setDebouncedSearch("");
-              }}
+              onClick={clearSearch}
               className='absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground transition-colors fine-hover:text-foreground'
             >
               <Cancel01Icon size={13} />
@@ -1091,6 +1163,16 @@ export function VaultPage() {
             <ListViewIcon size={14} />
           </button>
         </div>
+      </div>
+
+      {dateChipLabel && (
+        <div className='flex flex-wrap gap-1.5'>
+          <FilterChip
+            label={dateChipLabel}
+            onRemove={() => { setVaultDateFrom(undefined); setVaultDateTo(undefined); }}
+          />
+        </div>
+      )}
       </div>
 
       {/* Documents */}
