@@ -38,6 +38,10 @@ import {
   PlusSignIcon,
   FolderAddIcon,
   SparklesIcon,
+  Doc01Icon,
+  FileSpreadsheetIcon,
+  Ppt01Icon,
+  Csv01Icon,
 } from "@travada-books/ui/icons";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Spinner } from "@/components/shared/spinner";
@@ -84,6 +88,22 @@ function isImage(contentType: string | null): boolean {
 
 function isPdf(contentType: string | null): boolean {
   return contentType === "application/pdf";
+}
+
+function isDocx(contentType: string | null): boolean {
+  return contentType === "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+}
+
+function isXlsx(contentType: string | null): boolean {
+  return contentType === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+}
+
+function isPptx(contentType: string | null): boolean {
+  return contentType === "application/vnd.openxmlformats-officedocument.presentationml.presentation";
+}
+
+function isCsv(contentType: string | null): boolean {
+  return contentType === "text/csv" || contentType === "application/csv";
 }
 
 // ---Folder icon------------------
@@ -156,6 +176,54 @@ function FileTypeIcon({
         )}
       >
         <Image01Icon size={iconSize} className='text-blue-500' />
+      </div>
+    );
+  }
+  if (isDocx(contentType)) {
+    return (
+      <div
+        className={cn(
+          "flex shrink-0 items-center justify-center rounded-lg bg-sky-50 dark:bg-sky-950",
+          dims,
+        )}
+      >
+        <Doc01Icon size={iconSize} className='text-sky-500' />
+      </div>
+    );
+  }
+  if (isXlsx(contentType)) {
+    return (
+      <div
+        className={cn(
+          "flex shrink-0 items-center justify-center rounded-lg bg-green-50 dark:bg-green-950",
+          dims,
+        )}
+      >
+        <FileSpreadsheetIcon size={iconSize} className='text-green-600' />
+      </div>
+    );
+  }
+  if (isPptx(contentType)) {
+    return (
+      <div
+        className={cn(
+          "flex shrink-0 items-center justify-center rounded-lg bg-orange-50 dark:bg-orange-950",
+          dims,
+        )}
+      >
+        <Ppt01Icon size={iconSize} className='text-orange-500' />
+      </div>
+    );
+  }
+  if (isCsv(contentType)) {
+    return (
+      <div
+        className={cn(
+          "flex shrink-0 items-center justify-center rounded-lg bg-teal-50 dark:bg-teal-950",
+          dims,
+        )}
+      >
+        <Csv01Icon size={iconSize} className='text-teal-600' />
       </div>
     );
   }
@@ -1061,7 +1129,7 @@ export function VaultPage() {
         ref={fileInputRef}
         type='file'
         multiple
-        accept='image/*,application/pdf'
+        accept='image/*,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.openxmlformats-officedocument.presentationml.presentation,text/csv,application/csv,.docx,.xlsx,.pptx,.csv'
         className='hidden'
         onChange={handleFileChange}
       />

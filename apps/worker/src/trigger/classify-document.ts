@@ -3,6 +3,10 @@ import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { generateObject } from "ai";
 import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
+import mammoth from "mammoth";
+import * as XLSX from "xlsx";
+import officeParser from "officeparser";
+import Papa from "papaparse";
 
 const google = createGoogleGenerativeAI({
   apiKey: process.env.GOOGLE_GENERATIVE_AI_API_KEY!,
@@ -44,6 +48,44 @@ const CLASSIFIER_PROMPT = `You are an expert multilingual document analyzer. Ana
 
 Be precise. If text is unclear, extract what you can read with confidence.`;
 
+const TEXT_EXTRACTABLE = new Set([
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document", // docx
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",       // xlsx
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation", // pptx
+  "text/csv",
+  "application/csv",
+]);
+
+async function extractText(buffer: ArrayBuffer, contentType: string): Promise<string> {
+  const buf = Buffer.from(buffer);
+
+  if (contentType === "application/vnd.openxmlformats-officedocument.wordprocessingml.document") {
+    const result = await mammoth.extractRawText({ buffer: buf });
+    return result.value;
+  }
+
+  if (contentType === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet") {
+    const workbook = XLSX.read(buf, { type: "buffer" });
+    return workbook.SheetNames.map((name) => {
+      const sheet = workbook.Sheets[name];
+      return `[Sheet: ${name}]\n${XLSX.utils.sheet_to_csv(sheet)}`;
+    }).join("\n\n");
+  }
+
+  if (contentType === "application/vnd.openxmlformats-officedocument.presentationml.presentation") {
+    return await officeParser.parseOffice(buf) as unknown as string;
+  }
+
+  if (contentType === "text/csv" || contentType === "application/csv") {
+    const text = buf.toString("utf-8");
+    const parsed = Papa.parse(text, { header: true, skipEmptyLines: true });
+    const preview = (parsed.data as Record<string, unknown>[]).slice(0, 50);
+    return `Headers: ${parsed.meta.fields?.join(", ")}\n\n${Papa.unparse(preview)}`;
+  }
+
+  throw new Error(`Unsupported text-extractable type: ${contentType}`);
+}
+
 function getSupabase() {
   return createClient(
     process.env.SUPABASE_URL!,
@@ -82,19 +124,22 @@ export const classifyDocumentTask = task({
 
       logger.info("Running Gemini classification", { documentId, contentType });
 
+      const isTextExtractable = TEXT_EXTRACTABLE.has(contentType);
+      const userContent = isTextExtractable
+        ? [
+            { type: "text" as const, text: CLASSIFIER_PROMPT },
+            { type: "text" as const, text: await extractText(arrayBuffer, contentType) },
+          ]
+        : [
+            { type: "text" as const, text: CLASSIFIER_PROMPT },
+            { type: "file" as const, data: arrayBuffer, mediaType: contentType as `${string}/${string}` },
+          ];
+
       const { object: result } = await generateObject({
         model: google("gemini-2.5-flash"),
         schema: classifierSchema,
         temperature: 0.1,
-        messages: [
-          {
-            role: "user",
-            content: [
-              { type: "text" as const, text: CLASSIFIER_PROMPT },
-              { type: "file" as const, data: arrayBuffer, mediaType: contentType },
-            ],
-          },
-        ],
+        messages: [{ role: "user", content: userContent }],
       });
 
       // Fallback title from filename if AI returns null

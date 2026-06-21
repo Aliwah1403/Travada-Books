@@ -48,6 +48,8 @@ export type Transaction = {
   note: string | null
   manual: boolean
   enrichment_completed: boolean
+  base_amount: number | null
+  base_currency: string | null
   created_at: string
   category: Pick<TransactionCategory, "id" | "name" | "slug" | "color"> | null
   invoice: { id: string; invoice_number: string | null } | null
@@ -102,9 +104,15 @@ export type TransactionsPage = {
   count: number
 }
 
+export type TransactionSummary = {
+  income: number
+  expenses: number
+  count: number
+}
+
 const TRANSACTION_SELECT = `
   id, org_id, created_by, date, name, counterparty_name, customer_id, amount, currency,
-  type, status, payment_mode, category_id, invoice_id,
+  base_amount, base_currency, type, status, payment_mode, category_id, invoice_id,
   tax_amount, tax_rate, tax_type, recurring, frequency, internal,
   reference_number, note, manual, enrichment_completed, created_at,
   category:transaction_categories(id, name, slug, color),
@@ -158,12 +166,80 @@ export async function getTransaction(id: string): Promise<Transaction> {
   return data as unknown as Transaction
 }
 
+// ─── Exchange rate helpers ────────────────────────────────────────────────────
+
+async function fetchExchangeRate(from: string, to: string): Promise<number> {
+  if (from === to) return 1
+  const { data } = await supabase
+    .from("exchange_rates")
+    .select("rate")
+    .eq("base", from)
+    .eq("target", to)
+    .single()
+  return data ? Number(data.rate) : 1
+}
+
+function computeBaseAmount(amount: number, rate: number): number {
+  return Math.round(amount * rate * 10000) / 10000
+}
+
+// ─── Transaction summary ──────────────────────────────────────────────────────
+
+export async function getTransactionSummary(
+  orgId: string,
+  baseCurrency: string,
+  filters: TransactionFilters = {},
+): Promise<TransactionSummary> {
+  let query = supabase
+    .from("transactions")
+    .select("type, base_amount, base_currency")
+    .eq("org_id", orgId)
+    .eq("internal", false)
+    .neq("status", "excluded")
+    .neq("status", "archived")
+
+  if (filters.search) {
+    query = query.textSearch("fts_vector", filters.search, { type: "websearch", config: "english" })
+  }
+  if (filters.dateFrom) query = query.gte("date", filters.dateFrom)
+  if (filters.dateTo) query = query.lte("date", filters.dateTo)
+  if (filters.type) query = query.eq("type", filters.type)
+  if (filters.categoryIds?.length) query = query.in("category_id", filters.categoryIds)
+  if (filters.paymentMode) query = query.eq("payment_mode", filters.paymentMode)
+  if (filters.recurring !== undefined) query = query.eq("recurring", filters.recurring)
+
+  const { data, error } = await query
+  if (error) throw error
+
+  const rows = data ?? []
+  let income = 0
+  let expenses = 0
+  for (const row of rows) {
+    // base_amount is already in baseCurrency if base_currency matches; fall back to raw amount
+    const amt = row.base_currency === baseCurrency && row.base_amount != null
+      ? Number(row.base_amount)
+      : 0
+    if (row.type === "income") income += amt
+    else expenses += amt
+  }
+
+  return {
+    income: Math.round(income * 100) / 100,
+    expenses: Math.round(expenses * 100) / 100,
+    count: rows.length,
+  }
+}
+
 export async function createTransaction(
   orgId: string,
   userId: string,
   input: TransactionInput,
+  baseCurrency: string,
 ): Promise<string> {
   const { id, markInvoicePaid, attachments, ...rest } = input
+
+  const rate = await fetchExchangeRate(rest.currency, baseCurrency)
+  const baseAmount = computeBaseAmount(rest.amount, rate)
 
   if (input.invoice_id && markInvoicePaid) {
     const result = await supabase.rpc("create_transaction_and_mark_invoice_paid", {
@@ -176,6 +252,8 @@ export async function createTransaction(
       p_customer_id: rest.customer_id ?? null,
       p_amount: rest.amount,
       p_currency: rest.currency,
+      p_base_amount: baseAmount,
+      p_base_currency: baseCurrency,
       p_type: rest.type,
       p_status: rest.status ?? "completed",
       p_payment_mode: rest.payment_mode ?? null,
@@ -205,6 +283,8 @@ export async function createTransaction(
     customer_id: rest.customer_id ?? null,
     amount: rest.amount,
     currency: rest.currency,
+    base_amount: baseAmount,
+    base_currency: baseCurrency,
     type: rest.type,
     status: rest.status ?? "completed",
     payment_mode: rest.payment_mode ?? null,
@@ -242,10 +322,27 @@ export async function updateTransaction(
   id: string,
   orgId: string,
   input: Partial<Omit<TransactionInput, "id" | "markInvoicePaid" | "attachments">>,
+  baseCurrency?: string,
 ): Promise<void> {
+  let update: typeof input & { base_amount?: number; base_currency?: string } = { ...input }
+
+  if (baseCurrency && (input.amount != null || input.currency != null)) {
+    const { data: current } = await supabase
+      .from("transactions")
+      .select("amount, currency")
+      .eq("id", id)
+      .single()
+
+    const amount = input.amount ?? current?.amount ?? 0
+    const currency = input.currency ?? current?.currency ?? baseCurrency
+    const rate = await fetchExchangeRate(currency, baseCurrency)
+    update.base_amount = computeBaseAmount(amount, rate)
+    update.base_currency = baseCurrency
+  }
+
   const { error } = await supabase
     .from("transactions")
-    .update(input)
+    .update(update)
     .eq("id", id)
     .eq("org_id", orgId)
 

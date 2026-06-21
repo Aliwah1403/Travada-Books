@@ -424,7 +424,7 @@ export function TransactionSheet({
           await Promise.all(attachmentsToRemove.map((a) => deleteAttachment(a.id, a.file_path)));
         }
         // 2. Update transaction row
-        await updateTransaction(transaction.id, orgId, txFields);
+        await updateTransaction(transaction.id, orgId, txFields, org?.base_currency);
         // 3. Upload new files — transaction exists so vault trigger FK succeeds
         if (pendingFiles.length > 0) {
           const uploads = await Promise.all(
@@ -439,7 +439,7 @@ export function TransactionSheet({
           id: txIdRef.current,
           ...txFields,
           markInvoicePaid: type === "income" && !!invoiceId && markInvoicePaid,
-        });
+        }, org?.base_currency ?? "KES");
         // 2. Upload files — transaction now exists, trigger succeeds
         if (pendingFiles.length > 0) {
           const uploads = await Promise.all(
