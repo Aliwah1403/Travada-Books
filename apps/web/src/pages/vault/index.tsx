@@ -419,10 +419,9 @@ function DocActions({
 
 function ProcessingDot() {
   return (
-    <span
-      className='inline-block size-1.5 shrink-0 animate-pulse rounded-full bg-amber-400'
-      title='AI classification in progress…'
-    />
+    <span className='shrink-0 text-muted-foreground' title='AI classification in progress…'>
+      <Spinner size={12} />
+    </span>
   );
 }
 
@@ -881,14 +880,12 @@ export function VaultPage() {
   });
 
   const uploadMutation = useMutation({
-    mutationFn: async (file: File) => {
-      const filePath = await uploadDocument(orgId!, file, currentFolderId);
-      // Fire-and-forget — classification runs in the background via Trigger.dev
-      classifyDocument({ filePath }).catch(() => {});
-      return filePath;
-    },
-    onSuccess: () => {
+    mutationFn: (file: File) => uploadDocument(orgId!, file, currentFolderId),
+    onSuccess: (filePath) => {
       queryClient.invalidateQueries({ queryKey: ["vault", orgId] });
+      classifyDocument({ filePath }).catch((err) => {
+        console.error("classify-document failed:", err);
+      });
     },
   });
 

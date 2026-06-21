@@ -15,17 +15,22 @@ export function createExtractDocumentPrompt(orgName: string): string {
 - For M-Pesa: "Paid to" = expense, "received from" = income
 - For bank statements showing multiple rows: extract ONLY the single most prominent transaction
 - tax_amount: Only if a tax line is explicitly shown on the document
-- payment_mode: One of "mpesa", "bank_transfer", "cash", "cheque", "card", or "other". M-Pesa confirmation messages → "mpesa". Bank deposit/transfer slips → "bank_transfer". POS/till receipts paid by card → "card". Cash receipts → "cash". Cheque receipts → "cheque"`,
+- payment_mode: One of "mpesa", "bank_transfer", "cash", "cheque", "card", or "other". M-Pesa confirmation messages → "mpesa". Bank deposit/transfer slips → "bank_transfer". POS/till receipts paid by card → "card". Cash receipts → "cash". Cheque receipts → "cheque"
+- description: Always produce a short, human-readable description (5–10 words). Use context from the document: what was bought/paid for, the vendor or service, or the nature of the payment. For M-Pesa and bank SMSs with no item detail, describe the transfer (e.g. "M-Pesa payment to Safaricom", "Card purchase at Dream Fade Gents Salon"). Never leave this null.`,
     examples: `
 Till receipt from "Naivas Supermarket", total KES 2,450, paid by card, dated 10 Jun 2026:
-{ "date": "2026-06-10", "amount": 2450, "type": "expense", "counterparty_name": "Naivas Supermarket", "currency": "KES", "description": "Naivas Supermarket purchase", "payment_mode": "card" }
+{ "date": "2026-06-10", "amount": 2450, "type": "expense", "counterparty_name": "Naivas Supermarket", "currency": "KES", "description": "Naivas Supermarket grocery purchase", "payment_mode": "card" }
 
 M-Pesa: "You have received Ksh15,000.00 from JOHN KAMAU 0712345678 on 9/6/26":
-{ "date": "2026-06-09", "amount": 15000, "type": "income", "counterparty_name": "John Kamau", "currency": "KES", "payment_mode": "mpesa" }
+{ "date": "2026-06-09", "amount": 15000, "type": "income", "counterparty_name": "John Kamau", "currency": "KES", "description": "M-Pesa payment received from John Kamau", "payment_mode": "mpesa" }
+
+Bank SMS: "Purchase of AED 560.00 with Credit Card ending 0869 at DREAM FADE GENTS SALON":
+{ "amount": 560, "type": "expense", "counterparty_name": "Dream Fade Gents Salon", "currency": "AED", "description": "Card purchase at Dream Fade Gents Salon", "payment_mode": "card" }
 
 Invoice from "Kenya Power" for KES 4,280 electricity bill, dated 01 Jun 2026:
-{ "date": "2026-06-01", "amount": 4280, "type": "expense", "counterparty_name": "Kenya Power", "currency": "KES", "description": "Electricity bill", "payment_mode": "other" }`,
+{ "date": "2026-06-01", "amount": 4280, "type": "expense", "counterparty_name": "Kenya Power", "currency": "KES", "description": "Kenya Power electricity bill", "payment_mode": "other" }`,
     constraints: `
+Return your response as a JSON object.
 Return null for any field you cannot determine with confidence. Never hallucinate values.
 If the image is blurry or text is unclear, return what you can read with confidence.
 Never include commas, currency symbols, or spaces in the amount field — numbers only.`,

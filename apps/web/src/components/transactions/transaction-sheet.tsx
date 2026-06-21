@@ -116,7 +116,7 @@ export function TransactionSheet({
   const isEditing = !!transaction;
   const today = new Date().toISOString().split("T")[0];
 
-  const [txId] = useState(() => crypto.randomUUID());
+  const txIdRef = useRef(crypto.randomUUID());
   const [type, setType] = useState<"income" | "expense">("expense");
   const [date, setDate] = useState(today);
   const [status, setStatus] = useState<TransactionStatus>("completed");
@@ -227,6 +227,7 @@ export function TransactionSheet({
 
   useEffect(() => {
     if (!open) return;
+    if (!transaction) txIdRef.current = crypto.randomUUID();
     if (transaction) {
       const parsed = new Date(transaction.date);
       const isoDate =
@@ -357,7 +358,17 @@ export function TransactionSheet({
       if (extracted.amount) setAmount(String(extracted.amount));
       if (extracted.type) setType(extracted.type);
       if (extracted.counterparty_name) setCounterparty(extracted.counterparty_name);
-      if (extracted.description && !name.trim()) setName(extracted.description);
+      if (!name.trim()) {
+        const resolvedType = extracted.type ?? type;
+        const desc =
+          extracted.description ||
+          (extracted.counterparty_name
+            ? resolvedType === "income"
+              ? `Payment from ${extracted.counterparty_name}`
+              : `Payment to ${extracted.counterparty_name}`
+            : null);
+        if (desc) setName(desc);
+      }
       if (extracted.reference_number) setReferenceNumber(extracted.reference_number);
       if (extracted.currency) setCurrency(extracted.currency);
       if (extracted.tax_amount) setTaxAmount(String(extracted.tax_amount));
@@ -425,20 +436,20 @@ export function TransactionSheet({
       } else {
         // 1. Create transaction row first — vault trigger needs this FK to exist
         await createTransaction(orgId, user.id, {
-          id: txId,
+          id: txIdRef.current,
           ...txFields,
           markInvoicePaid: type === "income" && !!invoiceId && markInvoicePaid,
         });
         // 2. Upload files — transaction now exists, trigger succeeds
         if (pendingFiles.length > 0) {
           const uploads = await Promise.all(
-            pendingFiles.map((f) => uploadTransactionAttachment(orgId, txId, f)),
+            pendingFiles.map((f) => uploadTransactionAttachment(orgId, txIdRef.current, f)),
           );
-          await addAttachments(txId, orgId, uploads);
+          await addAttachments(txIdRef.current, orgId, uploads);
         }
         // 3. Link any vault docs that were the source of extraction
         if (vaultDocs.length > 0) {
-          await linkDocumentsToTransaction(vaultDocs.map((d) => d.id), txId);
+          await linkDocumentsToTransaction(vaultDocs, txIdRef.current);
         }
         toast.success("Transaction saved");
       }
