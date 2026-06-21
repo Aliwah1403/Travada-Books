@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -10,6 +10,7 @@ import { TransactionStats } from "@/components/transactions/transaction-stats";
 import { TransactionTable } from "@/components/transactions/transaction-table";
 import { TransactionSheet } from "@/components/transactions/transaction-sheet";
 import { ImportCsvDialog } from "@/components/transactions/import-csv-dialog";
+import { ExportTransactionsDialog } from "@/components/transactions/export-transactions-dialog";
 import { type Transaction as UITransaction } from "@/components/transactions/transaction-columns";
 import {
   listTransactions,
@@ -18,10 +19,13 @@ import {
   bulkDeleteTransactions,
   bulkUpdateTransactions,
   getTransactionSummary,
+  getTransactionExport,
+  triggerTransactionExport,
   type Transaction as DbTransaction,
   type TransactionFilters,
   type BulkTransactionUpdate,
 } from "@/lib/queries/transactions";
+import { getDocumentSignedUrl } from "@/lib/queries/vault";
 import { parseTransactionFilters } from "@/lib/queries/ai";
 import { useAuth } from "@/contexts/auth-context";
 import { useFormatDate } from "@/hooks/use-format-date";
@@ -118,7 +122,7 @@ function FilterChip({
 }
 
 export function TransactionsPage() {
-  const { orgId, org } = useAuth();
+  const { orgId, org, profile } = useAuth();
   const { formatDate } = useFormatDate();
   const queryClient = useQueryClient();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -134,6 +138,10 @@ export function TransactionsPage() {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [importOpen, setImportOpen] = useState(false);
+  const [exportDialogOpen, setExportDialogOpen] = useState(false);
+  const [exportingIds, setExportingIds] = useState<string[]>([]);
+  const [exportId, setExportId] = useState<string | null>(null);
+  const [isExportLoading, setIsExportLoading] = useState(false);
 
   const { data: categories } = useQuery({
     queryKey: ["transaction-categories", orgId],
@@ -330,6 +338,77 @@ export function TransactionsPage() {
     });
   }
 
+  // ── Export polling ────────────────────────────────────────────────────────
+  const { data: exportRecord } = useQuery({
+    queryKey: ["transaction-export", exportId],
+    queryFn: () => getTransactionExport(exportId!),
+    enabled: !!exportId,
+    refetchInterval: (query) =>
+      query.state.data?.status === "processing" ? 1500 : false,
+  });
+
+  useEffect(() => {
+    if (!exportRecord) return;
+    if (exportRecord.status === "completed" && exportRecord.file_path) {
+      getDocumentSignedUrl(exportRecord.file_path).then((url) => {
+        const filename = exportRecord.file_path!.split("/").pop() ?? "transactions-export";
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      });
+      toast.success(
+        `Exported ${exportRecord.row_count ?? exportingIds.length} transaction${(exportRecord.row_count ?? 1) !== 1 ? "s" : ""}`,
+        {
+          id: "export",
+          action: {
+            label: "Download again",
+            onClick: () => {
+              if (exportRecord.file_path) {
+                getDocumentSignedUrl(exportRecord.file_path).then((url) => {
+                  const a = document.createElement("a");
+                  a.href = url;
+                  a.download = exportRecord.file_path!.split("/").pop() ?? "export";
+                  document.body.appendChild(a);
+                  a.click();
+                  document.body.removeChild(a);
+                });
+              }
+            },
+          },
+        },
+      );
+      setExportId(null);
+    }
+    if (exportRecord.status === "failed") {
+      toast.error(exportRecord.error ?? "Export failed. Please try again.", { id: "export" });
+      setExportId(null);
+    }
+  }, [exportRecord?.status]);
+
+  async function handleExport(format: "csv" | "xlsx", emailTo?: string) {
+    setIsExportLoading(true);
+    try {
+      const { exportId: id } = await triggerTransactionExport({
+        transactionIds: exportingIds,
+        format,
+        emailTo,
+      });
+      setExportId(id);
+      setExportDialogOpen(false);
+      toast.loading(
+        `Generating export for ${exportingIds.length} transaction${exportingIds.length !== 1 ? "s" : ""}…`,
+        { id: "export" },
+      );
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to start export");
+    } finally {
+      setIsExportLoading(false);
+    }
+  }
+
   function handleBulkDelete(ids: string[]) {
     toast.promise(bulkDeleteMutation.mutateAsync(ids), {
       loading: `Deleting ${ids.length} transaction${ids.length !== 1 ? "s" : ""}…`,
@@ -434,6 +513,10 @@ export function TransactionsPage() {
           onDelete={handleDelete}
           onBulkDelete={handleBulkDelete}
           onBulkUpdate={handleBulkUpdate}
+          onBulkExport={(ids) => {
+            setExportingIds(ids);
+            setExportDialogOpen(true);
+          }}
           categories={categories ?? []}
         />
       }
@@ -467,6 +550,15 @@ export function TransactionsPage() {
       )}
 
       <ImportCsvDialog open={importOpen} onOpenChange={setImportOpen} />
+
+      <ExportTransactionsDialog
+        open={exportDialogOpen}
+        onOpenChange={setExportDialogOpen}
+        selectedCount={exportingIds.length}
+        defaultEmail={profile?.email ?? undefined}
+        onExport={handleExport}
+        isLoading={isExportLoading}
+      />
 
       <TransactionSheet
         open={sheetOpen}

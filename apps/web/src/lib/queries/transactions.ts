@@ -577,6 +577,50 @@ export function transactionStoragePath(orgId: string, transactionId: string, fil
   return `${orgId}/transactions/${transactionId}/${Date.now()}_${safe}`
 }
 
+// ─── Exports ─────────────────────────────────────────────────────────────────
+
+export type TransactionExport = {
+  id: string
+  org_id: string
+  status: "processing" | "completed" | "failed"
+  format: "csv" | "xlsx"
+  file_path: string | null
+  row_count: number | null
+  error: string | null
+  created_at: string
+}
+
+export async function getTransactionExport(exportId: string): Promise<TransactionExport> {
+  const { data, error } = await supabase
+    .from("transaction_exports")
+    .select("id, org_id, status, format, file_path, row_count, error, created_at")
+    .eq("id", exportId)
+    .single()
+  if (error) throw error
+  return data as TransactionExport
+}
+
+export async function triggerTransactionExport(payload: {
+  transactionIds: string[]
+  format: "csv" | "xlsx"
+  emailTo?: string
+}): Promise<{ exportId: string }> {
+  const { data: { session } } = await supabase.auth.getSession()
+  const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/export-transactions`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${session?.access_token}`,
+    },
+    body: JSON.stringify(payload),
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: "Request failed" }))
+    throw new Error(err.error ?? "Export request failed")
+  }
+  return res.json()
+}
+
 export async function uploadTransactionAttachment(
   orgId: string,
   transactionId: string,

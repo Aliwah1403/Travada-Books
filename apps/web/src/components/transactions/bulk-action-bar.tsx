@@ -40,6 +40,7 @@ import {
   CheckmarkCircle01Icon,
   Wallet01Icon,
   RepeatIcon,
+  Download01Icon,
 } from "@travada-books/ui/icons";
 import type { TransactionCategory } from "@/lib/queries/transactions";
 import type { TransactionStatus, PaymentMode, TransactionFrequency } from "./transaction-columns";
@@ -73,6 +74,7 @@ type BulkActionBarProps = {
   selectedCount: number;
   onClear: () => void;
   onDelete: () => void;
+  onExport: () => void;
   onSetCategory: (categoryId: string) => void;
   onSetStatus: (status: TransactionStatus) => void;
   onSetPaymentMode: (mode: PaymentMode) => void;
@@ -84,6 +86,7 @@ export function BulkActionBar({
   selectedCount,
   onClear,
   onDelete,
+  onExport,
   onSetCategory,
   onSetStatus,
   onSetPaymentMode,
@@ -234,6 +237,17 @@ export function BulkActionBar({
             </DropdownMenuSub>
           </DropdownMenuContent>
         </DropdownMenu>
+
+        {/* Export */}
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-7 text-xs gap-1.5"
+          onClick={onExport}
+        >
+          <Download01Icon size={13} />
+          Export
+        </Button>
 
         <div className="w-px h-4 bg-border mx-1" />
 

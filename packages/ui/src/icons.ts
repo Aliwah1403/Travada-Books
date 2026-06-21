@@ -68,6 +68,7 @@ import {
   FileSpreadsheetIcon as FileSpreadsheetSvg,
   Ppt01Icon as Ppt01Svg,
   Csv01Icon as Csv01Svg,
+  Mail01Icon as Mail01Svg,
 } from "@hugeicons/core-free-icons";
 
 export type IconProps = Omit<HugeiconsIconProps, "icon">;
@@ -146,3 +147,4 @@ export const Doc01Icon = make(Doc01Svg);
 export const FileSpreadsheetIcon = make(FileSpreadsheetSvg);
 export const Ppt01Icon = make(Ppt01Svg);
 export const Csv01Icon = make(Csv01Svg);
+export const Mail01Icon = make(Mail01Svg);

@@ -89,6 +89,7 @@ type TransactionTableProps = {
   onDelete: (id: string) => void;
   onBulkDelete: (ids: string[]) => void;
   onBulkUpdate: (ids: string[], update: { category_id?: string; status?: TransactionStatus; payment_mode?: PaymentMode; recurring?: boolean; frequency?: TransactionFrequency | null }) => void;
+  onBulkExport: (ids: string[]) => void;
   categories: TransactionCategory[];
 };
 
@@ -140,6 +141,7 @@ export function TransactionTable({
   onDelete,
   onBulkDelete,
   onBulkUpdate,
+  onBulkExport,
   categories,
 }: TransactionTableProps) {
   const [sorting, setSorting] = useState<SortingState>([
@@ -330,6 +332,10 @@ export function TransactionTable({
         }}
         onSetRecurring={(recurring, frequency) => {
           onBulkUpdate(selectedIds, { recurring, frequency: frequency ?? null });
+          setRowSelection({});
+        }}
+        onExport={() => {
+          onBulkExport(selectedIds);
           setRowSelection({});
         }}
         categories={categories}
