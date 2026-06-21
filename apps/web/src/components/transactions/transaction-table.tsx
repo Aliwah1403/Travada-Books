@@ -6,6 +6,7 @@ import {
   getSortedRowModel,
   flexRender,
   type SortingState,
+  type RowSelectionState,
 } from "@tanstack/react-table";
 import {
   TableBody,
@@ -37,14 +38,21 @@ import {
   transactionColumns,
   DEFAULT_HIDDEN_COLUMNS,
   type Transaction,
+  type TransactionStatus,
+  type PaymentMode,
+  type TransactionFrequency,
 } from "./transaction-columns";
+import { BulkActionBar } from "./bulk-action-bar";
+import type { TransactionCategory } from "@/lib/queries/transactions";
 
-// Width of the two sticky left columns (used to offset the second sticky col)
+// Width of the sticky left columns (used to offset subsequent sticky cols)
+const SELECT_COL_WIDTH = 48;
 const DATE_COL_WIDTH = 130;
 const NAME_COL_WIDTH = 240;
 
 // Min-width per column id — applied to <th> via style
 const COL_WIDTHS: Record<string, number> = {
+  select: SELECT_COL_WIDTH,
   date: DATE_COL_WIDTH,
   name: NAME_COL_WIDTH,
   counterpartyName: 180,
@@ -59,14 +67,16 @@ const COL_WIDTHS: Record<string, number> = {
 };
 
 function stickyHeaderClass(colId: string) {
-  if (colId === "date") return "sticky left-0 z-30 bg-background";
+  if (colId === "select") return "sticky left-0 z-30 bg-background";
+  if (colId === "date") return "sticky z-30 bg-background";
   if (colId === "name") return "sticky z-30 bg-background";
   if (colId === "actions") return "sticky right-0 z-30 bg-background";
   return "";
 }
 
 function stickyBodyClass(colId: string) {
-  if (colId === "date") return "sticky left-0 z-20 bg-background";
+  if (colId === "select") return "sticky left-0 z-20 bg-background";
+  if (colId === "date") return "sticky z-20 bg-background";
   if (colId === "name") return "sticky z-20 bg-background";
   if (colId === "actions") return "sticky right-0 z-20 bg-background";
   return "";
@@ -77,6 +87,9 @@ type TransactionTableProps = {
   globalFilter?: string;
   onEdit: (id: string) => void;
   onDelete: (id: string) => void;
+  onBulkDelete: (ids: string[]) => void;
+  onBulkUpdate: (ids: string[], update: { category_id?: string; status?: TransactionStatus; payment_mode?: PaymentMode; recurring?: boolean; frequency?: TransactionFrequency | null }) => void;
+  categories: TransactionCategory[];
 };
 
 function HorizontalPagination({
@@ -125,11 +138,15 @@ export function TransactionTable({
   globalFilter,
   onEdit,
   onDelete,
+  onBulkDelete,
+  onBulkUpdate,
+  categories,
 }: TransactionTableProps) {
   const [sorting, setSorting] = useState<SortingState>([
     { id: "date", desc: true },
   ]);
   const [columnVisibility, setColumnVisibility] = useState(DEFAULT_HIDDEN_COLUMNS);
+  const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
   const { containerRef, canScrollLeft, canScrollRight, scrollLeft, scrollRight } =
     useTableScroll();
 
@@ -141,12 +158,17 @@ export function TransactionTable({
     getSortedRowModel: getSortedRowModel(),
     onSortingChange: setSorting,
     onColumnVisibilityChange: setColumnVisibility,
-    state: { globalFilter, sorting, columnVisibility },
+    onRowSelectionChange: setRowSelection,
+    enableRowSelection: true,
+    state: { globalFilter, sorting, columnVisibility, rowSelection },
     meta: {
       onEditTransaction: onEdit,
       onDeleteTransaction: onDelete,
     },
   });
+
+  const selectedRows = table.getSelectedRowModel().rows;
+  const selectedIds = selectedRows.map((r) => r.original.id);
 
   const hideableColumns = table.getAllColumns().filter((col) => col.getCanHide());
 
@@ -212,7 +234,8 @@ export function TransactionTable({
                           key={header.id}
                           style={{
                             minWidth: COL_WIDTHS[colId],
-                            ...(colId === "name" ? { left: DATE_COL_WIDTH } : {}),
+                            ...(colId === "date" ? { left: SELECT_COL_WIDTH } : {}),
+                            ...(colId === "name" ? { left: SELECT_COL_WIDTH + DATE_COL_WIDTH } : {}),
                           }}
                           className={cn(
                             "h-12 px-4 text-xs",
@@ -266,9 +289,13 @@ export function TransactionTable({
                       return (
                         <TableCell
                           key={cell.id}
-                          style={colId === "name" ? { left: DATE_COL_WIDTH } : undefined}
+                          style={
+                            colId === "date" ? { left: SELECT_COL_WIDTH } :
+                            colId === "name" ? { left: SELECT_COL_WIDTH + DATE_COL_WIDTH } :
+                            undefined
+                          }
                           className={cn("py-3 px-4", stickyBodyClass(colId))}
-                          onClick={colId === "actions" ? (e) => e.stopPropagation() : undefined}
+                          onClick={colId === "actions" || colId === "select" ? (e) => e.stopPropagation() : undefined}
                         >
                           {flexRender(cell.column.columnDef.cell, cell.getContext())}
                         </TableCell>
@@ -281,6 +308,32 @@ export function TransactionTable({
           </div>
         )}
       </div>
+
+      <BulkActionBar
+        selectedCount={selectedIds.length}
+        onClear={() => setRowSelection({})}
+        onDelete={() => {
+          onBulkDelete(selectedIds);
+          setRowSelection({});
+        }}
+        onSetCategory={(categoryId) => {
+          onBulkUpdate(selectedIds, { category_id: categoryId });
+          setRowSelection({});
+        }}
+        onSetStatus={(status) => {
+          onBulkUpdate(selectedIds, { status });
+          setRowSelection({});
+        }}
+        onSetPaymentMode={(mode) => {
+          onBulkUpdate(selectedIds, { payment_mode: mode });
+          setRowSelection({});
+        }}
+        onSetRecurring={(recurring, frequency) => {
+          onBulkUpdate(selectedIds, { recurring, frequency: frequency ?? null });
+          setRowSelection({});
+        }}
+        categories={categories}
+      />
     </div>
   );
 }

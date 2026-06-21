@@ -19,8 +19,11 @@ import {
   listTransactions,
   listTransactionCategories,
   deleteTransaction,
+  bulkDeleteTransactions,
+  bulkUpdateTransactions,
   type Transaction as DbTransaction,
   type TransactionFilters,
+  type BulkTransactionUpdate,
 } from "@/lib/queries/transactions";
 import { parseTransactionFilters } from "@/lib/queries/ai";
 import { useAuth } from "@/contexts/auth-context";
@@ -143,6 +146,21 @@ export function TransactionsPage() {
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => deleteTransaction(id, orgId!),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["transactions", orgId] });
+    },
+  });
+
+  const bulkDeleteMutation = useMutation({
+    mutationFn: (ids: string[]) => bulkDeleteTransactions(ids, orgId!),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["transactions", orgId] });
+    },
+  });
+
+  const bulkUpdateMutation = useMutation({
+    mutationFn: ({ ids, update }: { ids: string[]; update: BulkTransactionUpdate }) =>
+      bulkUpdateTransactions(ids, orgId!, update),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["transactions", orgId] });
     },
@@ -271,6 +289,22 @@ export function TransactionsPage() {
     });
   }
 
+  function handleBulkDelete(ids: string[]) {
+    toast.promise(bulkDeleteMutation.mutateAsync(ids), {
+      loading: `Deleting ${ids.length} transaction${ids.length !== 1 ? "s" : ""}…`,
+      success: `${ids.length} transaction${ids.length !== 1 ? "s" : ""} deleted`,
+      error: "Failed to delete transactions",
+    });
+  }
+
+  function handleBulkUpdate(ids: string[], update: BulkTransactionUpdate) {
+    toast.promise(bulkUpdateMutation.mutateAsync({ ids, update }), {
+      loading: `Updating ${ids.length} transaction${ids.length !== 1 ? "s" : ""}…`,
+      success: `${ids.length} transaction${ids.length !== 1 ? "s" : ""} updated`,
+      error: "Failed to update transactions",
+    });
+  }
+
   function handleNewTransaction() {
     setEditingId(null);
     setSheetOpen(true);
@@ -349,6 +383,9 @@ export function TransactionsPage() {
           globalFilter={filters.search ?? ""}
           onEdit={handleEdit}
           onDelete={handleDelete}
+          onBulkDelete={handleBulkDelete}
+          onBulkUpdate={handleBulkUpdate}
+          categories={categories ?? []}
         />
       )}
 

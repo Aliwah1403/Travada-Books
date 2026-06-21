@@ -3,6 +3,7 @@ import { Link } from "react-router";
 import { RepeatIcon, Attachment01Icon } from "@travada-books/ui/icons";
 import { Spokes } from "@travada-books/ui/components/spokes";
 import { TransactionActions } from "./transaction-actions";
+import { cn } from "@travada-books/ui/lib/utils";
 
 declare module "@tanstack/react-table" {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -99,6 +100,41 @@ const STATUS_CONFIG: Record<
 };
 
 export const transactionColumns: ColumnDef<Transaction>[] = [
+  {
+    id: "select",
+    enableHiding: false,
+    header: ({ table }) => (
+      <input
+        type="checkbox"
+        aria-label="Select all"
+        checked={table.getIsAllPageRowsSelected()}
+        ref={(el) => {
+          if (el) el.indeterminate = table.getIsSomePageRowsSelected() && !table.getIsAllPageRowsSelected();
+        }}
+        onChange={table.getToggleAllPageRowsSelectedHandler()}
+        onClick={(e) => e.stopPropagation()}
+        className={cn(
+          "h-3.5 w-3.5 cursor-pointer rounded-[3px]",
+          "border border-input bg-background",
+          "accent-primary focus:outline-none",
+        )}
+      />
+    ),
+    cell: ({ row }) => (
+      <input
+        type="checkbox"
+        aria-label="Select row"
+        checked={row.getIsSelected()}
+        onChange={row.getToggleSelectedHandler()}
+        onClick={(e) => e.stopPropagation()}
+        className={cn(
+          "h-3.5 w-3.5 cursor-pointer rounded-[3px]",
+          "border border-input bg-background",
+          "accent-primary focus:outline-none",
+        )}
+      />
+    ),
+  },
   {
     accessorKey: "date",
     header: "Date",

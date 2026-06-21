@@ -396,6 +396,49 @@ export async function bulkSetCategories(
   )
 }
 
+export type BulkTransactionUpdate = {
+  category_id?: string | null
+  status?: "pending" | "completed" | "excluded" | "archived"
+  payment_mode?: "mpesa" | "bank_transfer" | "cash" | "cheque" | "card" | "other" | null
+  recurring?: boolean
+  frequency?: "weekly" | "biweekly" | "monthly" | "semi_monthly" | "annually" | "irregular" | null
+}
+
+export async function bulkUpdateTransactions(
+  ids: string[],
+  orgId: string,
+  update: BulkTransactionUpdate,
+): Promise<void> {
+  const { error } = await supabase
+    .from("transactions")
+    .update(update)
+    .in("id", ids)
+    .eq("org_id", orgId)
+
+  if (error) throw error
+}
+
+export async function bulkDeleteTransactions(ids: string[], orgId: string): Promise<void> {
+  const { data: attachments } = await supabase
+    .from("transaction_attachments")
+    .select("file_path")
+    .in("transaction_id", ids)
+
+  const { error } = await supabase
+    .from("transactions")
+    .delete()
+    .in("id", ids)
+    .eq("org_id", orgId)
+
+  if (error) throw error
+
+  if (attachments?.length) {
+    await supabase.storage
+      .from("vault")
+      .remove(attachments.map((a) => a.file_path))
+  }
+}
+
 export async function bulkCreateTransactions(
   orgId: string,
   userId: string,
