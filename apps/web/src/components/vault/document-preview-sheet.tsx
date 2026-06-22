@@ -573,6 +573,12 @@ export function DocumentPreviewSheet({ doc, open, onOpenChange, onDeleted, onOpe
               <p className="text-muted-foreground">Added</p>
               <p className="mt-1 font-medium">{formatDate(doc.created_at)}</p>
             </div>
+            {doc.date && (
+              <div>
+                <p className="text-muted-foreground">Document date</p>
+                <p className="mt-1 font-medium">{formatDate(doc.date)}</p>
+              </div>
+            )}
             {folders.length > 0 && (
               <div className="col-span-2">
                 <p className="text-muted-foreground">Folder</p>

@@ -31,17 +31,19 @@ export type VaultDocument = {
   folder_id: string | null
   tags: DocumentTag[] | null
   summary: string | null
+  date: string | null
   processing_status: "pending" | "processing" | "completed" | "failed"
   created_at: string
 }
 
 // Raw shape returned by Supabase before we flatten the tag join
-type RawVaultDocument = Omit<VaultDocument, "tags"> & {
+type RawVaultDocument = Omit<VaultDocument, "tags" | "date"> & {
+  date: string | null
   document_tag_assignments: { tag_id: string; document_tags: DocumentTag }[]
 }
 
 const DOCUMENT_SELECT =
-  "id, org_id, created_by, name, title, file_path, file_size, content_type, source, transaction_id, folder_id, summary, processing_status, created_at, document_tag_assignments(tag_id, document_tags(id, name, slug))"
+  "id, org_id, created_by, name, title, file_path, file_size, content_type, source, transaction_id, folder_id, summary, date, processing_status, created_at, document_tag_assignments(tag_id, document_tags(id, name, slug))"
 
 function normalizeDoc(raw: RawVaultDocument): VaultDocument {
   return {

@@ -157,6 +157,7 @@ export const classifyDocumentTask = task({
         .update({
           title: finalTitle,
           summary: result.summary ?? null,
+          date: result.date ?? null,
           processing_status: "completed",
         })
         .eq("id", documentId);

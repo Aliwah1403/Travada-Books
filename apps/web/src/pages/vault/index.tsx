@@ -584,6 +584,11 @@ function DocumentCard({
             {doc.title ?? doc.name}
           </p>
         </div>
+        {doc.summary && (
+          <p className='mt-0.5 line-clamp-2 text-[10px] leading-relaxed text-muted-foreground'>
+            {doc.summary}
+          </p>
+        )}
       </div>
 
       <TagPills tags={doc.tags} />
@@ -1297,7 +1302,7 @@ export function VaultPage() {
           }
         />
       : viewMode === "grid" ?
-        <div className='grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5'>
+        <div className='grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4'>
           {docs.map((doc) => (
             <DocumentCard
               key={doc.id}
