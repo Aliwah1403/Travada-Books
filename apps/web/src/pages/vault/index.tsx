@@ -35,6 +35,7 @@ import {
   Download01Icon,
   Delete01Icon,
   MoreVerticalIcon,
+  Link01Icon,
   PlusSignIcon,
   FolderAddIcon,
   SparklesIcon,
@@ -60,9 +61,11 @@ import {
   getDocumentSignedUrl,
   uploadDocument,
   setDocumentFolder,
+  createDocumentShare,
   type VaultDocument,
   type VaultFolder,
   type VaultFilters,
+  type DocumentTag,
 } from "@/lib/queries/vault";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -407,6 +410,7 @@ function CreateFolderDialog({
 
 function DocActions({
   onDownload,
+  onCopyLink,
   onRename,
   onDelete,
   onExtract,
@@ -414,6 +418,7 @@ function DocActions({
   folders = [],
 }: {
   onDownload: () => void;
+  onCopyLink: () => void;
   onRename: () => void;
   onDelete: () => void;
   onExtract?: () => void;
@@ -429,10 +434,14 @@ function DocActions({
       >
         <MoreVerticalIcon size={14} />
       </DropdownMenuTrigger>
-      <DropdownMenuContent align='end' className='w-44'>
+      <DropdownMenuContent align='end' className='w-48'>
         <DropdownMenuItem onClick={onDownload} className='gap-2'>
           <Download01Icon size={13} className='shrink-0' />
           Download
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={onCopyLink} className='gap-2'>
+          <Link01Icon size={13} className='shrink-0' />
+          Copy share link
         </DropdownMenuItem>
         <DropdownMenuItem onClick={onRename} className='gap-2'>
           <PencilEdit01Icon size={13} className='shrink-0' />
@@ -497,7 +506,7 @@ function ProcessingDot() {
 
 const MAX_VISIBLE_TAGS = 3;
 
-function TagPills({ tags }: { tags: string[] | null }) {
+function TagPills({ tags }: { tags: DocumentTag[] | null }) {
   if (!tags?.length) return null;
   const visible = tags.slice(0, MAX_VISIBLE_TAGS);
   const overflow = tags.length - MAX_VISIBLE_TAGS;
@@ -505,10 +514,10 @@ function TagPills({ tags }: { tags: string[] | null }) {
     <div className='flex flex-wrap items-center gap-1'>
       {visible.map((tag) => (
         <span
-          key={tag}
+          key={tag.id}
           className='rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground'
         >
-          {tag}
+          {tag.name}
         </span>
       ))}
       {overflow > 0 && (
@@ -526,6 +535,7 @@ function DocumentCard({
   doc,
   onOpen,
   onDownload,
+  onCopyLink,
   onRename,
   onDelete,
   onExtract,
@@ -535,6 +545,7 @@ function DocumentCard({
   doc: VaultDocument;
   onOpen: (doc: VaultDocument) => void;
   onDownload: (doc: VaultDocument) => void;
+  onCopyLink: (doc: VaultDocument) => void;
   onRename: (doc: VaultDocument) => void;
   onDelete: (doc: VaultDocument) => void;
   onExtract?: (doc: VaultDocument) => void;
@@ -554,6 +565,7 @@ function DocumentCard({
         >
           <DocActions
             onDownload={() => onDownload(doc)}
+            onCopyLink={() => onCopyLink(doc)}
             onRename={() => onRename(doc)}
             onDelete={() => onDelete(doc)}
             onExtract={onExtract ? () => onExtract(doc) : undefined}
@@ -596,6 +608,7 @@ function DocumentRow({
   doc,
   onOpen,
   onDownload,
+  onCopyLink,
   onRename,
   onDelete,
   onExtract,
@@ -605,6 +618,7 @@ function DocumentRow({
   doc: VaultDocument;
   onOpen: (doc: VaultDocument) => void;
   onDownload: (doc: VaultDocument) => void;
+  onCopyLink: (doc: VaultDocument) => void;
   onRename: (doc: VaultDocument) => void;
   onDelete: (doc: VaultDocument) => void;
   onExtract?: (doc: VaultDocument) => void;
@@ -631,10 +645,10 @@ function DocumentRow({
         <div className='hidden shrink-0 items-center gap-1 sm:flex'>
           {doc.tags.slice(0, 2).map((tag) => (
             <span
-              key={tag}
+              key={tag.id}
               className='rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground'
             >
-              {tag}
+              {tag.name}
             </span>
           ))}
           {doc.tags.length > 2 && (
@@ -661,6 +675,7 @@ function DocumentRow({
       >
         <DocActions
           onDownload={() => onDownload(doc)}
+          onCopyLink={() => onCopyLink(doc)}
           onRename={() => onRename(doc)}
           onDelete={() => onDelete(doc)}
           onExtract={onExtract ? () => onExtract(doc) : undefined}
@@ -980,6 +995,20 @@ export function VaultPage() {
     },
   });
 
+  function handleCopyLink(doc: VaultDocument) {
+    toast.promise(
+      createDocumentShare(doc.id).then((token) => {
+        const url = `${window.location.origin}/d/${token}`;
+        navigator.clipboard.writeText(url);
+      }),
+      {
+        loading: "Creating share link…",
+        success: "Link copied to clipboard",
+        error: "Failed to create share link",
+      },
+    );
+  }
+
   function handleDownload(doc: VaultDocument) {
     toast.promise(
       getDocumentSignedUrl(doc.file_path).then((url) => {
@@ -1275,6 +1304,7 @@ export function VaultPage() {
               doc={doc}
               onOpen={setPreviewDoc}
               onDownload={handleDownload}
+              onCopyLink={handleCopyLink}
               onRename={setRenamingDoc}
               onDelete={handleDelete}
               onExtract={handleExtractToTransaction}
@@ -1306,6 +1336,7 @@ export function VaultPage() {
               doc={doc}
               onOpen={setPreviewDoc}
               onDownload={handleDownload}
+              onCopyLink={handleCopyLink}
               onRename={setRenamingDoc}
               onDelete={handleDelete}
               onExtract={handleExtractToTransaction}

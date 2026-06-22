@@ -43,6 +43,7 @@ import { NotificationsPage } from "@/pages/account/notifications"
 import { OnboardingOrgPage } from "@/pages/onboarding/org"
 import { OnboardingInvitePage } from "@/pages/onboarding/invite"
 import { AcceptInvitePage } from "@/pages/accept-invite"
+import { DocumentSharePage } from "@/pages/document-share/token"
 
 const router = createBrowserRouter([
   {
@@ -129,6 +130,10 @@ const router = createBrowserRouter([
       {
         path: "/q/:token/confirmed",
         element: <QuoteConfirmedPage />,
+      },
+      {
+        path: "/d/:token",
+        element: <DocumentSharePage />,
       },
       {
         path: "/st/:token",

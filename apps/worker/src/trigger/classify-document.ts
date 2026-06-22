@@ -157,10 +157,39 @@ export const classifyDocumentTask = task({
         .update({
           title: finalTitle,
           summary: result.summary ?? null,
-          tags: result.tags ?? null,
           processing_status: "completed",
         })
         .eq("id", documentId);
+
+      // Persist tags relationally
+      if (result.tags && result.tags.length > 0) {
+        const tagIds: string[] = [];
+        for (const tagName of result.tags) {
+          const slug = tagName
+            .trim()
+            .toLowerCase()
+            .replace(/[^a-z0-9\s-]/g, "")
+            .replace(/\s+/g, "-");
+          const { data } = await supabase
+            .from("document_tags")
+            .upsert(
+              { org_id: payload.orgId, name: tagName.trim(), slug },
+              { onConflict: "org_id,slug" },
+            )
+            .select("id")
+            .single();
+          if (data?.id) tagIds.push(data.id);
+        }
+
+        if (tagIds.length > 0) {
+          await supabase
+            .from("document_tag_assignments")
+            .upsert(
+              tagIds.map((tag_id) => ({ document_id: documentId, tag_id })),
+              { onConflict: "document_id,tag_id" },
+            );
+        }
+      }
 
       logger.info("Classification complete", { documentId, title: finalTitle });
       return { title: finalTitle, tags: result.tags };

@@ -11,6 +11,12 @@ export type VaultFolder = {
   created_at: string
 }
 
+export type DocumentTag = {
+  id: string
+  name: string
+  slug: string
+}
+
 export type VaultDocument = {
   id: string
   org_id: string
@@ -23,14 +29,26 @@ export type VaultDocument = {
   source: "upload" | "transaction" | "inbox"
   transaction_id: string | null
   folder_id: string | null
-  tags: string[] | null
+  tags: DocumentTag[] | null
   summary: string | null
   processing_status: "pending" | "processing" | "completed" | "failed"
   created_at: string
 }
 
+// Raw shape returned by Supabase before we flatten the tag join
+type RawVaultDocument = Omit<VaultDocument, "tags"> & {
+  document_tag_assignments: { tag_id: string; document_tags: DocumentTag }[]
+}
+
 const DOCUMENT_SELECT =
-  "id, org_id, created_by, name, title, file_path, file_size, content_type, source, transaction_id, folder_id, tags, summary, processing_status, created_at"
+  "id, org_id, created_by, name, title, file_path, file_size, content_type, source, transaction_id, folder_id, summary, processing_status, created_at, document_tag_assignments(tag_id, document_tags(id, name, slug))"
+
+function normalizeDoc(raw: RawVaultDocument): VaultDocument {
+  return {
+    ...raw,
+    tags: raw.document_tag_assignments?.map((a) => a.document_tags).filter(Boolean) ?? null,
+  }
+}
 
 export type VaultFilters = {
   source?: "upload" | "transaction" | "inbox"
@@ -49,7 +67,7 @@ export async function getDocument(id: string): Promise<VaultDocument | null> {
     .eq("id", id)
     .single()
   if (error) return null
-  return data as VaultDocument
+  return normalizeDoc(data as RawVaultDocument)
 }
 
 export async function listDocuments(orgId: string, filters: VaultFilters = {}): Promise<VaultDocument[]> {
@@ -69,7 +87,7 @@ export async function listDocuments(orgId: string, filters: VaultFilters = {}): 
 
   const { data, error } = await query
   if (error) throw error
-  return (data ?? []) as VaultDocument[]
+  return (data as RawVaultDocument[] ?? []).map(normalizeDoc)
 }
 
 export async function deleteDocument(id: string, filePath: string): Promise<void> {
@@ -111,17 +129,57 @@ export async function listRelatedDocuments(
     .limit(limit)
 
   if (error) return []
-  return (data ?? []) as VaultDocument[]
+  return (data as RawVaultDocument[] ?? []).map(normalizeDoc)
 }
 
 export async function updateDocument(
   id: string,
-  patch: { summary?: string | null; tags?: string[] | null; folder_id?: string | null },
+  patch: { summary?: string | null; folder_id?: string | null },
 ): Promise<void> {
   const { error } = await supabase
     .from("documents")
     .update({ ...patch, updated_at: new Date().toISOString() })
     .eq("id", id)
+  if (error) throw error
+}
+
+// ─── Document tags ────────────────────────────────────────────────────────────
+
+export async function listDocumentTags(orgId: string): Promise<DocumentTag[]> {
+  const { data, error } = await supabase
+    .from("document_tags")
+    .select("id, name, slug")
+    .eq("org_id", orgId)
+    .order("name")
+  if (error) throw error
+  return (data ?? []) as DocumentTag[]
+}
+
+export async function upsertDocumentTag(orgId: string, name: string): Promise<DocumentTag> {
+  const trimmed = name.trim()
+  const slug = trimmed.toLowerCase().replace(/[^a-z0-9\s-]/g, "").replace(/\s+/g, "-")
+  const { data, error } = await supabase
+    .from("document_tags")
+    .upsert({ org_id: orgId, name: trimmed, slug }, { onConflict: "org_id,slug" })
+    .select("id, name, slug")
+    .single()
+  if (error) throw error
+  return data as DocumentTag
+}
+
+export async function addDocumentTagAssignment(documentId: string, tagId: string): Promise<void> {
+  const { error } = await supabase
+    .from("document_tag_assignments")
+    .insert({ document_id: documentId, tag_id: tagId })
+  if (error) throw error
+}
+
+export async function removeDocumentTagAssignment(documentId: string, tagId: string): Promise<void> {
+  const { error } = await supabase
+    .from("document_tag_assignments")
+    .delete()
+    .eq("document_id", documentId)
+    .eq("tag_id", tagId)
   if (error) throw error
 }
 
@@ -156,6 +214,38 @@ export async function setDocumentFolder(filePath: string, folderId: string | nul
     .update({ folder_id: folderId, updated_at: new Date().toISOString() })
     .eq("file_path", filePath)
   if (error) throw error
+}
+
+// ─── Document shares ──────────────────────────────────────────────────────────
+
+export type DocumentShareInfo = {
+  signedUrl: string
+  fileName: string | null
+  fileSize: number | null
+  contentType: string | null
+  expiresAt: string
+  orgName: string | null
+}
+
+export async function createDocumentShare(documentId: string): Promise<string> {
+  const { data, error } = await supabase.functions.invoke("create-document-share", {
+    body: { documentId },
+  })
+  if (error) throw error
+  if (!data?.token) throw new Error("No token returned")
+  return data.token as string
+}
+
+export async function getDocumentShare(token: string): Promise<DocumentShareInfo> {
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string
+  const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string
+  const res = await fetch(
+    `${supabaseUrl}/functions/v1/get-document-share?token=${encodeURIComponent(token)}`,
+    { headers: { apikey: anonKey, Authorization: `Bearer ${anonKey}` } },
+  )
+  const json = await res.json()
+  if (!res.ok) throw new Error(json.error ?? "Failed to load share")
+  return json as DocumentShareInfo
 }
 
 export async function renameDocument(id: string, name: string): Promise<void> {

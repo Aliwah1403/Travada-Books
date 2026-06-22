@@ -21,6 +21,7 @@ import {
   Pdf01Icon,
   Image01Icon,
   File01Icon,
+  Link01Icon,
 } from "@travada-books/ui/icons"
 import { Spinner } from "@/components/shared/spinner"
 import { cn } from "@travada-books/ui/lib/utils"
@@ -31,8 +32,14 @@ import {
   deleteDocument,
   renameDocument,
   listRelatedDocuments,
+  listDocumentTags,
+  upsertDocumentTag,
+  addDocumentTagAssignment,
+  removeDocumentTagAssignment,
+  createDocumentShare,
   type VaultDocument,
   type VaultFolder,
+  type DocumentTag,
 } from "@/lib/queries/vault"
 import { classifyDocument } from "@/lib/queries/ai"
 
@@ -105,70 +112,132 @@ function DocumentPreview({
   )
 }
 
-// ─── Tags input ───────────────────────────────────────────────────────────────
+// ─── Document tags input ──────────────────────────────────────────────────────
 
-function TagsInput({
+function DocumentTagsInput({
+  orgId,
   tags,
-  onChange,
+  onAdd,
+  onRemove,
 }: {
-  tags: string[]
-  onChange: (tags: string[]) => void
+  orgId: string
+  tags: DocumentTag[]
+  onAdd: (name: string) => void
+  onRemove: (tagId: string) => void
 }) {
   const [inputValue, setInputValue] = useState("")
+  const [showSuggestions, setShowSuggestions] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
 
-  function addTag(raw: string) {
-    const tag = raw.trim().toLowerCase().replace(/\s+/g, "-")
-    if (!tag || tags.includes(tag)) {
+  const { data: orgTags = [] } = useQuery({
+    queryKey: ["document-tags", orgId],
+    queryFn: () => listDocumentTags(orgId),
+    staleTime: 5 * 60 * 1000,
+  })
+
+  const suggestions = orgTags.filter(
+    (t) =>
+      !tags.some((sel) => sel.id === t.id) &&
+      (inputValue === "" || t.name.toLowerCase().includes(inputValue.toLowerCase())),
+  )
+
+  const showDropdown = showSuggestions && (suggestions.length > 0 || inputValue.trim().length > 0)
+  const isNewTag =
+    inputValue.trim().length > 0 &&
+    !orgTags.some((t) => t.name.toLowerCase() === inputValue.trim().toLowerCase())
+
+  function commit(name: string) {
+    const trimmed = name.trim()
+    if (!trimmed || tags.some((t) => t.name.toLowerCase() === trimmed.toLowerCase())) {
       setInputValue("")
       return
     }
-    onChange([...tags, tag])
+    onAdd(trimmed)
     setInputValue("")
-  }
-
-  function removeTag(tag: string) {
-    onChange(tags.filter((t) => t !== tag))
+    setShowSuggestions(false)
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
     if (e.key === "Enter" || e.key === ",") {
       e.preventDefault()
-      addTag(inputValue)
+      if (inputValue.trim()) commit(inputValue)
     } else if (e.key === "Backspace" && !inputValue && tags.length > 0) {
-      removeTag(tags[tags.length - 1])
+      onRemove(tags[tags.length - 1].id)
+    } else if (e.key === "Escape") {
+      setShowSuggestions(false)
     }
   }
 
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setShowSuggestions(false)
+      }
+    }
+    document.addEventListener("mousedown", handleClick)
+    return () => document.removeEventListener("mousedown", handleClick)
+  }, [])
+
   return (
-    <div
-      className="flex min-h-9 flex-wrap items-center gap-1.5 rounded-lg border bg-background px-2.5 py-1.5 cursor-text"
-      onClick={() => inputRef.current?.focus()}
-    >
-      {tags.map((tag) => (
-        <span
-          key={tag}
-          className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-0.5 text-[11px] font-medium text-foreground"
-        >
-          {tag}
-          <button
-            type="button"
-            onClick={(e) => { e.stopPropagation(); removeTag(tag) }}
-            className="text-muted-foreground fine-hover:text-foreground transition-colors"
+    <div ref={containerRef} className="relative">
+      <div
+        className="flex min-h-9 flex-wrap items-center gap-1.5 rounded-lg border bg-background px-2.5 py-1.5 cursor-text"
+        onClick={() => { inputRef.current?.focus(); setShowSuggestions(true) }}
+      >
+        {tags.map((tag) => (
+          <span
+            key={tag.id}
+            className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-0.5 text-[11px] font-medium text-foreground"
           >
-            <Cancel01Icon size={10} />
-          </button>
-        </span>
-      ))}
-      <input
-        ref={inputRef}
-        value={inputValue}
-        onChange={(e) => setInputValue(e.target.value)}
-        onKeyDown={handleKeyDown}
-        onBlur={() => { if (inputValue.trim()) addTag(inputValue) }}
-        placeholder={tags.length === 0 ? "Add tags…" : ""}
-        className="min-w-16 flex-1 bg-transparent text-xs outline-none placeholder:text-muted-foreground"
-      />
+            {tag.name}
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); onRemove(tag.id) }}
+              className="text-muted-foreground fine-hover:text-foreground transition-colors"
+            >
+              <Cancel01Icon size={10} />
+            </button>
+          </span>
+        ))}
+        <input
+          ref={inputRef}
+          value={inputValue}
+          onChange={(e) => { setInputValue(e.target.value); setShowSuggestions(true) }}
+          onKeyDown={handleKeyDown}
+          onFocus={() => setShowSuggestions(true)}
+          placeholder={tags.length === 0 ? "Add tags…" : ""}
+          className="min-w-16 flex-1 bg-transparent text-xs outline-none placeholder:text-muted-foreground"
+        />
+      </div>
+
+      {showDropdown && (
+        <div className="absolute left-0 right-0 top-full z-50 mt-1 overflow-hidden rounded-lg border bg-popover shadow-md">
+          {suggestions.map((tag) => (
+            <button
+              key={tag.id}
+              type="button"
+              onMouseDown={(e) => { e.preventDefault(); commit(tag.name) }}
+              className="flex w-full items-center px-3 py-2 text-xs fine-hover:bg-muted transition-colors"
+            >
+              {tag.name}
+            </button>
+          ))}
+          {isNewTag && (
+            <button
+              type="button"
+              onMouseDown={(e) => { e.preventDefault(); commit(inputValue) }}
+              className="flex w-full items-center gap-1.5 px-3 py-2 text-xs text-muted-foreground fine-hover:bg-muted transition-colors"
+            >
+              <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium text-foreground">
+                new
+              </span>
+              Create "{inputValue.trim()}"
+            </button>
+          )}
+        </div>
+      )}
     </div>
   )
 }
@@ -266,7 +335,7 @@ export function DocumentPreviewSheet({ doc, open, onOpenChange, onDeleted, onOpe
   const queryClient = useQueryClient()
 
   const [summary, setSummary] = useState("")
-  const [tags, setTags] = useState<string[]>([])
+  const [tags, setTags] = useState<DocumentTag[]>([])
   const [summaryDirty, setSummaryDirty] = useState(false)
   const [isClassifying, setIsClassifying] = useState(false)
   // pollingEnabled is separate so we only start polling after the edge fn resolves,
@@ -339,9 +408,30 @@ export function DocumentPreviewSheet({ doc, open, onOpenChange, onDeleted, onOpe
   })
 
   const updateMutation = useMutation({
-    mutationFn: (patch: { summary?: string | null; tags?: string[] | null; folder_id?: string | null }) =>
+    mutationFn: (patch: { summary?: string | null; folder_id?: string | null }) =>
       updateDocument(doc!.id, patch),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["vault"] }),
+  })
+
+  const addTagMutation = useMutation({
+    mutationFn: async (name: string) => {
+      const tag = await upsertDocumentTag(doc!.org_id, name)
+      await addDocumentTagAssignment(doc!.id, tag.id)
+      return tag
+    },
+    onSuccess: (tag) => {
+      setTags((prev) => (prev.some((t) => t.id === tag.id) ? prev : [...prev, tag]))
+      queryClient.invalidateQueries({ queryKey: ["vault"] })
+      queryClient.invalidateQueries({ queryKey: ["document-tags", doc?.org_id] })
+    },
+  })
+
+  const removeTagMutation = useMutation({
+    mutationFn: (tagId: string) => removeDocumentTagAssignment(doc!.id, tagId),
+    onSuccess: (_data, tagId) => {
+      setTags((prev) => prev.filter((t) => t.id !== tagId))
+      queryClient.invalidateQueries({ queryKey: ["vault"] })
+    },
   })
 
   const renameMutation = useMutation({
@@ -367,6 +457,21 @@ export function DocumentPreviewSheet({ doc, open, onOpenChange, onDeleted, onOpe
     a.click()
   }
 
+  function handleCopyLink() {
+    if (!doc) return
+    toast.promise(
+      createDocumentShare(doc.id).then((token) => {
+        const url = `${window.location.origin}/d/${token}`
+        navigator.clipboard.writeText(url)
+      }),
+      {
+        loading: "Creating share link…",
+        success: "Link copied to clipboard",
+        error: "Failed to create share link",
+      },
+    )
+  }
+
   function handleDelete() {
     toast.promise(deleteMutation.mutateAsync(), {
       loading: "Deleting document…",
@@ -380,14 +485,6 @@ export function DocumentPreviewSheet({ doc, open, onOpenChange, onDeleted, onOpe
     updateMutation.mutate({ summary: summary || null })
     setSummaryDirty(false)
   }
-
-  const handleTagsChange = useCallback(
-    (next: string[]) => {
-      setTags(next)
-      updateMutation.mutate({ tags: next.length ? next : null })
-    },
-    [doc?.id],
-  )
 
   if (!doc) return null
 
@@ -405,7 +502,7 @@ export function DocumentPreviewSheet({ doc, open, onOpenChange, onDeleted, onOpe
         {/* Header */}
         <div className="flex items-start justify-between gap-3 border-b px-5 py-4">
           <InlineName
-            name={doc.name}
+            name={doc.title ?? doc.name}
             onSave={(name) => {
               toast.promise(renameMutation.mutateAsync(name), {
                 loading: "Renaming…",
@@ -424,6 +521,15 @@ export function DocumentPreviewSheet({ doc, open, onOpenChange, onDeleted, onOpe
               title="Download"
             >
               <Download01Icon size={15} />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-8"
+              onClick={handleCopyLink}
+              title="Copy share link"
+            >
+              <Link01Icon size={15} />
             </Button>
             <Button
               variant="ghost"
@@ -558,7 +664,12 @@ export function DocumentPreviewSheet({ doc, open, onOpenChange, onDeleted, onOpe
                 ))}
               </div>
             ) : (
-              <TagsInput tags={tags} onChange={handleTagsChange} />
+              <DocumentTagsInput
+                orgId={doc.org_id}
+                tags={tags}
+                onAdd={(name) => addTagMutation.mutate(name)}
+                onRemove={(tagId) => removeTagMutation.mutate(tagId)}
+              />
             )}
             {!isClassifying && (
               <p className="text-[10px] text-muted-foreground">
