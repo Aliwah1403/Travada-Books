@@ -398,6 +398,26 @@ export async function deleteAttachment(id: string, filePath: string): Promise<vo
   await supabase.storage.from("vault").remove([filePath])
 }
 
+export async function triggerAttachmentProcessing(
+  transactionId: string,
+  attachments: AttachmentInput[],
+): Promise<void> {
+  const processable = attachments.filter((a) => {
+    const ct = a.content_type ?? "";
+    return ct === "application/pdf" || ct.startsWith("image/");
+  });
+  if (processable.length === 0) return;
+
+  // Fire and forget — tax extraction runs in the background
+  void Promise.allSettled(
+    processable.map((a) =>
+      supabase.functions.invoke("trigger-transaction-attachment", {
+        body: { transactionId, filePath: a.file_path, contentType: a.content_type },
+      }),
+    ),
+  );
+}
+
 export async function getAttachmentSignedUrl(filePath: string): Promise<string> {
   const { data, error } = await supabase.storage
     .from("vault")

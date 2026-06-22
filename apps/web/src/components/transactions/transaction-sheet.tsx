@@ -49,6 +49,7 @@ import {
   uploadTransactionAttachment,
   deleteAttachment,
   createTransactionCategory,
+  triggerAttachmentProcessing,
   type TransactionCategory,
   type AttachmentInput,
 } from "@/lib/queries/transactions";
@@ -331,10 +332,25 @@ export function TransactionSheet({
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files ?? []);
-    setPendingFiles((prev) => [
-      ...prev,
-      ...files.filter((f) => f.size <= 10 * 1024 * 1024),
-    ]);
+    const toAdd: File[] = [];
+
+    for (const f of files) {
+      const isImage = f.type.startsWith("image/") || f.type === "";
+      const isPdf = f.type === "application/pdf";
+      if (!isImage && !isPdf) {
+        toast.error(`"${f.name}" is not supported. Upload an image or PDF.`);
+        continue;
+      }
+      if (f.size > 10 * 1024 * 1024) {
+        toast.error(`"${f.name}" exceeds the 10 MB limit.`);
+        continue;
+      }
+      toAdd.push(f);
+    }
+
+    if (toAdd.length > 0) {
+      setPendingFiles((prev) => [...prev, ...toAdd]);
+    }
     e.target.value = "";
   }
 
@@ -431,6 +447,7 @@ export function TransactionSheet({
             pendingFiles.map((f) => uploadTransactionAttachment(orgId, transaction.id, f)),
           );
           await addAttachments(transaction.id, orgId, uploads);
+          triggerAttachmentProcessing(transaction.id, uploads);
         }
         toast.success("Transaction updated");
       } else {
@@ -446,6 +463,7 @@ export function TransactionSheet({
             pendingFiles.map((f) => uploadTransactionAttachment(orgId, txIdRef.current, f)),
           );
           await addAttachments(txIdRef.current, orgId, uploads);
+          triggerAttachmentProcessing(txIdRef.current, uploads);
         }
         // 3. Link any vault docs that were the source of extraction
         if (vaultDocs.length > 0) {
