@@ -11,7 +11,12 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@travada-books/ui/components/dialog";
-import { Tag01Icon, PlusSignIcon, Delete01Icon, LockPasswordIcon } from "@travada-books/ui/icons";
+import {
+  Tag01Icon,
+  PlusSignIcon,
+  Delete01Icon,
+  LockPasswordIcon,
+} from "@travada-books/ui/icons";
 import {
   Popover,
   PopoverContent,
@@ -27,6 +32,12 @@ import {
   updateTransactionCategory,
   type TransactionCategory,
 } from "@/lib/queries/transactions";
+import {
+  Accordion,
+  AccordionItem,
+  AccordionTrigger,
+  AccordionContent,
+} from "@travada-books/ui/components/accordion";
 
 type CategoryField = {
   name: string;
@@ -48,17 +59,17 @@ function ColorDotPicker({ selected, onSelect }: ColorDotPickerProps) {
       <PopoverTrigger
         render={
           <button
-            type="button"
-            className="size-4 rounded-full shrink-0 transition-[transform,opacity] active:scale-90 fine-hover:opacity-80"
+            type='button'
+            className='size-4 rounded-full shrink-0 transition-[transform,opacity] active:scale-90 fine-hover:opacity-80'
             style={{ backgroundColor: selected }}
           />
         }
       />
       <PopoverContent
-        side="bottom"
-        align="start"
+        side='bottom'
+        align='start'
         sideOffset={6}
-        className="w-auto p-0 border-0 bg-transparent shadow-none"
+        className='w-auto p-0 border-0 bg-transparent shadow-none'
       >
         <ColorPicker color={selected} onChange={onSelect} />
       </PopoverContent>
@@ -73,7 +84,12 @@ type AddCategoryDialogProps = {
   onCreated: () => void;
 };
 
-function AddCategoryDialog({ open, onOpenChange, orgId, onCreated }: AddCategoryDialogProps) {
+function AddCategoryDialog({
+  open,
+  onOpenChange,
+  orgId,
+  onCreated,
+}: AddCategoryDialogProps) {
   const [fields, setFields] = useState<CategoryField[]>([
     { name: "", color: nextColor(0) },
   ]);
@@ -113,18 +129,23 @@ function AddCategoryDialog({ open, onOpenChange, orgId, onCreated }: AddCategory
     try {
       await Promise.all(
         toCreate.map((f) =>
-          createTransactionCategory(orgId, { name: f.name.trim(), color: f.color }),
+          createTransactionCategory(orgId, {
+            name: f.name.trim(),
+            color: f.color,
+          }),
         ),
       );
       onCreated();
       handleClose();
       toast.success(
-        toCreate.length === 1
-          ? "Category added"
-          : `${toCreate.length} categories added`,
+        toCreate.length === 1 ?
+          "Category added"
+        : `${toCreate.length} categories added`,
       );
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to add categories");
+      toast.error(
+        err instanceof Error ? err.message : "Failed to add categories",
+      );
     } finally {
       setSaving(false);
     }
@@ -138,21 +159,21 @@ function AddCategoryDialog({ open, onOpenChange, orgId, onCreated }: AddCategory
         else onOpenChange(true);
       }}
     >
-      <DialogContent className="max-w-sm">
+      <DialogContent className='max-w-sm'>
         <DialogHeader>
           <DialogTitle>Add Categories</DialogTitle>
         </DialogHeader>
 
-        <div className="flex flex-col gap-4">
+        <div className='flex flex-col gap-4'>
           {fields.map((field, i) => (
-            <div key={i} className="flex items-center gap-2">
+            <div key={i} className='flex items-center gap-2'>
               <ColorDotPicker
                 selected={field.color}
                 onSelect={(c) => updateColor(i, c)}
               />
               <Input
                 autoFocus={i === fields.length - 1}
-                placeholder="Category name"
+                placeholder='Category name'
                 value={field.name}
                 onChange={(e) => updateName(i, e.target.value)}
                 onKeyDown={(e) => {
@@ -161,13 +182,13 @@ function AddCategoryDialog({ open, onOpenChange, orgId, onCreated }: AddCategory
                     addField();
                   }
                 }}
-                className="text-xs"
+                className='text-xs'
               />
               {fields.length > 1 && (
                 <button
-                  type="button"
+                  type='button'
                   onClick={() => removeField(i)}
-                  className="text-muted-foreground fine-hover:text-destructive transition-colors shrink-0"
+                  className='text-muted-foreground fine-hover:text-destructive transition-colors shrink-0'
                 >
                   <Delete01Icon size={14} />
                 </button>
@@ -176,9 +197,9 @@ function AddCategoryDialog({ open, onOpenChange, orgId, onCreated }: AddCategory
           ))}
 
           <button
-            type="button"
+            type='button'
             onClick={addField}
-            className="flex items-center gap-1.5 text-xs text-muted-foreground fine-hover:text-foreground transition-colors w-fit"
+            className='flex items-center gap-1.5 text-xs text-muted-foreground fine-hover:text-foreground transition-colors w-fit'
           >
             <PlusSignIcon size={13} />
             Add another
@@ -186,7 +207,7 @@ function AddCategoryDialog({ open, onOpenChange, orgId, onCreated }: AddCategory
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={handleClose} disabled={saving}>
+          <Button variant='outline' onClick={handleClose} disabled={saving}>
             Cancel
           </Button>
           <Button onClick={handleSave} disabled={!hasAnyValue || saving}>
@@ -205,7 +226,12 @@ type CategoryRowProps = {
   onUpdated: () => void;
 };
 
-function CategoryRow({ category, orgId, onDeleted, onUpdated }: CategoryRowProps) {
+function CategoryRow({
+  category,
+  orgId,
+  onDeleted,
+  onUpdated,
+}: CategoryRowProps) {
   const [deleting, setDeleting] = useState(false);
 
   async function handleDelete() {
@@ -215,7 +241,9 @@ function CategoryRow({ category, orgId, onDeleted, onUpdated }: CategoryRowProps
       onDeleted();
       toast.success("Category deleted");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to delete category");
+      toast.error(
+        err instanceof Error ? err.message : "Failed to delete category",
+      );
     } finally {
       setDeleting(false);
     }
@@ -231,31 +259,32 @@ function CategoryRow({ category, orgId, onDeleted, onUpdated }: CategoryRowProps
   }
 
   return (
-    <div className="flex items-center gap-2.5 px-3 py-2.5">
-      {category.system ? (
+    <div className='flex items-center gap-2.5 px-3 py-2.5'>
+      {category.system ?
         <div
-          className="size-2.5 rounded-full shrink-0"
+          className='size-2.5 rounded-full shrink-0'
           style={{ backgroundColor: category.color ?? "#888" }}
         />
-      ) : (
-        <ColorDotPicker
+      : <ColorDotPicker
           selected={category.color ?? "#888"}
           onSelect={handleColorChange}
         />
-      )}
-      <span className="flex-1 text-xs">{category.name}</span>
-      {category.system ? (
-        <LockPasswordIcon size={12} className="text-muted-foreground/50 shrink-0" />
-      ) : (
-        <button
-          type="button"
+      }
+      <span className='flex-1 text-xs'>{category.name}</span>
+      {category.system ?
+        <LockPasswordIcon
+          size={12}
+          className='text-muted-foreground/50 shrink-0'
+        />
+      : <button
+          type='button'
           onClick={handleDelete}
           disabled={deleting}
-          className="text-muted-foreground fine-hover:text-destructive transition-colors shrink-0 disabled:opacity-40"
+          className='text-muted-foreground fine-hover:text-destructive transition-colors shrink-0 disabled:opacity-40'
         >
           <Delete01Icon size={13} />
         </button>
-      )}
+      }
     </div>
   );
 }
@@ -275,16 +304,18 @@ export function CategoriesSettingsPage() {
   const customCategories = categories.filter((c) => !c.system);
 
   function invalidate() {
-    queryClient.invalidateQueries({ queryKey: ["transaction-categories", orgId] });
+    queryClient.invalidateQueries({
+      queryKey: ["transaction-categories", orgId],
+    });
   }
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className='flex flex-col gap-8'>
       <div>
-        <h2 className="text-sm font-semibold">Transaction Categories</h2>
-        <p className="text-xs text-muted-foreground mt-0.5">
-          System categories are built-in and cannot be renamed or deleted. Custom categories can be
-          added, recolored, or removed.
+        <h2 className='text-sm font-semibold'>Transaction Categories</h2>
+        <p className='text-xs text-muted-foreground mt-0.5'>
+          System categories are built-in and cannot be renamed or deleted.
+          Custom categories can be added, recolored, or removed.
         </p>
       </div>
 
@@ -292,40 +323,46 @@ export function CategoriesSettingsPage() {
 
       {/* System categories */}
       {systemCategories.length > 0 && (
-        <div className="flex flex-col gap-2">
-          <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-            System ({systemCategories.length})
-          </h3>
-          <div className="rounded-lg border overflow-hidden divide-y">
-            {systemCategories.map((cat) => (
-              <CategoryRow
-                key={cat.id}
-                category={cat}
-                orgId={orgId!}
-                onDeleted={invalidate}
-                onUpdated={invalidate}
-              />
-            ))}
-          </div>
+        <div className='flex flex-col gap-2'>
+          <Accordion className='w-full border-none'>
+            <AccordionItem value='system'>
+              <AccordionTrigger className='text-xs font-medium text-muted-foreground uppercase tracking-wide'>
+                System ({systemCategories.length})
+              </AccordionTrigger>
+              <AccordionContent>
+                <div className='rounded-lg border overflow-hidden divide-y'>
+                  {systemCategories.map((cat) => (
+                    <CategoryRow
+                      key={cat.id}
+                      category={cat}
+                      orgId={orgId!}
+                      onDeleted={invalidate}
+                      onUpdated={invalidate}
+                    />
+                  ))}
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
         </div>
       )}
 
       {/* Custom categories */}
-      <div className="flex flex-col gap-2">
-        <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+      <div className='flex flex-col gap-2'>
+        <h3 className='text-xs font-medium text-muted-foreground uppercase tracking-wide'>
           Custom ({customCategories.length})
         </h3>
-        {isLoading ? (
-          <div className="rounded-lg border overflow-hidden divide-y">
+        {isLoading ?
+          <div className='rounded-lg border overflow-hidden divide-y'>
             {Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="flex items-center gap-2.5 px-3 py-2.5">
-                <div className="size-2.5 rounded-full bg-muted animate-pulse" />
-                <div className="h-3 w-32 rounded bg-muted animate-pulse" />
+              <div key={i} className='flex items-center gap-2.5 px-3 py-2.5'>
+                <div className='size-2.5 rounded-full bg-muted animate-pulse' />
+                <div className='h-3 w-32 rounded bg-muted animate-pulse' />
               </div>
             ))}
           </div>
-        ) : customCategories.length > 0 ? (
-          <div className="rounded-lg border overflow-hidden divide-y">
+        : customCategories.length > 0 ?
+          <div className='rounded-lg border overflow-hidden divide-y'>
             {customCategories.map((cat) => (
               <CategoryRow
                 key={cat.id}
@@ -336,21 +373,20 @@ export function CategoriesSettingsPage() {
               />
             ))}
           </div>
-        ) : (
-          <div className="rounded-lg border">
+        : <div className='rounded-lg border'>
             <EmptyState
               icon={Tag01Icon}
-              title="No custom categories"
-              description="Add your own to appear alongside the defaults."
+              title='No custom categories'
+              description='Add your own to appear alongside the defaults.'
             />
           </div>
-        )}
+        }
       </div>
 
       <Button
-        variant="outline"
-        size="sm"
-        className="w-fit gap-1.5"
+        variant='outline'
+        size='sm'
+        className='w-fit gap-1.5'
         onClick={() => setDialogOpen(true)}
       >
         <PlusSignIcon size={13} />
