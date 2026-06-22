@@ -53,7 +53,7 @@ import {
   type TransactionCategory,
   type AttachmentInput,
 } from "@/lib/queries/transactions";
-import { extractDocumentData } from "@/lib/queries/ai";
+import { extractDocumentData, classifyDocument } from "@/lib/queries/ai";
 import { linkDocumentsToTransaction } from "@/lib/queries/vault";
 import { supabase } from "@/lib/supabase";
 import { listCustomers } from "@/lib/queries/customers";
@@ -388,6 +388,8 @@ export function TransactionSheet({
       if (extracted.reference_number) setReferenceNumber(extracted.reference_number);
       if (extracted.currency) setCurrency(extracted.currency);
       if (extracted.tax_amount) setTaxAmount(String(extracted.tax_amount));
+      if (extracted.tax_rate) setTaxRate(String(extracted.tax_rate));
+      if (extracted.tax_type) setTaxType(extracted.tax_type as "vat" | "wht" | "other");
       if (extracted.payment_mode) setPaymentMode(extracted.payment_mode as PaymentMode);
 
       toast.success("Data extracted", { description: "Review the pre-filled fields before saving." });
@@ -464,6 +466,7 @@ export function TransactionSheet({
           );
           await addAttachments(txIdRef.current, orgId, uploads);
           triggerAttachmentProcessing(txIdRef.current, uploads);
+          uploads.forEach((u) => classifyDocument({ filePath: u.file_path }).catch(() => {}));
         }
         // 3. Link any vault docs that were the source of extraction
         if (vaultDocs.length > 0) {

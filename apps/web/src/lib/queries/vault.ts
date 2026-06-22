@@ -45,6 +45,16 @@ type RawVaultDocument = Omit<VaultDocument, "tags" | "date"> & {
 const DOCUMENT_SELECT =
   "id, org_id, created_by, name, title, file_path, file_size, content_type, source, transaction_id, folder_id, summary, date, processing_status, created_at, document_tag_assignments(tag_id, document_tags(id, name, slug))"
 
+// Strip PostgREST filter metacharacters and ILIKE wildcards before string interpolation
+function sanitizeSearch(raw: string): string {
+  return raw
+    .trim()
+    .replace(/[%_,.()*\\'"]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 100)
+}
+
 function normalizeDoc(raw: RawVaultDocument): VaultDocument {
   return {
     ...raw,
@@ -82,7 +92,8 @@ export async function listDocuments(orgId: string, filters: VaultFilters = {}): 
   if (filters.source) query = query.eq("source", filters.source)
   if (filters.folderId) query = query.eq("folder_id", filters.folderId)
   if (filters.search) {
-    query = query.textSearch("fts_vector", filters.search, { type: "websearch", config: "english" })
+    const s = sanitizeSearch(filters.search)
+    if (s) query = query.or(`fts_vector.wfts(english).${s},name.ilike.%${s}%,title.ilike.%${s}%`)
   }
   if (filters.dateFrom) query = query.gte("created_at", filters.dateFrom)
   if (filters.dateTo) query = query.lte("created_at", filters.dateTo + "T23:59:59")

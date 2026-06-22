@@ -1,5 +1,15 @@
 import { supabase } from "@/lib/supabase"
 
+// Strip PostgREST filter metacharacters and ILIKE wildcards before string interpolation
+function sanitizeSearch(raw: string): string {
+  return raw
+    .trim()
+    .replace(/[%_,.()*\\'"]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 100)
+}
+
 // ─── Types ──────────────────────────────────────────────────────────────────
 
 export type TransactionCategory = {
@@ -140,7 +150,8 @@ export async function listTransactions(
     .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1)
 
   if (filters.search) {
-    query = query.textSearch("fts_vector", filters.search, { type: "websearch", config: "english" })
+    const s = sanitizeSearch(filters.search)
+    if (s) query = query.or(`fts_vector.wfts(english).${s},name.ilike.%${s}%,counterparty_name.ilike.%${s}%`)
   }
   if (filters.dateFrom) query = query.gte("date", filters.dateFrom)
   if (filters.dateTo) query = query.lte("date", filters.dateTo)
@@ -199,7 +210,8 @@ export async function getTransactionSummary(
     .neq("status", "archived")
 
   if (filters.search) {
-    query = query.textSearch("fts_vector", filters.search, { type: "websearch", config: "english" })
+    const s = sanitizeSearch(filters.search)
+    if (s) query = query.or(`fts_vector.wfts(english).${s},name.ilike.%${s}%,counterparty_name.ilike.%${s}%`)
   }
   if (filters.dateFrom) query = query.gte("date", filters.dateFrom)
   if (filters.dateTo) query = query.lte("date", filters.dateTo)
@@ -270,6 +282,7 @@ export async function createTransaction(
       p_attachments: attachments?.length ? attachments : null,
     })
     if (result.error) throw result.error
+    triggerEnrichment(id)
     return id
   }
 
@@ -315,6 +328,7 @@ export async function createTransaction(
     if (attError) throw attError
   }
 
+  triggerEnrichment(id)
   return id
 }
 
@@ -396,6 +410,12 @@ export async function deleteAttachment(id: string, filePath: string): Promise<vo
   const { error } = await supabase.from("transaction_attachments").delete().eq("id", id)
   if (error) throw error
   await supabase.storage.from("vault").remove([filePath])
+}
+
+export function triggerEnrichment(transactionId: string): void {
+  void supabase.functions.invoke("trigger-enrich-transaction", {
+    body: { transactionId },
+  });
 }
 
 export async function triggerAttachmentProcessing(
