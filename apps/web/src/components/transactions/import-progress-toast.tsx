@@ -78,6 +78,7 @@ function ImportProgressToast({
           if (invalidateTimer.current) clearTimeout(invalidateTimer.current)
           invalidateTimer.current = setTimeout(() => {
             queryClient.invalidateQueries({ queryKey: ["transactions", orgId] })
+            queryClient.invalidateQueries({ queryKey: ["transaction-summary", orgId] })
           }, 1500)
         },
       )
@@ -94,6 +95,7 @@ function ImportProgressToast({
   useEffect(() => {
     if (!isTerminal) return
     queryClient.invalidateQueries({ queryKey: ["transactions", orgId] })
+    queryClient.invalidateQueries({ queryKey: ["transaction-summary", orgId] })
     const timer = setTimeout(() => toast.dismiss(toastId), 3500)
     return () => clearTimeout(timer)
   }, [isTerminal, orgId, queryClient, toastId])

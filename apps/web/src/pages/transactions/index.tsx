@@ -173,6 +173,10 @@ function translateFilters(state: FiltersState, search?: string): TransactionFilt
       case "recurring":
         out.recurring = Boolean(values[0]);
         break;
+
+      case "hasAttachment":
+        out.hasAttachments = Boolean(values[0]);
+        break;
     }
   }
 
@@ -324,26 +328,25 @@ export function TransactionsPage() {
   const editingTransaction =
     editingId ? (transactions.find((t) => t.id === editingId) ?? null) : null;
 
+  function invalidateTransactions() {
+    queryClient.invalidateQueries({ queryKey: ["transactions", orgId] });
+    queryClient.invalidateQueries({ queryKey: ["transaction-summary", orgId] });
+  }
+
   const deleteMutation = useMutation({
     mutationFn: (id: string) => deleteTransaction(id, orgId!),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["transactions", orgId] });
-    },
+    onSuccess: invalidateTransactions,
   });
 
   const bulkDeleteMutation = useMutation({
     mutationFn: (ids: string[]) => bulkDeleteTransactions(ids, orgId!),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["transactions", orgId] });
-    },
+    onSuccess: invalidateTransactions,
   });
 
   const bulkUpdateMutation = useMutation({
     mutationFn: ({ ids, update }: { ids: string[]; update: BulkTransactionUpdate }) =>
       bulkUpdateTransactions(ids, orgId!, update),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["transactions", orgId] });
-    },
+    onSuccess: invalidateTransactions,
   });
 
   async function handleSearchSubmit(e?: React.FormEvent) {
@@ -524,7 +527,7 @@ export function TransactionsPage() {
       setExportId(null);
     }
     if (exportRecord.status === "failed") {
-      toast.error(exportRecord.error ?? "Export failed. Please try again.", {
+      toast.error("Export failed. Please try again.", {
         id: "export",
       });
       setExportId(null);
@@ -546,9 +549,7 @@ export function TransactionsPage() {
         { id: "export" },
       );
     } catch (err) {
-      toast.error(
-        err instanceof Error ? err.message : "Failed to start export",
-      );
+      toast.error("Failed to start export. Please try again.");
     } finally {
       setIsExportLoading(false);
     }
@@ -756,9 +757,7 @@ export function TransactionsPage() {
           if (!o) setEditingId(null);
         }}
         transaction={editingTransaction}
-        onSaved={() => {
-          queryClient.invalidateQueries({ queryKey: ["transactions", orgId] });
-        }}
+        onSaved={invalidateTransactions}
       />
     </div>
   );

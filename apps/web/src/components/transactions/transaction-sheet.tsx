@@ -395,7 +395,7 @@ export function TransactionSheet({
       toast.success("Data extracted", { description: "Review the pre-filled fields before saving." });
     } catch (err) {
       toast.error("Extraction failed", {
-        description: err instanceof Error ? err.message : "Could not read data from this file.",
+        description: "Could not read data from this file.",
       });
     } finally {
       setExtracting(false);
@@ -484,7 +484,7 @@ export function TransactionSheet({
       onOpenChange(false);
     } catch (err) {
       toast.error("Failed to save transaction", {
-        description: err instanceof Error ? err.message : "Please try again.",
+        description: "Please try again.",
       });
     } finally {
       setSaving(false);

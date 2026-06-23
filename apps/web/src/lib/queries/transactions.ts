@@ -109,6 +109,7 @@ export type TransactionFilters = {
   recurring?: boolean
   amountMin?: number
   amountMax?: number
+  hasAttachments?: boolean
 }
 
 export type TransactionsPage = {
@@ -164,6 +165,7 @@ export async function listTransactions(
   if (filters.recurring !== undefined) query = query.eq("recurring", filters.recurring)
   if (filters.amountMin != null) query = query.gte("amount", filters.amountMin)
   if (filters.amountMax != null) query = query.lte("amount", filters.amountMax)
+  if (filters.hasAttachments !== undefined) query = query.eq("has_attachments", filters.hasAttachments)
 
   const { data, error, count } = await query
   if (error) throw error
@@ -225,6 +227,7 @@ export async function getTransactionSummary(
   if (filters.recurring !== undefined) query = query.eq("recurring", filters.recurring)
   if (filters.amountMin != null) query = query.gte("amount", filters.amountMin)
   if (filters.amountMax != null) query = query.lte("amount", filters.amountMax)
+  if (filters.hasAttachments !== undefined) query = query.eq("has_attachments", filters.hasAttachments)
 
   const { data, error } = await query
   if (error) throw error

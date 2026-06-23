@@ -15,7 +15,7 @@ Deno.serve(async (req) => {
     const { orgId, userId } = auth
     const { filePath, mapping, defaultCurrency, rowCount } = await req.json()
 
-    const expectedPrefix = `${orgId}/imports/`
+    const expectedPrefix = `${orgId}/capture/`
     if (
       typeof filePath !== "string" ||
       !filePath.startsWith(expectedPrefix) ||

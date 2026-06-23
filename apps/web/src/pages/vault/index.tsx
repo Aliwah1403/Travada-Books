@@ -250,6 +250,7 @@ const SOURCE_LABELS: Record<DocumentSource, string> = {
   upload: "Upload",
   transaction: "Transaction",
   inbox: "Inbox",
+  capture: "Capture",
 };
 
 const SOURCE_CLASSES: Record<DocumentSource, string> = {
@@ -257,6 +258,7 @@ const SOURCE_CLASSES: Record<DocumentSource, string> = {
   transaction:
     "bg-violet-50 text-violet-600 dark:bg-violet-950 dark:text-violet-400",
   inbox: "bg-amber-50 text-amber-600 dark:bg-amber-950 dark:text-amber-400",
+  capture: "bg-sky-50 text-sky-600 dark:bg-sky-950 dark:text-sky-400",
 };
 
 function SourceBadge({ source }: { source: DocumentSource }) {

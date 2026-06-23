@@ -18,7 +18,7 @@ Deno.serve(async (req) => {
 
     if (
       typeof filePath !== "string" ||
-      !filePath.startsWith(`${orgId}/imports/`) ||
+      !filePath.startsWith(`${orgId}/capture/`) ||
       filePath.includes("..")
     ) {
       return new Response(JSON.stringify({ error: "Invalid filePath" }), {

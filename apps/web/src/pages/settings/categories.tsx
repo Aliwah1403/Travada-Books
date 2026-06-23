@@ -143,9 +143,10 @@ function AddCategoryDialog({
         : `${toCreate.length} categories added`,
       );
     } catch (err) {
-      toast.error(
-        err instanceof Error ? err.message : "Failed to add categories",
-      );
+      const msg = err instanceof Error && err.message.includes("already exists")
+        ? "A category with that name already exists."
+        : "Failed to add categories. Please try again.";
+      toast.error(msg);
     } finally {
       setSaving(false);
     }
@@ -241,9 +242,7 @@ function CategoryRow({
       onDeleted();
       toast.success("Category deleted");
     } catch (err) {
-      toast.error(
-        err instanceof Error ? err.message : "Failed to delete category",
-      );
+      toast.error("Failed to delete category. Please try again.");
     } finally {
       setDeleting(false);
     }

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Button } from "@travada-books/ui/components/button";
 import {
   DropdownMenu,
@@ -12,19 +12,6 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@travada-books/ui/components/dropdown-menu";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@travada-books/ui/components/popover";
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@travada-books/ui/components/command";
 import {
   Dialog,
   DialogContent,
@@ -95,6 +82,14 @@ export function BulkActionBar({
 }: BulkActionBarProps) {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [categoryPickerOpen, setCategoryPickerOpen] = useState(false);
+  const [catSearch, setCatSearch] = useState("");
+
+  const filteredCategories = useMemo(
+    () => catSearch.trim()
+      ? categories.filter(c => c.name.toLowerCase().includes(catSearch.toLowerCase()))
+      : categories,
+    [categories, catSearch],
+  );
 
   if (selectedCount === 0) return null;
 
@@ -120,42 +115,49 @@ export function BulkActionBar({
 
         <div className="w-px h-4 bg-border mx-1" />
 
-        {/* Categorize — standalone popover so the input can receive keyboard events */}
-        <Popover open={categoryPickerOpen} onOpenChange={setCategoryPickerOpen}>
-          <PopoverTrigger render={
+        {/* Categorize */}
+        <DropdownMenu
+          open={categoryPickerOpen}
+          onOpenChange={(open) => {
+            if (!open) setCatSearch("");
+            setCategoryPickerOpen(open);
+          }}
+        >
+          <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="sm" className="h-7 text-xs gap-1.5">
               <Tag01Icon size={13} />
               Categorize
             </Button>
-          } />
-          <PopoverContent side="top" sideOffset={8} className="w-52 p-0 gap-0">
-            <Command>
-              <CommandInput placeholder="Search categories…" autoFocus />
-              <CommandList>
-                <CommandEmpty>No categories found.</CommandEmpty>
-                <CommandGroup>
-                  {categories.map((cat) => (
-                    <CommandItem
-                      key={cat.id}
-                      value={cat.name}
-                      onClick={() => {
-                        onSetCategory(cat.id);
-                        setCategoryPickerOpen(false);
-                      }}
-                      className="gap-2"
-                    >
-                      <div
-                        className="size-2 rounded-full shrink-0"
-                        style={{ backgroundColor: cat.color ?? "#71717a" }}
-                      />
-                      {cat.name}
-                    </CommandItem>
-                  ))}
-                </CommandGroup>
-              </CommandList>
-            </Command>
-          </PopoverContent>
-        </Popover>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent side="top" sideOffset={8} className="w-52">
+            <div className="px-1 pb-1">
+              <input
+                autoFocus
+                placeholder="Search categories…"
+                value={catSearch}
+                onChange={e => setCatSearch(e.target.value)}
+                onKeyDown={e => e.stopPropagation()}
+                className="w-full rounded-md bg-input/20 dark:bg-input/30 px-2 py-1 text-xs outline-none placeholder:text-muted-foreground"
+              />
+            </div>
+            {filteredCategories.length === 0 && (
+              <div className="py-3 text-center text-xs text-muted-foreground">No categories found.</div>
+            )}
+            {filteredCategories.map((cat) => (
+              <DropdownMenuItem
+                key={cat.id}
+                className="text-xs gap-2"
+                onClick={() => onSetCategory(cat.id)}
+              >
+                <div
+                  className="size-2 rounded-full shrink-0"
+                  style={{ backgroundColor: cat.color ?? "#71717a" }}
+                />
+                {cat.name}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
 
         {/* Actions dropdown — status, payment mode, recurring */}
         <DropdownMenu>

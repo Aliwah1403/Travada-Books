@@ -26,7 +26,7 @@ export type VaultDocument = {
   file_path: string
   file_size: number | null
   content_type: string | null
-  source: "upload" | "transaction" | "inbox"
+  source: "upload" | "transaction" | "inbox" | "capture"
   transaction_id: string | null
   folder_id: string | null
   tags: DocumentTag[] | null
@@ -63,7 +63,7 @@ function normalizeDoc(raw: RawVaultDocument): VaultDocument {
 }
 
 export type VaultFilters = {
-  source?: "upload" | "transaction" | "inbox"
+  source?: "upload" | "transaction" | "inbox" | "capture"
   search?: string
   folderId?: string
   dateFrom?: string
@@ -293,7 +293,7 @@ export async function uploadDocument(
 
 export async function uploadFileForImport(orgId: string, file: File): Promise<string> {
   const safe = file.name.replace(/[^a-zA-Z0-9._-]/g, "_")
-  const path = `${orgId}/imports/${Date.now()}_${safe}`
+  const path = `${orgId}/capture/${Date.now()}_${safe}`
   const { error } = await supabase.storage.from("vault").upload(path, file, { upsert: false })
   if (error) throw error
   return path

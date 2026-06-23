@@ -3,6 +3,7 @@ import {
   Calendar01Icon,
   Wallet01Icon,
   RepeatIcon,
+  Attachment01Icon,
   FilterIcon,
 } from "@travada-books/ui/icons"
 import type { TransactionCategory } from "@/lib/queries/transactions"
@@ -16,6 +17,7 @@ type TxRow = {
   categoryId: string | null
   paymentMode: string | null
   recurring: boolean
+  hasAttachments: boolean
 }
 
 const dtf = createColumnConfigHelper<TxRow>()
@@ -99,6 +101,14 @@ export function createTransactionColumnsConfig(categories: TransactionCategory[]
       .displayName("Recurring")
       .icon(RepeatIcon)
       .toggledStateName("Recurring")
+      .build(),
+
+    dtf.boolean()
+      .id("hasAttachment")
+      .accessor((row) => row.hasAttachments)
+      .displayName("Has Attachment")
+      .icon(Attachment01Icon)
+      .toggledStateName("Has Attachment")
       .build(),
 
   ] as const

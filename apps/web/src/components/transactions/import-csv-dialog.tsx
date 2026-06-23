@@ -444,16 +444,16 @@ export function ImportCsvDialog({ open, onOpenChange }: ImportCsvDialogProps) {
           `Importing ${previewRows.length} transactions in the background.`,
           { duration: 6000 },
         );
-        setTimeout(
-          () =>
-            queryClient.invalidateQueries({
-              queryKey: ["transactions", orgId],
-            }),
-          8000,
-        );
+        setTimeout(() => {
+          queryClient.invalidateQueries({ queryKey: ["transactions", orgId] });
+          queryClient.invalidateQueries({ queryKey: ["transaction-summary", orgId] });
+        }, 8000);
       }
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Import failed");
+      const msg = err instanceof Error && !err.message.includes("non-2xx")
+        ? err.message
+        : "Import failed. Please try again.";
+      toast.error(msg);
     } finally {
       setConfirming(false);
     }
@@ -500,16 +500,16 @@ export function ImportCsvDialog({ open, onOpenChange }: ImportCsvDialogProps) {
         toast.success("Importing transactions in the background.", {
           duration: 6000,
         });
-        setTimeout(
-          () =>
-            queryClient.invalidateQueries({
-              queryKey: ["transactions", orgId],
-            }),
-          30_000,
-        );
+        setTimeout(() => {
+          queryClient.invalidateQueries({ queryKey: ["transactions", orgId] });
+          queryClient.invalidateQueries({ queryKey: ["transaction-summary", orgId] });
+        }, 30_000);
       }
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Import failed");
+      const msg = err instanceof Error && !err.message.includes("non-2xx")
+        ? err.message
+        : "Import failed. Please try again.";
+      toast.error(msg);
     } finally {
       setPdfConfirming(false);
     }

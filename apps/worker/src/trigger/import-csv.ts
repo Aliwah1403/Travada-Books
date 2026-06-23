@@ -1,4 +1,4 @@
-import { task, logger, metadata } from "@trigger.dev/sdk";
+import { task, logger, metadata, tasks } from "@trigger.dev/sdk";
 import Papa from "papaparse";
 import { z } from "zod";
 import { createHash } from "crypto";
@@ -215,7 +215,7 @@ export const importCsvTask = task({
     metadata.set("total", rowCount);
     metadata.set("imported", 0);
 
-    if (!filePath.startsWith(`${orgId}/imports/`) || filePath.includes("..")) {
+    if (!filePath.startsWith(`${orgId}/capture/`) || filePath.includes("..")) {
       throw new Error(`Invalid filePath for org ${orgId}`);
     }
 
@@ -247,30 +247,59 @@ export const importCsvTask = task({
     const skipped = rawRows.length - rows.length;
     if (skipped > 0) logger.warn("Skipped rows with missing date/amount", { skipped });
 
-    // 4. Upsert in batches — internal_id deduplicates re-imports
+    // 4. Fetch org base currency and exchange rates for all unique currencies
+    const { data: orgData } = await supabase
+      .from("organizations")
+      .select("base_currency")
+      .eq("id", orgId)
+      .single();
+    const baseCurrency = orgData?.base_currency ?? defaultCurrency;
+
+    const uniqueCurrencies = [...new Set(rows.map((r) => r.currency))];
+    const rateMap = new Map<string, number>();
+    for (const currency of uniqueCurrencies) {
+      if (currency === baseCurrency) {
+        rateMap.set(currency, 1);
+      } else {
+        const { data: rateRow } = await supabase
+          .from("exchange_rates")
+          .select("rate")
+          .eq("base", currency)
+          .eq("target", baseCurrency)
+          .single();
+        rateMap.set(currency, rateRow ? Number(rateRow.rate) : 1);
+      }
+    }
+
+    // 5. Upsert in batches — internal_id deduplicates re-imports
     metadata.set("status", "importing");
     const INSERT_BATCH = 500;
     let inserted = 0;
 
     for (let i = 0; i < rows.length; i += INSERT_BATCH) {
-      const batch = rows.slice(i, i + INSERT_BATCH).map((row) => ({
-        id: row.id,
-        internal_id: row.internal_id,
-        org_id: orgId,
-        created_by: userId,
-        date: row.date,
-        name: row.name,
-        counterparty_name: row.counterparty_name ?? null,
-        amount: row.amount,
-        currency: row.currency,
-        type: row.type,
-        status: "completed",
-        reference_number: row.reference_number ?? null,
-        note: row.note ?? null,
-        recurring: false,
-        internal: false,
-        manual: true,
-      }));
+      const batch = rows.slice(i, i + INSERT_BATCH).map((row) => {
+        const rate = rateMap.get(row.currency) ?? 1;
+        return {
+          id: row.id,
+          internal_id: row.internal_id,
+          org_id: orgId,
+          created_by: userId,
+          date: row.date,
+          name: row.name,
+          counterparty_name: row.counterparty_name ?? null,
+          amount: row.amount,
+          currency: row.currency,
+          base_amount: Math.round(row.amount * rate * 10000) / 10000,
+          base_currency: baseCurrency,
+          type: row.type,
+          status: "completed",
+          reference_number: row.reference_number ?? null,
+          note: row.note ?? null,
+          recurring: false,
+          internal: false,
+          manual: true,
+        };
+      });
 
       // ignoreDuplicates: true — skip existing rows, don't overwrite categories
       const { error } = await supabase.from("transactions").upsert(batch, {
@@ -284,7 +313,7 @@ export const importCsvTask = task({
       logger.log("Batch upserted", { inserted, total: rows.length });
     }
 
-    // 5. Enrich — merchant name extraction + categorization (Gemini 2.5 Flash Lite, batch 50)
+    // 6. Enrich — merchant name extraction + categorization (Gemini 2.5 Flash Lite, batch 50)
     metadata.set("status", "categorizing");
     logger.log("Enriching transactions", { count: rows.length });
     await enrichTransactionsTask.triggerAndWait({
@@ -292,8 +321,21 @@ export const importCsvTask = task({
       orgId,
     });
 
-    // 6. Clean up the import file from vault
-    await supabase.storage.from("vault").remove([filePath]);
+    // 7. Classify the import file as a Capture document
+    const { data: captureDoc } = await supabase
+      .from("documents")
+      .select("id, content_type")
+      .eq("file_path", filePath)
+      .single();
+
+    if (captureDoc) {
+      await tasks.trigger("classify-document", {
+        documentId: captureDoc.id,
+        filePath,
+        contentType: captureDoc.content_type ?? "text/csv",
+        orgId,
+      });
+    }
 
     metadata.set("status", "done");
     logger.log("Import complete", { imported: inserted, skipped, orgId });
