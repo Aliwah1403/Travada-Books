@@ -1,17 +1,32 @@
-import { useState, useMemo, useRef, useEffect } from "react";
+import { useMemo, useRef, useEffect, useState } from "react";
+import { useSearchParams } from "react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useDataTableFilters } from "@bazza-ui/filters";
+import type { FiltersState } from "@bazza-ui/filters";
+import type { VisibilityState } from "@tanstack/react-table";
 import { toast } from "sonner";
-import { format } from "date-fns";
 import { Button } from "@travada-books/ui/components/button";
 import { Input } from "@travada-books/ui/components/input";
-import { Search01Icon, Cancel01Icon } from "@travada-books/ui/icons";
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from "@travada-books/ui/components/dropdown-menu";
+import { Search01Icon, Cancel01Icon, ColumnsThreeCogIcon, FilterIcon } from "@travada-books/ui/icons";
+import { cn } from "@travada-books/ui/lib/utils";
 import { Spinner } from "@/components/shared/spinner";
+import { Filter } from "@/components/ui/filter";
 import { TransactionStats } from "@/components/transactions/transaction-stats";
 import { TransactionTable } from "@/components/transactions/transaction-table";
 import { TransactionSheet } from "@/components/transactions/transaction-sheet";
 import { ImportCsvDialog } from "@/components/transactions/import-csv-dialog";
 import { ExportTransactionsDialog } from "@/components/transactions/export-transactions-dialog";
-import { type Transaction as UITransaction } from "@/components/transactions/transaction-columns";
+import { createTransactionColumnsConfig } from "@/components/transactions/transaction-filter-columns";
+import {
+  DEFAULT_HIDDEN_COLUMNS,
+  type Transaction as UITransaction,
+} from "@/components/transactions/transaction-columns";
 import {
   listTransactions,
   listTransactionCategories,
@@ -32,14 +47,139 @@ import { useFormatDate } from "@/hooks/use-format-date";
 
 const PAGE_SIZE = 50;
 
-const PAYMENT_MODE_LABELS: Record<string, string> = {
-  mpesa: "M-Pesa",
-  bank_transfer: "Bank Transfer",
-  cash: "Cash",
-  cheque: "Cheque",
-  card: "Card",
-  other: "Other",
-};
+const HIDEABLE_COLUMNS: { id: string; label: string }[] = [
+  { id: "date", label: "Date" },
+  { id: "name", label: "Description" },
+  { id: "counterpartyName", label: "To / From" },
+  { id: "categoryName", label: "Category" },
+  { id: "paymentMode", label: "Payment" },
+  { id: "amount", label: "Amount" },
+  { id: "taxAmount", label: "Tax" },
+  { id: "recurring", label: "Recurring" },
+  { id: "linkedInvoice", label: "Invoice" },
+];
+
+// ── URL filter state serialization ───────────────────────────────────────────
+
+function serializeFilters(state: FiltersState): string {
+  return JSON.stringify(
+    state.map((f) => ({
+      ...f,
+      values: f.values.map((v) => (v instanceof Date ? v.toISOString() : v)),
+    })),
+  );
+}
+
+function deserializeFilters(param: string | null): FiltersState {
+  if (!param) return [];
+  try {
+    const parsed = JSON.parse(param) as Array<{
+      columnId: string;
+      type: string;
+      operator: string;
+      values: unknown[];
+    }>;
+    return parsed.map((f) => ({
+      ...f,
+      values:
+        f.type === "date" || f.columnId === "date"
+          ? f.values.map((v) => (typeof v === "string" ? new Date(v) : v))
+          : f.values,
+    })) as FiltersState;
+  } catch {
+    return [];
+  }
+}
+
+// ── FiltersState → TransactionFilters translation ────────────────────────────
+
+function toISODate(v: unknown): string {
+  if (v instanceof Date) return v.toISOString().split("T")[0];
+  if (typeof v === "string") return v.split("T")[0];
+  return "";
+}
+
+function translateFilters(state: FiltersState, search?: string): TransactionFilters {
+  const out: TransactionFilters = {};
+
+  if (search) out.search = search;
+
+  for (const { columnId, operator, values } of state) {
+    switch (columnId) {
+      case "date": {
+        const v0 = values[0];
+        const v1 = values[1];
+        if (operator === "is between" && v0 && v1) {
+          out.dateFrom = toISODate(v0);
+          out.dateTo = toISODate(v1);
+        } else if (operator === "is" && v0) {
+          out.dateFrom = toISODate(v0);
+          out.dateTo = toISODate(v0);
+        } else if (
+          (operator === "is after" || operator === "is on or after") &&
+          v0
+        ) {
+          out.dateFrom = toISODate(v0);
+        } else if (
+          (operator === "is before" || operator === "is on or before") &&
+          v0
+        ) {
+          out.dateTo = toISODate(v0);
+        }
+        break;
+      }
+
+      case "amount": {
+        const v0 = Number(values[0]);
+        const v1 = Number(values[1]);
+        if (operator === "is between" && !isNaN(v0) && !isNaN(v1)) {
+          out.amountMin = v0;
+          out.amountMax = v1;
+        } else if (operator === "is" && !isNaN(v0)) {
+          out.amountMin = v0;
+          out.amountMax = v0;
+        } else if (
+          (operator === "is greater than" ||
+            operator === "is greater than or equal to") &&
+          !isNaN(v0)
+        ) {
+          out.amountMin = v0;
+        } else if (
+          (operator === "is less than" ||
+            operator === "is less than or equal to") &&
+          !isNaN(v0)
+        ) {
+          out.amountMax = v0;
+        }
+        break;
+      }
+
+      case "type":
+        if (values[0]) out.type = values[0] as "income" | "expense";
+        break;
+
+      case "status":
+        if (values.length) out.statuses = values as string[];
+        break;
+
+      case "category":
+        if (values.length) out.categoryIds = values as string[];
+        break;
+
+      case "paymentMode":
+        if (values.length) out.paymentModes = values as string[];
+        break;
+
+      case "recurring":
+        out.recurring = Boolean(values[0]);
+        break;
+    }
+  }
+
+  return out;
+}
+
+// ── Row mapper ───────────────────────────────────────────────────────────────
 
 function mapDbTx(
   row: DbTransaction,
@@ -78,62 +218,36 @@ function mapDbTx(
 
 function SkeletonRows() {
   return (
-    <div className='rounded-lg border overflow-hidden'>
+    <div className="rounded-lg border overflow-hidden">
       {Array.from({ length: 8 }).map((_, i) => (
         <div
           key={i}
-          className='flex items-center gap-4 px-4 py-3 border-b last:border-0'
+          className="flex items-center gap-4 px-4 py-3 border-b last:border-0"
         >
-          <div className='h-3 w-20 rounded bg-muted animate-pulse' />
-          <div className='h-3 flex-1 rounded bg-muted animate-pulse' />
-          <div className='h-3 w-24 rounded bg-muted animate-pulse' />
-          <div className='h-3 w-16 rounded bg-muted animate-pulse' />
-          <div className='h-3 w-20 rounded bg-muted animate-pulse' />
+          <div className="h-3 w-20 rounded bg-muted animate-pulse" />
+          <div className="h-3 flex-1 rounded bg-muted animate-pulse" />
+          <div className="h-3 w-24 rounded bg-muted animate-pulse" />
+          <div className="h-3 w-16 rounded bg-muted animate-pulse" />
+          <div className="h-3 w-20 rounded bg-muted animate-pulse" />
         </div>
       ))}
     </div>
   );
 }
 
-type ActiveFilter = {
-  key: string;
-  label: string;
-};
-
-function FilterChip({
-  label,
-  onRemove,
-}: {
-  label: string;
-  onRemove: () => void;
-}) {
-  return (
-    <span className='inline-flex items-center gap-1  border bg-muted px-2.5 py-0.5 text-xs text-muted-foreground'>
-      {label}
-      <button
-        type='button'
-        onClick={onRemove}
-        className='fine-hover:text-foreground transition-colors'
-      >
-        <Cancel01Icon size={11} />
-      </button>
-    </span>
-  );
-}
+// ── Page ─────────────────────────────────────────────────────────────────────
 
 export function TransactionsPage() {
   const { orgId, org, profile } = useAuth();
   const { formatDate } = useFormatDate();
   const queryClient = useQueryClient();
-  const inputRef = useRef<HTMLInputElement>(null);
 
+  const [searchParams, setSearchParams] = useSearchParams();
+  const inputRef = useRef<HTMLInputElement>(null);
   const [input, setInput] = useState("");
-  const [filters, setFilters] = useState<TransactionFilters>({});
-  // Display name for category chip (AI returns name, not ID)
-  const [activeCategoryName, setActiveCategoryName] = useState<string | null>(
-    null,
-  );
+  const [search, setSearch] = useState("");
   const [isAIParsing, setIsAIParsing] = useState(false);
+  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>(DEFAULT_HIDDEN_COLUMNS);
   const [page, setPage] = useState(0);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -143,22 +257,59 @@ export function TransactionsPage() {
   const [exportId, setExportId] = useState<string | null>(null);
   const [isExportLoading, setIsExportLoading] = useState(false);
 
+  // ── Filter state (URL-backed) ──────────────────────────────────────────────
+  const filtersState = deserializeFilters(searchParams.get("filters"));
+
+  function setFiltersState(next: FiltersState) {
+    setSearchParams(
+      (prev) => {
+        const params = new URLSearchParams(prev);
+        if (next.length === 0) {
+          params.delete("filters");
+        } else {
+          params.set("filters", serializeFilters(next));
+        }
+        return params;
+      },
+      { replace: true },
+    );
+    setPage(0);
+  }
+
   const { data: categories } = useQuery({
     queryKey: ["transaction-categories", orgId],
     queryFn: () => listTransactionCategories(orgId!),
     enabled: !!orgId,
   });
 
+  const columnsConfig = useMemo(
+    () => createTransactionColumnsConfig(categories ?? []),
+    [categories],
+  );
+
+  const { columns, filters, actions, strategy } = useDataTableFilters({
+    strategy: "server",
+    columnsConfig,
+    filters: filtersState,
+    onFiltersChange: setFiltersState,
+    entityName: "Transaction",
+  });
+
+  const supabaseFilters = useMemo(
+    () => translateFilters(filtersState, search || undefined),
+    [filtersState, search],
+  );
+
   const { data, isLoading } = useQuery({
-    queryKey: ["transactions", orgId, filters, page],
-    queryFn: () => listTransactions(orgId!, filters, page),
+    queryKey: ["transactions", orgId, supabaseFilters, page],
+    queryFn: () => listTransactions(orgId!, supabaseFilters, page),
     enabled: !!orgId,
     placeholderData: (prev) => prev,
   });
 
   const { data: summary, isLoading: summaryLoading } = useQuery({
-    queryKey: ["transaction-summary", orgId, filters],
-    queryFn: () => getTransactionSummary(orgId!, org!.base_currency, filters),
+    queryKey: ["transaction-summary", orgId, supabaseFilters],
+    queryFn: () => getTransactionSummary(orgId!, org!.base_currency, supabaseFilters),
     enabled: !!orgId && !!org?.base_currency,
     placeholderData: (prev) => prev,
   });
@@ -169,6 +320,9 @@ export function TransactionsPage() {
   );
   const totalCount = data?.count ?? 0;
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+
+  const editingTransaction =
+    editingId ? (transactions.find((t) => t.id === editingId) ?? null) : null;
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => deleteTransaction(id, orgId!),
@@ -185,39 +339,27 @@ export function TransactionsPage() {
   });
 
   const bulkUpdateMutation = useMutation({
-    mutationFn: ({
-      ids,
-      update,
-    }: {
-      ids: string[];
-      update: BulkTransactionUpdate;
-    }) => bulkUpdateTransactions(ids, orgId!, update),
+    mutationFn: ({ ids, update }: { ids: string[]; update: BulkTransactionUpdate }) =>
+      bulkUpdateTransactions(ids, orgId!, update),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["transactions", orgId] });
     },
   });
 
-  const editingTransaction =
-    editingId ? (transactions.find((t) => t.id === editingId) ?? null) : null;
-
-  async function handleSubmit(e?: React.FormEvent) {
+  async function handleSearchSubmit(e?: React.FormEvent) {
     e?.preventDefault();
     const trimmed = input.trim();
     if (!trimmed) {
-      clearAll();
-      return;
-    }
-
-    const words = trimmed.split(/\s+/);
-    if (words.length === 1) {
-      // Single word — straight FTS
-      setFilters({ search: trimmed });
-      setActiveCategoryName(null);
+      setSearch("");
       setPage(0);
       return;
     }
-
-    // Multi-word — parse with AI
+    const words = trimmed.split(/\s+/);
+    if (words.length === 1) {
+      setSearch(trimmed);
+      setPage(0);
+      return;
+    }
     setIsAIParsing(true);
     try {
       const categoryNames = categories?.map((c) => c.name) ?? [];
@@ -227,29 +369,58 @@ export function TransactionsPage() {
         currentDate: new Date().toISOString().split("T")[0],
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
       });
+      setSearch(parsed.name ?? "");
 
-      const categoryId =
-        parsed.categoryName ?
-          (categories?.find((c) => c.name === parsed.categoryName)?.id ??
-          undefined)
+      // Build FiltersState directly with correct operators — bypassing
+      // actions.setFilterValue which doesn't let us specify the operator.
+      const categoryId = parsed.categoryName
+        ? (categories?.find((c) => c.name === parsed.categoryName)?.id ?? undefined)
         : undefined;
 
-      setFilters({
-        search: parsed.name ?? undefined,
-        dateFrom: parsed.dateFrom ?? undefined,
-        dateTo: parsed.dateTo ?? undefined,
-        type: parsed.type ?? undefined,
-        status: parsed.status ?? undefined,
-        categoryIds: categoryId ? [categoryId] : undefined,
-        paymentMode: parsed.paymentMode ?? undefined,
-        recurring: parsed.recurring ?? undefined,
-      });
-      setActiveCategoryName(parsed.categoryName ?? null);
+      const newFilters: FiltersState = [];
+
+      if (parsed.dateFrom && parsed.dateTo) {
+        newFilters.push({
+          columnId: "date",
+          type: "date",
+          operator: "is between",
+          values: [new Date(parsed.dateFrom), new Date(parsed.dateTo)],
+        });
+      } else if (parsed.dateFrom) {
+        newFilters.push({
+          columnId: "date",
+          type: "date",
+          operator: "is on or after",
+          values: [new Date(parsed.dateFrom)],
+        });
+      } else if (parsed.dateTo) {
+        newFilters.push({
+          columnId: "date",
+          type: "date",
+          operator: "is on or before",
+          values: [new Date(parsed.dateTo)],
+        });
+      }
+      if (parsed.type) {
+        newFilters.push({ columnId: "type", type: "option", operator: "is", values: [parsed.type] });
+      }
+      if (parsed.status) {
+        newFilters.push({ columnId: "status", type: "option", operator: "is", values: [parsed.status] });
+      }
+      if (categoryId) {
+        newFilters.push({ columnId: "category", type: "option", operator: "is", values: [categoryId] });
+      }
+      if (parsed.paymentMode) {
+        newFilters.push({ columnId: "paymentMode", type: "option", operator: "is", values: [parsed.paymentMode] });
+      }
+      if (parsed.recurring != null) {
+        newFilters.push({ columnId: "recurring", type: "boolean", operator: "is", values: [parsed.recurring] });
+      }
+
+      setFiltersState(newFilters);
       setPage(0);
     } catch {
-      // Fall back to plain FTS if AI fails
-      setFilters({ search: trimmed });
-      setActiveCategoryName(null);
+      setSearch(trimmed);
       setPage(0);
     } finally {
       setIsAIParsing(false);
@@ -258,72 +429,19 @@ export function TransactionsPage() {
 
   function handleInputChange(val: string) {
     setInput(val);
-    if (!val) clearAll();
+    if (!val) {
+      setSearch("");
+      setPage(0);
+    }
   }
 
-  function clearAll() {
+  function clearSearch() {
     setInput("");
-    setFilters({});
-    setActiveCategoryName(null);
+    setSearch("");
+    setFiltersState([]);
     setPage(0);
     inputRef.current?.focus();
   }
-
-  function removeFilter(key: keyof TransactionFilters) {
-    setFilters((prev) => {
-      const next = { ...prev };
-      delete next[key];
-      return next;
-    });
-    if (key === "categoryIds") setActiveCategoryName(null);
-    setPage(0);
-  }
-
-  // Build display chips for all active non-search filters
-  const activeChips = useMemo<ActiveFilter[]>(() => {
-    const chips: ActiveFilter[] = [];
-    if (filters.dateFrom || filters.dateTo) {
-      const from =
-        filters.dateFrom ? format(new Date(filters.dateFrom), "MMM d") : null;
-      const to =
-        filters.dateTo ? format(new Date(filters.dateTo), "MMM d") : null;
-      const label =
-        from && to ? `${from} – ${to}`
-        : from ? `From ${from}`
-        : `Until ${to}`;
-      chips.push({ key: "date", label: label! });
-    }
-    if (filters.type) {
-      chips.push({
-        key: "type",
-        label: filters.type === "income" ? "Income" : "Expense",
-      });
-    }
-    if (filters.status) {
-      chips.push({
-        key: "status",
-        label: filters.status.charAt(0).toUpperCase() + filters.status.slice(1),
-      });
-    }
-    if (filters.categoryIds?.length && activeCategoryName) {
-      chips.push({ key: "categoryIds", label: activeCategoryName });
-    }
-    if (filters.paymentMode) {
-      chips.push({
-        key: "paymentMode",
-        label: PAYMENT_MODE_LABELS[filters.paymentMode] ?? filters.paymentMode,
-      });
-    }
-    if (filters.recurring != null) {
-      chips.push({
-        key: "recurring",
-        label: filters.recurring ? "Recurring" : "Non-recurring",
-      });
-    }
-    return chips;
-  }, [filters, activeCategoryName]);
-
-  const hasActiveFilters = !!filters.search || activeChips.length > 0;
 
   function handleEdit(id: string) {
     setEditingId(id);
@@ -336,77 +454,6 @@ export function TransactionsPage() {
       success: "Transaction deleted",
       error: "Failed to delete transaction",
     });
-  }
-
-  // ── Export polling ────────────────────────────────────────────────────────
-  const { data: exportRecord } = useQuery({
-    queryKey: ["transaction-export", exportId],
-    queryFn: () => getTransactionExport(exportId!),
-    enabled: !!exportId,
-    refetchInterval: (query) =>
-      query.state.data?.status === "processing" ? 1500 : false,
-  });
-
-  useEffect(() => {
-    if (!exportRecord) return;
-    if (exportRecord.status === "completed" && exportRecord.file_path) {
-      getDocumentSignedUrl(exportRecord.file_path).then((url) => {
-        const filename = exportRecord.file_path!.split("/").pop() ?? "transactions-export";
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = filename;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-      });
-      toast.success(
-        `Exported ${exportRecord.row_count ?? exportingIds.length} transaction${(exportRecord.row_count ?? 1) !== 1 ? "s" : ""}`,
-        {
-          id: "export",
-          action: {
-            label: "Download again",
-            onClick: () => {
-              if (exportRecord.file_path) {
-                getDocumentSignedUrl(exportRecord.file_path).then((url) => {
-                  const a = document.createElement("a");
-                  a.href = url;
-                  a.download = exportRecord.file_path!.split("/").pop() ?? "export";
-                  document.body.appendChild(a);
-                  a.click();
-                  document.body.removeChild(a);
-                });
-              }
-            },
-          },
-        },
-      );
-      setExportId(null);
-    }
-    if (exportRecord.status === "failed") {
-      toast.error(exportRecord.error ?? "Export failed. Please try again.", { id: "export" });
-      setExportId(null);
-    }
-  }, [exportRecord?.status]);
-
-  async function handleExport(format: "csv" | "xlsx", emailTo?: string) {
-    setIsExportLoading(true);
-    try {
-      const { exportId: id } = await triggerTransactionExport({
-        transactionIds: exportingIds,
-        format,
-        emailTo,
-      });
-      setExportId(id);
-      setExportDialogOpen(false);
-      toast.loading(
-        `Generating export for ${exportingIds.length} transaction${exportingIds.length !== 1 ? "s" : ""}…`,
-        { id: "export" },
-      );
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to start export");
-    } finally {
-      setIsExportLoading(false);
-    }
   }
 
   function handleBulkDelete(ids: string[]) {
@@ -430,8 +477,85 @@ export function TransactionsPage() {
     setSheetOpen(true);
   }
 
+  // ── Export polling ─────────────────────────────────────────────────────────
+  const { data: exportRecord } = useQuery({
+    queryKey: ["transaction-export", exportId],
+    queryFn: () => getTransactionExport(exportId!),
+    enabled: !!exportId,
+    refetchInterval: (query) =>
+      query.state.data?.status === "processing" ? 1500 : false,
+  });
+
+  useEffect(() => {
+    if (!exportRecord) return;
+    if (exportRecord.status === "completed" && exportRecord.file_path) {
+      getDocumentSignedUrl(exportRecord.file_path).then((url) => {
+        const filename =
+          exportRecord.file_path!.split("/").pop() ?? "transactions-export";
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      });
+      toast.success(
+        `Exported ${exportRecord.row_count ?? exportingIds.length} transaction${(exportRecord.row_count ?? 1) !== 1 ? "s" : ""}`,
+        {
+          id: "export",
+          action: {
+            label: "Download again",
+            onClick: () => {
+              if (exportRecord.file_path) {
+                getDocumentSignedUrl(exportRecord.file_path).then((url) => {
+                  const a = document.createElement("a");
+                  a.href = url;
+                  a.download =
+                    exportRecord.file_path!.split("/").pop() ?? "export";
+                  document.body.appendChild(a);
+                  a.click();
+                  document.body.removeChild(a);
+                });
+              }
+            },
+          },
+        },
+      );
+      setExportId(null);
+    }
+    if (exportRecord.status === "failed") {
+      toast.error(exportRecord.error ?? "Export failed. Please try again.", {
+        id: "export",
+      });
+      setExportId(null);
+    }
+  }, [exportRecord?.status]);
+
+  async function handleExport(format: "csv" | "xlsx", emailTo?: string) {
+    setIsExportLoading(true);
+    try {
+      const { exportId: id } = await triggerTransactionExport({
+        transactionIds: exportingIds,
+        format,
+        emailTo,
+      });
+      setExportId(id);
+      setExportDialogOpen(false);
+      toast.loading(
+        `Generating export for ${exportingIds.length} transaction${exportingIds.length !== 1 ? "s" : ""}…`,
+        { id: "export" },
+      );
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : "Failed to start export",
+      );
+    } finally {
+      setIsExportLoading(false);
+    }
+  }
+
   return (
-    <div className='flex flex-col gap-6 p-6'>
+    <div className="flex flex-col gap-6 p-6">
       <TransactionStats
         income={summary?.income ?? 0}
         expenses={summary?.expenses ?? 0}
@@ -439,76 +563,142 @@ export function TransactionsPage() {
         count={summary?.count}
         isLoading={summaryLoading}
       />
-      {/* Toolbar */}
-      <div className='flex items-center justify-between gap-2'>
-        <div className='flex flex-col gap-2'>
-          <form onSubmit={handleSubmit} className='relative'>
-            {isAIParsing ?
-              <span className='absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground'>
-                <Spinner size={14} />
-              </span>
-            : <Search01Icon
-                size={14}
-                className='absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground'
-              />
-            }
-            <Input
-              ref={inputRef}
-              placeholder='Search or filter transactions…'
-              className='h-10 w-80 pl-8 pr-8 text-xs'
-              value={input}
-              onChange={(e) => handleInputChange(e.target.value)}
-              autoComplete='off'
-              autoCapitalize='none'
-              autoCorrect='off'
-              spellCheck={false}
-              disabled={isAIParsing}
-            />
-            {hasActiveFilters && (
-              <button
-                type='button'
-                onClick={clearAll}
-                className='absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground fine-hover:text-foreground transition-colors'
-              >
-                <Cancel01Icon size={13} />
-              </button>
-            )}
-          </form>
 
-          {activeChips.length > 0 && (
-            <div className='flex flex-wrap gap-1.5'>
-              {activeChips.map((chip) => (
-                <FilterChip
-                  key={chip.key}
-                  label={chip.label}
-                  onRemove={() =>
-                    removeFilter(chip.key as keyof TransactionFilters)
-                  }
+      {/* Toolbar */}
+      <Filter.Provider
+        columns={columns}
+        filters={filters}
+        actions={actions}
+        strategy={strategy}
+        entityName="Transaction"
+      >
+        <div className="flex flex-col gap-2">
+          {/* Row 1: controls + actions — always stable, never wraps */}
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              {/* Search */}
+              <form onSubmit={handleSearchSubmit} className="relative">
+                {isAIParsing ?
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                    <Spinner size={14} />
+                  </span>
+                : <Search01Icon
+                    size={14}
+                    className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                  />
+                }
+                <Input
+                  ref={inputRef}
+                  placeholder="Search or filter transactions…"
+                  className={cn(
+                    "h-10 w-80 pl-8 text-xs",
+                    (input || search) ? "pr-14" : "pr-9",
+                  )}
+                  value={input}
+                  onChange={(e) => handleInputChange(e.target.value)}
+                  autoComplete="off"
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  spellCheck={false}
+                  disabled={isAIParsing}
                 />
-              ))}
+                {(input || search) && (
+                  <button
+                    type="button"
+                    onClick={clearSearch}
+                    className="absolute right-9 top-1/2 -translate-y-1/2 text-muted-foreground fine-hover:text-foreground transition-colors"
+                  >
+                    <Cancel01Icon size={13} />
+                  </button>
+                )}
+                {/* Filter trigger embedded inside the input */}
+                <Filter.Menu>
+                  <button
+                    type="button"
+                    className={cn(
+                      "absolute right-2.5 top-1/2 -translate-y-1/2 transition-colors",
+                      filtersState.length > 0
+                        ? "text-primary"
+                        : "text-muted-foreground fine-hover:text-foreground",
+                    )}
+                  >
+                    <FilterIcon size={13} />
+                    {filtersState.length > 0 && (
+                      <span className="absolute -top-0.5 -right-0.5 size-1.5 rounded-full bg-primary" />
+                    )}
+                  </button>
+                </Filter.Menu>
+              </form>
+
+              {/* Columns toggle */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" className="h-10 gap-1.5 text-xs">
+                    <ColumnsThreeCogIcon size={14} />
+                    Columns
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-44">
+                  {HIDEABLE_COLUMNS.map((col) => (
+                    <DropdownMenuCheckboxItem
+                      key={col.id}
+                      checked={columnVisibility[col.id] !== false}
+                      onCheckedChange={(checked) =>
+                        setColumnVisibility((prev) => ({ ...prev, [col.id]: checked }))
+                      }
+                      className="text-xs"
+                    >
+                      {col.label}
+                    </DropdownMenuCheckboxItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                className="h-10"
+                onClick={() => setImportOpen(true)}
+              >
+                Import
+              </Button>
+              <Button className="h-10" onClick={handleNewTransaction}>
+                + New Transaction
+              </Button>
+            </div>
+          </div>
+
+          {/* Row 2: active filter chips — only shown when filters are active */}
+          {filtersState.length > 0 && (
+            <div className="flex flex-wrap items-center gap-2">
+              <Filter.List>
+                {({ filter, column }) => (
+                  <Filter.Item filter={filter} column={column}>
+                    <Filter.Subject />
+                    <Filter.Operator />
+                    <Filter.Value />
+                    <Filter.Remove />
+                  </Filter.Item>
+                )}
+              </Filter.List>
+              <div
+                className="contents"
+                onClick={() => { setInput(""); setSearch(""); setPage(0); }}
+              >
+                <Filter.Actions />
+              </div>
             </div>
           )}
         </div>
-
-        <div className='flex items-center gap-2'>
-          <Button
-            variant='outline'
-            className='h-10'
-            onClick={() => setImportOpen(true)}
-          >
-            Import
-          </Button>
-          <Button className='h-10' onClick={handleNewTransaction}>
-            + New Transaction
-          </Button>
-        </div>
-      </div>
+      </Filter.Provider>
 
       {isLoading ?
         <SkeletonRows />
       : <TransactionTable
           data={transactions}
-          globalFilter={filters.search ?? ""}
+          columnVisibility={columnVisibility}
+          onColumnVisibilityChange={setColumnVisibility}
           onEdit={handleEdit}
           onDelete={handleDelete}
           onBulkDelete={handleBulkDelete}
@@ -521,25 +711,24 @@ export function TransactionsPage() {
         />
       }
 
-      {/* Pagination */}
       {totalCount > PAGE_SIZE && (
-        <div className='flex items-center justify-between'>
-          <span className='text-xs text-muted-foreground'>
+        <div className="flex items-center justify-between">
+          <span className="text-xs text-muted-foreground">
             {totalCount} transaction{totalCount !== 1 ? "s" : ""}
             {totalPages > 1 && ` · Page ${page + 1} of ${totalPages}`}
           </span>
-          <div className='flex items-center gap-2'>
+          <div className="flex items-center gap-2">
             <Button
-              variant='outline'
-              size='sm'
+              variant="outline"
+              size="sm"
               disabled={page === 0}
               onClick={() => setPage((p) => Math.max(0, p - 1))}
             >
               Previous
             </Button>
             <Button
-              variant='outline'
-              size='sm'
+              variant="outline"
+              size="sm"
               disabled={page >= totalPages - 1}
               onClick={() => setPage((p) => p + 1)}
             >

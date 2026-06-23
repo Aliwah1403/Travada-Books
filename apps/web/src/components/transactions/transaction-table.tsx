@@ -2,11 +2,12 @@ import { useState } from "react";
 import {
   useReactTable,
   getCoreRowModel,
-  getFilteredRowModel,
   getSortedRowModel,
   flexRender,
   type SortingState,
   type RowSelectionState,
+  type VisibilityState,
+  type OnChangeFn,
 } from "@tanstack/react-table";
 import {
   TableBody,
@@ -15,19 +16,12 @@ import {
   TableHeader,
   TableRow,
 } from "@travada-books/ui/components/table";
-import {
-  DropdownMenu,
-  DropdownMenuCheckboxItem,
-  DropdownMenuContent,
-  DropdownMenuTrigger,
-} from "@travada-books/ui/components/dropdown-menu";
 import { Button } from "@travada-books/ui/components/button";
 import {
   Wallet01Icon,
   SortingIcon,
   SortingUpIcon,
   SortingDownIcon,
-  ColumnsThreeCogIcon,
   ArrowLeft01Icon,
   ArrowRight01Icon,
 } from "@travada-books/ui/icons";
@@ -36,7 +30,6 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { useTableScroll } from "@/hooks/use-table-scroll";
 import {
   transactionColumns,
-  DEFAULT_HIDDEN_COLUMNS,
   type Transaction,
   type TransactionStatus,
   type PaymentMode,
@@ -84,7 +77,8 @@ function stickyBodyClass(colId: string) {
 
 type TransactionTableProps = {
   data: Transaction[];
-  globalFilter?: string;
+  columnVisibility: VisibilityState;
+  onColumnVisibilityChange: OnChangeFn<VisibilityState>;
   onEdit: (id: string) => void;
   onDelete: (id: string) => void;
   onBulkDelete: (ids: string[]) => void;
@@ -136,7 +130,8 @@ function HorizontalPagination({
 
 export function TransactionTable({
   data,
-  globalFilter,
+  columnVisibility,
+  onColumnVisibilityChange,
   onEdit,
   onDelete,
   onBulkDelete,
@@ -147,7 +142,6 @@ export function TransactionTable({
   const [sorting, setSorting] = useState<SortingState>([
     { id: "date", desc: true },
   ]);
-  const [columnVisibility, setColumnVisibility] = useState(DEFAULT_HIDDEN_COLUMNS);
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
   const { containerRef, canScrollLeft, canScrollRight, scrollLeft, scrollRight } =
     useTableScroll();
@@ -156,13 +150,12 @@ export function TransactionTable({
     data,
     columns: transactionColumns,
     getCoreRowModel: getCoreRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
     getSortedRowModel: getSortedRowModel(),
     onSortingChange: setSorting,
-    onColumnVisibilityChange: setColumnVisibility,
+    onColumnVisibilityChange,
     onRowSelectionChange: setRowSelection,
     enableRowSelection: true,
-    state: { globalFilter, sorting, columnVisibility, rowSelection },
+    state: { sorting, columnVisibility, rowSelection },
     meta: {
       onEditTransaction: onEdit,
       onDeleteTransaction: onDelete,
@@ -172,45 +165,14 @@ export function TransactionTable({
   const selectedRows = table.getSelectedRowModel().rows;
   const selectedIds = selectedRows.map((r) => r.original.id);
 
-  const hideableColumns = table.getAllColumns().filter((col) => col.getCanHide());
-
   return (
     <div className="space-y-2">
-      <div className="flex justify-end">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="sm" className="gap-2 text-xs">
-              <ColumnsThreeCogIcon className="size-3.5" />
-              Columns
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-44">
-            {hideableColumns.map((col) => (
-              <DropdownMenuCheckboxItem
-                key={col.id}
-                checked={col.getIsVisible()}
-                onCheckedChange={(value) => col.toggleVisibility(!!value)}
-                className="text-xs"
-              >
-                {typeof col.columnDef.header === "string" ? col.columnDef.header : col.id}
-              </DropdownMenuCheckboxItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
-
       <div className="rounded-lg border overflow-hidden">
         {table.getRowModel().rows.length === 0 ? (
           <EmptyState
             icon={Wallet01Icon}
-            title={
-              globalFilter ? "No transactions match your search" : "No transactions yet"
-            }
-            description={
-              globalFilter
-                ? "Try a different search term or clear the filter."
-                : "Record your first income or expense to get started."
-            }
+            title="No transactions found"
+            description="Try adjusting your filters or record a new transaction to get started."
           />
         ) : (
           <div ref={containerRef} className="overflow-x-auto">

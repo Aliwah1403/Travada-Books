@@ -103,10 +103,12 @@ export type TransactionFilters = {
   dateFrom?: string
   dateTo?: string
   type?: "income" | "expense"
-  status?: "pending" | "completed" | "excluded" | "archived"
+  statuses?: string[]
   categoryIds?: string[]
-  paymentMode?: string
+  paymentModes?: string[]
   recurring?: boolean
+  amountMin?: number
+  amountMax?: number
 }
 
 export type TransactionsPage = {
@@ -156,10 +158,12 @@ export async function listTransactions(
   if (filters.dateFrom) query = query.gte("date", filters.dateFrom)
   if (filters.dateTo) query = query.lte("date", filters.dateTo)
   if (filters.type) query = query.eq("type", filters.type)
-  if (filters.status) query = query.eq("status", filters.status)
+  if (filters.statuses?.length) query = query.in("status", filters.statuses)
   if (filters.categoryIds?.length) query = query.in("category_id", filters.categoryIds)
-  if (filters.paymentMode) query = query.eq("payment_mode", filters.paymentMode)
+  if (filters.paymentModes?.length) query = query.in("payment_mode", filters.paymentModes)
   if (filters.recurring !== undefined) query = query.eq("recurring", filters.recurring)
+  if (filters.amountMin != null) query = query.gte("amount", filters.amountMin)
+  if (filters.amountMax != null) query = query.lte("amount", filters.amountMax)
 
   const { data, error, count } = await query
   if (error) throw error
@@ -217,8 +221,10 @@ export async function getTransactionSummary(
   if (filters.dateTo) query = query.lte("date", filters.dateTo)
   if (filters.type) query = query.eq("type", filters.type)
   if (filters.categoryIds?.length) query = query.in("category_id", filters.categoryIds)
-  if (filters.paymentMode) query = query.eq("payment_mode", filters.paymentMode)
+  if (filters.paymentModes?.length) query = query.in("payment_mode", filters.paymentModes)
   if (filters.recurring !== undefined) query = query.eq("recurring", filters.recurring)
+  if (filters.amountMin != null) query = query.gte("amount", filters.amountMin)
+  if (filters.amountMax != null) query = query.lte("amount", filters.amountMax)
 
   const { data, error } = await query
   if (error) throw error
