@@ -121,7 +121,7 @@ export const enrichTransactionsTask = task({
     // Fetch transactions to enrich
     const { data: transactions, error: txError } = await supabase
       .from("transactions")
-      .select("id, name, counterparty_name, amount, currency, type, category_id")
+      .select("id, name, counterparty_name, amount, currency, type, category_id, manual")
       .in("id", transactionIds)
       .eq("enrichment_completed", false);
 
@@ -166,7 +166,7 @@ export const enrichTransactionsTask = task({
 
             const patch: Record<string, unknown> = { enrichment_completed: true };
 
-            if (result.merchant && result.merchantConfidence >= CONFIDENCE.MERCHANT_MIN) {
+            if (!tx.manual && result.merchant && result.merchantConfidence >= CONFIDENCE.MERCHANT_MIN) {
               patch.name = result.merchant;
             }
 
