@@ -85,6 +85,7 @@ type TransactionTableProps = {
   onBulkUpdate: (ids: string[], update: { category_id?: string; status?: TransactionStatus; payment_mode?: PaymentMode; recurring?: boolean; frequency?: TransactionFrequency | null }) => void;
   onBulkExport: (ids: string[]) => void;
   categories: TransactionCategory[];
+  formatDate: (value: string | Date | null | undefined) => string;
 };
 
 function HorizontalPagination({
@@ -138,6 +139,7 @@ export function TransactionTable({
   onBulkUpdate,
   onBulkExport,
   categories,
+  formatDate,
 }: TransactionTableProps) {
   const [sorting, setSorting] = useState<SortingState>([
     { id: "date", desc: true },
@@ -159,6 +161,7 @@ export function TransactionTable({
     meta: {
       onEditTransaction: onEdit,
       onDeleteTransaction: onDelete,
+      formatDate,
     },
   });
 

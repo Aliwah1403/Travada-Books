@@ -12,6 +12,10 @@ import { Label } from "@travada-books/ui/components/label";
 import { Textarea } from "@travada-books/ui/components/textarea";
 import { Switch } from "@travada-books/ui/components/switch";
 import {
+  ToggleGroup,
+  ToggleGroupItem,
+} from "@travada-books/ui/components/toggle-group";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -57,6 +61,7 @@ import { extractDocumentData, classifyDocument } from "@/lib/queries/ai";
 import { linkDocumentsToTransaction } from "@/lib/queries/vault";
 import { supabase } from "@/lib/supabase";
 import { listCustomers } from "@/lib/queries/customers";
+import { parseDateOnly, toDateOnlyString } from "@/lib/format-date";
 import type {
   Transaction,
   TransactionStatus,
@@ -115,7 +120,7 @@ export function TransactionSheet({
   const { org, orgId, user } = useAuth();
   const queryClient = useQueryClient();
   const isEditing = !!transaction;
-  const today = new Date().toISOString().split("T")[0];
+  const today = toDateOnlyString(new Date());
 
   const txIdRef = useRef(crypto.randomUUID());
   const [type, setType] = useState<"income" | "expense">("expense");
@@ -124,8 +129,11 @@ export function TransactionSheet({
   const [name, setName] = useState("");
   const [counterparty, setCounterparty] = useState("");
   const [customerId, setCustomerId] = useState("");
-  const [counterpartySuggestionsOpen, setCounterpartySuggestionsOpen] = useState(false);
-  const counterpartyBlurTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [counterpartySuggestionsOpen, setCounterpartySuggestionsOpen] =
+    useState(false);
+  const counterpartyBlurTimeout = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
   const [amount, setAmount] = useState("");
   const [currency, setCurrency] = useState(org?.base_currency ?? "KES");
   const [paymentMode, setPaymentMode] = useState<PaymentMode | "">("");
@@ -185,11 +193,12 @@ export function TransactionSheet({
     select: (data) => data.map((c) => ({ id: c.id, name: c.name })),
   });
 
-
   const counterpartySuggestions = useMemo(() => {
     if (!counterparty.trim() || customerId) return [];
     const q = counterparty.toLowerCase();
-    return customers.filter((c) => c.name.toLowerCase().includes(q)).slice(0, 6);
+    return customers
+      .filter((c) => c.name.toLowerCase().includes(q))
+      .slice(0, 6);
   }, [counterparty, customerId, customers]);
 
   const filteredCurrencies = useMemo(() => {
@@ -230,11 +239,8 @@ export function TransactionSheet({
     if (!open) return;
     if (!transaction) txIdRef.current = crypto.randomUUID();
     if (transaction) {
-      const parsed = new Date(transaction.date);
-      const isoDate =
-        !isNaN(parsed.getTime()) ? parsed.toISOString().split("T")[0] : today;
       setType(transaction.type);
-      setDate(isoDate);
+      setDate(transaction.date || today);
       setStatus(transaction.status);
       setName(transaction.name);
       setCounterparty(transaction.counterpartyName ?? "");
@@ -320,7 +326,8 @@ export function TransactionSheet({
   }
 
   function handleCounterpartyFocus() {
-    if (counterpartyBlurTimeout.current) clearTimeout(counterpartyBlurTimeout.current);
+    if (counterpartyBlurTimeout.current)
+      clearTimeout(counterpartyBlurTimeout.current);
     if (!customerId) setCounterpartySuggestionsOpen(true);
   }
 
@@ -368,31 +375,40 @@ export function TransactionSheet({
         binary += String.fromCharCode(...bytes.subarray(i, i + 8192));
       }
       const base64 = btoa(binary);
-      const extracted = await extractDocumentData({ fileData: base64, contentType: file.type });
+      const extracted = await extractDocumentData({
+        fileData: base64,
+        contentType: file.type,
+      });
 
       if (extracted.date) setDate(extracted.date);
       if (extracted.amount) setAmount(String(extracted.amount));
       if (extracted.type) setType(extracted.type);
-      if (extracted.counterparty_name) setCounterparty(extracted.counterparty_name);
+      if (extracted.counterparty_name)
+        setCounterparty(extracted.counterparty_name);
       if (!name.trim()) {
         const resolvedType = extracted.type ?? type;
         const desc =
           extracted.description ||
-          (extracted.counterparty_name
-            ? resolvedType === "income"
-              ? `Payment from ${extracted.counterparty_name}`
-              : `Payment to ${extracted.counterparty_name}`
-            : null);
+          (extracted.counterparty_name ?
+            resolvedType === "income" ?
+              `Payment from ${extracted.counterparty_name}`
+            : `Payment to ${extracted.counterparty_name}`
+          : null);
         if (desc) setName(desc);
       }
-      if (extracted.reference_number) setReferenceNumber(extracted.reference_number);
+      if (extracted.reference_number)
+        setReferenceNumber(extracted.reference_number);
       if (extracted.currency) setCurrency(extracted.currency);
       if (extracted.tax_amount) setTaxAmount(String(extracted.tax_amount));
       if (extracted.tax_rate) setTaxRate(String(extracted.tax_rate));
-      if (extracted.tax_type) setTaxType(extracted.tax_type as "vat" | "wht" | "other");
-      if (extracted.payment_mode) setPaymentMode(extracted.payment_mode as PaymentMode);
+      if (extracted.tax_type)
+        setTaxType(extracted.tax_type as "vat" | "wht" | "other");
+      if (extracted.payment_mode)
+        setPaymentMode(extracted.payment_mode as PaymentMode);
 
-      toast.success("Data extracted", { description: "Review the pre-filled fields before saving." });
+      toast.success("Data extracted", {
+        description: "Review the pre-filled fields before saving.",
+      });
     } catch (err) {
       toast.error("Extraction failed", {
         description: "Could not read data from this file.",
@@ -439,14 +455,23 @@ export function TransactionSheet({
       if (isEditing) {
         // 1. Delete removed attachments
         if (attachmentsToRemove.length > 0) {
-          await Promise.all(attachmentsToRemove.map((a) => deleteAttachment(a.id, a.file_path)));
+          await Promise.all(
+            attachmentsToRemove.map((a) => deleteAttachment(a.id, a.file_path)),
+          );
         }
         // 2. Update transaction row
-        await updateTransaction(transaction.id, orgId, txFields, org?.base_currency);
+        await updateTransaction(
+          transaction.id,
+          orgId,
+          txFields,
+          org?.base_currency,
+        );
         // 3. Upload new files — transaction exists so vault trigger FK succeeds
         if (pendingFiles.length > 0) {
           const uploads = await Promise.all(
-            pendingFiles.map((f) => uploadTransactionAttachment(orgId, transaction.id, f)),
+            pendingFiles.map((f) =>
+              uploadTransactionAttachment(orgId, transaction.id, f),
+            ),
           );
           await addAttachments(transaction.id, orgId, uploads);
           triggerAttachmentProcessing(transaction.id, uploads);
@@ -454,19 +479,29 @@ export function TransactionSheet({
         toast.success("Transaction updated");
       } else {
         // 1. Create transaction row first — vault trigger needs this FK to exist
-        await createTransaction(orgId, user.id, {
-          id: txIdRef.current,
-          ...txFields,
-          markInvoicePaid: type === "income" && !!invoiceId && markInvoicePaid,
-        }, org?.base_currency ?? "KES");
+        await createTransaction(
+          orgId,
+          user.id,
+          {
+            id: txIdRef.current,
+            ...txFields,
+            markInvoicePaid:
+              type === "income" && !!invoiceId && markInvoicePaid,
+          },
+          org?.base_currency ?? "KES",
+        );
         // 2. Upload files — transaction now exists, trigger succeeds
         if (pendingFiles.length > 0) {
           const uploads = await Promise.all(
-            pendingFiles.map((f) => uploadTransactionAttachment(orgId, txIdRef.current, f)),
+            pendingFiles.map((f) =>
+              uploadTransactionAttachment(orgId, txIdRef.current, f),
+            ),
           );
           await addAttachments(txIdRef.current, orgId, uploads);
           triggerAttachmentProcessing(txIdRef.current, uploads);
-          uploads.forEach((u) => classifyDocument({ filePath: u.file_path }).catch(() => {}));
+          uploads.forEach((u) =>
+            classifyDocument({ filePath: u.file_path }).catch(() => {}),
+          );
         }
         // 3. Link any vault docs that were the source of extraction
         if (vaultDocs.length > 0) {
@@ -524,27 +559,29 @@ export function TransactionSheet({
           {/* Header: type toggle + amount + description */}
           <div className='px-6 pt-6 pb-5 border-b'>
             {/* Income / Expense toggle */}
-            <div className='flex rounded-md  border-input overflow-hidden mb-5 w-fit gap-2'>
-              <Button
-                type='button'
-                onClick={() => setType("income")}
-                className={cn(
-                  "px-4 py-1.5 text-xs font-medium transition-colors border-l border-input",
-                )}
+            <ToggleGroup
+              value={[type]}
+              onValueChange={(vals) => {
+                const next = vals[0] as "income" | "expense";
+                if (next) setType(next);
+              }}
+              variant='outline'
+              className='mb-5'
+              size='lg'
+            >
+              <ToggleGroupItem
+                value='income'
+                className='px-4 py-1.5 text-xs font-medium h-12 data-[state=on]:bg-primary data-[state=on]:text-primary-foreground aria-pressed:bg-primary aria-pressed:text-primary-foreground data-[state=on]:hover:bg-primary/80 aria-pressed:hover:bg-primary/80'
               >
                 Income
-              </Button>
-              <Button
-                type='button'
-                variant="secondary"
-                onClick={() => setType("expense")}
-                className={cn(
-                  "px-4 py-1.5 text-xs font-medium transition-colors",
-                )}
+              </ToggleGroupItem>
+              <ToggleGroupItem
+                value='expense'
+                className='px-4 py-1.5 text-xs font-medium h-12 data-[state=on]:bg-primary data-[state=on]:text-primary-foreground aria-pressed:bg-primary aria-pressed:text-primary-foreground data-[state=on]:hover:bg-primary/80 aria-pressed:hover:bg-primary/80'
               >
                 Expense
-              </Button>
-            </div>
+              </ToggleGroupItem>
+            </ToggleGroup>
 
             {/* Description */}
             <input
@@ -564,21 +601,22 @@ export function TransactionSheet({
                 onBlur={handleCounterpartyBlur}
                 className='w-full border-none bg-transparent text-xs text-muted-foreground outline-none placeholder:text-muted-foreground/40'
               />
-              {counterpartySuggestionsOpen && counterpartySuggestions.length > 0 && (
-                <div className='absolute left-0 top-full z-50 mt-1 w-full min-w-[200px] rounded-md border bg-popover shadow-md overflow-hidden'>
-                  {counterpartySuggestions.map((c) => (
-                    <button
-                      key={c.id}
-                      type='button'
-                      onMouseDown={(e) => e.preventDefault()}
-                      onClick={() => selectCustomer(c.id, c.name)}
-                      className='w-full px-3 py-2 text-left text-xs fine-hover:bg-accent fine-hover:text-accent-foreground transition-colors'
-                    >
-                      {c.name}
-                    </button>
-                  ))}
-                </div>
-              )}
+              {counterpartySuggestionsOpen &&
+                counterpartySuggestions.length > 0 && (
+                  <div className='absolute left-0 top-full z-50 mt-1 w-full min-w-[200px] rounded-md border bg-popover shadow-md overflow-hidden'>
+                    {counterpartySuggestions.map((c) => (
+                      <button
+                        key={c.id}
+                        type='button'
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => selectCustomer(c.id, c.name)}
+                        className='w-full px-3 py-2 text-left text-xs fine-hover:bg-accent fine-hover:text-accent-foreground transition-colors'
+                      >
+                        {c.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
             </div>
 
             {/* Amount */}
@@ -659,10 +697,8 @@ export function TransactionSheet({
           <div className='flex items-center gap-2 px-6 py-5'>
             <DatePicker
               className='h-10'
-              value={date ? new Date(date) : undefined}
-              onChange={(d) =>
-                setDate(d ? d.toISOString().split("T")[0] : today)
-              }
+              value={date ? parseDateOnly(date) : undefined}
+              onChange={(d) => setDate(d ? toDateOnlyString(d) : today)}
               placeholder='Date'
             />
             <Select
@@ -1076,7 +1112,9 @@ export function TransactionSheet({
                         size={12}
                         className='shrink-0 text-muted-foreground'
                       />
-                      <span className='flex-1 truncate text-xs'>{doc.name}</span>
+                      <span className='flex-1 truncate text-xs'>
+                        {doc.name}
+                      </span>
                       {doc.file_size && (
                         <span className='text-[10px] text-muted-foreground shrink-0'>
                           {(doc.file_size / 1024).toFixed(0)} KB
@@ -1085,7 +1123,9 @@ export function TransactionSheet({
                       <button
                         type='button'
                         onClick={() =>
-                          setVaultDocs((prev) => prev.filter((d) => d.id !== doc.id))
+                          setVaultDocs((prev) =>
+                            prev.filter((d) => d.id !== doc.id),
+                          )
                         }
                         className='text-muted-foreground fine-hover:text-destructive transition-colors shrink-0'
                       >

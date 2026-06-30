@@ -7,6 +7,7 @@ import {
   FilterIcon,
 } from "@travada-books/ui/icons"
 import type { TransactionCategory } from "@/lib/queries/transactions"
+import { parseDateOnly } from "@/lib/format-date"
 
 type TxRow = {
   name: string
@@ -49,7 +50,7 @@ export function createTransactionColumnsConfig(categories: TransactionCategory[]
   return [
     dtf.date()
       .id("date")
-      .accessor((row) => new Date(row.date))
+      .accessor((row) => (row.date ? parseDateOnly(row.date) : new Date()))
       .displayName("Date")
       .icon(Calendar01Icon)
       .build(),

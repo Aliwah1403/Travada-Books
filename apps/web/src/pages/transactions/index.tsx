@@ -185,14 +185,10 @@ function translateFilters(state: FiltersState, search?: string): TransactionFilt
 
 // ── Row mapper ───────────────────────────────────────────────────────────────
 
-function mapDbTx(
-  row: DbTransaction,
-  formatDate: (v: string | null | undefined) => string,
-): UITransaction {
-  const dateStr = row.date ? formatDate(row.date.slice(0, 10)) : "";
+function mapDbTx(row: DbTransaction): UITransaction {
   return {
     id: row.id,
-    date: dateStr,
+    date: row.date ? row.date.slice(0, 10) : "",
     name: row.name,
     counterpartyName: row.counterparty_name,
     customerId: row.customer_id,
@@ -319,8 +315,8 @@ export function TransactionsPage() {
   });
 
   const transactions = useMemo(
-    () => (data?.data ?? []).map((row) => mapDbTx(row, formatDate)),
-    [data, formatDate],
+    () => (data?.data ?? []).map(mapDbTx),
+    [data],
   );
   const totalCount = data?.count ?? 0;
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
@@ -709,6 +705,7 @@ export function TransactionsPage() {
             setExportDialogOpen(true);
           }}
           categories={categories ?? []}
+          formatDate={formatDate}
         />
       }
 

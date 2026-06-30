@@ -10,6 +10,7 @@ declare module "@tanstack/react-table" {
   interface TableMeta<TData> {
     onEditTransaction?: (id: string) => void;
     onDeleteTransaction?: (id: string) => void;
+    formatDate?: (value: string | Date | null | undefined) => string;
   }
 }
 
@@ -139,9 +140,9 @@ export const transactionColumns: ColumnDef<Transaction>[] = [
     accessorKey: "date",
     header: "Date",
     enableSorting: true,
-    cell: ({ row }) => (
+    cell: ({ row, table }) => (
       <span className='text-xs text-muted-foreground whitespace-nowrap'>
-        {row.original.date}
+        {table.options.meta?.formatDate?.(row.original.date) ?? row.original.date}
       </span>
     ),
   },
