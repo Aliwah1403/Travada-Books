@@ -60,21 +60,104 @@ export type QuoteInput = {
   customer_details?: Record<string, unknown>
 }
 
+export const QUOTE_PAGE_SIZE = 50
+
+export type QuoteFilters = {
+  search?: string
+  statuses?: string[]
+  dateFrom?: string
+  dateTo?: string
+  validUntilFrom?: string
+  validUntilTo?: string
+  amountMin?: number
+  amountMax?: number
+  customerIds?: string[]
+}
+
+export type QuoteStatsSummary = {
+  open: { label: string; count: number; amount: number; currency: string }
+  accepted: { label: string; count: number; amount: number; currency: string }
+  expired: { label: string; count: number; amount: number; currency: string }
+}
+
 const QUOTE_SELECT =
   "id, created_at, updated_at, org_id, user_id, customer_id, customer_name, token, quote_number, status, issue_date, valid_until, currency, line_items, subtotal, tax_amount, discount, total, customer_details, from_details, note, internal_note, sent_at, resent_at, accepted_at, declined_at, decline_reason, viewed_at, customers(logo_url)"
 
 const PUBLIC_QUOTE_SELECT =
   "id, created_at, updated_at, customer_id, customer_name, token, quote_number, status, issue_date, valid_until, currency, line_items, subtotal, tax_amount, discount, total, customer_details, from_details, note, sent_at, resent_at, accepted_at, declined_at, decline_reason, viewed_at"
 
-export async function listQuotes(orgId: string): Promise<Quote[]> {
-  const { data, error } = await supabase
+export async function listQuotes(
+  orgId: string,
+  filters: QuoteFilters = {},
+  page = 0,
+): Promise<{ data: Quote[]; count: number }> {
+  let query = supabase
     .from("quotes")
-    .select(QUOTE_SELECT)
+    .select(QUOTE_SELECT, { count: "exact" })
     .eq("org_id", orgId)
     .order("created_at", { ascending: false })
+    .range(page * QUOTE_PAGE_SIZE, (page + 1) * QUOTE_PAGE_SIZE - 1)
+
+  if (filters.search) query = query.ilike("customer_name", `%${filters.search}%`)
+
+  if (filters.statuses?.length) {
+    const today = new Date().toISOString().split("T")[0]
+    const nonExpired = filters.statuses.filter((s) => s !== "expired")
+    const includesExpired = filters.statuses.includes("expired")
+
+    if (includesExpired && nonExpired.length > 0) {
+      query = query.or(`status.in.(${nonExpired.join(",")}),and(status.eq.sent,valid_until.lt.${today})`)
+    } else if (includesExpired) {
+      query = query.eq("status", "sent").lt("valid_until", today)
+    } else {
+      query = query.in("status", nonExpired)
+    }
+  }
+
+  if (filters.dateFrom) query = query.gte("issue_date", filters.dateFrom)
+  if (filters.dateTo) query = query.lte("issue_date", filters.dateTo)
+  if (filters.validUntilFrom) query = query.gte("valid_until", filters.validUntilFrom)
+  if (filters.validUntilTo) query = query.lte("valid_until", filters.validUntilTo)
+  if (filters.amountMin != null) query = query.gte("total", filters.amountMin)
+  if (filters.amountMax != null) query = query.lte("total", filters.amountMax)
+  if (filters.customerIds?.length) query = query.in("customer_id", filters.customerIds)
+
+  const { data, error, count } = await query
+  if (error) throw error
+  return { data: (data ?? []) as Quote[], count: count ?? 0 }
+}
+
+export async function getQuoteStats(orgId: string, orgCurrency: string): Promise<QuoteStatsSummary> {
+  const today = new Date().toISOString().split("T")[0]
+  const { data, error } = await supabase
+    .from("quotes")
+    .select("status, total, valid_until")
+    .eq("org_id", orgId)
 
   if (error) throw error
-  return (data ?? []) as Quote[]
+
+  const out: QuoteStatsSummary = {
+    open: { label: "Open", count: 0, amount: 0, currency: orgCurrency },
+    accepted: { label: "Accepted", count: 0, amount: 0, currency: orgCurrency },
+    expired: { label: "Expired", count: 0, amount: 0, currency: orgCurrency },
+  }
+
+  for (const q of data ?? []) {
+    const amount = q.total ?? 0
+    const isExpired = q.status === "sent" && q.valid_until && q.valid_until < today
+    if (isExpired) {
+      out.expired.count++
+      out.expired.amount += amount
+    } else if (q.status === "draft" || q.status === "sent") {
+      out.open.count++
+      out.open.amount += amount
+    } else if (q.status === "accepted") {
+      out.accepted.count++
+      out.accepted.amount += amount
+    }
+  }
+
+  return out
 }
 
 export async function getQuote(id: string, orgId: string): Promise<Quote | null> {

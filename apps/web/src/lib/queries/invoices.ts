@@ -135,15 +135,48 @@ export type PublicInvoice = {
   accept_payments: boolean
 }
 
-export async function listInvoices(orgId: string): Promise<Invoice[]> {
-  const { data, error } = await supabase
+export type InvoiceFilters = {
+  search?: string
+  statuses?: string[]
+  dateFrom?: string
+  dateTo?: string
+  dueDateFrom?: string
+  dueDateTo?: string
+  amountMin?: number
+  amountMax?: number
+  customerIds?: string[]
+  recurring?: boolean
+}
+
+const INVOICE_PAGE_SIZE = 50
+
+export async function listInvoices(
+  orgId: string,
+  filters: InvoiceFilters = {},
+  page = 0,
+): Promise<{ data: Invoice[]; count: number }> {
+  let query = supabase
     .from("invoices")
-    .select(INVOICE_SELECT)
+    .select(INVOICE_SELECT, { count: "exact" })
     .eq("org_id", orgId)
     .order("created_at", { ascending: false })
+    .range(page * INVOICE_PAGE_SIZE, (page + 1) * INVOICE_PAGE_SIZE - 1)
 
+  if (filters.search) query = query.ilike("customer_name", `%${filters.search}%`)
+  if (filters.statuses?.length) query = query.in("status", filters.statuses)
+  if (filters.dateFrom) query = query.gte("issue_date", filters.dateFrom)
+  if (filters.dateTo) query = query.lte("issue_date", filters.dateTo)
+  if (filters.dueDateFrom) query = query.gte("due_date", filters.dueDateFrom)
+  if (filters.dueDateTo) query = query.lte("due_date", filters.dueDateTo)
+  if (filters.amountMin != null) query = query.gte("total", filters.amountMin)
+  if (filters.amountMax != null) query = query.lte("total", filters.amountMax)
+  if (filters.customerIds?.length) query = query.in("customer_id", filters.customerIds)
+  if (filters.recurring === true) query = query.neq("recurring", "one_time")
+  if (filters.recurring === false) query = query.eq("recurring", "one_time")
+
+  const { data, error, count } = await query
   if (error) throw error
-  return data ?? []
+  return { data: data ?? [], count: count ?? 0 }
 }
 
 export async function getInvoice(id: string): Promise<Invoice> {

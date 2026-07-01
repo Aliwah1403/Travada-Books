@@ -20,6 +20,8 @@ Return a JSON object with these optional fields (omit or null any not applicable
 - categoryName: string | null — must exactly match one of the available categories provided
 - paymentMode: "mpesa" | "bank_transfer" | "cash" | "cheque" | "card" | "other" | null
 - recurring: true | false | null
+- amountMin: number | null — minimum amount (for "over X", "more than X", "at least X", "above X")
+- amountMax: number | null — maximum amount (for "under X", "less than X", "at most X", "below X")
 
 Rules:
 - Only set fields explicitly mentioned or clearly implied
@@ -28,6 +30,7 @@ Rules:
 - Only set categoryName if it closely matches an available category; otherwise null
 - "M-Pesa", "mpesa", "mobile money" → paymentMode: "mpesa"
 - "bank", "wire", "transfer" → paymentMode: "bank_transfer"
+- For amounts: "100k" = 100000, "1M" = 1000000, "1m" = 1000000; set both amountMin and amountMax for "between X and Y"
 - Return null for fields not mentioned`
 
 Deno.serve(async (req) => {

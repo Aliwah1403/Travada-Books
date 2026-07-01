@@ -68,6 +68,7 @@ export type VaultFilters = {
   folderId?: string
   dateFrom?: string
   dateTo?: string
+  tagIds?: string[]
 }
 
 // ─── Documents ────────────────────────────────────────────────────────────────
@@ -97,6 +98,16 @@ export async function listDocuments(orgId: string, filters: VaultFilters = {}): 
   }
   if (filters.dateFrom) query = query.gte("created_at", filters.dateFrom)
   if (filters.dateTo) query = query.lte("created_at", filters.dateTo + "T23:59:59")
+
+  if (filters.tagIds?.length) {
+    const { data: assignments } = await supabase
+      .from("document_tag_assignments")
+      .select("document_id")
+      .in("tag_id", filters.tagIds)
+    const docIds = [...new Set((assignments ?? []).map((a: { document_id: string }) => a.document_id))]
+    if (docIds.length === 0) return []
+    query = query.in("id", docIds)
+  }
 
   const { data, error } = await query
   if (error) throw error

@@ -415,6 +415,13 @@ export function TransactionsPage() {
       if (parsed.recurring != null) {
         newFilters.push({ columnId: "recurring", type: "boolean", operator: "is", values: [parsed.recurring] });
       }
+      if (parsed.amountMin != null && parsed.amountMax != null) {
+        newFilters.push({ columnId: "amount", type: "number", operator: "is between", values: [parsed.amountMin, parsed.amountMax] });
+      } else if (parsed.amountMin != null) {
+        newFilters.push({ columnId: "amount", type: "number", operator: "is greater than or equal to", values: [parsed.amountMin] });
+      } else if (parsed.amountMax != null) {
+        newFilters.push({ columnId: "amount", type: "number", operator: "is less than or equal to", values: [parsed.amountMax] });
+      }
 
       setFiltersState(newFilters);
       setPage(0);

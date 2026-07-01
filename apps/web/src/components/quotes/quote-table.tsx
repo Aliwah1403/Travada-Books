@@ -16,19 +16,12 @@ import {
   TableHeader,
   TableRow,
 } from "@travada-books/ui/components/table";
-import {
-  DropdownMenu,
-  DropdownMenuCheckboxItem,
-  DropdownMenuContent,
-  DropdownMenuTrigger,
-} from "@travada-books/ui/components/dropdown-menu";
-import { Button } from "@travada-books/ui/components/button";
 import { type QuoteStatus } from "./quote-status-badge";
 import { EmptyState } from "@/components/shared/empty-state";
 import { FileEditIcon } from "@travada-books/ui/icons";
 import { quoteColumns } from "./quote-columns";
 import { useState } from "react";
-import { SortingIcon, SortingUpIcon, SortingDownIcon, ColumnsThreeCogIcon } from "@travada-books/ui/icons";
+import { SortingIcon, SortingUpIcon, SortingDownIcon } from "@travada-books/ui/icons";
 import { cn } from "@travada-books/ui/lib/utils";
 
 export type Quote = {
@@ -47,12 +40,13 @@ export type Quote = {
 type QuoteTableProps = {
   data: Quote[];
   globalFilter?: string;
+  columnVisibility?: VisibilityState;
+  onColumnVisibilityChange?: (visibility: VisibilityState) => void;
 };
 
-export function QuoteTable({ data, globalFilter }: QuoteTableProps) {
+export function QuoteTable({ data, globalFilter, columnVisibility = {}, onColumnVisibilityChange }: QuoteTableProps) {
   const navigate = useNavigate();
   const [sorting, setSorting] = useState<SortingState>([]);
-  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
 
   const table = useReactTable({
     data,
@@ -61,7 +55,10 @@ export function QuoteTable({ data, globalFilter }: QuoteTableProps) {
     getFilteredRowModel: getFilteredRowModel(),
     getSortedRowModel: getSortedRowModel(),
     onSortingChange: setSorting,
-    onColumnVisibilityChange: setColumnVisibility,
+    onColumnVisibilityChange: (updater) => {
+      const next = typeof updater === "function" ? updater(columnVisibility) : updater;
+      onColumnVisibilityChange?.(next);
+    },
     state: { globalFilter, sorting, columnVisibility },
   });
 
@@ -75,34 +72,8 @@ export function QuoteTable({ data, globalFilter }: QuoteTableProps) {
     );
   }
 
-  const hideableColumns = table.getAllColumns().filter((col) => col.getCanHide());
-
   return (
-    <div className="space-y-2">
-      <div className="flex justify-end">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="sm" className="gap-2 text-xs">
-              <ColumnsThreeCogIcon className="size-3.5" />
-              Columns
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-44">
-            {hideableColumns.map((col) => (
-              <DropdownMenuCheckboxItem
-                key={col.id}
-                checked={col.getIsVisible()}
-                onCheckedChange={(value) => col.toggleVisibility(!!value)}
-                className="text-xs"
-              >
-                {typeof col.columnDef.header === "string" ? col.columnDef.header : col.id}
-              </DropdownMenuCheckboxItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
-
-      <div className="rounded-lg border">
+    <div className="rounded-lg border">
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
@@ -162,7 +133,6 @@ export function QuoteTable({ data, globalFilter }: QuoteTableProps) {
             ))}
           </TableBody>
         </Table>
-      </div>
     </div>
   );
 }

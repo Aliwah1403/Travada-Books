@@ -1,9 +1,12 @@
 import { useState, useMemo, useRef, useEffect } from "react";
-import { format } from "date-fns";
+import { useSearchParams } from "react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useDataTableFilters } from "@bazza-ui/filters";
+import type { FiltersState } from "@bazza-ui/filters";
 import { toast } from "sonner";
 import { Button } from "@travada-books/ui/components/button";
 import { Input } from "@travada-books/ui/components/input";
+import { Filter } from "@/components/ui/filter";
 import {
   Dialog,
   DialogContent,
@@ -43,6 +46,7 @@ import {
   FileSpreadsheetIcon,
   Ppt01Icon,
   Csv01Icon,
+  FilterIcon,
 } from "@travada-books/ui/icons";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Spinner } from "@/components/shared/spinner";
@@ -51,9 +55,11 @@ import { useAuth } from "@/contexts/auth-context";
 import { TransactionSheet } from "@/components/transactions/transaction-sheet";
 import { extractDocumentData, classifyDocument, parseVaultFilters } from "@/lib/queries/ai";
 import { DocumentPreviewSheet } from "@/components/vault/document-preview-sheet";
+import { createVaultColumnsConfig } from "@/components/vault/vault-filter-columns";
 import {
   listDocuments,
   listFolders,
+  listDocumentTags,
   createFolder,
   deleteFolder,
   deleteDocument,
@@ -274,19 +280,6 @@ function SourceBadge({ source }: { source: DocumentSource }) {
   );
 }
 
-// ─── Filter chip ─────────────────────────────────────────────────────────────
-
-function FilterChip({ label, onRemove }: { label: string; onRemove: () => void }) {
-  return (
-    <span className="inline-flex items-center gap-1 border bg-muted px-2.5 py-0.5 text-xs text-muted-foreground">
-      {label}
-      <button type="button" onClick={onRemove} className="fine-hover:text-foreground transition-colors">
-        <Cancel01Icon size={11} />
-      </button>
-    </span>
-  );
-}
-
 // ─── Rename dialog ────────────────────────────────────────────────────────────
 
 function RenameDialog({
@@ -436,7 +429,7 @@ function DocActions({
       >
         <MoreVerticalIcon size={14} />
       </DropdownMenuTrigger>
-      <DropdownMenuContent align='end' className='w-48'>
+      <DropdownMenuContent align='end' className='w-full'>
         <DropdownMenuItem onClick={onDownload} className='gap-2'>
           <Download01Icon size={13} className='shrink-0' />
           Download
@@ -811,24 +804,110 @@ function Breadcrumb({
   );
 }
 
+// ─── Filter helpers ───────────────────────────────────────────────────────────
+
+function serializeFilters(state: FiltersState): string {
+  return JSON.stringify(
+    state.map((f) => ({
+      ...f,
+      values: f.values.map((v) => (v instanceof Date ? v.toISOString() : v)),
+    })),
+  );
+}
+
+function deserializeFilters(param: string | null): FiltersState {
+  if (!param) return [];
+  try {
+    const parsed = JSON.parse(param) as Array<{
+      columnId: string;
+      type: string;
+      operator: string;
+      values: unknown[];
+    }>;
+    return parsed.map((f) => ({
+      ...f,
+      values:
+        f.type === "date" || f.columnId === "date"
+          ? f.values.map((v) => (typeof v === "string" ? new Date(v) : v))
+          : f.values,
+    })) as FiltersState;
+  } catch {
+    return [];
+  }
+}
+
+function toISODate(v: unknown): string {
+  if (v instanceof Date) return v.toISOString().split("T")[0];
+  if (typeof v === "string") return v.split("T")[0];
+  return "";
+}
+
+function translateFilters(state: FiltersState, search?: string): VaultFilters {
+  const out: VaultFilters = {};
+  if (search) out.search = search;
+
+  for (const { columnId, operator, values } of state) {
+    switch (columnId) {
+      case "date": {
+        const v0 = values[0];
+        const v1 = values[1];
+        if (operator === "is between" && v0 && v1) {
+          out.dateFrom = toISODate(v0);
+          out.dateTo = toISODate(v1);
+        } else if (operator === "is" && v0) {
+          out.dateFrom = toISODate(v0);
+          out.dateTo = toISODate(v0);
+        } else if ((operator === "is after" || operator === "is on or after") && v0) {
+          out.dateFrom = toISODate(v0);
+        } else if ((operator === "is before" || operator === "is on or before") && v0) {
+          out.dateTo = toISODate(v0);
+        }
+        break;
+      }
+      case "tag":
+        if (values.length) out.tagIds = values as string[];
+        break;
+    }
+  }
+
+  return out;
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export function VaultPage() {
   const { orgId } = useAuth();
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
 
   // folder navigation stack — [] = root
   const [folderPath, setFolderPath] = useState<BreadcrumbEntry[]>([]);
   const currentFolderId = folderPath.at(-1)?.id ?? null;
 
   const [input, setInput] = useState("");
-  const [vaultSearch, setVaultSearch] = useState("");
-  const [vaultDateFrom, setVaultDateFrom] = useState<string | undefined>();
-  const [vaultDateTo, setVaultDateTo] = useState<string | undefined>();
+  const [search, setSearch] = useState("");
   const [isAIParsing, setIsAIParsing] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+
+  // ── Filter state (URL-backed) ─────────────────────────────────────────────
+  const filtersState = deserializeFilters(searchParams.get("filters"));
+
+  function setFiltersState(next: FiltersState) {
+    setSearchParams(
+      (prev) => {
+        const params = new URLSearchParams(prev);
+        if (next.length === 0) {
+          params.delete("filters");
+        } else {
+          params.set("filters", serializeFilters(next));
+        }
+        return params;
+      },
+      { replace: true },
+    );
+  }
   const [renamingDoc, setRenamingDoc] = useState<VaultDocument | null>(null);
   const [previewDoc, setPreviewDoc] = useState<VaultDocument | null>(null);
   const [createFolderOpen, setCreateFolderOpen] = useState(false);
@@ -836,16 +915,33 @@ export function VaultPage() {
   const [txInitialData, setTxInitialData] = useState<Parameters<typeof TransactionSheet>[0]["initialData"]>(undefined);
   const [txInitialVaultDocs, setTxInitialVaultDocs] = useState<Parameters<typeof TransactionSheet>[0]["initialVaultDocs"]>(undefined);
 
+  // ── Data ──────────────────────────────────────────────────────────────────
+  const { data: orgTags = [] } = useQuery({
+    queryKey: ["document-tags", orgId],
+    queryFn: () => listDocumentTags(orgId!),
+    enabled: !!orgId,
+  });
+
+  const columnsConfig = useMemo(
+    () => createVaultColumnsConfig(orgTags.map((t) => ({ id: t.id, name: t.name }))),
+    [orgTags],
+  );
+
+  const { columns, filters, actions, strategy } = useDataTableFilters({
+    strategy: "server",
+    columnsConfig,
+    filters: filtersState,
+    onFiltersChange: setFiltersState,
+    entityName: "Document",
+  });
+
   async function handleSearchSubmit(e?: React.FormEvent) {
     e?.preventDefault();
     const trimmed = input.trim();
     if (!trimmed) { clearSearch(); return; }
 
-    const words = trimmed.split(/\s+/);
-    if (words.length === 1) {
-      setVaultSearch(trimmed);
-      setVaultDateFrom(undefined);
-      setVaultDateTo(undefined);
+    if (trimmed.split(/\s+/).length === 1) {
+      setSearch(trimmed);
       return;
     }
 
@@ -856,13 +952,18 @@ export function VaultPage() {
         currentDate: new Date().toISOString().split("T")[0],
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
       });
-      setVaultSearch(parsed.name ?? "");
-      setVaultDateFrom(parsed.dateFrom ?? undefined);
-      setVaultDateTo(parsed.dateTo ?? undefined);
+      setSearch(parsed.name ?? "");
+      const newFilters: FiltersState = [];
+      if (parsed.dateFrom && parsed.dateTo) {
+        newFilters.push({ columnId: "date", type: "date", operator: "is between", values: [new Date(parsed.dateFrom), new Date(parsed.dateTo)] });
+      } else if (parsed.dateFrom) {
+        newFilters.push({ columnId: "date", type: "date", operator: "is on or after", values: [new Date(parsed.dateFrom)] });
+      } else if (parsed.dateTo) {
+        newFilters.push({ columnId: "date", type: "date", operator: "is on or before", values: [new Date(parsed.dateTo)] });
+      }
+      setFiltersState(newFilters);
     } catch {
-      setVaultSearch(trimmed);
-      setVaultDateFrom(undefined);
-      setVaultDateTo(undefined);
+      setSearch(trimmed);
     } finally {
       setIsAIParsing(false);
     }
@@ -875,9 +976,8 @@ export function VaultPage() {
 
   function clearSearch() {
     setInput("");
-    setVaultSearch("");
-    setVaultDateFrom(undefined);
-    setVaultDateTo(undefined);
+    setSearch("");
+    setFiltersState([]);
     searchInputRef.current?.focus();
   }
 
@@ -896,22 +996,18 @@ export function VaultPage() {
     setFolderPath((p) => [...p, { id: folder.id, name: folder.name }]);
   }
 
-  const docFilters: VaultFilters = {
-    folderId: currentFolderId ?? undefined,
-    search: vaultSearch || undefined,
-    dateFrom: vaultDateFrom,
-    dateTo: vaultDateTo,
-  };
+  const supabaseFilters = useMemo(
+    () => translateFilters(filtersState, search || undefined),
+    [filtersState, search],
+  );
 
-  const dateChipLabel = useMemo(() => {
-    if (!vaultDateFrom && !vaultDateTo) return null;
-    const from = vaultDateFrom ? format(new Date(vaultDateFrom), "MMM d") : null;
-    const to = vaultDateTo ? format(new Date(vaultDateTo), "MMM d") : null;
-    return from && to ? `${from} – ${to}` : from ? `From ${from}` : `Until ${to}`;
-  }, [vaultDateFrom, vaultDateTo]);
+  const docFilters: VaultFilters = useMemo(
+    () => ({ ...supabaseFilters, folderId: currentFolderId ?? undefined }),
+    [supabaseFilters, currentFolderId],
+  );
 
   const { data: docs = [], isLoading: docsLoading } = useQuery({
-    queryKey: ["vault", orgId, currentFolderId, vaultSearch, vaultDateFrom, vaultDateTo],
+    queryKey: ["vault", orgId, docFilters],
     queryFn: () => listDocuments(orgId!, docFilters),
     enabled: !!orgId,
     placeholderData: (prev) => prev,
@@ -1124,7 +1220,7 @@ export function VaultPage() {
     }
   }
 
-  const isFiltered = !!vaultSearch || !!vaultDateFrom || !!vaultDateTo;
+  const isFiltered = !!search || filtersState.length > 0;
   const isInsideFolder = folderPath.length > 0;
 
   return (
@@ -1203,78 +1299,118 @@ export function VaultPage() {
       />
 
       {/* Toolbar */}
-      <div className='flex flex-col gap-2'>
-      <div className='flex items-center gap-2'>
-        <div className='relative flex-1 max-w-72'>
-          {isAIParsing ? (
-            <span className='absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground'>
-              <Spinner size={14} />
-            </span>
-          ) : (
-            <Search01Icon
-              size={14}
-              className='absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground'
-            />
-          )}
-          <form onSubmit={handleSearchSubmit}>
-            <Input
-              ref={searchInputRef}
-              placeholder={isInsideFolder ? `Search in ${folderPath.at(-1)!.name}…` : "Search documents…"}
-              className='h-9 pl-8 pr-8 text-xs'
-              value={input}
-              onChange={(e) => handleSearchInputChange(e.target.value)}
-              autoComplete="off"
-              autoCapitalize="none"
-              autoCorrect="off"
-              spellCheck={false}
-              disabled={isAIParsing}
-            />
-          </form>
-          {isFiltered && (
-            <button
-              onClick={clearSearch}
-              className='absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground transition-colors fine-hover:text-foreground'
-            >
-              <Cancel01Icon size={13} />
-            </button>
-          )}
-        </div>
+      <Filter.Provider
+        columns={columns}
+        filters={filters}
+        actions={actions}
+        strategy={strategy}
+        entityName="Document"
+      >
+        <div className='flex flex-col gap-2'>
+          {/* Row 1: search + filter menu + view toggle */}
+          <div className='flex items-center gap-2'>
+            <form onSubmit={handleSearchSubmit} className='relative'>
+              {isAIParsing ? (
+                <span className='absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground'>
+                  <Spinner size={14} />
+                </span>
+              ) : (
+                <Search01Icon
+                  size={14}
+                  className='absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground'
+                />
+              )}
+              <Input
+                ref={searchInputRef}
+                placeholder={isInsideFolder ? `Search in ${folderPath.at(-1)!.name}…` : "Search documents…"}
+                className={cn(
+                  "h-9 w-72 pl-8 text-xs",
+                  (input || search) ? "pr-14" : "pr-9",
+                )}
+                value={input}
+                onChange={(e) => handleSearchInputChange(e.target.value)}
+                autoComplete="off"
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
+                disabled={isAIParsing}
+              />
+              {(input || search) && (
+                <button
+                  type="button"
+                  onClick={clearSearch}
+                  className='absolute right-9 top-1/2 -translate-y-1/2 text-muted-foreground transition-colors fine-hover:text-foreground'
+                >
+                  <Cancel01Icon size={13} />
+                </button>
+              )}
+              <Filter.Menu>
+                <button
+                  type="button"
+                  className={cn(
+                    "absolute right-2.5 top-1/2 -translate-y-1/2 transition-colors",
+                    filtersState.length > 0
+                      ? "text-primary"
+                      : "text-muted-foreground fine-hover:text-foreground",
+                  )}
+                >
+                  <FilterIcon size={13} />
+                  {filtersState.length > 0 && (
+                    <span className="absolute -top-0.5 -right-0.5 size-1.5 rounded-full bg-primary" />
+                  )}
+                </button>
+              </Filter.Menu>
+            </form>
 
-        <div className='ml-auto flex items-center gap-1 rounded-lg border p-1'>
-          <button
-            onClick={() => setViewMode("grid")}
-            className={cn(
-              "flex size-7 items-center justify-center rounded-md transition-colors",
-              viewMode === "grid" ?
-                "bg-muted text-foreground"
-              : "text-muted-foreground fine-hover:text-foreground",
-            )}
-          >
-            <GridIcon size={14} />
-          </button>
-          <button
-            onClick={() => setViewMode("list")}
-            className={cn(
-              "flex size-7 items-center justify-center rounded-md transition-colors",
-              viewMode === "list" ?
-                "bg-muted text-foreground"
-              : "text-muted-foreground fine-hover:text-foreground",
-            )}
-          >
-            <ListViewIcon size={14} />
-          </button>
-        </div>
-      </div>
+            <div className='ml-auto flex items-center gap-1 rounded-lg border p-1'>
+              <button
+                onClick={() => setViewMode("grid")}
+                className={cn(
+                  "flex size-7 items-center justify-center rounded-md transition-colors",
+                  viewMode === "grid"
+                    ? "bg-muted text-foreground"
+                    : "text-muted-foreground fine-hover:text-foreground",
+                )}
+              >
+                <GridIcon size={14} />
+              </button>
+              <button
+                onClick={() => setViewMode("list")}
+                className={cn(
+                  "flex size-7 items-center justify-center rounded-md transition-colors",
+                  viewMode === "list"
+                    ? "bg-muted text-foreground"
+                    : "text-muted-foreground fine-hover:text-foreground",
+                )}
+              >
+                <ListViewIcon size={14} />
+              </button>
+            </div>
+          </div>
 
-      {dateChipLabel && (
-        <div className='flex flex-wrap gap-1.5'>
-          <FilterChip
-            label={dateChipLabel}
-            onRemove={() => { setVaultDateFrom(undefined); setVaultDateTo(undefined); }}
-          />
+          {/* Row 2: active filter chips */}
+          {filtersState.length > 0 && (
+            <div className="flex flex-wrap items-center gap-2">
+              <Filter.List>
+                {({ filter, column }) => (
+                  <Filter.Item filter={filter} column={column}>
+                    <Filter.Subject />
+                    <Filter.Operator />
+                    <Filter.Value />
+                    <Filter.Remove />
+                  </Filter.Item>
+                )}
+              </Filter.List>
+              <div
+                className="contents"
+                onClick={() => { setInput(""); setSearch(""); }}
+              >
+                <Filter.Actions />
+              </div>
+            </div>
+          )}
         </div>
-      )}
-      </div>
+      </Filter.Provider>
 
       {/* Documents */}
       {docsLoading ?

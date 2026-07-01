@@ -83,6 +83,8 @@ export type ParsedTransactionFilters = {
   categoryName?: string | null
   paymentMode?: "mpesa" | "bank_transfer" | "cash" | "cheque" | "card" | "other" | null
   recurring?: boolean | null
+  amountMin?: number | null
+  amountMax?: number | null
 }
 
 export async function parseTransactionFilters(args: {
@@ -103,10 +105,15 @@ export type ParsedInvoiceFilters = {
   statuses?: string[] | null
   dateFrom?: string | null
   dateTo?: string | null
+  customers?: string[] | null
+  recurring?: boolean | null
+  amountMin?: number | null
+  amountMax?: number | null
 }
 
 export async function parseInvoiceFilters(args: {
   input: string
+  customers?: string[]
   currentDate?: string
   timezone?: string
 }): Promise<ParsedInvoiceFilters> {
@@ -120,10 +127,14 @@ export type ParsedQuoteFilters = {
   statuses?: string[] | null
   dateFrom?: string | null
   dateTo?: string | null
+  customers?: string[] | null
+  amountMin?: number | null
+  amountMax?: number | null
 }
 
 export async function parseQuoteFilters(args: {
   input: string
+  customers?: string[]
   currentDate?: string
   timezone?: string
 }): Promise<ParsedQuoteFilters> {
