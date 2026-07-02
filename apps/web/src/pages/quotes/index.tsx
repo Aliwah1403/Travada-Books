@@ -177,6 +177,8 @@ function toTableQuote(q: DbQuote, formatDate: (v: string | null | undefined) => 
     customerLogoUrl: q.customers?.logo_url ?? null,
     amount: q.total ?? 0,
     currency: q.currency,
+    convertedAmount: q.converted_amount ?? null,
+    baseCurrency: q.base_currency ?? null,
     issueDate: q.issue_date ? formatDate(q.issue_date) : "—",
   };
 }

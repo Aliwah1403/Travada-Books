@@ -13,7 +13,7 @@ export const scheduledSend = schemaTask({
   id: "scheduled-send",
   schema: z.object({
     invoiceId: z.string().uuid(),
-    scheduledAt: z.string().datetime(),
+    scheduledAt: z.string().datetime({ offset: true }),
   }),
   maxDuration: 60,
   retry: {

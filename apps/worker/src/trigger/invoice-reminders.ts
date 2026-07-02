@@ -1,9 +1,13 @@
+import React from "react";
 import { schedules, logger } from "@trigger.dev/sdk";
+import { render } from "@react-email/render";
+import { Resend } from "resend";
 import { supabase } from "../lib/supabase";
+import { InvoiceReminderEmail } from "../emails/invoice-reminder";
 
-const SUPABASE_URL = process.env.SUPABASE_URL!;
-const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-const WORKER_SHARED_SECRET = process.env.WORKER_SHARED_SECRET!;
+const FROM_EMAIL = "noreply@mail.travadasys.com";
+const APP_URL = process.env.APP_URL ?? "https://books.travadasys.com";
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
@@ -65,7 +69,7 @@ export const invoiceReminders = schedules.task({
 
       const { data: invoices, error: invoiceError } = await supabase
         .from("invoices")
-        .select("id")
+        .select("id, org_id, customer_id, invoice_number, due_date, total, currency, token, from_details, customer_details")
         .eq("status", "overdue")
         .eq("org_id", orgId)
         .gte("due_date", earliestDateStr)
@@ -104,20 +108,83 @@ export const invoiceReminders = schedules.task({
             continue;
           }
 
-          const res = await fetch(`${SUPABASE_URL}/functions/v1/send-invoice-reminder`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
-              "X-Worker-Secret": WORKER_SHARED_SECRET,
-            },
-            body: JSON.stringify({ invoiceId: invoice.id }),
+          let from = invoice.from_details as Record<string, string> | null;
+          let customer = invoice.customer_details as Record<string, string> | null;
+
+          if (!from) {
+            const { data: org } = await supabase
+              .from("organizations")
+              .select("name, email, logo_url, phone, tax_id, address_line1, country_code")
+              .eq("id", invoice.org_id)
+              .single();
+            if (org) from = org as unknown as Record<string, string>;
+          }
+
+          if (!customer && invoice.customer_id) {
+            const { data: cust } = await supabase
+              .from("customers")
+              .select("name, email, billing_email")
+              .eq("id", invoice.customer_id)
+              .single();
+            if (cust) customer = cust as unknown as Record<string, string>;
+          }
+
+          if (!from) {
+            logger.warn("Could not resolve org details for reminder, skipping", { invoiceId: invoice.id });
+            continue;
+          }
+          if (!from.name) {
+            logger.warn("Org name missing, skipping reminder", { invoiceId: invoice.id });
+            continue;
+          }
+          if (!from.email) {
+            logger.warn("Org email missing, skipping reminder", { invoiceId: invoice.id });
+            continue;
+          }
+          if (!customer) {
+            logger.warn("Could not resolve customer details for reminder, skipping", { invoiceId: invoice.id });
+            continue;
+          }
+
+          const recipientEmail = (customer.billing_email || customer.email) as string;
+          if (!recipientEmail) {
+            logger.warn("Customer has no email, skipping reminder", { invoiceId: invoice.id });
+            continue;
+          }
+
+          const todayLocal = new Date().toLocaleDateString("en-CA", { timeZone: tz });
+          const daysOverdue = invoice.due_date
+            ? Math.max(0, Math.floor((new Date(todayLocal).getTime() - new Date(invoice.due_date).getTime()) / MS_PER_DAY))
+            : 0;
+
+          const publicUrl = invoice.token ? `${APP_URL}/i/${invoice.token}` : APP_URL;
+          const html = await render(
+            React.createElement(InvoiceReminderEmail, {
+              orgName: from.name,
+              orgLogoUrl: from.logo_url,
+              orgEmail: from.email,
+              customerName: customer.name,
+              invoiceNumber: invoice.invoice_number,
+              dueDate: invoice.due_date,
+              total: invoice.total,
+              currency: invoice.currency,
+              publicUrl,
+            })
+          );
+
+          const label = invoice.invoice_number ? `Invoice ${invoice.invoice_number}` : "Invoice";
+          const { error: emailError } = await resend.emails.send({
+            from: `${from.name} <${FROM_EMAIL}>`,
+            to: [recipientEmail],
+            replyTo: from.email,
+            subject: `Reminder: ${label} from ${from.name} ${daysOverdue > 0 ? "is overdue" : "is due"}`,
+            html,
           });
 
-          if (!res.ok) {
-            logger.warn("Reminder edge function returned error", {
+          if (emailError) {
+            logger.warn("Resend error sending reminder", {
               invoiceId: invoice.id,
-              status: res.status,
+              error: (emailError as { message: string }).message,
             });
             continue;
           }

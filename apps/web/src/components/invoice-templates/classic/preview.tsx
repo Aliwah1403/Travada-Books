@@ -208,7 +208,7 @@ export function ClassicPreview({ data }: { data: ClassicDocumentData }) {
           <Separator className="my-6" />
           <div>
             <p className="text-xs font-medium">Notes</p>
-            <p className="mt-1 text-xs text-muted-foreground">{note}</p>
+            <p className="mt-1 whitespace-pre-wrap text-xs text-muted-foreground">{note}</p>
           </div>
         </>
       )}
