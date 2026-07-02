@@ -43,7 +43,7 @@ createRoot(document.getElementById("root")!).render(
           <QueryClientProvider client={queryClient}>
             <TooltipProvider>
               <App />
-              <Toaster richColors position="bottom-right" />
+              <Toaster position="bottom-right" />
             </TooltipProvider>
             <ReactQueryDevtools initialIsOpen={false} />
           </QueryClientProvider>

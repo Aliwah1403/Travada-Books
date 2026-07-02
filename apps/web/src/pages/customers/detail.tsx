@@ -1,12 +1,14 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate, useParams } from "react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft01Icon,
+  Cancel01Icon,
   Delete01Icon,
   MoreHorizontalIcon,
   PencilEdit01Icon,
   PlusSignIcon,
+  SparklesIcon,
 } from "@travada-books/ui/icons";
 import { Button } from "@travada-books/ui/components/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@travada-books/ui/components/avatar";
@@ -37,7 +39,9 @@ import { Card, CardContent } from "@travada-books/ui/components/card";
 import { InvoiceTable } from "@/components/invoices/invoice-table";
 import { EditCustomerSheet } from "@/components/customers/edit-customer-sheet";
 import { GenerateStatementSheet } from "@/components/customers/generate-statement-sheet";
-import { getCustomer, deleteCustomer } from "@/lib/queries/customers";
+import { getCustomer, deleteCustomer, triggerEnrichment, cancelEnrichment, clearEnrichment } from "@/lib/queries/customers";
+import { Spinner } from "@/components/shared/spinner";
+import { supabase } from "@/lib/supabase";
 import {
   listCustomerInvoices,
   getCustomerInvoiceSummary,
@@ -47,6 +51,7 @@ import { type Invoice } from "@/components/invoices/invoice-table";
 import { useAuth } from "@/contexts/auth-context";
 import { useFormatDate } from "@/hooks/use-format-date";
 import { toast } from "sonner";
+import { trackEvent, LogEvents } from "@/lib/analytics";
 
 function InfoRow({ label, value }: { label: string; value: string }) {
   return (
@@ -66,6 +71,8 @@ export function CustomerDetailPage() {
   const [editOpen, setEditOpen] = useState(false);
   const [statementOpen, setStatementOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [enrichAnimKey, setEnrichAnimKey] = useState(0);
+  const prevEnrichStatus = useRef<string | null | undefined>(undefined);
 
   const { data: invoiceSummary } = useQuery({
     queryKey: ["customer-invoice-summary", id],
@@ -93,6 +100,59 @@ export function CustomerDetailPage() {
     queryKey: ["customer", id],
     queryFn: () => getCustomer(id!, orgId!),
     enabled: !!id && !!orgId,
+  });
+
+  useEffect(() => {
+    if (!customer) return;
+    trackEvent(LogEvents.CustomerViewed);
+  }, [customer?.id]);
+
+  useEffect(() => {
+    if (!id) return;
+    const channel = supabase
+      .channel(`customer-enrichment-${id}`)
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "customers", filter: `id=eq.${id}` },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ["customer", id] });
+        }
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [id, queryClient]);
+
+  // Increment animation key only when transitioning to "done" (not on first load)
+  useEffect(() => {
+    if (!customer) return;
+    if (
+      customer.enrichment_status === "done" &&
+      prevEnrichStatus.current !== "done" &&
+      prevEnrichStatus.current !== undefined
+    ) {
+      setEnrichAnimKey((k) => k + 1);
+    }
+    prevEnrichStatus.current = customer.enrichment_status;
+  }, [customer?.enrichment_status]);
+
+  const enrichMutation = useMutation({
+    mutationFn: () => triggerEnrichment(id!),
+    onError: () => toast.error("Failed to start enrichment"),
+  });
+
+  const cancelEnrichMutation = useMutation({
+    mutationFn: () => cancelEnrichment(id!, orgId!),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["customer", id] }),
+    onError: () => toast.error("Failed to cancel enrichment"),
+  });
+
+  const clearEnrichMutation = useMutation({
+    mutationFn: () => clearEnrichment(id!, orgId!),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["customer", id] });
+      queryClient.invalidateQueries({ queryKey: ["customers", orgId] });
+    },
+    onError: () => toast.error("Failed to clear enrichment"),
   });
 
   const deleteMutation = useMutation({
@@ -146,6 +206,7 @@ export function CustomerDetailPage() {
   }
 
   const currency = customer.preferred_currency ?? "KES";
+  const isEnriching = customer.enrichment_status === "pending" || customer.enrichment_status === "processing";
 
   return (
     <div className='flex h-full flex-col overflow-hidden'>
@@ -184,7 +245,51 @@ export function CustomerDetailPage() {
             <DropdownMenuTrigger render={<Button variant='outline' />}>
               <MoreHorizontalIcon size={13} />
             </DropdownMenuTrigger>
-            <DropdownMenuContent align='end' className='w-full'>
+            <DropdownMenuContent align='end' className='w-48'>
+              {(!customer.enrichment_status || customer.enrichment_status === "failed") && (
+                <DropdownMenuItem
+                  onClick={() => toast.promise(enrichMutation.mutateAsync(), {
+                    loading: "Starting enrichment…",
+                    success: "Enrichment started",
+                    error: "Failed to start enrichment",
+                  })}
+                  disabled={enrichMutation.isPending || !customer.email}
+                >
+                  <SparklesIcon size={13} />
+                  Enrich with AI
+                </DropdownMenuItem>
+              )}
+              {customer.enrichment_status === "done" && (
+                <DropdownMenuItem
+                  onClick={() => toast.promise(enrichMutation.mutateAsync(), {
+                    loading: "Starting enrichment…",
+                    success: "Re-enrichment started",
+                    error: "Failed to start enrichment",
+                  })}
+                  disabled={enrichMutation.isPending}
+                >
+                  <SparklesIcon size={13} />
+                  Refresh Enrichment
+                </DropdownMenuItem>
+              )}
+              {isEnriching && (
+                <DropdownMenuItem
+                  onClick={() => cancelEnrichMutation.mutate()}
+                  disabled={cancelEnrichMutation.isPending}
+                >
+                  <Cancel01Icon size={13} />
+                  Cancel Enrichment
+                </DropdownMenuItem>
+              )}
+              {customer.enrichment_status === "done" && (
+                <DropdownMenuItem
+                  onClick={() => clearEnrichMutation.mutate()}
+                  disabled={clearEnrichMutation.isPending}
+                >
+                  <Delete01Icon size={13} />
+                  Clear Enrichment
+                </DropdownMenuItem>
+              )}
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 className='text-destructive focus:text-destructive'
@@ -275,12 +380,21 @@ export function CustomerDetailPage() {
         <div className='flex w-[400px] shrink-0 flex-col gap-4 overflow-y-auto border-r p-4'>
           <div className='rounded-lg border bg-background p-4'>
             <div className='flex flex-col items-center gap-3 text-center'>
-              <Avatar className='size-14'>
-                <AvatarImage src={customer.logo_url ?? undefined} />
-                <AvatarFallback className='text-base font-semibold'>
-                  {customer.name.slice(0, 2).toUpperCase()}
-                </AvatarFallback>
-              </Avatar>
+              {isEnriching ? (
+                <div className='relative size-14'>
+                  <div className='size-14 rounded-full bg-muted animate-pulse' />
+                  <div className='absolute inset-0 flex items-center justify-center'>
+                    <Spinner size={20} />
+                  </div>
+                </div>
+              ) : (
+                <Avatar className='size-14'>
+                  <AvatarImage src={customer.logo_url ?? undefined} />
+                  <AvatarFallback className='text-base font-semibold'>
+                    {customer.name.slice(0, 2).toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+              )}
               <div>
                 <p className='font-semibold text-sm'>{customer.name}</p>
                 {customer.main_contact && (
@@ -385,9 +499,10 @@ export function CustomerDetailPage() {
                         Enriched
                       </span>
                     )}
-                    {customer.enrichment_status === "pending" && (
-                      <span className='rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-medium text-amber-600 dark:text-amber-400'>
-                        Pending
+                    {isEnriching && (
+                      <span className='flex items-center gap-1.5 rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-medium text-amber-600 dark:text-amber-400'>
+                        <Spinner size={10} />
+                        {customer.enrichment_status === "processing" ? "Processing" : "Pending"}
                       </span>
                     )}
                     {customer.enrichment_status === "failed" && (
@@ -403,131 +518,185 @@ export function CustomerDetailPage() {
                   </div>
                 </AccordionTrigger>
                 <AccordionContent>
-                  {!customer.enrichment_status ?
+                  {isEnriching ? (
+                    <div className='flex flex-col gap-3 pb-4'>
+                      <div className='flex items-center gap-2 text-muted-foreground'>
+                        <Spinner size={14} />
+                        <span className='text-xs'>Enriching profile…</span>
+                      </div>
+                      {/* description lines */}
+                      <div className='flex flex-col gap-1.5'>
+                        <div className='h-3 w-full rounded-sm bg-muted animate-pulse' />
+                        <div className='h-3 w-4/5 rounded-sm bg-muted animate-pulse' />
+                      </div>
+                      {/* badge pills */}
+                      <div className='flex gap-2'>
+                        <div className='h-5 w-16 rounded-full bg-muted animate-pulse' />
+                        <div className='h-5 w-20 rounded-full bg-muted animate-pulse' />
+                        <div className='h-5 w-14 rounded-full bg-muted animate-pulse' />
+                      </div>
+                      {/* field rows */}
+                      {[1, 2, 3, 4, 5, 6].map((i) => (
+                        <div key={i} className='flex items-center justify-between border-b py-2.5 last:border-b-0'>
+                          <div className='h-3 w-20 rounded-sm bg-muted animate-pulse' />
+                          <div className='h-3 w-24 rounded-sm bg-muted animate-pulse' />
+                        </div>
+                      ))}
+                    </div>
+                  ) : customer.enrichment_status === "failed" ? (
+                    <div className='flex flex-col gap-3 pb-4'>
+                      <p className='text-xs text-muted-foreground'>
+                        Failed to fetch company information.
+                      </p>
+                      <Button
+                        variant='outline'
+                        size='sm'
+                        className='w-fit gap-1.5'
+                        onClick={() => toast.promise(enrichMutation.mutateAsync(), {
+                          loading: "Starting enrichment…",
+                          success: "Enrichment started",
+                          error: "Failed to start enrichment",
+                        })}
+                        disabled={enrichMutation.isPending || !customer.email}
+                      >
+                        <SparklesIcon size={12} />
+                        Try again
+                      </Button>
+                    </div>
+                  ) : !customer.enrichment_status ? (
                     <p className='pb-4 text-xs text-muted-foreground'>
                       Enrichment runs automatically when an email is set. Add an
                       email to trigger it.
                     </p>
-                  : <div className='flex flex-col gap-3 pb-4'>
-                      {customer.description && (
-                        <p className='text-xs text-muted-foreground leading-relaxed'>
-                          {customer.description}
-                        </p>
-                      )}
-                      <div className='divide-y'>
-                        {customer.ceo_name && (
-                          <InfoRow label='CEO' value={customer.ceo_name} />
+                  ) : (
+                    <div
+                      key={enrichAnimKey}
+                      className={enrichAnimKey > 0 ? 'animate-in fade-in-0 slide-in-from-bottom-1 duration-300 [animation-timing-function:var(--ease-out)]' : ''}
+                    >
+                      <div className='flex flex-col gap-3 pb-4'>
+                        {customer.description && (
+                          <p
+                            className='text-xs text-muted-foreground leading-relaxed'
+                            style={enrichAnimKey > 0 ? { animationDelay: "0ms" } : undefined}
+                          >
+                            {customer.description}
+                          </p>
                         )}
-                        {customer.founded_year && (
-                          <InfoRow
-                            label='Founded'
-                            value={String(customer.founded_year)}
-                          />
-                        )}
-                        {customer.employee_count && (
-                          <InfoRow
-                            label='Employees'
-                            value={String(customer.employee_count)}
-                          />
-                        )}
-                        {customer.estimated_revenue && (
-                          <InfoRow
-                            label='Est. Revenue'
-                            value={customer.estimated_revenue}
-                          />
-                        )}
-                        {customer.funding_stage && (
-                          <InfoRow
-                            label='Funding Stage'
-                            value={customer.funding_stage}
-                          />
-                        )}
-                        {customer.total_funding && (
-                          <InfoRow
-                            label='Total Funding'
-                            value={customer.total_funding}
-                          />
-                        )}
-                        {customer.headquarters_location && (
-                          <InfoRow
-                            label='HQ'
-                            value={customer.headquarters_location}
-                          />
-                        )}
-                        {customer.fiscal_year_end && (
-                          <InfoRow
-                            label='Fiscal Year End'
-                            value={customer.fiscal_year_end}
-                          />
-                        )}
-                        {customer.finance_contact && (
-                          <InfoRow
-                            label='Finance Contact'
-                            value={customer.finance_contact}
-                          />
-                        )}
-                        {customer.finance_contact_email && (
-                          <InfoRow
-                            label='Finance Email'
-                            value={customer.finance_contact_email}
-                          />
-                        )}
-                      </div>
-                      {(customer.linkedin_url ||
-                        customer.twitter_url ||
-                        customer.instagram_url ||
-                        customer.facebook_url) && (
-                        <div className='flex flex-wrap gap-2'>
-                          {customer.linkedin_url && (
-                            <a
-                              href={customer.linkedin_url}
-                              target='_blank'
-                              rel='noreferrer'
-                              className='text-[11px] text-muted-foreground underline-offset-4 hover:underline'
-                            >
-                              LinkedIn
-                            </a>
+                        <div className='divide-y'>
+                          {customer.ceo_name && (
+                            <InfoRow label='CEO' value={customer.ceo_name} />
                           )}
-                          {customer.twitter_url && (
-                            <a
-                              href={customer.twitter_url}
-                              target='_blank'
-                              rel='noreferrer'
-                              className='text-[11px] text-muted-foreground underline-offset-4 hover:underline'
-                            >
-                              Twitter / X
-                            </a>
+                          {customer.founded_year && (
+                            <InfoRow
+                              label='Founded'
+                              value={String(customer.founded_year)}
+                            />
                           )}
-                          {customer.instagram_url && (
-                            <a
-                              href={customer.instagram_url}
-                              target='_blank'
-                              rel='noreferrer'
-                              className='text-[11px] text-muted-foreground underline-offset-4 hover:underline'
-                            >
-                              Instagram
-                            </a>
+                          {customer.employee_count && (
+                            <InfoRow
+                              label='Employees'
+                              value={String(customer.employee_count)}
+                            />
                           )}
-                          {customer.facebook_url && (
-                            <a
-                              href={customer.facebook_url}
-                              target='_blank'
-                              rel='noreferrer'
-                              className='text-[11px] text-muted-foreground underline-offset-4 hover:underline'
-                            >
-                              Facebook
-                            </a>
+                          {customer.estimated_revenue && (
+                            <InfoRow
+                              label='Est. Revenue'
+                              value={customer.estimated_revenue}
+                            />
+                          )}
+                          {customer.funding_stage && (
+                            <InfoRow
+                              label='Funding Stage'
+                              value={customer.funding_stage}
+                            />
+                          )}
+                          {customer.total_funding && (
+                            <InfoRow
+                              label='Total Funding'
+                              value={customer.total_funding}
+                            />
+                          )}
+                          {customer.headquarters_location && (
+                            <InfoRow
+                              label='HQ'
+                              value={customer.headquarters_location}
+                            />
+                          )}
+                          {customer.fiscal_year_end && (
+                            <InfoRow
+                              label='Fiscal Year End'
+                              value={customer.fiscal_year_end}
+                            />
+                          )}
+                          {customer.finance_contact && (
+                            <InfoRow
+                              label='Finance Contact'
+                              value={customer.finance_contact}
+                            />
+                          )}
+                          {customer.finance_contact_email && (
+                            <InfoRow
+                              label='Finance Email'
+                              value={customer.finance_contact_email}
+                            />
                           )}
                         </div>
-                      )}
-                      {customer.enriched_at && (
-                        <p className='text-[10px] text-muted-foreground/60'>
-                          Last enriched{" "}
-                          {new Date(customer.enriched_at).toLocaleDateString()}
-                        </p>
-                      )}
+                        {(customer.linkedin_url ||
+                          customer.twitter_url ||
+                          customer.instagram_url ||
+                          customer.facebook_url) && (
+                          <div className='flex flex-wrap gap-2'>
+                            {customer.linkedin_url && (
+                              <a
+                                href={customer.linkedin_url}
+                                target='_blank'
+                                rel='noreferrer'
+                                className='text-[11px] text-muted-foreground underline-offset-4 hover:underline'
+                              >
+                                LinkedIn
+                              </a>
+                            )}
+                            {customer.twitter_url && (
+                              <a
+                                href={customer.twitter_url}
+                                target='_blank'
+                                rel='noreferrer'
+                                className='text-[11px] text-muted-foreground underline-offset-4 hover:underline'
+                              >
+                                Twitter / X
+                              </a>
+                            )}
+                            {customer.instagram_url && (
+                              <a
+                                href={customer.instagram_url}
+                                target='_blank'
+                                rel='noreferrer'
+                                className='text-[11px] text-muted-foreground underline-offset-4 hover:underline'
+                              >
+                                Instagram
+                              </a>
+                            )}
+                            {customer.facebook_url && (
+                              <a
+                                href={customer.facebook_url}
+                                target='_blank'
+                                rel='noreferrer'
+                                className='text-[11px] text-muted-foreground underline-offset-4 hover:underline'
+                              >
+                                Facebook
+                              </a>
+                            )}
+                          </div>
+                        )}
+                        {customer.enriched_at && (
+                          <p className='text-[10px] text-muted-foreground/60'>
+                            Last enriched{" "}
+                            {new Date(customer.enriched_at).toLocaleDateString()}
+                          </p>
+                        )}
+                      </div>
                     </div>
-                  }
+                  )}
                 </AccordionContent>
               </AccordionItem>
             </Accordion>

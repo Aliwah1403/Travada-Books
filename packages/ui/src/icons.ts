@@ -51,6 +51,25 @@ import {
   ColumnsThreeCogIcon as ColumnsThreeCogSvg,
   RepeatIcon as RepeatSvg,
   Globe02Icon as Globe02Svg,
+  ArrowUpRight01Icon as ArrowUpRight01Svg,
+  ArrowDownLeft01Icon as ArrowDownLeft01Svg,
+  Attachment01Icon as Attachment01Svg,
+  Tag01Icon as Tag01Svg,
+  Upload01Icon as Upload01Svg,
+  File01Icon as File01Svg,
+  Image01Icon as Image01Svg,
+  Pdf01Icon as Pdf01Svg,
+  ListViewIcon as ListViewSvg,
+  FolderFileStorageIcon as FolderFileSvg,
+  FolderAddIcon as FolderAddSvg,
+  SparklesIcon as SparklesSvg,
+  Alert02Icon as Alert02Svg,
+  Doc01Icon as Doc01Svg,
+  FileSpreadsheetIcon as FileSpreadsheetSvg,
+  Ppt01Icon as Ppt01Svg,
+  Csv01Icon as Csv01Svg,
+  Mail01Icon as Mail01Svg,
+  Link01Icon as Link01Svg,
 } from "@hugeicons/core-free-icons";
 
 export type IconProps = Omit<HugeiconsIconProps, "icon">;
@@ -112,3 +131,22 @@ export const SortingDownIcon = make(SortingDownSvg);
 export const ColumnsThreeCogIcon = make(ColumnsThreeCogSvg);
 export const RepeatIcon = make(RepeatSvg);
 export const Globe02Icon = make(Globe02Svg);
+export const ArrowUpRight01Icon = make(ArrowUpRight01Svg);
+export const ArrowDownLeft01Icon = make(ArrowDownLeft01Svg);
+export const Attachment01Icon = make(Attachment01Svg);
+export const Tag01Icon = make(Tag01Svg);
+export const Upload01Icon = make(Upload01Svg);
+export const File01Icon = make(File01Svg);
+export const Image01Icon = make(Image01Svg);
+export const Pdf01Icon = make(Pdf01Svg);
+export const ListViewIcon = make(ListViewSvg);
+export const VaultIcon = make(FolderFileSvg);
+export const FolderAddIcon = make(FolderAddSvg);
+export const SparklesIcon = make(SparklesSvg);
+export const Alert02Icon = make(Alert02Svg);
+export const Doc01Icon = make(Doc01Svg);
+export const FileSpreadsheetIcon = make(FileSpreadsheetSvg);
+export const Ppt01Icon = make(Ppt01Svg);
+export const Csv01Icon = make(Csv01Svg);
+export const Mail01Icon = make(Mail01Svg);
+export const Link01Icon = make(Link01Svg);

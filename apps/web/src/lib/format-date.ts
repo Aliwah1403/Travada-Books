@@ -1,6 +1,17 @@
 import { format } from "date-fns"
 import { TZDate } from "@date-fns/tz"
 
+/** Parse "YYYY-MM-DD" as local calendar date (no UTC shift). */
+export function parseDateOnly(iso: string): Date {
+  const [year, month, day] = iso.split("-").map(Number)
+  return new Date(year, month - 1, day)
+}
+
+/** Format a Date to "YYYY-MM-DD" using local calendar parts. */
+export function toDateOnlyString(date: Date): string {
+  return format(date, "yyyy-MM-dd")
+}
+
 // Legacy remap: old moment-style strings stored in DB before the migration
 const LEGACY_FORMAT_MAP: Record<string, string> = {
   "DD/MM/YYYY": "dd/MM/yyyy",

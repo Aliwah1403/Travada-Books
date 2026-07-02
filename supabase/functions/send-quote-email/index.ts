@@ -42,6 +42,19 @@ Deno.serve(async (req) => {
     const recipientEmail = (customer.billing_email || customer.email) as string
     if (!recipientEmail) return new Response(JSON.stringify({ error: "Customer has no email" }), { status: 422, headers: corsHeaders })
 
+    const { data: template } = await db
+      .from("quote_templates")
+      .select("cc, bcc")
+      .eq("org_id", quote.org_id)
+      .eq("is_default", true)
+      .maybeSingle()
+
+    const parseEmails = (raw: string | null | undefined) =>
+      (raw ?? "").split(",").map((e) => e.trim()).filter(Boolean)
+
+    const ccEmails = parseEmails(template?.cc)
+    const bccEmails = parseEmails(template?.bcc)
+
     const publicUrl = quote.token ? `${APP_URL}/q/${quote.token}` : APP_URL
     const html = await render(
       React.createElement(QuoteSentEmail, {
@@ -64,6 +77,8 @@ Deno.serve(async (req) => {
     await resend.emails.send({
       from: `${from.name} <${FROM_EMAIL}>`,
       to: [recipientEmail],
+      ...(ccEmails.length > 0 && { cc: ccEmails }),
+      ...(bccEmails.length > 0 && { bcc: bccEmails }),
       replyTo: from.email,
       subject,
       html,

@@ -13,6 +13,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@travada-books/ui/components/sheet";
+import { Spokes } from "@travada-books/ui/components/spokes";
 import { QuoteStatusBadge } from "./quote-status-badge";
 import { getQuote } from "@/lib/queries/quotes";
 import { useAuth } from "@/contexts/auth-context";
@@ -68,7 +69,7 @@ export function QuotePreviewSheet({ quoteId, onOpenChange }: QuotePreviewSheetPr
         <div className="flex-1 overflow-y-auto bg-muted/30 px-6 py-6">
           {isLoading && (
             <div className="flex items-center justify-center py-20">
-              <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+              <Spokes className="h-5 w-5 text-primary" />
             </div>
           )}
 

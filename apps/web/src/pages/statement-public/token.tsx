@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { format, parseISO, isValid } from "date-fns";
 import { useState } from "react";
 import { Copy01Icon, Download01Icon } from "@travada-books/ui/icons";
+import { Spokes } from "@travada-books/ui/components/spokes";
 import { Button } from "@travada-books/ui/components/button";
 import { Separator } from "@travada-books/ui/components/separator";
 import { cn } from "@travada-books/ui/lib/utils";
@@ -90,7 +91,7 @@ export function PublicStatementPage() {
   if (isLoading) {
     return (
       <div className='flex min-h-screen items-center justify-center bg-muted/30'>
-        <div className='h-7 w-7 animate-spin rounded-full border-2 border-primary border-t-transparent' />
+        <Spokes className='h-7 w-7 text-primary' />
       </div>
     );
   }

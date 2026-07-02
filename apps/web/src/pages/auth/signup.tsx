@@ -73,7 +73,7 @@ export function SignupPage() {
       }
       return
     }
-    trackEvent(LogEvents.Registered)
+    trackEvent(LogEvents.Registered, { auth_method: "email" })
     // Determine where to send the user after email confirmation
     let destination = "/invoices"
     if (emailRedirectTo) {

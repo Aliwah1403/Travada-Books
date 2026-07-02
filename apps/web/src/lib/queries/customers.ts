@@ -118,3 +118,50 @@ export async function deleteCustomer(id: string, orgId: string): Promise<void> {
   const { error } = await supabase.from("customers").delete().eq("id", id).eq("org_id", orgId)
   if (error) throw error
 }
+
+export async function cancelEnrichment(id: string, orgId: string): Promise<void> {
+  const { error } = await supabase
+    .from("customers")
+    .update({ enrichment_status: null })
+    .eq("id", id)
+    .eq("org_id", orgId)
+  if (error) throw error
+}
+
+export async function triggerEnrichment(customerId: string): Promise<void> {
+  const { error } = await supabase.functions.invoke("enrich-customer", {
+    body: { customerId },
+  })
+  if (error) throw error
+}
+
+export async function clearEnrichment(id: string, orgId: string): Promise<Customer> {
+  const { data, error } = await supabase
+    .from("customers")
+    .update({
+      enrichment_status: null,
+      enriched_at: null,
+      description: null,
+      founded_year: null,
+      estimated_revenue: null,
+      funding_stage: null,
+      total_funding: null,
+      headquarters_location: null,
+      linkedin_url: null,
+      twitter_url: null,
+      instagram_url: null,
+      facebook_url: null,
+      ceo_name: null,
+      finance_contact: null,
+      finance_contact_email: null,
+      primary_language: null,
+      fiscal_year_end: null,
+    })
+    .eq("id", id)
+    .eq("org_id", orgId)
+    .select("id, created_at, org_id, name, email, billing_email, phone, website, address_line1, address_line2, city, state, zip, country, country_code, vat_number, note, logo_url, preferred_currency, is_archived, industry, company_type, main_contact, description, employee_count, founded_year, estimated_revenue, funding_stage, total_funding, headquarters_location, linkedin_url, twitter_url, instagram_url, facebook_url, ceo_name, finance_contact, finance_contact_email, primary_language, fiscal_year_end, enrichment_status, enriched_at")
+    .single()
+
+  if (error) throw error
+  return data
+}
