@@ -1,0 +1,776 @@
+import { useState, useEffect, useRef, useCallback } from "react"
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
+import { toast } from "sonner"
+import { Link } from "react-router"
+import {
+  Sheet,
+  SheetContent,
+  SheetTitle,
+} from "@travada-books/ui/components/sheet"
+import { Button } from "@travada-books/ui/components/button"
+import { Textarea } from "@travada-books/ui/components/textarea"
+import { Input } from "@travada-books/ui/components/input"
+import {
+  Download01Icon,
+  Delete01Icon,
+  Tag01Icon,
+  Cancel01Icon,
+  SparklesIcon,
+  PencilEdit01Icon,
+  Wallet01Icon,
+  Pdf01Icon,
+  Image01Icon,
+  File01Icon,
+  Link01Icon,
+} from "@travada-books/ui/icons"
+import { Spinner } from "@/components/shared/spinner"
+import { cn } from "@travada-books/ui/lib/utils"
+import {
+  getDocumentSignedUrl,
+  getDocument,
+  updateDocument,
+  deleteDocument,
+  renameDocument,
+  listRelatedDocuments,
+  listDocumentTags,
+  upsertDocumentTag,
+  addDocumentTagAssignment,
+  removeDocumentTagAssignment,
+  createDocumentShare,
+  type VaultDocument,
+  type VaultFolder,
+  type DocumentTag,
+} from "@/lib/queries/vault"
+import { classifyDocument } from "@/lib/queries/ai"
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function formatBytes(bytes: number | null): string {
+  if (!bytes) return "—"
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+}
+
+function formatDate(iso: string): string {
+  return new Date(iso).toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  })
+}
+
+function isPdf(ct: string | null) { return ct === "application/pdf" }
+function isImage(ct: string | null) { return !!ct?.startsWith("image/") }
+
+// ─── Preview area ─────────────────────────────────────────────────────────────
+
+function DocumentPreview({
+  doc,
+  signedUrl,
+  isLoadingUrl,
+}: {
+  doc: VaultDocument
+  signedUrl: string | null
+  isLoadingUrl: boolean
+}) {
+  if (isLoadingUrl || !signedUrl) {
+    return (
+      <div className="flex h-64 items-center justify-center rounded-xl bg-muted animate-pulse" />
+    )
+  }
+
+  if (isPdf(doc.content_type)) {
+    return (
+      <div className="overflow-hidden rounded-xl border bg-muted" style={{ height: 360 }}>
+        <iframe
+          src={`${signedUrl}#toolbar=0&navpanes=0`}
+          title={doc.name}
+          className="h-full w-full"
+        />
+      </div>
+    )
+  }
+
+  if (isImage(doc.content_type)) {
+    return (
+      <div className="flex items-center justify-center overflow-hidden rounded-xl border bg-muted/40" style={{ minHeight: 200 }}>
+        <img
+          src={signedUrl}
+          alt={doc.name}
+          className="max-h-96 w-full object-contain"
+        />
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex h-40 flex-col items-center justify-center gap-3 rounded-xl border bg-muted text-muted-foreground">
+      <File01Icon size={32} />
+      <p className="text-xs">No preview available</p>
+    </div>
+  )
+}
+
+// ─── Document tags input ──────────────────────────────────────────────────────
+
+function DocumentTagsInput({
+  orgId,
+  tags,
+  onAdd,
+  onRemove,
+}: {
+  orgId: string
+  tags: DocumentTag[]
+  onAdd: (name: string) => void
+  onRemove: (tagId: string) => void
+}) {
+  const [inputValue, setInputValue] = useState("")
+  const [showSuggestions, setShowSuggestions] = useState(false)
+  const inputRef = useRef<HTMLInputElement>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
+
+  const { data: orgTags = [] } = useQuery({
+    queryKey: ["document-tags", orgId],
+    queryFn: () => listDocumentTags(orgId),
+    staleTime: 5 * 60 * 1000,
+  })
+
+  const suggestions = orgTags.filter(
+    (t) =>
+      !tags.some((sel) => sel.id === t.id) &&
+      (inputValue === "" || t.name.toLowerCase().includes(inputValue.toLowerCase())),
+  )
+
+  const showDropdown = showSuggestions && (suggestions.length > 0 || inputValue.trim().length > 0)
+  const isNewTag =
+    inputValue.trim().length > 0 &&
+    !orgTags.some((t) => t.name.toLowerCase() === inputValue.trim().toLowerCase())
+
+  function commit(name: string) {
+    const trimmed = name.trim()
+    if (!trimmed || tags.some((t) => t.name.toLowerCase() === trimmed.toLowerCase())) {
+      setInputValue("")
+      return
+    }
+    onAdd(trimmed)
+    setInputValue("")
+    setShowSuggestions(false)
+  }
+
+  function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === "Enter" || e.key === ",") {
+      e.preventDefault()
+      if (inputValue.trim()) commit(inputValue)
+    } else if (e.key === "Backspace" && !inputValue && tags.length > 0) {
+      onRemove(tags[tags.length - 1].id)
+    } else if (e.key === "Escape") {
+      setShowSuggestions(false)
+    }
+  }
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setShowSuggestions(false)
+      }
+    }
+    document.addEventListener("mousedown", handleClick)
+    return () => document.removeEventListener("mousedown", handleClick)
+  }, [])
+
+  return (
+    <div ref={containerRef} className="relative">
+      <div
+        className="flex min-h-9 flex-wrap items-center gap-1.5 rounded-lg border bg-background px-2.5 py-1.5 cursor-text"
+        onClick={() => { inputRef.current?.focus(); setShowSuggestions(true) }}
+      >
+        {tags.map((tag) => (
+          <span
+            key={tag.id}
+            className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-0.5 text-[11px] font-medium text-foreground"
+          >
+            {tag.name}
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); onRemove(tag.id) }}
+              className="text-muted-foreground fine-hover:text-foreground transition-colors"
+            >
+              <Cancel01Icon size={10} />
+            </button>
+          </span>
+        ))}
+        <input
+          ref={inputRef}
+          value={inputValue}
+          onChange={(e) => { setInputValue(e.target.value); setShowSuggestions(true) }}
+          onKeyDown={handleKeyDown}
+          onFocus={() => setShowSuggestions(true)}
+          placeholder={tags.length === 0 ? "Add tags…" : ""}
+          className="min-w-16 flex-1 bg-transparent text-xs outline-none placeholder:text-muted-foreground"
+        />
+      </div>
+
+      {showDropdown && (
+        <div className="absolute left-0 right-0 top-full z-50 mt-1 overflow-hidden rounded-lg border bg-popover shadow-md">
+          {suggestions.map((tag) => (
+            <button
+              key={tag.id}
+              type="button"
+              onMouseDown={(e) => { e.preventDefault(); commit(tag.name) }}
+              className="flex w-full items-center px-3 py-2 text-xs fine-hover:bg-muted transition-colors"
+            >
+              {tag.name}
+            </button>
+          ))}
+          {isNewTag && (
+            <button
+              type="button"
+              onMouseDown={(e) => { e.preventDefault(); commit(inputValue) }}
+              className="flex w-full items-center gap-1.5 px-3 py-2 text-xs text-muted-foreground fine-hover:bg-muted transition-colors"
+            >
+              <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium text-foreground">
+                new
+              </span>
+              Create "{inputValue.trim()}"
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─── File type chip ───────────────────────────────────────────────────────────
+
+function FileTypeChip({ contentType }: { contentType: string | null }) {
+  if (isPdf(contentType)) {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-md bg-red-50 px-2 py-0.5 text-[11px] font-medium text-red-500 dark:bg-red-950">
+        <Pdf01Icon size={11} /> PDF
+      </span>
+    )
+  }
+  if (isImage(contentType)) {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-md bg-blue-50 px-2 py-0.5 text-[11px] font-medium text-blue-500 dark:bg-blue-950">
+        <Image01Icon size={11} /> Image
+      </span>
+    )
+  }
+  return (
+    <span className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+      <File01Icon size={11} /> File
+    </span>
+  )
+}
+
+// ─── Inline name editor ───────────────────────────────────────────────────────
+
+function InlineName({
+  name,
+  onSave,
+}: {
+  name: string
+  onSave: (name: string) => void
+}) {
+  const [editing, setEditing] = useState(false)
+  const [value, setValue] = useState(name)
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => { setValue(name) }, [name])
+  useEffect(() => { if (editing) inputRef.current?.select() }, [editing])
+
+  function commit() {
+    setEditing(false)
+    const trimmed = value.trim()
+    if (trimmed && trimmed !== name) onSave(trimmed)
+    else setValue(name)
+  }
+
+  if (editing) {
+    return (
+      <Input
+        ref={inputRef}
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") commit()
+          if (e.key === "Escape") { setValue(name); setEditing(false) }
+        }}
+        className="h-auto border-0 p-0 text-sm font-semibold leading-snug shadow-none focus-visible:ring-0 focus-visible:ring-offset-0"
+      />
+    )
+  }
+
+  return (
+    <button
+      onClick={() => setEditing(true)}
+      className="group flex items-start gap-1.5 text-left"
+      title="Click to rename"
+    >
+      <span className="text-sm font-semibold leading-snug">{name}</span>
+      <PencilEdit01Icon
+        size={12}
+        className="mt-0.5 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100"
+      />
+    </button>
+  )
+}
+
+// ─── Sheet ────────────────────────────────────────────────────────────────────
+
+type Props = {
+  doc: VaultDocument | null
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  onDeleted: () => void
+  onOpenDoc?: (doc: VaultDocument) => void
+  folders?: VaultFolder[]
+}
+
+export function DocumentPreviewSheet({ doc, open, onOpenChange, onDeleted, onOpenDoc, folders = [] }: Props) {
+  const queryClient = useQueryClient()
+
+  const [summary, setSummary] = useState("")
+  const [tags, setTags] = useState<DocumentTag[]>([])
+  const [summaryDirty, setSummaryDirty] = useState(false)
+  const [isClassifying, setIsClassifying] = useState(false)
+  // pollingEnabled is separate so we only start polling after the edge fn resolves,
+  // preventing the race where the old 'completed' status kills the skeleton immediately.
+  const [pollingEnabled, setPollingEnabled] = useState(false)
+
+  // Sync local state when doc changes
+  useEffect(() => {
+    if (doc) {
+      setSummary(doc.summary ?? "")
+      setTags(doc.tags ?? [])
+      setSummaryDirty(false)
+      setIsClassifying(false)
+      setPollingEnabled(false)
+    }
+  }, [doc?.id])
+
+  // Poll for classification completion — only enabled after edge fn confirms task queued
+  const { data: freshDoc } = useQuery({
+    queryKey: ["vault-doc-poll", doc?.id],
+    queryFn: () => getDocument(doc!.id),
+    enabled: pollingEnabled && !!doc,
+    refetchInterval: 2000,
+  })
+
+  useEffect(() => {
+    if (!freshDoc || !isClassifying) return
+    if (freshDoc.processing_status === "completed") {
+      setSummary(freshDoc.summary ?? "")
+      setTags(freshDoc.tags ?? [])
+      setSummaryDirty(false)
+      setIsClassifying(false)
+      setPollingEnabled(false)
+      queryClient.invalidateQueries({ queryKey: ["vault"] })
+    } else if (freshDoc.processing_status === "failed") {
+      setIsClassifying(false)
+      setPollingEnabled(false)
+      toast.error("AI analysis failed — try again")
+    }
+  }, [freshDoc?.processing_status, isClassifying])
+
+  async function handleAutoFill() {
+    if (!doc || isClassifying) return
+    setIsClassifying(true)
+    try {
+      await classifyDocument({ filePath: doc.file_path })
+      // Edge fn has now reset processing_status to 'pending' and queued the task —
+      // safe to start polling.
+      setPollingEnabled(true)
+    } catch {
+      setIsClassifying(false)
+      toast.error("Couldn't start AI analysis")
+    }
+  }
+
+  // Signed URL — fetched once per doc open
+  const { data: signedUrl, isLoading: isLoadingUrl } = useQuery({
+    queryKey: ["vault-signed-url", doc?.file_path],
+    queryFn: () => getDocumentSignedUrl(doc!.file_path),
+    enabled: open && !!doc,
+    staleTime: 50 * 60 * 1000, // 50 min (URL valid for 1 hr)
+  })
+
+  // Related documents — low-priority FTS query, non-blocking
+  const { data: relatedDocs = [], isLoading: isLoadingRelated } = useQuery({
+    queryKey: ["vault-related", doc?.id, doc?.name],
+    queryFn: () => listRelatedDocuments(doc!.org_id, doc!.id, doc!.name),
+    enabled: open && !!doc,
+    staleTime: 5 * 60 * 1000,
+  })
+
+  const updateMutation = useMutation({
+    mutationFn: (patch: { summary?: string | null; folder_id?: string | null }) =>
+      updateDocument(doc!.id, patch),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["vault"] }),
+  })
+
+  const addTagMutation = useMutation({
+    mutationFn: async (name: string) => {
+      const tag = await upsertDocumentTag(doc!.org_id, name)
+      await addDocumentTagAssignment(doc!.id, tag.id)
+      return tag
+    },
+    onSuccess: (tag) => {
+      setTags((prev) => (prev.some((t) => t.id === tag.id) ? prev : [...prev, tag]))
+      queryClient.invalidateQueries({ queryKey: ["vault"] })
+      queryClient.invalidateQueries({ queryKey: ["document-tags", doc?.org_id] })
+    },
+  })
+
+  const removeTagMutation = useMutation({
+    mutationFn: (tagId: string) => removeDocumentTagAssignment(doc!.id, tagId),
+    onSuccess: (_data, tagId) => {
+      setTags((prev) => prev.filter((t) => t.id !== tagId))
+      queryClient.invalidateQueries({ queryKey: ["vault"] })
+    },
+  })
+
+  const renameMutation = useMutation({
+    mutationFn: (name: string) => renameDocument(doc!.id, name),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["vault"] }),
+  })
+
+  const deleteMutation = useMutation({
+    mutationFn: () => deleteDocument(doc!.id, doc!.file_path),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["vault"] })
+      onOpenChange(false)
+      onDeleted()
+    },
+  })
+
+  function handleDownload() {
+    if (!signedUrl || !doc) return
+    const a = document.createElement("a")
+    a.href = signedUrl
+    a.download = doc.name
+    a.target = "_blank"
+    a.click()
+  }
+
+  function handleCopyLink() {
+    if (!doc) return
+    toast.promise(
+      createDocumentShare(doc.id).then((token) => {
+        const url = `${window.location.origin}/d/${token}`
+        navigator.clipboard.writeText(url)
+      }),
+      {
+        loading: "Creating share link…",
+        success: "Link copied to clipboard",
+        error: "Failed to create share link",
+      },
+    )
+  }
+
+  function handleDelete() {
+    toast.promise(deleteMutation.mutateAsync(), {
+      loading: "Deleting document…",
+      success: "Document deleted",
+      error: "Failed to delete document",
+    })
+  }
+
+  function handleSummaryBlur() {
+    if (!summaryDirty || !doc) return
+    updateMutation.mutate({ summary: summary || null })
+    setSummaryDirty(false)
+  }
+
+  if (!doc) return null
+
+  const SOURCE_LABEL: Record<VaultDocument["source"], string> = {
+    upload: "Manual upload",
+    transaction: "Transaction attachment",
+    inbox: "Inbox",
+  }
+
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent side="right" className="flex w-full flex-col gap-0 p-0 sm:max-w-lg overflow-hidden">
+        <SheetTitle className="sr-only">{doc.name}</SheetTitle>
+
+        {/* Header */}
+        <div className="flex items-start justify-between gap-3 border-b px-5 py-4">
+          <InlineName
+            name={doc.title ?? doc.name}
+            onSave={(name) => {
+              toast.promise(renameMutation.mutateAsync(name), {
+                loading: "Renaming…",
+                success: "Renamed",
+                error: "Failed to rename",
+              })
+            }}
+          />
+          <div className="flex shrink-0 items-center gap-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-8"
+              onClick={handleDownload}
+              disabled={!signedUrl}
+              title="Download"
+            >
+              <Download01Icon size={15} />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-8"
+              onClick={handleCopyLink}
+              title="Copy share link"
+            >
+              <Link01Icon size={15} />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-8 text-destructive fine-hover:text-destructive"
+              onClick={handleDelete}
+              disabled={deleteMutation.isPending}
+              title="Delete"
+            >
+              <Delete01Icon size={15} />
+            </Button>
+          </div>
+        </div>
+
+        {/* Scrollable body */}
+        <div className="flex flex-1 flex-col gap-5 overflow-y-auto px-5 py-5">
+          {/* Preview */}
+          <DocumentPreview
+            doc={doc}
+            signedUrl={signedUrl ?? null}
+            isLoadingUrl={isLoadingUrl}
+          />
+
+          {/* Metadata */}
+          <div className="grid grid-cols-2 gap-x-4 gap-y-2.5 text-xs">
+            <div>
+              <p className="text-muted-foreground">Type</p>
+              <div className="mt-1">
+                <FileTypeChip contentType={doc.content_type} />
+              </div>
+            </div>
+            <div>
+              <p className="text-muted-foreground">Size</p>
+              <p className="mt-1 font-medium">{formatBytes(doc.file_size)}</p>
+            </div>
+            <div>
+              <p className="text-muted-foreground">Source</p>
+              <p className="mt-1 font-medium">{SOURCE_LABEL[doc.source]}</p>
+            </div>
+            <div>
+              <p className="text-muted-foreground">Added</p>
+              <p className="mt-1 font-medium">{formatDate(doc.created_at)}</p>
+            </div>
+            {doc.date && (
+              <div>
+                <p className="text-muted-foreground">Document date</p>
+                <p className="mt-1 font-medium">{formatDate(doc.date)}</p>
+              </div>
+            )}
+            {folders.length > 0 && (
+              <div className="col-span-2">
+                <p className="text-muted-foreground">Folder</p>
+                <select
+                  className="mt-1 w-full rounded-md border bg-background px-2 py-1 text-xs font-medium text-foreground outline-none focus:ring-1 focus:ring-ring"
+                  value={doc.folder_id ?? ""}
+                  onChange={(e) => {
+                    const folderId = e.target.value || null
+                    const folderName = folders.find((f) => f.id === folderId)?.name
+                    toast.promise(
+                      updateMutation.mutateAsync({ folder_id: folderId }),
+                      {
+                        loading: folderId ? `Moving to ${folderName}…` : "Removing from folder…",
+                        success: folderId ? `Moved to ${folderName}` : "Removed from folder",
+                        error: "Failed to move document",
+                      },
+                    )
+                  }}
+                >
+                  <option value="">No folder</option>
+                  {folders.map((f) => (
+                    <option key={f.id} value={f.id}>{f.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+            {doc.transaction_id && (
+              <div className="col-span-2">
+                <p className="text-muted-foreground">Linked transaction</p>
+                <Link
+                  to={`/transactions`}
+                  className="mt-1 inline-flex items-center gap-1 text-xs font-medium text-foreground underline-offset-2 fine-hover:underline"
+                >
+                  <Wallet01Icon size={12} />
+                  View transaction
+                </Link>
+              </div>
+            )}
+          </div>
+
+          <div className="border-t" />
+
+          {/* Summary / description */}
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-xs font-medium">Description</p>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 gap-1.5 text-[11px] text-muted-foreground"
+                onClick={handleAutoFill}
+                disabled={isClassifying}
+              >
+                {isClassifying ? <Spinner size={12} /> : <SparklesIcon size={12} />}
+                {isClassifying ? "Analysing…" : "Auto-fill"}
+              </Button>
+            </div>
+            {isClassifying ? (
+              <div className="flex min-h-24 flex-col gap-2 rounded-lg border bg-muted/40 p-3 animate-in fade-in-0 zoom-in-95 duration-150 [animation-timing-function:var(--ease-out)]">
+                <div className="h-2.5 w-4/5 animate-pulse rounded bg-muted" />
+                <div className="h-2.5 w-full animate-pulse rounded bg-muted" />
+                <div className="h-2.5 w-3/5 animate-pulse rounded bg-muted" />
+              </div>
+            ) : (
+              <Textarea
+                value={summary}
+                onChange={(e) => { setSummary(e.target.value); setSummaryDirty(true) }}
+                onBlur={handleSummaryBlur}
+                placeholder="Add a description for this document…"
+                className="min-h-24 resize-none text-xs"
+              />
+            )}
+          </div>
+
+          {/* Tags */}
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center gap-1.5">
+              <Tag01Icon size={13} className="text-muted-foreground" />
+              <p className="text-xs font-medium">Tags</p>
+            </div>
+            {isClassifying ? (
+              <div className="flex flex-wrap gap-1.5 rounded-lg border bg-muted/40 px-2.5 py-2 animate-in fade-in-0 zoom-in-95 duration-150 [animation-timing-function:var(--ease-out)]">
+                {[40, 60, 50, 72].map((w) => (
+                  <div
+                    key={w}
+                    className="h-5 animate-pulse rounded-md bg-muted"
+                    style={{ width: w }}
+                  />
+                ))}
+              </div>
+            ) : (
+              <DocumentTagsInput
+                orgId={doc.org_id}
+                tags={tags}
+                onAdd={(name) => addTagMutation.mutate(name)}
+                onRemove={(tagId) => removeTagMutation.mutate(tagId)}
+              />
+            )}
+            {!isClassifying && (
+              <p className="text-[10px] text-muted-foreground">
+                Press Enter or comma to add a tag
+              </p>
+            )}
+          </div>
+
+          {/* Related documents */}
+          {(isLoadingRelated || relatedDocs.length > 0) && (
+            <>
+              <div className="border-t" />
+              <div className="flex flex-col gap-2">
+                <p className="text-xs font-medium">Related documents</p>
+
+                {isLoadingRelated ? (
+                  <div className="flex flex-col gap-1.5">
+                    {Array.from({ length: 3 }).map((_, i) => (
+                      <div key={i} className="flex items-center gap-3 rounded-lg p-2">
+                        <div className="size-8 shrink-0 animate-pulse rounded-lg bg-muted" />
+                        <div className="flex-1 space-y-1.5">
+                          <div className="h-2.5 w-3/4 animate-pulse rounded bg-muted" />
+                          <div className="h-2 w-1/3 animate-pulse rounded bg-muted" />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-0.5">
+                    {relatedDocs.map((related) => (
+                      <button
+                        key={related.id}
+                        onClick={() => onOpenDoc?.(related)}
+                        className="flex items-center gap-3 rounded-lg p-2 text-left transition-colors fine-hover:bg-muted active:opacity-80"
+                      >
+                        <RelatedFileIcon contentType={related.content_type} />
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-xs font-medium">{related.name}</p>
+                          <p className="text-[10px] text-muted-foreground">
+                            {formatDate(related.created_at)}
+                          </p>
+                        </div>
+                        <RelatedSourceBadge source={related.source} />
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+        </div>
+      </SheetContent>
+    </Sheet>
+  )
+}
+
+// ─── Related doc sub-components ───────────────────────────────────────────────
+// Kept small — just the icon and source badge in compact form
+
+function RelatedFileIcon({ contentType }: { contentType: string | null }) {
+  if (isPdf(contentType)) {
+    return (
+      <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-red-50 dark:bg-red-950">
+        <Pdf01Icon size={13} className="text-red-500" />
+      </div>
+    )
+  }
+  if (isImage(contentType)) {
+    return (
+      <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-blue-50 dark:bg-blue-950">
+        <Image01Icon size={13} className="text-blue-500" />
+      </div>
+    )
+  }
+  return (
+    <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted">
+      <File01Icon size={13} className="text-muted-foreground" />
+    </div>
+  )
+}
+
+function RelatedSourceBadge({ source }: { source: VaultDocument["source"] }) {
+  const cls: Record<VaultDocument["source"], string> = {
+    upload: "bg-muted text-muted-foreground",
+    transaction: "bg-violet-50 text-violet-600 dark:bg-violet-950 dark:text-violet-400",
+    inbox: "bg-amber-50 text-amber-600 dark:bg-amber-950 dark:text-amber-400",
+  }
+  const label: Record<VaultDocument["source"], string> = {
+    upload: "Upload",
+    transaction: "Tx",
+    inbox: "Inbox",
+  }
+  return (
+    <span className={cn("shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium", cls[source])}>
+      {label[source]}
+    </span>
+  )
+}

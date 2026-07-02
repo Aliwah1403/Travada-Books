@@ -9,6 +9,7 @@ import {
   Cancel01Icon,
 } from "@travada-books/ui/icons";
 import { Button } from "@travada-books/ui/components/button";
+import { Spokes } from "@travada-books/ui/components/spokes";
 import { Textarea } from "@travada-books/ui/components/textarea";
 import { Label } from "@travada-books/ui/components/label";
 import { useTheme } from "@/components/theme-provider";
@@ -20,6 +21,7 @@ const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
 import LogoGreen from "@/assets/Logo-Green.svg";
 import LogoLime from "@/assets/Logo-Lime.svg";
 import { toast } from "sonner";
+import { trackEvent, LogEvents } from "@/lib/analytics";
 
 export function PublicQuotePage() {
   const { token } = useParams<{ token: string }>();
@@ -61,7 +63,7 @@ export function PublicQuotePage() {
   if (isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-muted/30">
-        <div className="h-7 w-7 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+        <Spokes className="h-7 w-7 text-primary" />
       </div>
     );
   }
@@ -181,6 +183,10 @@ export function PublicQuotePage() {
     setIsSubmitting(true);
     try {
       await callEdgeFunction("accept-quote", { token });
+      trackEvent(LogEvents.QuoteAccepted, {
+        quote_value: quote?.total,
+        currency: quote?.currency,
+      });
       navigate(`/q/${token}/confirmed?action=accepted`);
     } catch (err) {
       toast.error("Failed to accept quote. Please try again.");
@@ -192,6 +198,10 @@ export function PublicQuotePage() {
     setIsSubmitting(true);
     try {
       await callEdgeFunction("decline-quote", { token, reason: declineReason || undefined });
+      trackEvent(LogEvents.QuoteRejected, {
+        quote_value: quote?.total,
+        currency: quote?.currency,
+      });
       navigate(`/q/${token}/confirmed?action=declined`);
     } catch (err) {
       toast.error("Failed to decline quote. Please try again.");

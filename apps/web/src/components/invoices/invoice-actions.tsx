@@ -31,6 +31,7 @@ import { updateInvoiceRecurringStatus } from "@/lib/queries/invoice-recurring";
 import { useAuth } from "@/contexts/auth-context";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
+import { trackEvent, LogEvents } from "@/lib/analytics";
 
 type InvoiceActionsProps = {
   invoiceId: string;
@@ -187,6 +188,7 @@ export function InvoiceActions({
                     status: "paid",
                     paid_at: new Date().toISOString(),
                   }).then(() => {
+                    trackEvent(LogEvents.InvoicePaid, { invoice_number: invoiceNumber });
                     invalidate();
                     supabase.functions
                       .invoke("notify-invoice-paid", { body: { invoiceId } })

@@ -71,6 +71,7 @@ export async function upsertOrgQuoteTemplate(
 }
 
 function rowToSettings(row: QuoteTemplateRow): QuoteSettings {
+  const digits = row.quote_number_digits ?? 4
   return {
     quoteTemplate: row.quote_template ?? "classic",
     defaultNote: row.default_note ?? "",
@@ -78,8 +79,6 @@ function rowToSettings(row: QuoteTemplateRow): QuoteSettings {
     bcc: row.bcc ?? "",
     validityDays: row.validity_days ?? null,
     quoteNumberPrefix: row.quote_number_prefix ?? "QUO-",
-    quoteNumberDigits: (([3, 4, 5] as number[]).includes(row.quote_number_digits ?? 4)
-      ? (row.quote_number_digits ?? 4)
-      : 4) as QuoteSettings["quoteNumberDigits"],
+    quoteNumberDigits: ([3, 4, 5].includes(digits) ? digits : 4) as QuoteSettings["quoteNumberDigits"],
   }
 }

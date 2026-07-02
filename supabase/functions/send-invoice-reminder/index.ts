@@ -72,6 +72,19 @@ Deno.serve(async (req) => {
     const recipientEmail = (customer.billing_email || customer.email) as string
     if (!recipientEmail) return new Response(JSON.stringify({ error: "Customer has no email" }), { status: 422, headers: corsHeaders })
 
+    const { data: template } = await db
+      .from("invoice_templates")
+      .select("cc, bcc")
+      .eq("org_id", invoice.org_id)
+      .eq("is_default", true)
+      .maybeSingle()
+
+    const parseEmails = (raw: string | null | undefined) =>
+      (raw ?? "").split(",").map((e) => e.trim()).filter(Boolean)
+
+    const ccEmails = parseEmails(template?.cc)
+    const bccEmails = parseEmails(template?.bcc)
+
     // Compute daysOverdue in the org owner's local timezone so the email subject
     // and body don't show the wrong count near midnight.
     const { data: ownerMember } = await db
@@ -109,6 +122,8 @@ Deno.serve(async (req) => {
     await resend.emails.send({
       from: `${from.name} <${FROM_EMAIL}>`,
       to: [recipientEmail],
+      ...(ccEmails.length > 0 && { cc: ccEmails }),
+      ...(bccEmails.length > 0 && { bcc: bccEmails }),
       replyTo: from.email,
       subject: `Reminder: ${label} from ${from.name} ${daysOverdue > 0 ? "is overdue" : "is due"}`,
       html,

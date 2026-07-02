@@ -1,8 +1,9 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useParams } from "react-router"
 import { useQuery } from "@tanstack/react-query"
 import { Copy01Icon, Download01Icon, Wallet01Icon } from "@travada-books/ui/icons"
 import { Button } from "@travada-books/ui/components/button"
+import { Spokes } from "@travada-books/ui/components/spokes"
 import { useTheme } from "@/components/theme-provider"
 import { getInvoiceByToken } from "@/lib/queries/invoices"
 import { InvoicePreview, InvoicePdf } from "@/components/invoice-templates"
@@ -10,6 +11,7 @@ import { downloadPdf } from "@/lib/pdf-download"
 import LogoGreen from "@/assets/Logo-Green.svg"
 import LogoLime from "@/assets/Logo-Lime.svg"
 import { toast } from "sonner"
+import { trackEvent, LogEvents } from "@/lib/analytics"
 
 export function PublicInvoicePage() {
   const { token } = useParams<{ token: string }>()
@@ -23,10 +25,19 @@ export function PublicInvoicePage() {
     enabled: !!token,
   })
 
+  useEffect(() => {
+    if (!invoice) return;
+    trackEvent(LogEvents.InvoiceViewed, {
+      invoice_number: invoice.invoice_number,
+      currency: invoice.currency,
+      invoice_amount: invoice.total,
+    });
+  }, [invoice?.id]);
+
   if (isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-muted/30">
-        <div className="h-7 w-7 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+        <Spokes className="h-7 w-7 text-primary" />
       </div>
     )
   }

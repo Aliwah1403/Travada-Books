@@ -230,9 +230,15 @@ export function CreateQuotePage() {
     onSuccess: (quote, action) => {
       queryClient.invalidateQueries({ queryKey: ["quotes", orgId] });
       queryClient.invalidateQueries({ queryKey: ["next-quote-number", orgId] });
-      trackEvent(LogEvents.QuoteCreated);
+      trackEvent(LogEvents.QuoteCreated, {
+        quote_value: quote.total,
+        line_item_count: quote.line_items?.length ?? 0,
+      });
       if (action === "send") {
-        trackEvent(LogEvents.QuoteSent);
+        trackEvent(LogEvents.QuoteSent, {
+          quote_value: quote.total,
+          recipient_email: selectedCustomer?.billing_email || selectedCustomer?.email,
+        });
         supabase.functions
           .invoke("send-quote-email", { body: { quoteId: quote.id } })
           .catch(() => {
@@ -242,11 +248,11 @@ export function CreateQuotePage() {
       navigate(`/quotes/${quote.id}`);
     },
     onError: (err) => {
-      const msg = err instanceof Error ? err.message : "Failed to save quote";
+      const msg = err instanceof Error ? err.message : "";
       if (msg.includes("already been used")) {
         setQuoteNumberError(msg);
       } else {
-        toast.error(msg);
+        toast.error("Failed to save quote. Please try again.");
       }
     },
   });

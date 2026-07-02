@@ -27,6 +27,9 @@ import { PublicInvoicePage } from "@/pages/invoice-public/token"
 import { PublicQuotePage } from "@/pages/quote-public/token"
 import { QuoteConfirmedPage } from "@/pages/quote-public/confirmed"
 import { StatementDetailPage } from "@/pages/statements/detail"
+import { TransactionsPage } from "@/pages/transactions/index"
+import { VaultPage } from "@/pages/vault/index"
+import { CategoriesSettingsPage } from "@/pages/settings/categories"
 import { PublicStatementPage } from "@/pages/statement-public/token"
 
 import { GeneralSettingsPage } from "@/pages/settings/general"
@@ -40,6 +43,7 @@ import { NotificationsPage } from "@/pages/account/notifications"
 import { OnboardingOrgPage } from "@/pages/onboarding/org"
 import { OnboardingInvitePage } from "@/pages/onboarding/invite"
 import { AcceptInvitePage } from "@/pages/accept-invite"
+import { DocumentSharePage } from "@/pages/document-share/token"
 
 const router = createBrowserRouter([
   {
@@ -80,6 +84,8 @@ const router = createBrowserRouter([
           { path: "/quotes/:id", element: <QuoteDetailPage /> },
           { path: "/customers", element: <CustomersPage /> },
           { path: "/customers/:id", element: <CustomerDetailPage /> },
+          { path: "/transactions", element: <TransactionsPage /> },
+          { path: "/vault", element: <VaultPage /> },
           { path: "/statements/:id", element: <StatementDetailPage /> },
           {
             path: "/settings",
@@ -90,6 +96,7 @@ const router = createBrowserRouter([
               { path: "team", element: <TeamSettingsPage /> },
               { path: "integrations", element: <IntegrationsSettingsPage /> },
               { path: "billing", element: <BillingSettingsPage /> },
+              { path: "categories", element: <CategoriesSettingsPage /> },
             ],
           },
           {
@@ -123,6 +130,10 @@ const router = createBrowserRouter([
       {
         path: "/q/:token/confirmed",
         element: <QuoteConfirmedPage />,
+      },
+      {
+        path: "/d/:token",
+        element: <DocumentSharePage />,
       },
       {
         path: "/st/:token",
