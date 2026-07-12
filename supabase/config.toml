@@ -195,21 +195,28 @@ email_sent = 2
 # Number of SMS messages that can be sent per hour. Requires auth.sms to be enabled.
 sms_sent = 30
 # Number of anonymous sign-ins that can be made per hour per IP address. Requires enable_anonymous_sign_ins = true.
-anonymous_users = 30
+anonymous_users = 10
 # Number of sessions that can be refreshed in a 5 minute interval per IP address.
 token_refresh = 150
 # Number of sign up and sign-in requests that can be made in a 5 minute interval per IP address (excludes anonymous users).
-sign_in_sign_ups = 30
+# Tightened from 30 after a signup-abuse burst (53 bot accounts in 4 min, 2026-07-06).
+sign_in_sign_ups = 10
 # Number of OTP / Magic link verifications that can be made in a 5 minute interval per IP address.
-token_verifications = 30
+token_verifications = 15
 # Number of Web3 logins that can be made in a 5 minute interval per IP address.
 web3 = 30
 
-# Configure one of the supported captcha providers: `hcaptcha`, `turnstile`.
-# [auth.captcha]
-# enabled = true
-# provider = "hcaptcha"
-# secret = ""
+# Bot protection on signup / sign-in / password reset. Uses Cloudflare Turnstile.
+# Kept disabled until keys are provisioned so it can't break signups. ACTIVATION ORDER:
+#   1. Create a Turnstile widget: https://dash.cloudflare.com/?to=/:account/turnstile
+#   2. Frontend: set VITE_TURNSTILE_SITE_KEY (the widget renders + gates the form).
+#   3. Remote: set the secret in the Dashboard (Auth > Bot & Abuse Protection) — do NOT
+#      `supabase config push`, config.toml holds local-dev URLs that would clobber prod.
+#      For local dev, set SUPABASE_AUTH_CAPTCHA_SECRET and flip enabled = true below.
+[auth.captcha]
+enabled = false
+provider = "turnstile"
+secret = "env(SUPABASE_AUTH_CAPTCHA_SECRET)"
 
 [auth.email]
 # Allow/disallow new user signups via email to your project.
@@ -422,6 +429,9 @@ s3_secret_key = "env(S3_SECRET_KEY)"
 verify_jwt = true
 
 [functions.on-user-signup]
+verify_jwt = false
+
+[functions.unsubscribe]
 verify_jwt = false
 
 [functions.accept-quote]

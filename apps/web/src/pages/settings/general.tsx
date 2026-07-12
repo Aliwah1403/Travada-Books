@@ -211,7 +211,10 @@ export function GeneralSettingsPage() {
             toast.promise(profileMutation.mutateAsync(), {
               loading: "Saving…",
               success: "Business profile saved.",
-              error: (err) => String(err),
+              error: (err) => {
+                Sentry.captureException(err);
+                return "Failed to save business profile. Please try again.";
+              },
             })
           }
           disabled={profileMutation.isPending}
@@ -243,7 +246,10 @@ export function GeneralSettingsPage() {
             toast.promise(currencyMutation.mutateAsync(), {
               loading: "Saving…",
               success: "Base currency updated.",
-              error: (err) => String(err),
+              error: (err) => {
+                Sentry.captureException(err);
+                return "Failed to update base currency. Please try again.";
+              },
             })
           }
           disabled={currencyMutation.isPending}

@@ -49,6 +49,7 @@ import {
   FilterIcon,
 } from "@travada-books/ui/icons";
 import { EmptyState } from "@/components/shared/empty-state";
+import { ErrorState } from "@/components/shared/error-state";
 import { Spinner } from "@/components/shared/spinner";
 import { cn } from "@travada-books/ui/lib/utils";
 import { useAuth } from "@/contexts/auth-context";
@@ -1006,7 +1007,12 @@ export function VaultPage() {
     [supabaseFilters, currentFolderId],
   );
 
-  const { data: docs = [], isLoading: docsLoading } = useQuery({
+  const {
+    data: docs = [],
+    isLoading: docsLoading,
+    isError: docsError,
+    refetch: refetchDocs,
+  } = useQuery({
     queryKey: ["vault", orgId, docFilters],
     queryFn: () => listDocuments(orgId!, docFilters),
     enabled: !!orgId,
@@ -1222,6 +1228,14 @@ export function VaultPage() {
 
   const isFiltered = !!search || filtersState.length > 0;
   const isInsideFolder = folderPath.length > 0;
+
+  if (docsError && docs.length === 0) {
+    return (
+      <div className='flex flex-col gap-6 p-6'>
+        <ErrorState onRetry={refetchDocs} />
+      </div>
+    );
+  }
 
   return (
     <div className='flex flex-col gap-6 p-6'>

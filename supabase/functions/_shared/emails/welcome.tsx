@@ -25,12 +25,12 @@ export function WelcomeEmail({ firstName = "there" }: Props) {
         Welcome to Travada Books — I'm Curtis, one of the founders.
       </Text>
       <Text style={{ margin: "0 0 16px", fontSize: 14, color: colors.body, lineHeight: "1.7", fontFamily: font }}>
-        We built Travada Books because invoicing and bookkeeping for African
-        businesses has always felt like an afterthought — tools built elsewhere,
-        for different currencies, different contexts, and different realities.
-        Chasing payments, managing clients across WhatsApp threads, and
-        piecing together spreadsheets at the end of the month shouldn't be
-        part of running a business.
+        We built Travada Books because running a business in Africa has
+        always felt like an afterthought for the software available — tools
+        built elsewhere, for different currencies, different contexts, and
+        different realities. Chasing payments, managing clients across
+        WhatsApp threads, and piecing together spreadsheets at the end of
+        the month shouldn't be part of running a business.
       </Text>
       <Text style={{ margin: "0 0 32px", fontSize: 14, color: colors.body, lineHeight: "1.7", fontFamily: font }}>
         Travada Books is built with our customers — and it matters to us that
@@ -82,7 +82,7 @@ export function WelcomeEmail({ firstName = "there" }: Props) {
             <Text style={{ margin: "0 0 10px", fontSize: 13, color: colors.muted, lineHeight: "1.6", fontFamily: font }}>
               Invite colleagues so everyone has visibility on invoices, quotes, and customer accounts.
             </Text>
-            <Link href={`${APP_URL}/settings/members`} style={{ fontSize: 13, fontWeight: 500, color: colors.dark, textDecoration: "none", fontFamily: font }}>
+            <Link href={`${APP_URL}/settings/team`} style={{ fontSize: 13, fontWeight: 500, color: colors.dark, textDecoration: "none", fontFamily: font }}>
               Invite teammates →
             </Link>
           </Column>
@@ -97,13 +97,13 @@ export function WelcomeEmail({ firstName = "there" }: Props) {
           </Column>
           <Column style={{ verticalAlign: "top" }}>
             <Text style={{ margin: "0 0 4px", fontSize: 15, fontWeight: 600, color: colors.dark, fontFamily: font }}>
-              Explore your dashboard
+              Explore your workspace
             </Text>
             <Text style={{ margin: "0 0 10px", fontSize: 13, color: colors.muted, lineHeight: "1.6", fontFamily: font }}>
-              See your invoices, quotes, customers, and statements all in one place.
+              Invoices, quotes, and customers alongside Transactions for tracking money in and out, and Vault for every receipt and contract — all in one place.
             </Text>
             <Link href={`${APP_URL}/invoices`} style={{ fontSize: 13, fontWeight: 500, color: colors.dark, textDecoration: "none", fontFamily: font }}>
-              Go to dashboard →
+              Go to your workspace →
             </Link>
           </Column>
         </Row>

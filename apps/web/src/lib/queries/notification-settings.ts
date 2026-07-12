@@ -19,6 +19,8 @@ const DEFAULTS: { notification_type: string; channel: NotificationChannel; enabl
   { notification_type: "invoice.overdue",          channel: "email",  enabled: true  },
   { notification_type: "invoice.reminder_upcoming",channel: "in_app", enabled: true  },
   { notification_type: "invoice.reminder_upcoming",channel: "email",  enabled: true  },
+  { notification_type: "invoice.recurring_paused", channel: "in_app", enabled: true  },
+  { notification_type: "invoice.recurring_paused", channel: "email",  enabled: true  },
   { notification_type: "quote.accepted",           channel: "in_app", enabled: true  },
   { notification_type: "quote.accepted",           channel: "email",  enabled: true  },
   { notification_type: "quote.declined",           channel: "in_app", enabled: true  },

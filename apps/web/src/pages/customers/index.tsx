@@ -29,6 +29,7 @@ import { CustomerActions } from "@/components/customers/customer-actions";
 import { CustomerStats } from "@/components/customers/customer-stats";
 import { CreateCustomerSheet } from "@/components/customers/create-customer-sheet";
 import { EmptyState } from "@/components/shared/empty-state";
+import { ErrorState } from "@/components/shared/error-state";
 import { Spinner } from "@/components/shared/spinner";
 import { useTableScroll } from "@/hooks/use-table-scroll";
 import { cn } from "@travada-books/ui/lib/utils";
@@ -103,7 +104,7 @@ export function CustomersPage() {
   const {
     data: customers,
     isLoading,
-    error,
+    isError,
     refetch,
   } = useQuery({
     queryKey: ["customers", orgId],
@@ -206,16 +207,10 @@ export function CustomersPage() {
     );
   }
 
-  if (error) {
+  if (isError && !customers) {
     return (
-      <div className='flex flex-col items-center justify-center gap-3 p-12 text-center'>
-        <p className='text-sm font-medium'>Failed to load customers</p>
-        <p className='text-xs text-muted-foreground'>
-          Something went wrong loading customers.
-        </p>
-        <Button variant='outline' size='sm' onClick={() => refetch()}>
-          Retry
-        </Button>
+      <div className='flex flex-col gap-6 p-6'>
+        <ErrorState onRetry={refetch} />
       </div>
     );
   }

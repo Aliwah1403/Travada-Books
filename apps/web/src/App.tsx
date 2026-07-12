@@ -1,6 +1,8 @@
 import { createBrowserRouter, RouterProvider, Navigate } from "react-router"
 
 import { AnalyticsProvider } from "@/components/analytics-provider"
+import { RouteError } from "@/components/route-error"
+import { NotFound } from "@/components/not-found"
 import { AppLayout } from "@/layouts/app-layout"
 import { AuthLayout } from "@/layouts/auth-layout"
 import { OnboardingLayout } from "@/layouts/onboarding-layout"
@@ -48,6 +50,7 @@ import { DocumentSharePage } from "@/pages/document-share/token"
 const router = createBrowserRouter([
   {
     element: <AnalyticsProvider />,
+    errorElement: <RouteError />,
     children: [
       {
         path: "/",
@@ -138,6 +141,10 @@ const router = createBrowserRouter([
       {
         path: "/st/:token",
         element: <PublicStatementPage />,
+      },
+      {
+        path: "*",
+        element: <NotFound />,
       },
     ],
   },

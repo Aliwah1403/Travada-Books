@@ -8,6 +8,7 @@ import * as Sentry from "@sentry/react"
 import "@travada-books/ui/globals.css"
 import { App } from "./App.tsx"
 import { ThemeProvider } from "@/components/theme-provider.tsx"
+import { ErrorFallback } from "@/components/error-fallback.tsx"
 import { TooltipProvider } from "@travada-books/ui/components/tooltip"
 import { AuthProvider } from "@/contexts/auth-context.tsx"
 import { Toaster } from "sonner"
@@ -37,7 +38,7 @@ const queryClient = new QueryClient()
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <Sentry.ErrorBoundary>
+    <Sentry.ErrorBoundary fallback={({ resetError }) => <ErrorFallback onReset={resetError} />}>
       <ThemeProvider>
         <AuthProvider>
           <QueryClientProvider client={queryClient}>

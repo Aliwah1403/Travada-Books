@@ -14,6 +14,7 @@ import {
 } from "@travada-books/ui/components/dropdown-menu";
 import { cn } from "@travada-books/ui/lib/utils";
 import { Spinner } from "@/components/shared/spinner";
+import { ErrorState } from "@/components/shared/error-state";
 import { Filter } from "@/components/ui/filter";
 import { QuoteStats } from "@/components/quotes/quote-stats";
 import { QuoteTable, type Quote } from "@/components/quotes/quote-table";
@@ -268,7 +269,7 @@ export function QuotesPage() {
     [filtersState, search],
   );
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["quotes", orgId, supabaseFilters, page],
     queryFn: () => listQuotes(orgId!, supabaseFilters, page),
     enabled: !!orgId,
@@ -401,6 +402,14 @@ export function QuotesPage() {
     return (
       <div className="flex flex-col gap-6 p-6">
         <SkeletonRows />
+      </div>
+    );
+  }
+
+  if (isError && !data) {
+    return (
+      <div className="flex flex-col gap-6 p-6">
+        <ErrorState onRetry={refetch} />
       </div>
     );
   }

@@ -49,6 +49,7 @@ type AuthContextValue = {
   orgRole: "owner" | "member" | null
   orgs: UserOrgMembership[]
   orgLoading: boolean
+  orgError: boolean
   switchOrg: (orgId: string) => Promise<void>
   refreshOrg: () => Promise<void>
   refreshProfile: () => Promise<void>
@@ -65,6 +66,7 @@ const AuthContext = createContext<AuthContextValue>({
   orgRole: null,
   orgs: [],
   orgLoading: true,
+  orgError: false,
   switchOrg: async () => {},
   refreshOrg: async () => {},
   refreshProfile: async () => {},
@@ -75,6 +77,7 @@ type FetchResult = {
   orgs: UserOrgMembership[]
   activeOrg: UserOrg | null
   activeRole: "owner" | "member" | null
+  membersError: boolean
 }
 
 async function fetchUserData(userId: string): Promise<FetchResult> {
@@ -134,6 +137,7 @@ async function fetchUserData(userId: string): Promise<FetchResult> {
     orgs,
     activeOrg: activeMembership?.org ?? null,
     activeRole: activeMembership?.role ?? null,
+    membersError: !!membersResult.error,
   }
 }
 
@@ -145,6 +149,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [orgRole, setOrgRole] = useState<"owner" | "member" | null>(null)
   const [orgs, setOrgs] = useState<UserOrgMembership[]>([])
   const [orgLoading, setOrgLoading] = useState(true)
+  const [orgError, setOrgError] = useState(false)
   const fetchIdRef = useRef(0)
 
   const refreshOrg = useCallback(async () => {
@@ -158,8 +163,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setOrgs(result.orgs)
       setOrg(result.activeOrg)
       setOrgRole(result.activeRole)
+      setOrgError(result.membersError)
     } catch {
-      // silently ignore — layout stays visible
+      if (fetchId !== fetchIdRef.current) return
+      setOrgError(true)
     }
   }, [session?.user?.id])
 
@@ -203,6 +210,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setOrgRole(null)
         setOrgs([])
         setOrgLoading(false)
+        setOrgError(false)
         localStorage.removeItem("travada:active_org_id")
         posthog.reset()
         if (import.meta.env.PROD) {
@@ -223,18 +231,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setOrgRole(null)
       setOrgs([])
       setOrgLoading(false)
+      setOrgError(false)
       return
     }
     const fetchId = ++fetchIdRef.current
     setOrgLoading(true)
     fetchUserData(session.user.id)
-      .then(({ profile, orgs, activeOrg, activeRole }) => {
+      .then(({ profile, orgs, activeOrg, activeRole, membersError }) => {
         if (fetchId !== fetchIdRef.current) return
         setProfile(profile)
         setOrgs(orgs)
         setOrg(activeOrg)
         setOrgRole(activeRole)
         setOrgLoading(false)
+        setOrgError(membersError)
 
         posthog.identify(session.user.id, {
           org_id: activeOrg?.id,
@@ -258,6 +268,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .catch(() => {
         if (fetchId !== fetchIdRef.current) return
         setOrgLoading(false)
+        setOrgError(true)
       })
   }, [session?.user?.id, loading])
 
@@ -279,6 +290,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       orgRole,
       orgs,
       orgLoading,
+      orgError,
       switchOrg,
       refreshOrg,
       refreshProfile,

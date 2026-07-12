@@ -1,11 +1,11 @@
 import React from "react";
-import { Text, Link, Section, Row, Column, Hr } from "@react-email/components";
+import { Text, Section, Row, Column, Hr, Link } from "@react-email/components";
 import { EmailLayout, OutlinedButton, colors } from "./layout";
 
 interface Props {
   firstName: string;
   invoiceUrl: string;
-  quoteUrl: string;
+  unsubscribeUrl: string;
 }
 
 const font =
@@ -16,7 +16,7 @@ const APP_URL = "https://books.travadasys.com";
 export default function WelcomeDay2Email({
   firstName = "Jane",
   invoiceUrl = `${APP_URL}/invoices/create`,
-  quoteUrl = `${APP_URL}/quotes/create`,
+  unsubscribeUrl = "https://books.travadasys.com/unsubscribe",
 }: Partial<Props>) {
   return (
     <EmailLayout
@@ -214,6 +214,41 @@ export default function WelcomeDay2Email({
         </Row>
       </Section>
 
+      {/* Recurring invoices callout */}
+      <Section
+        style={{
+          padding: "16px 20px",
+          border: `1px solid ${colors.border}`,
+          borderRadius: 8,
+          marginBottom: 32,
+        }}
+      >
+        <Text
+          style={{
+            margin: "0 0 4px",
+            fontSize: 14,
+            fontWeight: 600,
+            color: colors.dark,
+            fontFamily: font,
+          }}
+        >
+          Billing the same client every month?
+        </Text>
+        <Text
+          style={{
+            margin: 0,
+            fontSize: 13,
+            color: colors.muted,
+            lineHeight: "1.6",
+            fontFamily: font,
+          }}
+        >
+          Turn any invoice into a recurring one and Travada Books will
+          generate and send it automatically on schedule — no need to
+          rebuild it each time.
+        </Text>
+      </Section>
+
       <Hr style={{ borderColor: colors.border, margin: "0 0 32px" }} />
 
       <Text
@@ -230,32 +265,7 @@ export default function WelcomeDay2Email({
         agreed.
       </Text>
 
-      {/* CTAs side by side */}
-      <Section style={{ marginBottom: 40 }}>
-        <Row>
-          <Column style={{ paddingRight: 12 }}>
-            <OutlinedButton href={invoiceUrl}>Create Invoice</OutlinedButton>
-          </Column>
-          <Column>
-            <Link
-              href={quoteUrl}
-              style={{
-                display: "inline-block",
-                padding: "10px 20px",
-                border: `1px solid ${colors.border}`,
-                borderRadius: 6,
-                fontSize: 12,
-                fontWeight: 500,
-                color: colors.dark,
-                textDecoration: "none",
-                fontFamily: font,
-              }}
-            >
-              Create Quote
-            </Link>
-          </Column>
-        </Row>
-      </Section>
+      <OutlinedButton href={invoiceUrl}>Create Invoice</OutlinedButton>
 
       {/* Sign-off */}
       <Text
@@ -278,6 +288,15 @@ export default function WelcomeDay2Email({
         }}
       >
         Co-founder, Travada Books
+      </Text>
+
+      <Text
+        style={{ margin: "40px 0 0", fontSize: 12, color: colors.faint, fontFamily: font }}
+      >
+        Don't want these onboarding emails?{" "}
+        <Link href={unsubscribeUrl} style={{ color: colors.faint, textDecoration: "underline" }}>
+          Unsubscribe
+        </Link>
       </Text>
     </EmailLayout>
   );

@@ -51,6 +51,13 @@ const groups: NotificationGroup[] = [
         channels: ["in_app", "email"],
         defaults: { in_app: true, email: true },
       },
+      {
+        id: "invoice.recurring_paused",
+        label: "Recurring invoice paused",
+        description: "When a recurring invoice series is paused after repeated failures.",
+        channels: ["in_app", "email"],
+        defaults: { in_app: true, email: true },
+      },
     ],
   },
   {

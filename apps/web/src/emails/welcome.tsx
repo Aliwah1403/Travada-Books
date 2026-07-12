@@ -18,7 +18,7 @@ export default function WelcomeEmail({
   firstName = "Jane",
   dashboardUrl = `${APP_URL}/invoices`,
   invoiceUrl = `${APP_URL}/invoices/create`,
-  inviteUrl = `${APP_URL}/settings/members`,
+  inviteUrl = `${APP_URL}/settings/team`,
 }: Partial<Props>) {
   return (
     <EmailLayout
@@ -59,12 +59,12 @@ export default function WelcomeEmail({
           fontFamily: font,
         }}
       >
-        We built Travada Books because invoicing and bookkeeping for African
-        businesses has always felt like an afterthought — tools built elsewhere,
-        for different currencies, different contexts, and different realities.
-        Chasing payments, managing clients across WhatsApp threads, and
-        piecing together spreadsheets at the end of the month shouldn't be
-        part of running a business.
+        We built Travada Books because running a business in Africa has
+        always felt like an afterthought for the software available — tools
+        built elsewhere, for different currencies, different contexts, and
+        different realities. Chasing payments, managing clients across
+        WhatsApp threads, and piecing together spreadsheets at the end of
+        the month shouldn't be part of running a business.
       </Text>
       <Text
         style={{
@@ -269,7 +269,7 @@ export default function WelcomeEmail({
                 fontFamily: font,
               }}
             >
-              Explore your dashboard
+              Explore your workspace
             </Text>
             <Text
               style={{
@@ -280,8 +280,9 @@ export default function WelcomeEmail({
                 fontFamily: font,
               }}
             >
-              See your invoices, quotes, customers, and statements all in
-              one place.
+              Invoices, quotes, and customers alongside Transactions for
+              tracking money in and out, and Vault for every receipt and
+              contract — all in one place.
             </Text>
             <Link
               href={dashboardUrl}
@@ -293,7 +294,7 @@ export default function WelcomeEmail({
                 fontFamily: font,
               }}
             >
-              Go to dashboard →
+              Go to your workspace →
             </Link>
           </Column>
         </Row>

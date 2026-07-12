@@ -16,6 +16,7 @@ import {
 import { Search01Icon, Cancel01Icon, ColumnsThreeCogIcon, FilterIcon } from "@travada-books/ui/icons";
 import { cn } from "@travada-books/ui/lib/utils";
 import { Spinner } from "@/components/shared/spinner";
+import { ErrorState } from "@/components/shared/error-state";
 import { Filter } from "@/components/ui/filter";
 import { TransactionStats } from "@/components/transactions/transaction-stats";
 import { TransactionTable } from "@/components/transactions/transaction-table";
@@ -300,7 +301,7 @@ export function TransactionsPage() {
     [filtersState, search],
   );
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["transactions", orgId, supabaseFilters, page],
     queryFn: () => listTransactions(orgId!, supabaseFilters, page),
     enabled: !!orgId,
@@ -556,6 +557,14 @@ export function TransactionsPage() {
     } finally {
       setIsExportLoading(false);
     }
+  }
+
+  if (isError && !data) {
+    return (
+      <div className="flex flex-col gap-6 p-6">
+        <ErrorState onRetry={refetch} />
+      </div>
+    );
   }
 
   return (

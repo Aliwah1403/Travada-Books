@@ -61,6 +61,7 @@ import { extractDocumentData, classifyDocument } from "@/lib/queries/ai";
 import { linkDocumentsToTransaction } from "@/lib/queries/vault";
 import { supabase } from "@/lib/supabase";
 import { listCustomers } from "@/lib/queries/customers";
+import { useUpdateTransactionCategory } from "@/hooks/use-update-transaction-category";
 import { parseDateOnly, toDateOnlyString } from "@/lib/format-date";
 import type {
   Transaction,
@@ -119,6 +120,7 @@ export function TransactionSheet({
 }: TransactionSheetProps) {
   const { org, orgId, user } = useAuth();
   const queryClient = useQueryClient();
+  const { updateCategoryWithSimilarPrompt } = useUpdateTransactionCategory(orgId ?? "");
   const isEditing = !!transaction;
   const today = toDateOnlyString(new Date());
 
@@ -477,6 +479,15 @@ export function TransactionSheet({
           triggerAttachmentProcessing(transaction.id, uploads);
         }
         toast.success("Transaction updated");
+
+        if (categoryId && categoryId !== transaction.categoryId && selectedCategory) {
+          updateCategoryWithSimilarPrompt(
+            transaction.id,
+            name.trim(),
+            counterparty.trim() || null,
+            selectedCategory,
+          );
+        }
       } else {
         // 1. Create transaction row first — vault trigger needs this FK to exist
         await createTransaction(

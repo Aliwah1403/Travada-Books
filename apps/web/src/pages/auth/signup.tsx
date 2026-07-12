@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@trav
 import * as Sentry from "@sentry/react"
 import { supabase } from "@/lib/supabase"
 import { trackEvent, LogEvents } from "@/lib/analytics"
+import { Turnstile, TURNSTILE_ENABLED } from "@/components/turnstile"
 
 export function SignupPage() {
   const navigate = useNavigate()
@@ -17,6 +18,7 @@ export function SignupPage() {
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
+  const [captchaToken, setCaptchaToken] = useState("")
 
   async function handleGoogleSignIn() {
     const next = searchParams.get("next")
@@ -58,7 +60,10 @@ export function SignupPage() {
     const { error } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: { full_name: name } },
+      options: {
+        data: { full_name: name },
+        ...(captchaToken ? { captchaToken } : {}),
+      },
     })
     setLoading(false)
     if (error) {
@@ -152,9 +157,11 @@ export function SignupPage() {
             />
           </div>
 
+          <Turnstile onVerify={setCaptchaToken} />
+
           {error && <p className="text-xs text-destructive">{error}</p>}
 
-          <Button type="submit" className="w-full" disabled={loading}>
+          <Button type="submit" className="w-full" disabled={loading || (TURNSTILE_ENABLED && !captchaToken)}>
             {loading ? "Creating account…" : "Create account"}
           </Button>
         </form>

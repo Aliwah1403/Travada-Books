@@ -1,12 +1,49 @@
 import { task, logger } from "@trigger.dev/sdk";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
-import { generateObject } from "ai";
+import { generateObject, embedMany } from "ai";
 import { z } from "zod";
 import { supabase } from "../lib/supabase";
 
 const google = createGoogleGenerativeAI({
   apiKey: process.env.GOOGLE_GENERATIVE_AI_API_KEY!,
 });
+
+// ─── Embeddings (for "apply category to similar transactions") ────────────────
+
+const EMBEDDING_MODEL = "gemini-embedding-001";
+const EMBEDDING_DIMENSIONS = 768;
+
+async function generateEmbeddings(
+  txs: { id: string; name: string; counterparty_name: string | null }[],
+  orgId: string,
+) {
+  if (!txs.length) return;
+
+  const sourceTexts = txs.map((t) => [t.name, t.counterparty_name].filter(Boolean).join(" "));
+
+  const { embeddings } = await embedMany({
+    model: google.textEmbeddingModel(EMBEDDING_MODEL),
+    values: sourceTexts,
+    providerOptions: {
+      google: {
+        outputDimensionality: EMBEDDING_DIMENSIONS,
+        taskType: "SEMANTIC_SIMILARITY",
+      },
+    },
+  });
+
+  const { error } = await supabase.from("transaction_embeddings").upsert(
+    txs.map((t, i) => ({
+      transaction_id: t.id,
+      org_id: orgId,
+      embedding: embeddings[i],
+      source_text: sourceTexts[i],
+      model: EMBEDDING_MODEL,
+    })),
+    { onConflict: "transaction_id" },
+  );
+  if (error) throw error;
+}
 
 // ─── Schema & thresholds (mirrors Midday's approach) ──────────────────────────
 
@@ -117,6 +154,25 @@ export const enrichTransactionsTask = task({
     const { transactionIds, orgId } = payload;
 
     if (!transactionIds.length) return { enriched: 0 };
+
+    // Embeddings must refresh on every edit, independent of the enrichment_completed
+    // gate below — isolated in its own try/catch so a failure here never blocks
+    // category/merchant enrichment.
+    try {
+      const { data: embedTargets, error: embedFetchError } = await supabase
+        .from("transactions")
+        .select("id, name, counterparty_name")
+        .in("id", transactionIds);
+
+      if (embedFetchError) throw embedFetchError;
+
+      for (let i = 0; i < (embedTargets?.length ?? 0); i += BATCH_SIZE) {
+        const batch = embedTargets!.slice(i, i + BATCH_SIZE);
+        await generateEmbeddings(batch, orgId);
+      }
+    } catch (err) {
+      logger.error("Embedding generation failed", { error: String(err) });
+    }
 
     // Fetch transactions to enrich
     const { data: transactions, error: txError } = await supabase
