@@ -1,6 +1,6 @@
 import React from "react"
 import { Text, Section, Row, Column, Link } from "@react-email/components"
-import { EmailLayout, CtaButton, Hr, colors } from "./layout"
+import { EmailLayout, OutlinedButton, Hr, colors } from "./layout"
 
 const font = "ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
 
@@ -260,7 +260,7 @@ export function WelcomeDay2Email({ firstName = "there", unsubscribeUrl }: Props)
         agreed.
       </Text>
 
-      <CtaButton href={INVOICE_URL}>Create Invoice</CtaButton>
+      <OutlinedButton href={INVOICE_URL}>Create Invoice</OutlinedButton>
 
       {/* Sign-off */}
       <Text

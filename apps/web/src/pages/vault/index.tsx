@@ -6,6 +6,7 @@ import type { FiltersState } from "@bazza-ui/filters";
 import { toast } from "sonner";
 import { Button } from "@travada-books/ui/components/button";
 import { Input } from "@travada-books/ui/components/input";
+import { Checkbox } from "@travada-books/ui/components/checkbox";
 import { Filter } from "@/components/ui/filter";
 import {
   Dialog,
@@ -51,12 +52,14 @@ import {
 import { EmptyState } from "@/components/shared/empty-state";
 import { ErrorState } from "@/components/shared/error-state";
 import { Spinner } from "@/components/shared/spinner";
+import { FileDropzone } from "@/components/shared/file-dropzone";
 import { cn } from "@travada-books/ui/lib/utils";
 import { useAuth } from "@/contexts/auth-context";
 import { TransactionSheet } from "@/components/transactions/transaction-sheet";
 import { extractDocumentData, classifyDocument, parseVaultFilters } from "@/lib/queries/ai";
 import { DocumentPreviewSheet } from "@/components/vault/document-preview-sheet";
 import { createVaultColumnsConfig } from "@/components/vault/vault-filter-columns";
+import { BulkActionBar } from "@/components/vault/bulk-action-bar";
 import {
   listDocuments,
   listFolders,
@@ -64,16 +67,28 @@ import {
   createFolder,
   deleteFolder,
   deleteDocument,
+  bulkDeleteDocuments,
   renameDocument,
   getDocumentSignedUrl,
   uploadDocument,
   setDocumentFolder,
+  bulkSetDocumentFolder,
   createDocumentShare,
   type VaultDocument,
   type VaultFolder,
   type VaultFilters,
   type DocumentTag,
 } from "@/lib/queries/vault";
+
+const VAULT_UPLOAD_ACCEPT = [
+  "image/*",
+  "application/pdf",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  "text/csv",
+  "application/csv",
+];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -537,6 +552,8 @@ function DocumentCard({
   onExtract,
   onMoveToFolder,
   folders,
+  selected,
+  onToggleSelect,
 }: {
   doc: VaultDocument;
   onOpen: (doc: VaultDocument) => void;
@@ -547,14 +564,36 @@ function DocumentCard({
   onExtract?: (doc: VaultDocument) => void;
   onMoveToFolder?: (doc: VaultDocument, folderId: string | null) => void;
   folders?: VaultFolder[];
+  selected?: boolean;
+  onToggleSelect?: (id: string) => void;
 }) {
   return (
     <div
-      className='group relative flex cursor-pointer flex-col gap-3 rounded-xl border bg-card p-4 transition-colors fine-hover:bg-accent/30 active:opacity-80'
+      className={cn(
+        "group relative flex cursor-pointer flex-col gap-3 rounded-xl border bg-card p-4 transition-colors fine-hover:bg-accent/30 active:opacity-80",
+        selected && "border-primary/50 bg-accent/30",
+      )}
       onClick={() => onOpen(doc)}
     >
       <div className='flex items-start justify-between gap-2'>
-        <FileTypeIcon contentType={doc.content_type} size='md' />
+        <div className='relative shrink-0'>
+          <FileTypeIcon contentType={doc.content_type} size='md' />
+          {onToggleSelect && (
+            <div
+              className={cn(
+                "absolute -left-1.5 -top-1.5 rounded-full bg-background transition-opacity",
+                selected ? "opacity-100" : "opacity-0 group-hover:opacity-100",
+              )}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <Checkbox
+                checked={!!selected}
+                onCheckedChange={() => onToggleSelect(doc.id)}
+                className='bg-background shadow-sm'
+              />
+            </div>
+          )}
+        </div>
         <div
           className='opacity-0 transition-opacity group-hover:opacity-100'
           onClick={(e) => e.stopPropagation()}
@@ -615,6 +654,8 @@ function DocumentRow({
   onExtract,
   onMoveToFolder,
   folders,
+  selected,
+  onToggleSelect,
 }: {
   doc: VaultDocument;
   onOpen: (doc: VaultDocument) => void;
@@ -625,12 +666,28 @@ function DocumentRow({
   onExtract?: (doc: VaultDocument) => void;
   onMoveToFolder?: (doc: VaultDocument, folderId: string | null) => void;
   folders?: VaultFolder[];
+  selected?: boolean;
+  onToggleSelect?: (id: string) => void;
 }) {
   return (
     <div
-      className='group flex cursor-pointer items-center gap-4 border-b px-4 py-3 last:border-0 fine-hover:bg-accent/30 transition-colors active:opacity-80'
+      className={cn(
+        "group flex cursor-pointer items-center gap-4 border-b px-4 py-3 last:border-0 fine-hover:bg-accent/30 transition-colors active:opacity-80",
+        selected && "bg-accent/30",
+      )}
       onClick={() => onOpen(doc)}
     >
+      {onToggleSelect && (
+        <div
+          className={cn(
+            "shrink-0 transition-opacity",
+            selected ? "opacity-100" : "opacity-0 group-hover:opacity-100",
+          )}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <Checkbox checked={!!selected} onCheckedChange={() => onToggleSelect(doc.id)} />
+        </div>
+      )}
       <FileTypeIcon contentType={doc.content_type} size='sm' />
 
       <div className='min-w-0 flex-1'>
@@ -909,6 +966,7 @@ export function VaultPage() {
       { replace: true },
     );
   }
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [renamingDoc, setRenamingDoc] = useState<VaultDocument | null>(null);
   const [previewDoc, setPreviewDoc] = useState<VaultDocument | null>(null);
   const [createFolderOpen, setCreateFolderOpen] = useState(false);
@@ -985,6 +1043,7 @@ export function VaultPage() {
   // Reset search when navigating
   function navigateTo(index: number | null) {
     clearSearch();
+    setSelectedIds(new Set());
     if (index === null) {
       setFolderPath([]);
     } else {
@@ -994,7 +1053,21 @@ export function VaultPage() {
 
   function navigateInto(folder: VaultFolder) {
     clearSearch();
+    setSelectedIds(new Set());
     setFolderPath((p) => [...p, { id: folder.id, name: folder.name }]);
+  }
+
+  function toggleSelect(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function clearSelection() {
+    setSelectedIds(new Set());
   }
 
   const supabaseFilters = useMemo(
@@ -1101,6 +1174,44 @@ export function VaultPage() {
       setDocumentFolder(filePath, folderId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["vault", orgId] });
+    },
+  });
+
+  const bulkDeleteMutation = useMutation({
+    mutationFn: (selectedDocs: VaultDocument[]) => bulkDeleteDocuments(selectedDocs),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["vault", orgId] });
+      clearSelection();
+    },
+  });
+
+  const bulkMoveFolderMutation = useMutation({
+    mutationFn: ({ filePaths, folderId }: { filePaths: string[]; folderId: string | null }) =>
+      bulkSetDocumentFolder(filePaths, folderId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["vault", orgId] });
+      clearSelection();
+    },
+  });
+
+  const bulkDownloadMutation = useMutation({
+    mutationFn: async (selectedDocs: VaultDocument[]) => {
+      const JSZip = (await import("jszip")).default;
+      const zip = new JSZip();
+      await Promise.all(
+        selectedDocs.map(async (doc) => {
+          const url = await getDocumentSignedUrl(doc.file_path);
+          const res = await fetch(url);
+          zip.file(doc.name, await res.blob());
+        }),
+      );
+      const blob = await zip.generateAsync({ type: "blob" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `vault-documents-${selectedDocs.length}.zip`;
+      a.click();
+      URL.revokeObjectURL(url);
     },
   });
 
@@ -1213,10 +1324,45 @@ export function VaultPage() {
     );
   }
 
-  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const files = Array.from(e.target.files ?? []);
-    if (!files.length) return;
-    e.target.value = "";
+  function handleBulkDelete() {
+    const selectedDocs = docs.filter((d) => selectedIds.has(d.id));
+    toast.promise(bulkDeleteMutation.mutateAsync(selectedDocs), {
+      loading: `Deleting ${selectedDocs.length} document${selectedDocs.length !== 1 ? "s" : ""}…`,
+      success: "Documents deleted",
+      error: "Failed to delete documents",
+    });
+  }
+
+  function handleBulkMoveToFolder(folderId: string | null) {
+    const selectedDocs = docs.filter((d) => selectedIds.has(d.id));
+    const folderName = folderId
+      ? allFolders.find((f) => f.id === folderId)?.name ?? "folder"
+      : null;
+    toast.promise(
+      bulkMoveFolderMutation.mutateAsync({
+        filePaths: selectedDocs.map((d) => d.file_path),
+        folderId,
+      }),
+      {
+        loading: folderId
+          ? `Moving ${selectedDocs.length} file${selectedDocs.length !== 1 ? "s" : ""} to ${folderName}…`
+          : `Removing ${selectedDocs.length} file${selectedDocs.length !== 1 ? "s" : ""} from folder…`,
+        success: folderId ? `Moved to ${folderName}` : "Removed from folder",
+        error: "Failed to move files",
+      },
+    );
+  }
+
+  function handleBulkDownload() {
+    const selectedDocs = docs.filter((d) => selectedIds.has(d.id));
+    toast.promise(bulkDownloadMutation.mutateAsync(selectedDocs), {
+      loading: `Preparing ${selectedDocs.length} file${selectedDocs.length !== 1 ? "s" : ""}…`,
+      success: "Download started",
+      error: "Failed to download files",
+    });
+  }
+
+  function uploadFiles(files: File[]) {
     for (const file of files) {
       toast.promise(uploadMutation.mutateAsync(file), {
         loading: `Uploading ${file.name}…`,
@@ -1224,6 +1370,13 @@ export function VaultPage() {
         error: `Failed to upload ${file.name}`,
       });
     }
+  }
+
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files ?? []);
+    if (!files.length) return;
+    e.target.value = "";
+    uploadFiles(files);
   }
 
   const isFiltered = !!search || filtersState.length > 0;
@@ -1238,7 +1391,12 @@ export function VaultPage() {
   }
 
   return (
-    <div className='flex flex-col gap-6 p-6'>
+    <FileDropzone
+      className='flex flex-col gap-6 p-6'
+      onDropFiles={uploadFiles}
+      accept={VAULT_UPLOAD_ACCEPT}
+      overlayText='Drop files to upload'
+    >
       <TransactionSheet
         open={txSheetOpen}
         onOpenChange={setTxSheetOpen}
@@ -1467,11 +1625,14 @@ export function VaultPage() {
               onExtract={handleExtractToTransaction}
               onMoveToFolder={handleMoveToFolder}
               folders={allFolders}
+              selected={selectedIds.has(doc.id)}
+              onToggleSelect={toggleSelect}
             />
           ))}
         </div>
       : <div className='overflow-hidden rounded-lg border'>
           <div className='flex items-center gap-4 border-b bg-muted/40 px-4 py-2'>
+            <div className='size-4 shrink-0' />
             <div className='size-8 shrink-0' />
             <span className='flex-1 text-[11px] font-medium text-muted-foreground'>
               Name
@@ -1499,6 +1660,8 @@ export function VaultPage() {
               onExtract={handleExtractToTransaction}
               onMoveToFolder={handleMoveToFolder}
               folders={allFolders}
+              selected={selectedIds.has(doc.id)}
+              onToggleSelect={toggleSelect}
             />
           ))}
         </div>
@@ -1509,6 +1672,16 @@ export function VaultPage() {
           {docs.length} document{docs.length !== 1 ? "s" : ""}
         </p>
       )}
-    </div>
+
+      <BulkActionBar
+        selectedCount={selectedIds.size}
+        onClear={clearSelection}
+        onDownload={handleBulkDownload}
+        onMoveToFolder={handleBulkMoveToFolder}
+        onDelete={handleBulkDelete}
+        folders={allFolders}
+        isDownloading={bulkDownloadMutation.isPending}
+      />
+    </FileDropzone>
   );
 }

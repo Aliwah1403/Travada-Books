@@ -217,7 +217,7 @@ export function PublicQuotePage() {
   return (
     <div className="min-h-screen bg-muted/30">
       {/* Top bar */}
-      <div className="flex items-center justify-between border-b bg-background px-6 py-3">
+      <div className="flex items-center justify-between gap-2 border-b bg-background px-4 py-3 sm:px-6">
         <div className="flex items-center gap-2">
           <img src={logo} alt="Travada Books" className="size-6" />
           <span className="text-sm font-semibold">Travada Books</span>
@@ -225,17 +225,17 @@ export function PublicQuotePage() {
         <div className="flex items-center gap-2">
           <Button variant="outline" className="gap-1.5" onClick={copyLink}>
             <Copy01Icon size={13} />
-            Copy Link
+            <span className="hidden sm:inline">Copy Link</span>
           </Button>
           <Button variant="outline" className="gap-1.5" onClick={handleDownload} disabled={isPdfDownloading}>
             <Download01Icon size={13} />
-            {isPdfDownloading ? "Generating…" : "Download PDF"}
+            <span className="hidden sm:inline">{isPdfDownloading ? "Generating…" : "Download PDF"}</span>
           </Button>
         </div>
       </div>
 
       {/* Quote document */}
-      <div className="flex justify-center px-4 py-10">
+      <div className="flex justify-center px-3 py-6 sm:px-4 sm:py-10">
         <div className="w-full max-w-2xl">
           {/* Terminal status banners */}
           {quote.status === "accepted" && (
@@ -259,10 +259,10 @@ export function PublicQuotePage() {
 
           {/* Accept / Decline — only for sent, non-expired quotes */}
           {!isTerminal && (
-            <div className="mt-4 flex items-center justify-end gap-3">
+            <div className="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-end sm:gap-3">
               <Button
                 variant="destructive"
-                className="gap-1.5"
+                className="w-full gap-1.5 sm:w-auto"
                 onClick={() => setShowDeclineModal(true)}
                 disabled={isSubmitting}
               >
@@ -270,7 +270,7 @@ export function PublicQuotePage() {
                 Decline
               </Button>
               <Button
-                className="gap-1.5"
+                className="w-full gap-1.5 sm:w-auto"
                 onClick={handleAccept}
                 disabled={isSubmitting}
               >

@@ -1,6 +1,6 @@
 import React from "react"
 import { Text, Link } from "@react-email/components"
-import { EmailLayout, CtaButton, Hr, colors } from "./layout"
+import { EmailLayout, OutlinedButton, Hr, colors } from "./layout"
 
 const font = "ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
 
@@ -69,7 +69,7 @@ export function WelcomeDay5Email({ firstName = "there", unsubscribeUrl }: Props)
         Add your customer, fill in what they owe, hit send. That's genuinely it.
       </Text>
 
-      <CtaButton href={INVOICE_URL}>Send your first invoice</CtaButton>
+      <OutlinedButton href={INVOICE_URL}>Send your first invoice</OutlinedButton>
 
       <Hr style={{ borderColor: colors.border, margin: "40px 0 32px" }} />
 

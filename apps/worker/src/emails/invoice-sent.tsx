@@ -1,6 +1,6 @@
 import React from "react"
 import { Text, Link } from "@react-email/components"
-import { EmailLayout, CtaButton, Hr, formatMoney, formatDate, colors } from "./layout"
+import { EmailLayout, OutlinedButton, Hr, formatMoney, formatDate, colors } from "./layout"
 
 const font = "ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
 
@@ -38,7 +38,7 @@ export function InvoiceSentEmail({ orgName, orgLogoUrl, orgEmail, customerName, 
         from {orgName}
       </Text>
 
-      <CtaButton href={publicUrl}>View Invoice</CtaButton>
+      <OutlinedButton href={publicUrl}>View Invoice</OutlinedButton>
 
       <Hr style={{ borderColor: colors.border, margin: "8px 0 32px" }} />
 

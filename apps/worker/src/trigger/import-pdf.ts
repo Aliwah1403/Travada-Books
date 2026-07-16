@@ -198,10 +198,20 @@ export const importPdfTask = task({
 
     // 6. Enrich — merchant name extraction + categorization (Gemini 2.5 Flash Lite, batch 50)
     metadata.set("status", "categorizing");
-    await enrichTransactionsTask.triggerAndWait({
+    // triggerAndWait RESOLVES with { ok: false } on child failure rather than
+    // throwing — see the same guard in import-csv.ts. A failed enrichment leaves
+    // the imported rows uncategorized, un-embedded, and unmatched against inbox.
+    const enrichResult = await enrichTransactionsTask.triggerAndWait({
       transactionIds: rows.map((r) => r.id),
       orgId,
     });
+    if (!enrichResult.ok) {
+      logger.error("Enrichment failed — transactions imported but uncategorized and unmatched", {
+        orgId,
+        count: rows.length,
+        error: String(enrichResult.error),
+      });
+    }
 
     // 7. Classify the import file as a Capture document
     const { data: captureDoc } = await supabase

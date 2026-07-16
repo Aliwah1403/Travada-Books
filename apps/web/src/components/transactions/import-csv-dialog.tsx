@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import Papa from "papaparse";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -322,9 +322,11 @@ function MappingRow({
 interface ImportCsvDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Preloaded file — e.g. dropped on the transactions page before the dialog opened. */
+  initialFile?: File | null;
 }
 
-export function ImportCsvDialog({ open, onOpenChange }: ImportCsvDialogProps) {
+export function ImportCsvDialog({ open, onOpenChange, initialFile }: ImportCsvDialogProps) {
   const { orgId, org } = useAuth();
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -368,11 +370,7 @@ export function ImportCsvDialog({ open, onOpenChange }: ImportCsvDialogProps) {
     onOpenChange(o);
   }
 
-  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const picked = e.target.files?.[0];
-    if (!picked) return;
-    reset();
-
+  function loadCsvFile(picked: File) {
     const isCsv =
       picked.type === "text/csv" || picked.name.toLowerCase().endsWith(".csv");
     if (!isCsv) {
@@ -404,6 +402,22 @@ export function ImportCsvDialog({ open, onOpenChange }: ImportCsvDialogProps) {
       },
     });
   }
+
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const picked = e.target.files?.[0];
+    if (!picked) return;
+    reset();
+    loadCsvFile(picked);
+  }
+
+  // Preload a file dropped on the transactions page before this dialog was opened.
+  useEffect(() => {
+    if (!open || !initialFile) return;
+    reset();
+    setTab("csv");
+    loadCsvFile(initialFile);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, initialFile]);
 
   async function handleConfirm() {
     if (!orgId || !file) return;

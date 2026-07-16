@@ -5,7 +5,7 @@ import { z } from "zod";
 
 const openai = createOpenAI({ apiKey: process.env.OPENAI_API_KEY! });
 
-const extractDocumentSchema = z.object({
+export const extractDocumentSchema = z.object({
   date: z.string().nullable(),
   amount: z.number().nullable(),
   type: z.enum(["income", "expense"]).nullable(),
@@ -14,8 +14,14 @@ const extractDocumentSchema = z.object({
   reference_number: z.string().nullable(),
   currency: z.string().nullable(),
   tax_amount: z.number().nullable(),
+  tax_rate: z.number().nullable().describe("Tax rate as a percentage number, e.g. 16 for 16%. Null if not shown."),
+  tax_type: z.enum(["vat", "wht", "other"]).nullable().describe("vat for VAT/TVA/MwSt/IVA, wht for Withholding Tax, other for any other named tax"),
   payment_mode: z.enum(["mpesa", "bank_transfer", "cash", "cheque", "card", "other"]).nullable(),
+  invoice_number: z.string().nullable().describe("The invoice/bill/receipt number printed on the document, distinct from reference_number"),
+  document_type: z.enum(["invoice", "expense", "other"]).nullable().describe("Doc-level classification: invoice (bill requesting/recording payment), expense (receipt/proof of payment), other (non-financial document)"),
 });
+
+export type ExtractedDocumentData = z.infer<typeof extractDocumentSchema>;
 
 function buildPrompt(orgName: string): string {
   return [
@@ -37,7 +43,11 @@ function buildPrompt(orgName: string): string {
     `- For M-Pesa: "Paid to" = expense, "received from" = income`,
     `- For bank statements showing multiple rows: extract ONLY the single most prominent transaction`,
     `- tax_amount: Only if a tax line is explicitly shown on the document`,
+    `- tax_rate: The tax rate as a percentage number if shown (e.g. "VAT @ 5.00%" → 5, "16% VAT" → 16). Null if not shown`,
+    `- tax_type: One of "vat" (VAT, Value Added Tax, TVA, MwSt, IVA), "wht" (Withholding Tax, WHT), or "other" (any other named tax). Null if no tax type is named`,
     `- payment_mode: One of "mpesa", "bank_transfer", "cash", "cheque", "card", or "other"`,
+    `- invoice_number: The invoice/bill/receipt number printed on the document (e.g. "INV-2024-001"). Distinct from reference_number (a payment confirmation code). Null if not shown`,
+    `- document_type: Classify the document itself: "invoice" if this is a bill requesting/recording payment, "expense" if this is a receipt/proof of payment already made, "other" if it is not a financial record. Independent of "type" (income/expense direction)`,
     `</rules>`,
     ``,
     `<examples>`,

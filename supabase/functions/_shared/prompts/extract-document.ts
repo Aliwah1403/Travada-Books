@@ -18,19 +18,21 @@ export function createExtractDocumentPrompt(orgName: string): string {
 - tax_rate: The tax rate as a percentage number if shown (e.g. "VAT @ 5.00%" → 5, "16% VAT" → 16). Null if not shown
 - tax_type: One of "vat" (VAT, Value Added Tax, TVA, MwSt, IVA), "wht" (Withholding Tax, WHT), or "other" (any other named tax). Null if no tax type is named
 - payment_mode: One of "mpesa", "bank_transfer", "cash", "cheque", "card", or "other". M-Pesa confirmation messages → "mpesa". Bank deposit/transfer slips → "bank_transfer". POS/till receipts paid by card → "card". Cash receipts → "cash". Cheque receipts → "cheque"
-- description: Always produce a short, human-readable description (5–10 words). Use context from the document: what was bought/paid for, the vendor or service, or the nature of the payment. For M-Pesa and bank SMSs with no item detail, describe the transfer (e.g. "M-Pesa payment to Safaricom", "Card purchase at Dream Fade Gents Salon"). Never leave this null.`,
+- description: Always produce a short, human-readable description (5–10 words). Use context from the document: what was bought/paid for, the vendor or service, or the nature of the payment. For M-Pesa and bank SMSs with no item detail, describe the transfer (e.g. "M-Pesa payment to Safaricom", "Card purchase at Dream Fade Gents Salon"). Never leave this null.
+- invoice_number: The invoice, bill, or receipt number printed on the document (e.g. "INV-2024-001", "Receipt #4821"). Distinct from reference_number (a payment/transaction confirmation code) — invoice_number is the document's own identifying number. Null if not shown
+- document_type: Classify the document itself (not the transaction direction): "invoice" if this is a bill/invoice requesting or recording payment for goods/services, "expense" if this is a receipt/proof of payment already made, "other" if the document is not a financial record at all (e.g. a contract, letter, or unrelated file). This is independent of "type" (income/expense direction)`,
     examples: `
 Till receipt from "Naivas Supermarket", total KES 2,450, paid by card, dated 10 Jun 2026:
-{ "date": "2026-06-10", "amount": 2450, "type": "expense", "counterparty_name": "Naivas Supermarket", "currency": "KES", "description": "Naivas Supermarket grocery purchase", "payment_mode": "card" }
+{ "date": "2026-06-10", "amount": 2450, "type": "expense", "counterparty_name": "Naivas Supermarket", "currency": "KES", "description": "Naivas Supermarket grocery purchase", "payment_mode": "card", "document_type": "expense" }
 
 M-Pesa: "You have received Ksh15,000.00 from JOHN KAMAU 0712345678 on 9/6/26":
-{ "date": "2026-06-09", "amount": 15000, "type": "income", "counterparty_name": "John Kamau", "currency": "KES", "description": "M-Pesa payment received from John Kamau", "payment_mode": "mpesa" }
+{ "date": "2026-06-09", "amount": 15000, "type": "income", "counterparty_name": "John Kamau", "currency": "KES", "description": "M-Pesa payment received from John Kamau", "payment_mode": "mpesa", "document_type": "expense" }
 
 Bank SMS: "Purchase of AED 560.00 with Credit Card ending 0869 at DREAM FADE GENTS SALON":
-{ "amount": 560, "type": "expense", "counterparty_name": "Dream Fade Gents Salon", "currency": "AED", "description": "Card purchase at Dream Fade Gents Salon", "payment_mode": "card" }
+{ "amount": 560, "type": "expense", "counterparty_name": "Dream Fade Gents Salon", "currency": "AED", "description": "Card purchase at Dream Fade Gents Salon", "payment_mode": "card", "document_type": "expense" }
 
-Invoice from "Kenya Power" for KES 4,280 electricity bill, dated 01 Jun 2026:
-{ "date": "2026-06-01", "amount": 4280, "type": "expense", "counterparty_name": "Kenya Power", "currency": "KES", "description": "Kenya Power electricity bill", "payment_mode": "other" }`,
+Invoice from "Kenya Power" for KES 4,280 electricity bill, invoice number "KP-88214", dated 01 Jun 2026, unpaid:
+{ "date": "2026-06-01", "amount": 4280, "type": "expense", "counterparty_name": "Kenya Power", "currency": "KES", "description": "Kenya Power electricity bill", "payment_mode": "other", "invoice_number": "KP-88214", "document_type": "invoice" }`,
     constraints: `
 Return your response as a JSON object.
 Return null for any field you cannot determine with confidence. Never hallucinate values.
@@ -51,6 +53,8 @@ export const extractDocumentSchema = z.object({
   tax_rate: z.number().nullable().describe("Tax rate as a percentage number (e.g. 5 for 5%, 16 for 16%)"),
   tax_type: z.enum(["vat", "wht", "other"]).nullable().describe("vat for VAT/TVA/MwSt/IVA, wht for Withholding Tax, other for any other named tax"),
   payment_mode: z.enum(["mpesa", "bank_transfer", "cash", "cheque", "card", "other"]).nullable().describe("Payment method used"),
+  invoice_number: z.string().nullable().describe("The invoice/bill/receipt number printed on the document, distinct from reference_number"),
+  document_type: z.enum(["invoice", "expense", "other"]).nullable().describe("Doc-level classification: invoice (bill requesting/recording payment), expense (receipt/proof of payment), other (non-financial document)"),
 })
 
 export type ExtractedDocument = z.infer<typeof extractDocumentSchema>

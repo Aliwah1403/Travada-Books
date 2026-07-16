@@ -1,6 +1,6 @@
 import React from "react"
 import { Text } from "@react-email/components"
-import { EmailLayout, CtaButton, Hr, formatDate, colors } from "./layout"
+import { EmailLayout, OutlinedButton, Hr, formatDate, colors } from "./layout"
 
 const font = "ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
 
@@ -30,7 +30,7 @@ export function TransactionsExportedEmail({ orgName, orgLogoUrl, rowCount, forma
         {fileLabel} · {formatLabel} · Exported {formatDate(exportDate)}
       </Text>
 
-      <CtaButton href={downloadUrl}>Download Export</CtaButton>
+      <OutlinedButton href={downloadUrl}>Download Export</OutlinedButton>
 
       <Hr style={{ borderColor: colors.border, margin: "8px 0 32px" }} />
 

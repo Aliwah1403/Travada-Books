@@ -209,7 +209,7 @@ export function PublicStatementPage() {
   return (
     <div className='min-h-screen bg-muted/30'>
       {/* Top bar */}
-      <div className='flex items-center justify-between border-b bg-background px-6 py-3'>
+      <div className='flex items-center justify-between gap-2 border-b bg-background px-4 py-3 sm:px-6'>
         <div className='flex items-center gap-2'>
           <img src={logo} alt='Travada Books' className='size-6' />
           <span className='text-sm font-semibold'>Travada Books</span>
@@ -217,20 +217,20 @@ export function PublicStatementPage() {
         <div className='flex items-center gap-2'>
           <Button variant='outline' className='gap-1.5' onClick={copyLink}>
             <Copy01Icon size={13} />
-            Copy Link
+            <span className='hidden sm:inline'>Copy Link</span>
           </Button>
           <Button variant='outline' className='gap-1.5' onClick={handleDownload} disabled={isPdfDownloading}>
             <Download01Icon size={13} />
-            {isPdfDownloading ? "Generating…" : "Download PDF"}
+            <span className='hidden sm:inline'>{isPdfDownloading ? "Generating…" : "Download PDF"}</span>
           </Button>
         </div>
       </div>
 
       {/* Statement */}
-      <div className='flex justify-center px-4 py-10'>
-        <div className='w-full max-w-4xl rounded-lg border bg-white p-10 text-sm shadow-sm dark:bg-card'>
+      <div className='flex justify-center px-3 py-6 sm:px-4 sm:py-10'>
+        <div className='w-full max-w-4xl rounded-lg border bg-white p-5 text-sm shadow-sm sm:p-10 dark:bg-card'>
           {/* Letterhead */}
-          <div className='flex items-start justify-between'>
+          <div className='flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between'>
             <div>
               {from.logo_url ?
                 <img
@@ -290,7 +290,7 @@ export function PublicStatementPage() {
           <Separator className='my-6' />
 
           {/* Prepared for + period */}
-          <div className='grid grid-cols-2 gap-6'>
+          <div className='grid grid-cols-1 gap-6 sm:grid-cols-2'>
             <div>
               <p className='text-xs font-medium uppercase tracking-wide text-muted-foreground'>
                 Prepared for
@@ -362,60 +362,62 @@ export function PublicStatementPage() {
             <p className='py-6 text-center text-xs text-muted-foreground'>
               No invoices in this period.
             </p>
-          : <table className='w-full text-xs'>
-              <thead>
-                <tr className='border-b text-muted-foreground'>
-                  <th className='pb-3 text-left font-medium'>Date</th>
-                  <th className='pb-3 text-left font-medium'>Description</th>
-                  <th className='pb-3 text-left font-medium'>Invoice #</th>
-                  <th className='pb-3 text-right font-medium'>Charges</th>
-                  <th className='pb-3 text-right font-medium'>Payments</th>
-                  <th className='pb-3 text-right font-medium'>Balance</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr className='border-b border-dashed bg-muted/30'>
-                  <td className='py-2.5 text-muted-foreground'>—</td>
-                  <td className='py-2.5 font-medium' colSpan={2}>
-                    Opening balance
-                  </td>
-                  <td className='py-2.5 text-right text-muted-foreground'>—</td>
-                  <td className='py-2.5 text-right text-muted-foreground'>—</td>
-                  <td className='py-2.5 text-right font-medium'>
-                    {fmt(0, currency)}
-                  </td>
-                </tr>
-                {entries.map((entry, i) => (
-                  <tr key={i} className='border-b border-dashed'>
-                    <td className='py-2.5 text-muted-foreground'>
-                      {safeFormatDate(entry.date)}
+          : <div className='-mx-5 overflow-x-auto px-5 sm:mx-0 sm:px-0'>
+              <table className='w-full min-w-[560px] text-xs'>
+                <thead>
+                  <tr className='border-b text-muted-foreground'>
+                    <th className='pb-3 text-left font-medium'>Date</th>
+                    <th className='pb-3 text-left font-medium'>Description</th>
+                    <th className='pb-3 text-left font-medium'>Invoice #</th>
+                    <th className='pb-3 text-right font-medium'>Charges</th>
+                    <th className='pb-3 text-right font-medium'>Payments</th>
+                    <th className='pb-3 text-right font-medium'>Balance</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr className='border-b border-dashed bg-muted/30'>
+                    <td className='py-2.5 text-muted-foreground'>—</td>
+                    <td className='py-2.5 font-medium' colSpan={2}>
+                      Opening balance
                     </td>
-                    <td className='py-2.5'>{entry.description}</td>
-                    <td className='py-2.5 font-mono text-muted-foreground'>
-                      {entry.invoiceNumber ?? "—"}
-                    </td>
-                    <td className='py-2.5 text-right'>
-                      {entry.debit > 0 ?
-                        fmt(entry.debit, currency)
-                      : <span className='text-muted-foreground'>—</span>}
-                    </td>
-                    <td className='py-2.5 text-right text-green-600 dark:text-green-400'>
-                      {entry.credit > 0 ?
-                        fmt(entry.credit, currency)
-                      : <span className='text-muted-foreground'>—</span>}
-                    </td>
-                    <td
-                      className={cn(
-                        "py-2.5 text-right font-medium",
-                        entry.balance > 0 && "text-destructive",
-                      )}
-                    >
-                      {fmt(entry.balance, currency)}
+                    <td className='py-2.5 text-right text-muted-foreground'>—</td>
+                    <td className='py-2.5 text-right text-muted-foreground'>—</td>
+                    <td className='py-2.5 text-right font-medium'>
+                      {fmt(0, currency)}
                     </td>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                  {entries.map((entry, i) => (
+                    <tr key={i} className='border-b border-dashed'>
+                      <td className='py-2.5 text-muted-foreground'>
+                        {safeFormatDate(entry.date)}
+                      </td>
+                      <td className='py-2.5'>{entry.description}</td>
+                      <td className='py-2.5 font-mono text-muted-foreground'>
+                        {entry.invoiceNumber ?? "—"}
+                      </td>
+                      <td className='py-2.5 text-right'>
+                        {entry.debit > 0 ?
+                          fmt(entry.debit, currency)
+                        : <span className='text-muted-foreground'>—</span>}
+                      </td>
+                      <td className='py-2.5 text-right text-green-600 dark:text-green-400'>
+                        {entry.credit > 0 ?
+                          fmt(entry.credit, currency)
+                        : <span className='text-muted-foreground'>—</span>}
+                      </td>
+                      <td
+                        className={cn(
+                          "py-2.5 text-right font-medium",
+                          entry.balance > 0 && "text-destructive",
+                        )}
+                      >
+                        {fmt(entry.balance, currency)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           }
 
           {/* Summary */}

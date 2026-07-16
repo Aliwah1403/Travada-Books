@@ -45,6 +45,7 @@ import {
 import { cn } from "@travada-books/ui/lib/utils";
 import { useAuth } from "@/contexts/auth-context";
 import { DatePicker } from "@/components/shared/date-picker";
+import { FileDropzone } from "@/components/shared/file-dropzone";
 import {
   listTransactionCategories,
   createTransaction,
@@ -339,8 +340,7 @@ export function TransactionSheet({
     }, 150);
   }
 
-  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const files = Array.from(e.target.files ?? []);
+  function addFiles(files: File[]) {
     const toAdd: File[] = [];
 
     for (const f of files) {
@@ -360,6 +360,11 @@ export function TransactionSheet({
     if (toAdd.length > 0) {
       setPendingFiles((prev) => [...prev, ...toAdd]);
     }
+  }
+
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files ?? []);
+    addFiles(files);
     e.target.value = "";
   }
 
@@ -1180,69 +1185,77 @@ export function TransactionSheet({
               )}
 
               {/* New file uploads */}
-              <input
-                ref={fileInputRef}
-                type='file'
-                accept='image/*,application/pdf'
-                multiple
-                className='hidden'
-                onChange={handleFileChange}
-              />
-              <button
-                type='button'
-                onClick={() => fileInputRef.current?.click()}
-                className='flex flex-col items-center justify-center gap-1.5 w-full rounded-lg border border-dashed p-5 text-center transition-colors fine-hover:bg-muted/50'
+              <FileDropzone
+                className='flex flex-col gap-2'
+                onDropFiles={addFiles}
+                accept={["image/*", "application/pdf"]}
+                maxSize={10 * 1024 * 1024}
+                overlayText='Drop receipt or document'
               >
-                <Attachment01Icon size={16} className='text-muted-foreground' />
-                <span className='text-xs text-muted-foreground'>
-                  Click to upload receipt or document
-                </span>
-                <span className='text-[10px] text-muted-foreground'>
-                  PDF, PNG, JPG · Max 10 MB
-                </span>
-              </button>
-              {pendingFiles.length > 0 && (
-                <div className='flex flex-col gap-1'>
-                  {pendingFiles.map((file, i) => {
-                    const isExtractable =
-                      file.type.startsWith("image/") ||
-                      file.type === "application/pdf";
-                    return (
-                      <div
-                        key={i}
-                        className='flex items-center gap-2 rounded-md border px-3 py-1.5'
-                      >
-                        <Attachment01Icon
-                          size={12}
-                          className='shrink-0 text-muted-foreground'
-                        />
-                        <span className='flex-1 truncate text-xs'>
-                          {file.name}
-                        </span>
-                        {isExtractable && (
+                <input
+                  ref={fileInputRef}
+                  type='file'
+                  accept='image/*,application/pdf'
+                  multiple
+                  className='hidden'
+                  onChange={handleFileChange}
+                />
+                <button
+                  type='button'
+                  onClick={() => fileInputRef.current?.click()}
+                  className='flex flex-col items-center justify-center gap-1.5 w-full rounded-lg border border-dashed p-5 text-center transition-colors fine-hover:bg-muted/50'
+                >
+                  <Attachment01Icon size={16} className='text-muted-foreground' />
+                  <span className='text-xs text-muted-foreground'>
+                    Click to upload receipt or document
+                  </span>
+                  <span className='text-[10px] text-muted-foreground'>
+                    PDF, PNG, JPG · Max 10 MB
+                  </span>
+                </button>
+                {pendingFiles.length > 0 && (
+                  <div className='flex flex-col gap-1'>
+                    {pendingFiles.map((file, i) => {
+                      const isExtractable =
+                        file.type.startsWith("image/") ||
+                        file.type === "application/pdf";
+                      return (
+                        <div
+                          key={i}
+                          className='flex items-center gap-2 rounded-md border px-3 py-1.5'
+                        >
+                          <Attachment01Icon
+                            size={12}
+                            className='shrink-0 text-muted-foreground'
+                          />
+                          <span className='flex-1 truncate text-xs'>
+                            {file.name}
+                          </span>
+                          {isExtractable && (
+                            <button
+                              type='button'
+                              disabled={extracting}
+                              onClick={() => handleExtractFromFile(file)}
+                              className='flex items-center gap-1 text-[10px] text-muted-foreground fine-hover:text-foreground transition-colors shrink-0 disabled:opacity-40'
+                              title='Extract transaction data with AI'
+                            >
+                              <SparklesIcon size={11} />
+                              {extracting ? "Extracting…" : "Extract"}
+                            </button>
+                          )}
                           <button
                             type='button'
-                            disabled={extracting}
-                            onClick={() => handleExtractFromFile(file)}
-                            className='flex items-center gap-1 text-[10px] text-muted-foreground fine-hover:text-foreground transition-colors shrink-0 disabled:opacity-40'
-                            title='Extract transaction data with AI'
+                            onClick={() => removeFile(i)}
+                            className='text-muted-foreground fine-hover:text-destructive transition-colors'
                           >
-                            <SparklesIcon size={11} />
-                            {extracting ? "Extracting…" : "Extract"}
+                            <Delete01Icon size={12} />
                           </button>
-                        )}
-                        <button
-                          type='button'
-                          onClick={() => removeFile(i)}
-                          className='text-muted-foreground fine-hover:text-destructive transition-colors'
-                        >
-                          <Delete01Icon size={12} />
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </FileDropzone>
             </div>
           </div>
         </div>

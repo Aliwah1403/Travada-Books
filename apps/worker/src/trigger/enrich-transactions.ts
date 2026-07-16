@@ -1,4 +1,4 @@
-import { task, logger } from "@trigger.dev/sdk";
+import { task, logger, tasks } from "@trigger.dev/sdk";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { generateObject, embedMany } from "ai";
 import { z } from "zod";
@@ -281,6 +281,29 @@ export const enrichTransactionsTask = task({
     }
 
     logger.info("Enrichment complete", { totalEnriched, orgId });
+
+    // ── Reverse inbox matching (Batch 3h) ───────────────────────────────────
+    // Runs here — after transaction_embeddings are written above — rather
+    // than at transaction-creation time, because matching is embedding-driven:
+    // triggering any earlier would find nothing to match against. Covers CSV
+    // import, PDF/bank-statement import, and manual creation, since all of
+    // them funnel through this task. Isolated try/catch: a trigger failure
+    // here must not fail enrichment, which already succeeded.
+    //
+    // Debounced per org: a CSV import enriches in batches, so without this a
+    // 500-row import would fire one batch-match run per batch — all of them
+    // concurrently rescanning (and racing to attach) the same no_match items.
+    // 30s trailing collapses them into a single run once enrichment settles.
+    try {
+      await tasks.trigger(
+        "batch-match-inbox",
+        { orgId, transactionIds },
+        { debounce: { key: `batch-match-inbox-${orgId}`, delay: "30s", mode: "trailing" } },
+      );
+    } catch (err) {
+      logger.warn("Could not trigger batch-match-inbox", { orgId, error: String(err) });
+    }
+
     return { enriched: totalEnriched };
   },
 });

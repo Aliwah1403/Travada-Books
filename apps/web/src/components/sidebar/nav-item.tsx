@@ -9,9 +9,11 @@ type NavItemProps = {
   to: string
   comingSoon?: boolean
   collapsed?: boolean
+  /** Exact-match only — pass for routes like "/" that would otherwise match every path. */
+  end?: boolean
 }
 
-export function NavItem({ icon: NavIcon, label, to, comingSoon, collapsed }: NavItemProps) {
+export function NavItem({ icon: NavIcon, label, to, comingSoon, collapsed, end }: NavItemProps) {
   const iconEl = <NavIcon size={16} className="shrink-0" />
 
   if (comingSoon) {
@@ -34,7 +36,7 @@ export function NavItem({ icon: NavIcon, label, to, comingSoon, collapsed }: Nav
   }
 
   return (
-    <NavLink to={to}>
+    <NavLink to={to} end={end}>
       {({ isActive }) => (
         <span
           className={cn(

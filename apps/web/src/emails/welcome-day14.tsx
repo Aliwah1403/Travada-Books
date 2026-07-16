@@ -171,10 +171,10 @@ export default function WelcomeDay14Email({
         Co-founder, Travada Books
         <br />
         <Link
-          href="mailto:curtis@travadasys.com"
+          href="mailto:curtis.aliwah@travadasys.com"
           style={{ color: colors.muted, textDecoration: "none" }}
         >
-          curtis@travadasys.com
+          curtis.aliwah@travadasys.com
         </Link>
       </Text>
 

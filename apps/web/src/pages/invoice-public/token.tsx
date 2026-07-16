@@ -124,7 +124,7 @@ export function PublicInvoicePage() {
   return (
     <div className="min-h-screen bg-muted/30">
       {/* Top bar */}
-      <div className="flex items-center justify-between border-b bg-background px-6 py-3">
+      <div className="flex items-center justify-between gap-2 border-b bg-background px-4 py-3 sm:px-6">
         <div className="flex items-center gap-2">
           <img src={logo} alt="Travada Books" className="size-6" />
           <span className="text-sm font-semibold">Travada Books</span>
@@ -132,23 +132,23 @@ export function PublicInvoicePage() {
         <div className="flex items-center gap-2">
           <Button variant="outline" className="gap-1.5" onClick={copyLink}>
             <Copy01Icon size={13} />
-            Copy Link
+            <span className="hidden sm:inline">Copy Link</span>
           </Button>
           <Button variant="outline" className="gap-1.5" onClick={handleDownload} disabled={isDownloading}>
             <Download01Icon size={13} />
-            {isDownloading ? "Generating…" : "Download PDF"}
+            <span className="hidden sm:inline">{isDownloading ? "Generating…" : "Download PDF"}</span>
           </Button>
           {invoice.accept_payments && (
             <Button className="gap-1.5">
               <Wallet01Icon size={13} />
-              Pay Invoice
+              <span className="hidden sm:inline">Pay Invoice</span>
             </Button>
           )}
         </div>
       </div>
 
       {/* Invoice */}
-      <div className="flex justify-center px-4 py-10">
+      <div className="flex justify-center px-3 py-6 sm:px-4 sm:py-10">
         <div className="w-full max-w-2xl">
           <InvoicePreview data={documentData} invoiceTemplate={invoice.invoice_template} />
         </div>

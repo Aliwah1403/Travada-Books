@@ -16,7 +16,7 @@ export function QuoteConfirmedPage() {
   return (
     <div className="min-h-screen bg-muted/30">
       {/* Top bar */}
-      <div className="flex items-center border-b bg-background px-6 py-3">
+      <div className="flex items-center border-b bg-background px-4 py-3 sm:px-6">
         <div className="flex items-center gap-2">
           <img src={logo} alt="Travada Books" className="size-6" />
           <span className="text-sm font-semibold">Travada Books</span>

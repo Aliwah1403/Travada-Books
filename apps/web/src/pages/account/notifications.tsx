@@ -106,6 +106,46 @@ const groups: NotificationGroup[] = [
     ],
   },
   {
+    label: "Inbox",
+    events: [
+      {
+        id: "inbox.new",
+        label: "New inbox document",
+        description: "A document arrives in your inbox, by email or manual upload.",
+        channels: ["in_app"],
+        defaults: { in_app: true },
+      },
+      {
+        id: "inbox.auto_matched",
+        label: "Receipt auto-matched",
+        description: "A document is confidently auto-matched to a transaction.",
+        channels: ["in_app"],
+        defaults: { in_app: true },
+      },
+      {
+        id: "inbox.needs_review",
+        label: "Match needs review",
+        description: "A document has a possible transaction match that needs your confirmation.",
+        channels: ["in_app"],
+        defaults: { in_app: true },
+      },
+      {
+        id: "inbox.cross_currency_matched",
+        label: "Cross-currency match",
+        description: "A document is auto-matched to a transaction in a different currency.",
+        channels: ["in_app"],
+        defaults: { in_app: true },
+      },
+      {
+        id: "inbox.match_confirmed",
+        label: "Match confirmed",
+        description: "A teammate confirms a suggested match between a document and a transaction.",
+        channels: ["in_app"],
+        defaults: { in_app: true },
+      },
+    ],
+  },
+  {
     label: "Billing",
     comingSoon: true,
     events: [

@@ -1,9 +1,9 @@
 import React from "react";
 import { schemaTask, wait, retry, logger, idempotencyKeys, AbortTaskRunError } from "@trigger.dev/sdk";
 import { render } from "@react-email/render";
-import { createHmac } from "node:crypto";
 import { z } from "zod";
-import { resend, FROM_EMAIL, hashEmail, isResendClientError } from "../lib/resend";
+import { resend, FROM_EMAIL, hashEmail, isResendClientError, isUnsubscribed } from "../lib/resend";
+import { buildUnsubscribeUrl } from "../lib/unsubscribe";
 import { WelcomeDay2Email } from "../emails/welcome-day2";
 import { WelcomeDay5Email } from "../emails/welcome-day5";
 import { WelcomeDay14Email } from "../emails/welcome-day14";
@@ -45,38 +45,6 @@ const STEPS: Step[] = [
     Template: WelcomeDay14Email,
   },
 ];
-
-/**
- * Builds a signed unsubscribe URL pointing at the `unsubscribe` Supabase edge function.
- * A bare `?email=` param would let anyone unsubscribe anyone, so the email is HMAC-signed
- * with the shared worker secret; the edge function verifies the signature before acting.
- */
-function buildUnsubscribeUrl(email: string): string {
-  const SUPABASE_URL = process.env.SUPABASE_URL!;
-  const e = Buffer.from(email).toString("base64url");
-  const s = createHmac("sha256", process.env.WORKER_SHARED_SECRET!).update(email).digest("hex");
-  return `${SUPABASE_URL}/functions/v1/unsubscribe?e=${e}&s=${s}`;
-}
-
-/**
- * Checks whether the contact has unsubscribed from the audience before sending the next
- * step in the sequence. Fails OPEN (sends anyway) on any error, including "not found" —
- * a missing contact means `resend-add-contact` failed at signup, which is not an opt-out
- * signal and should not silently kill the whole sequence.
- */
-async function isUnsubscribed(audienceId: string, email: string, emailHash: string): Promise<boolean> {
-  const { data, error } = await resend.contacts.get({ audienceId, email });
-
-  if (error) {
-    logger.warn("welcome-sequence: contacts.get failed, sending anyway (fail open)", {
-      emailHash,
-      error,
-    });
-    return false;
-  }
-
-  return data?.unsubscribed === true;
-}
 
 export const welcomeSequence = schemaTask({
   id: "welcome-sequence",

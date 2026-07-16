@@ -31,6 +31,9 @@ export type UserOrg = {
   phone: string | null
   tax_id: string | null
   zip: string | null
+  opening_balance: number | null
+  opening_balance_date: string | null
+  inbox_id: string
 }
 
 export type UserOrgMembership = {
@@ -89,7 +92,7 @@ async function fetchUserData(userId: string): Promise<FetchResult> {
       .maybeSingle(),
     supabase
       .from("organization_members")
-      .select("role, organizations(id, name, logo_url, base_currency, address_line1, address_line2, city, state, country_code, email, phone, tax_id, zip)")
+      .select("role, organizations(id, name, logo_url, base_currency, address_line1, address_line2, city, state, country_code, email, phone, tax_id, zip, opening_balance, opening_balance_date, inbox_id)")
       .eq("user_id", userId)
       .eq("status", "active"),
   ])
@@ -108,7 +111,9 @@ async function fetchUserData(userId: string): Promise<FetchResult> {
   const orgs: UserOrgMembership[] = rawMembers
     .filter((m) => m.organizations != null)
     .map((m) => ({
-      org: m.organizations as UserOrg,
+      // PostgREST types the embedded relation as an array; it's a to-one FK, so
+      // the runtime value is the single organization row.
+      org: m.organizations as unknown as UserOrg,
       role: m.role as "owner" | "member",
     }))
 

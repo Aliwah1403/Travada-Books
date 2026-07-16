@@ -23,6 +23,7 @@ import { QuotesPage } from "@/pages/quotes/index"
 import { CreateQuotePage } from "@/pages/quotes/create"
 import { QuoteDetailPage } from "@/pages/quotes/detail"
 import { EditQuotePage } from "@/pages/quotes/edit"
+import { DashboardPage } from "@/pages/dashboard/index"
 import { CustomersPage } from "@/pages/customers/index"
 import { CustomerDetailPage } from "@/pages/customers/detail"
 import { PublicInvoicePage } from "@/pages/invoice-public/token"
@@ -31,10 +32,12 @@ import { QuoteConfirmedPage } from "@/pages/quote-public/confirmed"
 import { StatementDetailPage } from "@/pages/statements/detail"
 import { TransactionsPage } from "@/pages/transactions/index"
 import { VaultPage } from "@/pages/vault/index"
+import { InboxPage } from "@/pages/inbox/index"
 import { CategoriesSettingsPage } from "@/pages/settings/categories"
 import { PublicStatementPage } from "@/pages/statement-public/token"
 
 import { GeneralSettingsPage } from "@/pages/settings/general"
+import { InboxSettingsPage } from "@/pages/settings/inbox"
 import { TeamSettingsPage } from "@/pages/settings/team"
 import { IntegrationsSettingsPage } from "@/pages/settings/integrations"
 import { BillingSettingsPage } from "@/pages/settings/billing"
@@ -52,10 +55,6 @@ const router = createBrowserRouter([
     element: <AnalyticsProvider />,
     errorElement: <RouteError />,
     children: [
-      {
-        path: "/",
-        element: <Navigate to="/invoices" replace />,
-      },
       {
         element: <AuthLayout />,
         children: [
@@ -77,6 +76,7 @@ const router = createBrowserRouter([
       {
         element: <AppLayout />,
         children: [
+          { path: "/", element: <DashboardPage /> },
           { path: "/invoices", element: <InvoicesPage /> },
           { path: "/invoices/create", element: <CreateInvoicePage /> },
           { path: "/invoices/:id/edit", element: <EditInvoicePage /> },
@@ -89,6 +89,7 @@ const router = createBrowserRouter([
           { path: "/customers/:id", element: <CustomerDetailPage /> },
           { path: "/transactions", element: <TransactionsPage /> },
           { path: "/vault", element: <VaultPage /> },
+          { path: "/inbox", element: <InboxPage /> },
           { path: "/statements/:id", element: <StatementDetailPage /> },
           {
             path: "/settings",
@@ -100,6 +101,7 @@ const router = createBrowserRouter([
               { path: "integrations", element: <IntegrationsSettingsPage /> },
               { path: "billing", element: <BillingSettingsPage /> },
               { path: "categories", element: <CategoriesSettingsPage /> },
+              { path: "inbox", element: <InboxSettingsPage /> },
             ],
           },
           {

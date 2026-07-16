@@ -6,6 +6,7 @@ import { AppLayoutSkeleton } from "@/components/app-layout-skeleton";
 import { useAuth } from "@/contexts/auth-context";
 
 const pageTitles: Record<string, string> = {
+  "/": "Dashboard",
   "/invoices": "Invoices",
   "/invoices/create": "New Invoice",
   "/quotes": "Quotes",
@@ -13,6 +14,7 @@ const pageTitles: Record<string, string> = {
   "/customers": "Customers",
   "/transactions": "Transactions",
   "/vault": "Vault",
+  "/inbox": "Inbox",
   "/settings": "Settings",
   "/account": "Account",
 };

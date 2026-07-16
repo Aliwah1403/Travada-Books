@@ -77,9 +77,9 @@ export function ClassicPreview({ data }: { data: ClassicDocumentData }) {
   const customerEmail = customer.billing_email ?? customer.email
 
   return (
-    <div className="rounded-lg border bg-white p-10 text-sm shadow-sm dark:bg-card">
+    <div className="rounded-lg border bg-white p-5 text-sm shadow-sm sm:p-10 dark:bg-card">
       {/* Letterhead */}
-      <div className="flex items-start justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           {from.logo_url ? (
             <img
@@ -113,7 +113,7 @@ export function ClassicPreview({ data }: { data: ClassicDocumentData }) {
 
       <Separator className="my-6" />
 
-      <div className="grid grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
         <div>
           <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{customerLabel}</p>
           <div className="mt-1.5 space-y-0.5">
@@ -144,30 +144,32 @@ export function ClassicPreview({ data }: { data: ClassicDocumentData }) {
 
       <Separator className="my-6" />
 
-      <table className="w-full text-xs">
-        <thead>
-          <tr className="border-b text-muted-foreground">
-            <th className="pb-3 text-left font-medium">Description</th>
-            <th className="pb-3 text-right font-medium">Qty</th>
-            <th className="pb-3 text-right font-medium">Rate</th>
-            <th className="pb-3 text-right font-medium">Tax</th>
-            <th className="pb-3 text-right font-medium">Amount</th>
-          </tr>
-        </thead>
-        <tbody>
-          {lineItems.map((item, i) => (
-            <tr key={i} className="border-b border-dashed">
-              <td className="py-3">{item.description}</td>
-              <td className="py-3 text-right">{item.quantity}</td>
-              <td className="py-3 text-right">{currency} {fmt(item.price)}</td>
-              <td className="py-3 text-right">{item.tax_rate}%</td>
-              <td className="py-3 text-right font-medium">
-                {currency} {fmt(item.quantity * item.price * (1 + item.tax_rate / 100))}
-              </td>
+      <div className="-mx-5 overflow-x-auto px-5 sm:mx-0 sm:px-0">
+        <table className="w-full min-w-[480px] text-xs">
+          <thead>
+            <tr className="border-b text-muted-foreground">
+              <th className="pb-3 text-left font-medium">Description</th>
+              <th className="pb-3 text-right font-medium">Qty</th>
+              <th className="pb-3 text-right font-medium">Rate</th>
+              <th className="pb-3 text-right font-medium">Tax</th>
+              <th className="pb-3 text-right font-medium">Amount</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {lineItems.map((item, i) => (
+              <tr key={i} className="border-b border-dashed">
+                <td className="py-3">{item.description}</td>
+                <td className="py-3 text-right">{item.quantity}</td>
+                <td className="py-3 text-right">{currency} {fmt(item.price)}</td>
+                <td className="py-3 text-right">{item.tax_rate}%</td>
+                <td className="py-3 text-right font-medium">
+                  {currency} {fmt(item.quantity * item.price * (1 + item.tax_rate / 100))}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
 
       <div className="mt-5 flex flex-col items-end gap-1.5 text-xs">
         <div className="flex w-48 justify-between">

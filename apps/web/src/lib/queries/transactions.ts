@@ -192,8 +192,13 @@ async function fetchExchangeRate(from: string, to: string): Promise<number> {
     .select("rate")
     .eq("base", from)
     .eq("target", to)
-    .single()
-  return data ? Number(data.rate) : 1
+    .maybeSingle()
+  // Defaulting to 1:1 here would silently record a foreign-currency amount as
+  // if it were already in the org's base currency — every dashboard
+  // aggregation reads base_amount as its money basis, so this would corrupt
+  // revenue/cash-flow/burn-rate figures rather than just fail loudly.
+  if (!data) throw new Error(`No exchange rate found for ${from} -> ${to}`)
+  return Number(data.rate)
 }
 
 function computeBaseAmount(amount: number, rate: number): number {
@@ -636,7 +641,14 @@ export async function bulkCreateTransactions(
   orgId: string,
   userId: string,
   inputs: Omit<TransactionInput, "attachments" | "markInvoicePaid">[],
+  baseCurrency: string,
 ): Promise<number> {
+  const uniqueCurrencies = [...new Set(inputs.map((input) => input.currency))]
+  const rateEntries = await Promise.all(
+    uniqueCurrencies.map(async (currency) => [currency, await fetchExchangeRate(currency, baseCurrency)] as const),
+  )
+  const rateByCurrency = new Map(rateEntries)
+
   const rows = inputs.map((input) => ({
     id: input.id,
     org_id: orgId,
@@ -646,6 +658,8 @@ export async function bulkCreateTransactions(
     counterparty_name: input.counterparty_name ?? null,
     amount: input.amount,
     currency: input.currency,
+    base_amount: computeBaseAmount(input.amount, rateByCurrency.get(input.currency)!),
+    base_currency: baseCurrency,
     type: input.type,
     status: input.status ?? "completed",
     payment_mode: input.payment_mode ?? null,
