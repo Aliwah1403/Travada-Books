@@ -90,7 +90,7 @@ export function CustomerActions({
               onClick={handleEnrich}
               disabled={!email}
             >
-              Enrich with AI
+            Enrich customer details
             </DropdownMenuItem>
           )}
           <DropdownMenuSeparator />

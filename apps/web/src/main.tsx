@@ -11,7 +11,7 @@ import { ThemeProvider } from "@/components/theme-provider.tsx";
 import { ErrorFallback } from "@/components/error-fallback.tsx";
 import { TooltipProvider } from "@travada-books/ui/components/tooltip";
 import { AuthProvider } from "@/contexts/auth-context.tsx";
-import { Toaster } from "sonner";
+import { Toaster } from "@travada-books/ui/components/sonner";
 
 const posthogKey = import.meta.env.VITE_POSTHOG_KEY;
 if (posthogKey) {
@@ -49,7 +49,7 @@ createRoot(document.getElementById("root")!).render(
           <QueryClientProvider client={queryClient}>
             <TooltipProvider>
               <App />
-              <Toaster position='top-right' />
+              <Toaster />
             </TooltipProvider>
             {/* <ReactQueryDevtools initialIsOpen={false} /> */}
           </QueryClientProvider>
