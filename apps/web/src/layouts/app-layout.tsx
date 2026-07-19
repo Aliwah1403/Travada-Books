@@ -1,9 +1,12 @@
+import { useEffect, useState } from "react";
 import { Outlet, useLocation, Navigate } from "react-router";
 import { Sidebar } from "@/components/sidebar/sidebar";
 import { Header } from "@/components/header/header";
 import { WorkspaceLoadError } from "@/components/workspace-load-error";
 import { AppLayoutSkeleton } from "@/components/app-layout-skeleton";
+import { TransactionsVaultNudgeDialog } from "@/components/dashboard/transactions-vault-nudge-dialog";
 import { useAuth } from "@/contexts/auth-context";
+import { markTransactionsVaultNudgeSeen } from "@/lib/queries/profile";
 
 const pageTitles: Record<string, string> = {
   "/": "Dashboard",
@@ -33,7 +36,22 @@ function getTitle(pathname: string): string {
 
 export function AppLayout() {
   const { pathname } = useLocation();
-  const { user, loading, orgId, orgLoading, orgError, refreshOrg } = useAuth();
+  const { user, profile, loading, orgId, orgLoading, orgError, refreshOrg } =
+    useAuth();
+  const [nudgeOpen, setNudgeOpen] = useState(false);
+
+  useEffect(() => {
+    if (profile && !profile.transactions_vault_nudge_seen_at) {
+      setNudgeOpen(true);
+    }
+  }, [profile]);
+
+  function handleNudgeOpenChange(open: boolean) {
+    setNudgeOpen(open);
+    if (!open && user) {
+      markTransactionsVaultNudgeSeen(user.id).catch(() => {});
+    }
+  }
 
   if (loading || orgLoading) return <AppLayoutSkeleton />;
   if (!user) return <Navigate to='/login' replace />;
@@ -54,6 +72,10 @@ export function AppLayout() {
           <Outlet />
         </main>
       </div>
+      <TransactionsVaultNudgeDialog
+        open={nudgeOpen}
+        onOpenChange={handleNudgeOpenChange}
+      />
     </div>
   );
 }

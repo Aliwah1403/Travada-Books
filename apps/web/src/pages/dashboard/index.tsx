@@ -41,6 +41,7 @@ function CustomizeToggle() {
     <Button
       variant='outline'
       size='icon'
+      className='size-10'
       onClick={() => setIsCustomizing(!isCustomizing)}
       aria-label={isCustomizing ? "Done customizing" : "Customize dashboard"}
     >
@@ -216,8 +217,12 @@ export function DashboardPage() {
             </div>
 
             <TabsList className='self-center'>
-              <TabsTrigger value='overview'>Overview</TabsTrigger>
-              <TabsTrigger value='metrics'>Metrics</TabsTrigger>
+              <TabsTrigger value='overview' className='h-10'>
+                Overview
+              </TabsTrigger>
+              <TabsTrigger value='metrics' className='h-10'>
+                Metrics
+              </TabsTrigger>
             </TabsList>
 
             <div className='flex items-center gap-2 self-center'>

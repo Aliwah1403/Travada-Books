@@ -39,8 +39,8 @@ export function PaymentScoreWidget({ orgId, from, to }: PaymentScoreWidgetProps)
     )
   }
 
-  const avgDays = Math.round(data.avg_days_to_pay * 10) / 10
-  const prevAvgDays = data.prev_avg_days_to_pay
+  const avgDays = Math.round(data.avg_days_to_pay)
+  const prevAvgDays = data.prev_avg_days_to_pay !== null ? Math.round(data.prev_avg_days_to_pay) : null
   const delta = prevAvgDays !== null ? avgDays - prevAvgDays : null
   // Fewer days to pay is an improvement — polarity is inverted vs a
   // revenue-style widget: going down is good, going up is bad.

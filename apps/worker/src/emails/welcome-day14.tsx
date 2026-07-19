@@ -1,21 +1,25 @@
-import React from "react"
-import { Text, Link } from "@react-email/components"
-import { EmailLayout, colors } from "./layout"
+import React from "react";
+import { Text, Link } from "@react-email/components";
+import { EmailLayout, colors } from "./layout";
 
-const font = "ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
+const font =
+  "ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
 
-const APP_URL = process.env.APP_URL ?? "https://books.travadasys.com"
+const APP_URL = process.env.APP_URL ?? "https://books.travadasys.com";
 
 interface Props {
-  firstName?: string
-  unsubscribeUrl: string
+  firstName?: string;
+  unsubscribeUrl: string;
 }
 
-export function WelcomeDay14Email({ firstName = "there", unsubscribeUrl }: Props) {
+export function WelcomeDay14Email({
+  firstName = "there",
+  unsubscribeUrl,
+}: Props) {
   return (
     <EmailLayout
       preview="Two weeks in — how's it going?"
-      orgName="Travada Books"
+      orgName='Travada Books'
     >
       {/* Greeting */}
       <Text
@@ -39,8 +43,8 @@ export function WelcomeDay14Email({ firstName = "there", unsubscribeUrl }: Props
           fontFamily: font,
         }}
       >
-        It's been two weeks since you joined Travada Books — wanted to check
-        in personally.
+        It's been two weeks since you joined Travada Books — wanted to check in
+        personally.
       </Text>
 
       <Text
@@ -52,8 +56,8 @@ export function WelcomeDay14Email({ firstName = "there", unsubscribeUrl }: Props
           fontFamily: font,
         }}
       >
-        How's it going? Are you getting value out of it, or is something
-        getting in the way?
+        How's it going? Are you getting value out of it, or is something getting
+        in the way?
       </Text>
 
       <Text
@@ -66,8 +70,8 @@ export function WelcomeDay14Email({ firstName = "there", unsubscribeUrl }: Props
         }}
       >
         I read every reply — seriously. Whether it's a feature you wish we had,
-        something that's confusing, or just feedback on the experience so far,
-        I want to hear it. We build Travada Books with our users and that only
+        something that's confusing, or just feedback on the experience so far, I
+        want to hear it. We build Travada Books with our users and that only
         works if you tell us what's actually happening on your end.
       </Text>
 
@@ -92,7 +96,7 @@ export function WelcomeDay14Email({ firstName = "there", unsubscribeUrl }: Props
         },
         {
           title: "Vault",
-          desc: "A home for every receipt, contract, and statement. Upload a file and Vault sorts and labels it for you — share any document with a secure link, no login required.",
+          desc: "Secure storage for every company document — contracts, receipts, licenses, statements, and more. Upload a file and Vault sorts and labels it for you — share any document with a secure link, no login required.",
           href: `${APP_URL}/vault`,
         },
         {
@@ -167,19 +171,29 @@ export function WelcomeDay14Email({ firstName = "there", unsubscribeUrl }: Props
         Co-founder, Travada Books
         <br />
         <Link
-          href="mailto:curtis@travadasys.com"
+          href='mailto:curtis.aliwah@travadasys.com'
           style={{ color: colors.muted, textDecoration: "none" }}
         >
-          curtis@travadasys.com
+          curtis.aliwah@travadasys.com
         </Link>
       </Text>
 
-      <Text style={{ margin: "40px 0 0", fontSize: 12, color: colors.faint, fontFamily: font }}>
+      <Text
+        style={{
+          margin: "40px 0 0",
+          fontSize: 12,
+          color: colors.faint,
+          fontFamily: font,
+        }}
+      >
         Don't want these onboarding emails?{" "}
-        <Link href={unsubscribeUrl} style={{ color: colors.faint, textDecoration: "underline" }}>
+        <Link
+          href={unsubscribeUrl}
+          style={{ color: colors.faint, textDecoration: "underline" }}
+        >
           Unsubscribe
         </Link>
       </Text>
     </EmailLayout>
-  )
+  );
 }

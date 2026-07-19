@@ -96,7 +96,7 @@ export default function WelcomeDay14Email({
         },
         {
           title: "Vault",
-          desc: "A home for every receipt, contract, and statement. Upload a file and Vault sorts and labels it for you — share any document with a secure link, no login required.",
+          desc: "Secure storage for every company document — contracts, receipts, licenses, statements, and more. Upload a file and Vault sorts and labels it for you — share any document with a secure link, no login required.",
           href: `${APP_URL}/vault`,
         },
         {
