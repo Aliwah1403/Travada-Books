@@ -49,6 +49,7 @@ import { OnboardingOrgPage } from "@/pages/onboarding/org"
 import { OnboardingInvitePage } from "@/pages/onboarding/invite"
 import { AcceptInvitePage } from "@/pages/accept-invite"
 import { DocumentSharePage } from "@/pages/document-share/token"
+import { PitchPage } from "@/pages/pitch/index"
 
 const router = createBrowserRouter([
   {
@@ -119,6 +120,10 @@ const router = createBrowserRouter([
       {
         path: "/accept-invite",
         element: <AcceptInvitePage />,
+      },
+      {
+        path: "/pitch",
+        element: <PitchPage />,
       },
       {
         path: "/i/:token",

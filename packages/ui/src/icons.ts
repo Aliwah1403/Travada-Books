@@ -90,6 +90,13 @@ import {
   ReloadIcon as ReloadSvg,
   MailBlock01Icon as MailBlock01Svg,
   DragDropIcon as DragDropSvg,
+  ChevronLeft as ChevronLeftSvg,
+  ChevronRight as ChevronRightSvg,
+  ShareIcon as ShareSvg,
+  NewTwitterIcon as NewTwitterSvg,
+  MicrosoftIcon as MicrosoftSvg,
+  BankIcon as BankSvg,
+  AiChat01Icon as AiChat01Svg,
 } from "@hugeicons/core-free-icons";
 
 export type IconProps = Omit<HugeiconsIconProps, "icon">;
@@ -190,3 +197,10 @@ export const Unlink02Icon = make(Unlink02Svg);
 export const ReloadIcon = make(ReloadSvg);
 export const MailBlock01Icon = make(MailBlock01Svg);
 export const DragDropIcon = make(DragDropSvg);
+export const ChevronLeftIcon = make(ChevronLeftSvg);
+export const ChevronRightIcon = make(ChevronRightSvg);
+export const ShareIcon = make(ShareSvg);
+export const XIcon = make(NewTwitterSvg);
+export const MicrosoftIcon = make(MicrosoftSvg);
+export const BankIcon = make(BankSvg);
+export const AiChat01Icon = make(AiChat01Svg);
