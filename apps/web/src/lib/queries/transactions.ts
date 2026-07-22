@@ -192,8 +192,13 @@ async function fetchExchangeRate(from: string, to: string): Promise<number> {
     .select("rate")
     .eq("base", from)
     .eq("target", to)
-    .single()
-  return data ? Number(data.rate) : 1
+    .maybeSingle()
+  // Defaulting to 1:1 here would silently record a foreign-currency amount as
+  // if it were already in the org's base currency — every dashboard
+  // aggregation reads base_amount as its money basis, so this would corrupt
+  // revenue/cash-flow/burn-rate figures rather than just fail loudly.
+  if (!data) throw new Error(`No exchange rate found for ${from} -> ${to}`)
+  return Number(data.rate)
 }
 
 function computeBaseAmount(amount: number, rate: number): number {
@@ -550,6 +555,53 @@ export type BulkTransactionUpdate = {
   frequency?: "weekly" | "biweekly" | "monthly" | "semi_monthly" | "annually" | "irregular" | null
 }
 
+export async function findSimilarTransactions(
+  orgId: string,
+  transactionId: string,
+  matchName: string,
+  counterpartyName: string | null,
+  categoryId: string | null,
+  limit = 50,
+): Promise<{ id: string }[]> {
+  const { data: embeddingMatches, error: rpcError } = await supabase.rpc(
+    "match_similar_transactions",
+    {
+      p_org_id: orgId,
+      p_transaction_id: transactionId,
+      p_category_id: categoryId,
+      p_limit: limit,
+    },
+  )
+  if (rpcError) throw rpcError
+
+  const embeddingIds = new Set((embeddingMatches ?? []).map((m: { id: string }) => m.id))
+
+  let ftsQuery = supabase
+    .from("transactions")
+    .select("id")
+    .eq("org_id", orgId)
+    .neq("id", transactionId)
+    .or(`category_id.is.null,category_id.neq.${categoryId}`)
+    .limit(limit)
+
+  if (counterpartyName) {
+    ftsQuery = ftsQuery.ilike("counterparty_name", counterpartyName)
+  } else {
+    const sanitized = sanitizeSearch(matchName)
+    if (!sanitized) return [...embeddingIds].map((id) => ({ id }))
+    ftsQuery = ftsQuery.textSearch("fts_vector", sanitized, { type: "plain", config: "english" })
+  }
+
+  const { data: ftsMatches, error: ftsError } = await ftsQuery
+  if (ftsError) throw ftsError
+
+  const merged = new Map<string, { id: string }>()
+  for (const id of embeddingIds) merged.set(id, { id })
+  for (const m of ftsMatches ?? []) if (!merged.has(m.id)) merged.set(m.id, { id: m.id })
+
+  return [...merged.values()]
+}
+
 export async function bulkUpdateTransactions(
   ids: string[],
   orgId: string,
@@ -589,7 +641,14 @@ export async function bulkCreateTransactions(
   orgId: string,
   userId: string,
   inputs: Omit<TransactionInput, "attachments" | "markInvoicePaid">[],
+  baseCurrency: string,
 ): Promise<number> {
+  const uniqueCurrencies = [...new Set(inputs.map((input) => input.currency))]
+  const rateEntries = await Promise.all(
+    uniqueCurrencies.map(async (currency) => [currency, await fetchExchangeRate(currency, baseCurrency)] as const),
+  )
+  const rateByCurrency = new Map(rateEntries)
+
   const rows = inputs.map((input) => ({
     id: input.id,
     org_id: orgId,
@@ -599,6 +658,8 @@ export async function bulkCreateTransactions(
     counterparty_name: input.counterparty_name ?? null,
     amount: input.amount,
     currency: input.currency,
+    base_amount: computeBaseAmount(input.amount, rateByCurrency.get(input.currency)!),
+    base_currency: baseCurrency,
     type: input.type,
     status: input.status ?? "completed",
     payment_mode: input.payment_mode ?? null,

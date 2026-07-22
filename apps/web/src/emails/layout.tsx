@@ -194,8 +194,11 @@ function Footer() {
               <Link href={`${APP_URL}/customers`} style={linkStyle}>
                 Customers
               </Link>
-              <Link href={`${APP_URL}/statements`} style={linkStyle}>
-                Statements
+              <Link href={`${APP_URL}/transactions`} style={linkStyle}>
+                Transactions
+              </Link>
+              <Link href={`${APP_URL}/vault`} style={linkStyle}>
+                Vault
               </Link>
             </td>
             <td style={{ verticalAlign: "top", width: "50%" }}>

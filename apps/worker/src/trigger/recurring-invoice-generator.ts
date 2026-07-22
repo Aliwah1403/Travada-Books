@@ -301,12 +301,14 @@ export const recurringInvoiceGenerator = schedules.task({
 
         const newFailureCount = series.failure_count + 1;
         const shouldPause = newFailureCount >= MAX_FAILURES;
+        const failureReason = String(err instanceof Error ? err.message : err).slice(0, 500);
 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         await (supabase as any)
           .from("invoice_recurring")
           .update({
             failure_count: newFailureCount,
+            last_failure_reason: failureReason,
             ...(shouldPause && { status: "paused" }),
             updated_at: new Date().toISOString(),
           })
@@ -317,6 +319,37 @@ export const recurringInvoiceGenerator = schedules.task({
             ...seriesLog,
             failureCount: newFailureCount,
           });
+
+          // Notify the business (email + in-app). Non-fatal: never let this
+          // throw out of the catch block — the series is already paused.
+          try {
+            const notifyRes = await fetch(
+              `${process.env.SUPABASE_URL}/functions/v1/notify-recurring-paused`,
+              {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
+                  "X-Worker-Secret": process.env.WORKER_SHARED_SECRET!,
+                },
+                body: JSON.stringify({ seriesId: series.id }),
+              }
+            );
+
+            if (!notifyRes.ok) {
+              const body = await notifyRes.text().catch(() => "");
+              logger.warn("Recurring invoice generator: pause notification failed (non-fatal)", {
+                ...seriesLog,
+                status: notifyRes.status,
+                body,
+              });
+            }
+          } catch (notifyErr) {
+            logger.warn("Recurring invoice generator: pause notification threw (non-fatal)", {
+              ...seriesLog,
+              error: String(notifyErr),
+            });
+          }
         }
       }
     }
@@ -344,6 +377,7 @@ async function advanceSeries(
     .update({
       current_count: completedSequence,
       failure_count: 0,
+      last_failure_reason: null,
       next_scheduled_at: nextScheduledAt,
       updated_at: new Date().toISOString(),
     })

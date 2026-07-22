@@ -1,6 +1,8 @@
 import { createBrowserRouter, RouterProvider, Navigate } from "react-router"
 
 import { AnalyticsProvider } from "@/components/analytics-provider"
+import { RouteError } from "@/components/route-error"
+import { NotFound } from "@/components/not-found"
 import { AppLayout } from "@/layouts/app-layout"
 import { AuthLayout } from "@/layouts/auth-layout"
 import { OnboardingLayout } from "@/layouts/onboarding-layout"
@@ -21,6 +23,7 @@ import { QuotesPage } from "@/pages/quotes/index"
 import { CreateQuotePage } from "@/pages/quotes/create"
 import { QuoteDetailPage } from "@/pages/quotes/detail"
 import { EditQuotePage } from "@/pages/quotes/edit"
+import { DashboardPage } from "@/pages/dashboard/index"
 import { CustomersPage } from "@/pages/customers/index"
 import { CustomerDetailPage } from "@/pages/customers/detail"
 import { PublicInvoicePage } from "@/pages/invoice-public/token"
@@ -29,10 +32,12 @@ import { QuoteConfirmedPage } from "@/pages/quote-public/confirmed"
 import { StatementDetailPage } from "@/pages/statements/detail"
 import { TransactionsPage } from "@/pages/transactions/index"
 import { VaultPage } from "@/pages/vault/index"
+import { InboxPage } from "@/pages/inbox/index"
 import { CategoriesSettingsPage } from "@/pages/settings/categories"
 import { PublicStatementPage } from "@/pages/statement-public/token"
 
 import { GeneralSettingsPage } from "@/pages/settings/general"
+import { InboxSettingsPage } from "@/pages/settings/inbox"
 import { TeamSettingsPage } from "@/pages/settings/team"
 import { IntegrationsSettingsPage } from "@/pages/settings/integrations"
 import { BillingSettingsPage } from "@/pages/settings/billing"
@@ -44,15 +49,13 @@ import { OnboardingOrgPage } from "@/pages/onboarding/org"
 import { OnboardingInvitePage } from "@/pages/onboarding/invite"
 import { AcceptInvitePage } from "@/pages/accept-invite"
 import { DocumentSharePage } from "@/pages/document-share/token"
+import { PitchPage } from "@/pages/pitch/index"
 
 const router = createBrowserRouter([
   {
     element: <AnalyticsProvider />,
+    errorElement: <RouteError />,
     children: [
-      {
-        path: "/",
-        element: <Navigate to="/invoices" replace />,
-      },
       {
         element: <AuthLayout />,
         children: [
@@ -74,6 +77,7 @@ const router = createBrowserRouter([
       {
         element: <AppLayout />,
         children: [
+          { path: "/", element: <DashboardPage /> },
           { path: "/invoices", element: <InvoicesPage /> },
           { path: "/invoices/create", element: <CreateInvoicePage /> },
           { path: "/invoices/:id/edit", element: <EditInvoicePage /> },
@@ -86,6 +90,7 @@ const router = createBrowserRouter([
           { path: "/customers/:id", element: <CustomerDetailPage /> },
           { path: "/transactions", element: <TransactionsPage /> },
           { path: "/vault", element: <VaultPage /> },
+          { path: "/inbox", element: <InboxPage /> },
           { path: "/statements/:id", element: <StatementDetailPage /> },
           {
             path: "/settings",
@@ -97,6 +102,7 @@ const router = createBrowserRouter([
               { path: "integrations", element: <IntegrationsSettingsPage /> },
               { path: "billing", element: <BillingSettingsPage /> },
               { path: "categories", element: <CategoriesSettingsPage /> },
+              { path: "inbox", element: <InboxSettingsPage /> },
             ],
           },
           {
@@ -114,6 +120,10 @@ const router = createBrowserRouter([
       {
         path: "/accept-invite",
         element: <AcceptInvitePage />,
+      },
+      {
+        path: "/pitch",
+        element: <PitchPage />,
       },
       {
         path: "/i/:token",
@@ -138,6 +148,10 @@ const router = createBrowserRouter([
       {
         path: "/st/:token",
         element: <PublicStatementPage />,
+      },
+      {
+        path: "*",
+        element: <NotFound />,
       },
     ],
   },

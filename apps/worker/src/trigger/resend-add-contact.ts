@@ -1,13 +1,6 @@
 import { schemaTask, logger, AbortTaskRunError } from "@trigger.dev/sdk";
-import { createHash } from "node:crypto";
-import { Resend } from "resend";
 import { z } from "zod";
-
-function hashEmail(email: string): string {
-  return createHash("sha256").update(email.trim().toLowerCase()).digest("hex");
-}
-
-const resend = new Resend(process.env.RESEND_API_KEY);
+import { resend, hashEmail, isResendClientError } from "../lib/resend";
 
 const schema = z.object({
   email: z.string().email(),
@@ -42,21 +35,7 @@ export const resendAddContact = schemaTask({
 
     if (error) {
       logger.error("resend-add-contact: failed", { error, emailHash: hashEmail(payload.email) });
-      // 4xx names per Resend SDK — non-transient, abort instead of retrying
-      const clientErrorNames = new Set([
-        "missing_required_field",
-        "invalid_idempotency_key",
-        "invalid_idempotent_request",
-        "invalid_access",
-        "invalid_parameter",
-        "invalid_region",
-        "missing_api_key",
-        "invalid_api_Key",
-        "invalid_from_address",
-        "validation_error",
-        "not_found",
-      ]);
-      if (clientErrorNames.has(error.name)) {
+      if (isResendClientError(error.name)) {
         throw new AbortTaskRunError(error.message);
       }
       throw new Error(error.message);

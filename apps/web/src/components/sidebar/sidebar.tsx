@@ -2,12 +2,12 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { toast } from "sonner";
 import {
+  DashboardSquare01Icon,
   Invoice01Icon,
   FileEditIcon,
   User02Icon,
   Wallet01Icon,
   Timer01Icon,
-  SortingIcon,
   Logout02Icon,
   Settings02Icon,
   GridIcon,
@@ -15,6 +15,7 @@ import {
   TickIcon,
   PlusSignIcon,
   VaultIcon,
+  InboxIcon,
 } from "@travada-books/ui/icons";
 import { Separator } from "@travada-books/ui/components/separator";
 import {
@@ -44,6 +45,10 @@ import { supabase } from "@/lib/supabase";
 import LogoGreen from "@/assets/Logo-Green.svg";
 import LogoLime from "@/assets/Logo-Lime.svg";
 
+const dashboardNav = [
+  { icon: DashboardSquare01Icon, label: "Dashboard", to: "/", end: true },
+];
+
 const salesNav = [
   { icon: Invoice01Icon, label: "Invoices", to: "/invoices" },
   { icon: FileEditIcon, label: "Quotes", to: "/quotes" },
@@ -58,6 +63,7 @@ const mainNav = [
   },
   { icon: Timer01Icon, label: "Tracker", to: "/tracker", comingSoon: true },
   { icon: VaultIcon, label: "Vault", to: "/vault" },
+  { icon: InboxIcon, label: "Inbox", to: "/inbox" },
 ];
 
 function OrgSwitcher() {
@@ -238,6 +244,21 @@ export function Sidebar() {
 
       {/* Main nav */}
       <nav className='flex flex-1 flex-col overflow-y-auto px-2 py-3'>
+        {/* Dashboard */}
+        <div className='flex flex-col gap-0.5'>
+          {dashboardNav.map((item) => (
+            <NavItem
+              key={item.to}
+              icon={item.icon}
+              label={item.label}
+              to={item.to}
+              end={item.end}
+            />
+          ))}
+        </div>
+
+        <div className='my-2 border-t' />
+
         {/* Sales group — Invoices + Quotes */}
         <div className='flex flex-col gap-0.5'>
           {salesNav.map((item) => (

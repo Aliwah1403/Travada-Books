@@ -5,6 +5,7 @@ import { EmailLayout, OutlinedButton, colors } from "./layout";
 interface Props {
   firstName: string;
   invoiceUrl: string;
+  unsubscribeUrl: string;
 }
 
 const font =
@@ -15,6 +16,7 @@ const APP_URL = "https://books.travadasys.com";
 export default function WelcomeDay5Email({
   firstName = "Jane",
   invoiceUrl = `${APP_URL}/invoices/create`,
+  unsubscribeUrl = "https://books.travadasys.com/unsubscribe",
 }: Partial<Props>) {
   return (
     <EmailLayout
@@ -202,6 +204,15 @@ export default function WelcomeDay5Email({
         }}
       >
         Co-founder, Travada Books
+      </Text>
+
+      <Text
+        style={{ margin: "40px 0 0", fontSize: 12, color: colors.faint, fontFamily: font }}
+      >
+        Don't want these onboarding emails?{" "}
+        <Link href={unsubscribeUrl} style={{ color: colors.faint, textDecoration: "underline" }}>
+          Unsubscribe
+        </Link>
       </Text>
     </EmailLayout>
   );

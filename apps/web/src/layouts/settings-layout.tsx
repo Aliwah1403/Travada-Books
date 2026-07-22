@@ -14,6 +14,7 @@ const settingsNav: SettingsNavItem[] = [
   { label: "General", to: "/settings/general" },
   { label: "Team", to: "/settings/team" },
   { label: "Categories", to: "/settings/categories" },
+  { label: "Inbox", to: "/settings/inbox" },
   { label: "Integrations", to: "/settings/integrations", comingSoon: true },
   { label: "Billing", to: "/settings/billing", comingSoon: true, ownerOnly: true },
 ]

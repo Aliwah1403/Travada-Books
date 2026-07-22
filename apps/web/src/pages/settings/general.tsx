@@ -1,19 +1,22 @@
 import { useRef, useState, useEffect } from "react"
 import * as Sentry from "@sentry/react"
-import { useMutation } from "@tanstack/react-query"
+import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
+import { format, startOfDay, isAfter } from "date-fns"
 import { Button } from "@travada-books/ui/components/button"
 import { Input } from "@travada-books/ui/components/input"
 import { Label } from "@travada-books/ui/components/label"
 import { Separator } from "@travada-books/ui/components/separator"
 import { Textarea } from "@travada-books/ui/components/textarea"
 import { CurrencySelect } from "@travada-books/ui/components/currency-select"
+import { DatePicker } from "@/components/shared/date-picker"
 import { useAuth } from "@/contexts/auth-context"
 import { updateOrg, uploadOrgLogo } from "@/lib/queries/org"
 
 
 export function GeneralSettingsPage() {
   const { org, orgId, refreshOrg } = useAuth()
+  const queryClient = useQueryClient()
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [name, setName] = useState("")
@@ -23,6 +26,9 @@ export function GeneralSettingsPage() {
   const [phone, setPhone] = useState("")
   const [logoUrl, setLogoUrl] = useState<string | null>(null)
   const [currency, setCurrency] = useState("KES")
+  const [openingBalance, setOpeningBalance] = useState("")
+  const [openingBalanceDate, setOpeningBalanceDate] = useState<Date | undefined>(undefined)
+  const [openingBalanceError, setOpeningBalanceError] = useState<string | null>(null)
   const lastLoadedOrgIdRef = useRef<string | null>(null)
 
   useEffect(() => {
@@ -39,6 +45,9 @@ export function GeneralSettingsPage() {
     setEmail(org.email ?? "")
     setPhone(org.phone ?? "")
     setCurrency(org.base_currency ?? "KES")
+    setOpeningBalance(org.opening_balance != null ? String(org.opening_balance) : "")
+    setOpeningBalanceDate(org.opening_balance_date ? new Date(org.opening_balance_date) : undefined)
+    setOpeningBalanceError(null)
   }, [org])
 
   const logoMutation = useMutation({
@@ -72,6 +81,44 @@ export function GeneralSettingsPage() {
   const currencyMutation = useMutation({
     mutationFn: () => updateOrg(orgId!, { base_currency: currency }),
     onSuccess: () => refreshOrg(),
+  })
+
+  // Returns the validated { amount, date } payload, or null (and sets an
+  // inline field error) when the pair of fields don't form a valid balance.
+  function validateOpeningBalance(): { amount: number | null; date: string | null } | null {
+    const trimmed = openingBalance.trim()
+    const hasAmount = trimmed !== ""
+    const hasDate = openingBalanceDate != null
+
+    if (!hasAmount && !hasDate) {
+      setOpeningBalanceError(null)
+      return { amount: null, date: null }
+    }
+    if (!hasAmount || !hasDate) {
+      setOpeningBalanceError("Enter both a starting balance and a date — they only make sense together.")
+      return null
+    }
+    const numeric = Number(trimmed)
+    if (!Number.isFinite(numeric)) {
+      setOpeningBalanceError("Enter a valid number.")
+      return null
+    }
+    if (isAfter(startOfDay(openingBalanceDate!), startOfDay(new Date()))) {
+      setOpeningBalanceError("The date can't be in the future.")
+      return null
+    }
+
+    setOpeningBalanceError(null)
+    return { amount: numeric, date: format(openingBalanceDate!, "yyyy-MM-dd") }
+  }
+
+  const openingBalanceMutation = useMutation({
+    mutationFn: (payload: { amount: number | null; date: string | null }) =>
+      updateOrg(orgId!, { opening_balance: payload.amount, opening_balance_date: payload.date }),
+    onSuccess: async () => {
+      await refreshOrg()
+      await queryClient.invalidateQueries({ queryKey: ["metric", orgId, "get_runway"] })
+    },
   })
 
   return (
@@ -211,7 +258,10 @@ export function GeneralSettingsPage() {
             toast.promise(profileMutation.mutateAsync(), {
               loading: "Saving…",
               success: "Business profile saved.",
-              error: (err) => String(err),
+              error: (err) => {
+                Sentry.captureException(err);
+                return "Failed to save business profile. Please try again.";
+              },
             })
           }
           disabled={profileMutation.isPending}
@@ -243,10 +293,71 @@ export function GeneralSettingsPage() {
             toast.promise(currencyMutation.mutateAsync(), {
               loading: "Saving…",
               success: "Base currency updated.",
-              error: (err) => String(err),
+              error: (err) => {
+                Sentry.captureException(err);
+                return "Failed to update base currency. Please try again.";
+              },
             })
           }
           disabled={currencyMutation.isPending}
+        >
+          Save changes
+        </Button>
+      </section>
+
+      <Separator />
+
+      <section className='flex flex-col gap-5'>
+        <div>
+          <h2 className='text-sm font-semibold'>Opening balance</h2>
+          <p className='text-xs text-muted-foreground mt-0.5'>
+            This is the cash you had on hand on a given date. Your dashboard adds up income
+            and expenses since then to show your current cash position.
+          </p>
+        </div>
+
+        <div className='grid grid-cols-2 gap-4'>
+          <div className='flex flex-col gap-1.5'>
+            <Label htmlFor='opening-balance'>Starting balance ({currency})</Label>
+            <Input
+              id='opening-balance'
+              type='text'
+              inputMode='decimal'
+              placeholder='0.00'
+              className={openingBalanceError ? "border-destructive" : undefined}
+              value={openingBalance}
+              onChange={(e) => setOpeningBalance(e.target.value)}
+            />
+          </div>
+          <div className='flex flex-col gap-1.5'>
+            <Label>As of</Label>
+            <DatePicker
+              value={openingBalanceDate}
+              onChange={setOpeningBalanceDate}
+              placeholder='Pick a date'
+            />
+          </div>
+        </div>
+        {openingBalanceError && (
+          <p className='text-[11px] text-destructive -mt-3'>{openingBalanceError}</p>
+        )}
+
+        <Button
+          size='sm'
+          className='w-fit'
+          onClick={() => {
+            const payload = validateOpeningBalance()
+            if (!payload) return
+            toast.promise(openingBalanceMutation.mutateAsync(payload), {
+              loading: "Saving…",
+              success: "Opening balance saved.",
+              error: (err) => {
+                Sentry.captureException(err);
+                return "Failed to save opening balance. Please try again.";
+              },
+            })
+          }}
+          disabled={openingBalanceMutation.isPending}
         >
           Save changes
         </Button>

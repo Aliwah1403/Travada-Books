@@ -16,6 +16,8 @@ import {
 import { Search01Icon, Cancel01Icon, ColumnsThreeCogIcon, FilterIcon } from "@travada-books/ui/icons";
 import { cn } from "@travada-books/ui/lib/utils";
 import { Spinner } from "@/components/shared/spinner";
+import { ErrorState } from "@/components/shared/error-state";
+import { FileDropzone } from "@/components/shared/file-dropzone";
 import { Filter } from "@/components/ui/filter";
 import { TransactionStats } from "@/components/transactions/transaction-stats";
 import { TransactionTable } from "@/components/transactions/transaction-table";
@@ -41,6 +43,7 @@ import {
   type BulkTransactionUpdate,
 } from "@/lib/queries/transactions";
 import { getDocumentSignedUrl } from "@/lib/queries/vault";
+import { createInboxItem } from "@/lib/queries/inbox";
 import { parseTransactionFilters } from "@/lib/queries/ai";
 import { useAuth } from "@/contexts/auth-context";
 import { useFormatDate } from "@/hooks/use-format-date";
@@ -256,6 +259,7 @@ export function TransactionsPage() {
   const [exportingIds, setExportingIds] = useState<string[]>([]);
   const [exportId, setExportId] = useState<string | null>(null);
   const [isExportLoading, setIsExportLoading] = useState(false);
+  const [importFile, setImportFile] = useState<File | null>(null);
 
   // ── Filter state (URL-backed) ──────────────────────────────────────────────
   const filtersState = deserializeFilters(searchParams.get("filters"));
@@ -300,7 +304,7 @@ export function TransactionsPage() {
     [filtersState, search],
   );
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["transactions", orgId, supabaseFilters, page],
     queryFn: () => listTransactions(orgId!, supabaseFilters, page),
     enabled: !!orgId,
@@ -558,8 +562,66 @@ export function TransactionsPage() {
     }
   }
 
+  function isReceiptFile(file: File): boolean {
+    return file.type.startsWith("image/") || file.type === "application/pdf";
+  }
+
+  function isCsvFile(file: File): boolean {
+    return file.type === "text/csv" || file.name.toLowerCase().endsWith(".csv");
+  }
+
+  // Disambiguate dropped files by type, mirroring Midday's transactions-upload-zone:
+  // receipts route through the inbox pipeline for auto-matching, a CSV opens the
+  // import dialog preloaded, anything else is unsupported.
+  function handleDropFiles(files: File[]) {
+    if (!orgId) return;
+
+    const receipts = files.filter(isReceiptFile);
+    const csvs = files.filter(isCsvFile);
+    const unsupported = files.filter((f) => !isReceiptFile(f) && !isCsvFile(f));
+
+    for (const file of unsupported) {
+      toast.error(`"${file.name}" is not supported. Drop a receipt image, PDF, or CSV.`);
+    }
+
+    if (receipts.length > 0) {
+      for (const file of receipts) {
+        toast.promise(createInboxItem(orgId, file), {
+          loading: `Uploading ${file.name}…`,
+          success:
+            "Uploading receipt — we'll match it to a transaction automatically.",
+          error: `Failed to upload ${file.name}`,
+        });
+      }
+      queryClient.invalidateQueries({ queryKey: ["inbox", orgId] });
+    }
+
+    if (csvs.length > 0) {
+      // Only the first CSV is handled — the import dialog works with one file at a time.
+      setImportFile(csvs[0]);
+      setImportOpen(true);
+      if (csvs.length > 1) {
+        toast.error("Only the first CSV was used — drop one at a time.");
+      }
+    }
+  }
+
+  if (isError && !data) {
+    return (
+      <div className="flex flex-col gap-6 p-6">
+        <ErrorState onRetry={refetch} />
+      </div>
+    );
+  }
+
   return (
-    <div className="flex flex-col gap-6 p-6">
+    <FileDropzone
+      className="flex flex-col gap-6 p-6"
+      onDropFiles={handleDropFiles}
+      accept={["image/*", "application/pdf", "text/csv", "application/csv"]}
+      maxSize={10 * 1024 * 1024}
+      overlayText="Drop receipts or a CSV to import"
+    >
       <TransactionStats
         income={summary?.income ?? 0}
         expenses={summary?.expenses ?? 0}
@@ -743,7 +805,14 @@ export function TransactionsPage() {
         </div>
       )}
 
-      <ImportCsvDialog open={importOpen} onOpenChange={setImportOpen} />
+      <ImportCsvDialog
+        open={importOpen}
+        onOpenChange={(o) => {
+          setImportOpen(o);
+          if (!o) setImportFile(null);
+        }}
+        initialFile={importFile}
+      />
 
       <ExportTransactionsDialog
         open={exportDialogOpen}
@@ -763,6 +832,6 @@ export function TransactionsPage() {
         transaction={editingTransaction}
         onSaved={invalidateTransactions}
       />
-    </div>
+    </FileDropzone>
   );
 }

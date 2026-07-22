@@ -4,6 +4,7 @@ import { EmailLayout, colors } from "./layout";
 
 interface Props {
   firstName: string;
+  unsubscribeUrl: string;
 }
 
 const font =
@@ -13,6 +14,7 @@ const APP_URL = "https://books.travadasys.com";
 
 export default function WelcomeDay14Email({
   firstName = "Jane",
+  unsubscribeUrl = "https://books.travadasys.com/unsubscribe",
 }: Partial<Props>) {
   return (
     <EmailLayout
@@ -88,19 +90,29 @@ export default function WelcomeDay14Email({
       {/* Tips */}
       {[
         {
+          title: "Transactions",
+          desc: "Import your bank statement as a CSV or PDF and Travada Books categorizes every transaction automatically, so you can see income, expenses, and totals at a glance.",
+          href: `${APP_URL}/transactions`,
+        },
+        {
+          title: "Vault",
+          desc: "Secure storage for every company document — contracts, receipts, licenses, statements, and more. Upload a file and Vault sorts and labels it for you — share any document with a secure link, no login required.",
+          href: `${APP_URL}/vault`,
+        },
+        {
+          title: "Recurring invoices",
+          desc: "Billing the same client every month? Turn an invoice into a recurring one and let Travada Books generate and send it automatically.",
+          href: `${APP_URL}/invoices`,
+        },
+        {
           title: "Statements",
           desc: "Send a full account statement to a customer showing all their invoices and what's outstanding. Great for long-term clients.",
-          href: `${APP_URL}/statements`,
+          href: `${APP_URL}/customers`,
         },
         {
           title: "Invoice reminders",
           desc: "Chasing payments is awkward. Set up automatic reminders and let Travada Books do it for you.",
           href: `${APP_URL}/settings`,
-        },
-        {
-          title: "Customer history",
-          desc: "Every customer has a full invoice and quote history. Useful before any client call.",
-          href: `${APP_URL}/customers`,
         },
       ].map(({ title, desc, href }) => (
         <Text
@@ -159,10 +171,19 @@ export default function WelcomeDay14Email({
         Co-founder, Travada Books
         <br />
         <Link
-          href="mailto:curtis@travadasys.com"
+          href="mailto:curtis.aliwah@travadasys.com"
           style={{ color: colors.muted, textDecoration: "none" }}
         >
-          curtis@travadasys.com
+          curtis.aliwah@travadasys.com
+        </Link>
+      </Text>
+
+      <Text
+        style={{ margin: "40px 0 0", fontSize: 12, color: colors.faint, fontFamily: font }}
+      >
+        Don't want these onboarding emails?{" "}
+        <Link href={unsubscribeUrl} style={{ color: colors.faint, textDecoration: "underline" }}>
+          Unsubscribe
         </Link>
       </Text>
     </EmailLayout>

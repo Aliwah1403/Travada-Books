@@ -1,12 +1,49 @@
-import { task, logger } from "@trigger.dev/sdk";
+import { task, logger, tasks } from "@trigger.dev/sdk";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
-import { generateObject } from "ai";
+import { generateObject, embedMany } from "ai";
 import { z } from "zod";
 import { supabase } from "../lib/supabase";
 
 const google = createGoogleGenerativeAI({
   apiKey: process.env.GOOGLE_GENERATIVE_AI_API_KEY!,
 });
+
+// ─── Embeddings (for "apply category to similar transactions") ────────────────
+
+const EMBEDDING_MODEL = "gemini-embedding-001";
+const EMBEDDING_DIMENSIONS = 768;
+
+async function generateEmbeddings(
+  txs: { id: string; name: string; counterparty_name: string | null }[],
+  orgId: string,
+) {
+  if (!txs.length) return;
+
+  const sourceTexts = txs.map((t) => [t.name, t.counterparty_name].filter(Boolean).join(" "));
+
+  const { embeddings } = await embedMany({
+    model: google.textEmbeddingModel(EMBEDDING_MODEL),
+    values: sourceTexts,
+    providerOptions: {
+      google: {
+        outputDimensionality: EMBEDDING_DIMENSIONS,
+        taskType: "SEMANTIC_SIMILARITY",
+      },
+    },
+  });
+
+  const { error } = await supabase.from("transaction_embeddings").upsert(
+    txs.map((t, i) => ({
+      transaction_id: t.id,
+      org_id: orgId,
+      embedding: embeddings[i],
+      source_text: sourceTexts[i],
+      model: EMBEDDING_MODEL,
+    })),
+    { onConflict: "transaction_id" },
+  );
+  if (error) throw error;
+}
 
 // ─── Schema & thresholds (mirrors Midday's approach) ──────────────────────────
 
@@ -118,6 +155,25 @@ export const enrichTransactionsTask = task({
 
     if (!transactionIds.length) return { enriched: 0 };
 
+    // Embeddings must refresh on every edit, independent of the enrichment_completed
+    // gate below — isolated in its own try/catch so a failure here never blocks
+    // category/merchant enrichment.
+    try {
+      const { data: embedTargets, error: embedFetchError } = await supabase
+        .from("transactions")
+        .select("id, name, counterparty_name")
+        .in("id", transactionIds);
+
+      if (embedFetchError) throw embedFetchError;
+
+      for (let i = 0; i < (embedTargets?.length ?? 0); i += BATCH_SIZE) {
+        const batch = embedTargets!.slice(i, i + BATCH_SIZE);
+        await generateEmbeddings(batch, orgId);
+      }
+    } catch (err) {
+      logger.error("Embedding generation failed", { error: String(err) });
+    }
+
     // Fetch transactions to enrich
     const { data: transactions, error: txError } = await supabase
       .from("transactions")
@@ -225,6 +281,29 @@ export const enrichTransactionsTask = task({
     }
 
     logger.info("Enrichment complete", { totalEnriched, orgId });
+
+    // ── Reverse inbox matching (Batch 3h) ───────────────────────────────────
+    // Runs here — after transaction_embeddings are written above — rather
+    // than at transaction-creation time, because matching is embedding-driven:
+    // triggering any earlier would find nothing to match against. Covers CSV
+    // import, PDF/bank-statement import, and manual creation, since all of
+    // them funnel through this task. Isolated try/catch: a trigger failure
+    // here must not fail enrichment, which already succeeded.
+    //
+    // Debounced per org: a CSV import enriches in batches, so without this a
+    // 500-row import would fire one batch-match run per batch — all of them
+    // concurrently rescanning (and racing to attach) the same no_match items.
+    // 30s trailing collapses them into a single run once enrichment settles.
+    try {
+      await tasks.trigger(
+        "batch-match-inbox",
+        { orgId, transactionIds },
+        { debounce: { key: `batch-match-inbox-${orgId}`, delay: "30s", mode: "trailing" } },
+      );
+    } catch (err) {
+      logger.warn("Could not trigger batch-match-inbox", { orgId, error: String(err) });
+    }
+
     return { enriched: totalEnriched };
   },
 });

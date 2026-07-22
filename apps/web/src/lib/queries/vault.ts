@@ -120,6 +120,23 @@ export async function deleteDocument(id: string, filePath: string): Promise<void
   await supabase.storage.from("vault").remove([filePath])
 }
 
+export async function bulkDeleteDocuments(docs: { id: string; file_path: string }[]): Promise<void> {
+  const { error } = await supabase
+    .from("documents")
+    .delete()
+    .in("id", docs.map((d) => d.id))
+  if (error) throw error
+  await supabase.storage.from("vault").remove(docs.map((d) => d.file_path))
+}
+
+export async function bulkSetDocumentFolder(filePaths: string[], folderId: string | null): Promise<void> {
+  const { error } = await supabase
+    .from("documents")
+    .update({ folder_id: folderId, updated_at: new Date().toISOString() })
+    .in("file_path", filePaths)
+  if (error) throw error
+}
+
 export async function getDocumentSignedUrl(filePath: string): Promise<string> {
   const { data, error } = await supabase.storage
     .from("vault")

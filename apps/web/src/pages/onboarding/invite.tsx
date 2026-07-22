@@ -1,5 +1,6 @@
 import { useState } from "react"
 import { useNavigate, useLocation, Navigate } from "react-router"
+import { toast } from "sonner"
 import { Button } from "@travada-books/ui/components/button"
 import { Input } from "@travada-books/ui/components/input"
 import { Label } from "@travada-books/ui/components/label"
@@ -75,7 +76,8 @@ export function OnboardingInvitePage() {
       .select("id, email")
 
     if (insertError) {
-      setError(insertError.message)
+      console.error("invite insert failed:", insertError)
+      setError("Couldn't add team members. Please try again.")
       setLoading(false)
       return
     }
@@ -86,7 +88,7 @@ export function OnboardingInvitePage() {
     if (inviteError) {
       console.error("invite-member failed:", inviteError)
       // Non-fatal — members were inserted; proceed but warn.
-      setError("Team members added, but invite emails failed to send. You can resend from Settings.")
+      toast.warning("Team members added, but invite emails failed to send. You can resend from Settings.")
     }
 
     await finish()

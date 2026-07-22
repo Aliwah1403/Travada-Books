@@ -11,7 +11,11 @@ import {
   SparklesIcon,
 } from "@travada-books/ui/icons";
 import { Button } from "@travada-books/ui/components/button";
-import { Avatar, AvatarFallback, AvatarImage } from "@travada-books/ui/components/avatar";
+import {
+  Avatar,
+  AvatarFallback,
+  AvatarImage,
+} from "@travada-books/ui/components/avatar";
 import { Separator } from "@travada-books/ui/components/separator";
 import {
   AlertDialog,
@@ -39,7 +43,13 @@ import { Card, CardContent } from "@travada-books/ui/components/card";
 import { InvoiceTable } from "@/components/invoices/invoice-table";
 import { EditCustomerSheet } from "@/components/customers/edit-customer-sheet";
 import { GenerateStatementSheet } from "@/components/customers/generate-statement-sheet";
-import { getCustomer, deleteCustomer, triggerEnrichment, cancelEnrichment, clearEnrichment } from "@/lib/queries/customers";
+import {
+  getCustomer,
+  deleteCustomer,
+  triggerEnrichment,
+  cancelEnrichment,
+  clearEnrichment,
+} from "@/lib/queries/customers";
 import { Spinner } from "@/components/shared/spinner";
 import { supabase } from "@/lib/supabase";
 import {
@@ -113,13 +123,20 @@ export function CustomerDetailPage() {
       .channel(`customer-enrichment-${id}`)
       .on(
         "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "customers", filter: `id=eq.${id}` },
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "customers",
+          filter: `id=eq.${id}`,
+        },
         () => {
           queryClient.invalidateQueries({ queryKey: ["customer", id] });
-        }
+        },
       )
       .subscribe();
-    return () => { supabase.removeChannel(channel); };
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [id, queryClient]);
 
   // Increment animation key only when transitioning to "done" (not on first load)
@@ -142,7 +159,8 @@ export function CustomerDetailPage() {
 
   const cancelEnrichMutation = useMutation({
     mutationFn: () => cancelEnrichment(id!, orgId!),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["customer", id] }),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: ["customer", id] }),
     onError: () => toast.error("Failed to cancel enrichment"),
   });
 
@@ -206,7 +224,9 @@ export function CustomerDetailPage() {
   }
 
   const currency = customer.preferred_currency ?? "KES";
-  const isEnriching = customer.enrichment_status === "pending" || customer.enrichment_status === "processing";
+  const isEnriching =
+    customer.enrichment_status === "pending" ||
+    customer.enrichment_status === "processing";
 
   return (
     <div className='flex h-full flex-col overflow-hidden'>
@@ -245,27 +265,32 @@ export function CustomerDetailPage() {
             <DropdownMenuTrigger render={<Button variant='outline' />}>
               <MoreHorizontalIcon size={13} />
             </DropdownMenuTrigger>
-            <DropdownMenuContent align='end' className='w-48'>
-              {(!customer.enrichment_status || customer.enrichment_status === "failed") && (
+            <DropdownMenuContent align='end' className='w-full'>
+              {(!customer.enrichment_status ||
+                customer.enrichment_status === "failed") && (
                 <DropdownMenuItem
-                  onClick={() => toast.promise(enrichMutation.mutateAsync(), {
-                    loading: "Starting enrichment…",
-                    success: "Enrichment started",
-                    error: "Failed to start enrichment",
-                  })}
+                  onClick={() =>
+                    toast.promise(enrichMutation.mutateAsync(), {
+                      loading: "Starting enrichment…",
+                      success: "Enrichment started",
+                      error: "Failed to start enrichment",
+                    })
+                  }
                   disabled={enrichMutation.isPending || !customer.email}
                 >
                   <SparklesIcon size={13} />
-                  Enrich with AI
+                  Enrich customer details
                 </DropdownMenuItem>
               )}
               {customer.enrichment_status === "done" && (
                 <DropdownMenuItem
-                  onClick={() => toast.promise(enrichMutation.mutateAsync(), {
-                    loading: "Starting enrichment…",
-                    success: "Re-enrichment started",
-                    error: "Failed to start enrichment",
-                  })}
+                  onClick={() =>
+                    toast.promise(enrichMutation.mutateAsync(), {
+                      loading: "Starting enrichment…",
+                      success: "Re-enrichment started",
+                      error: "Failed to start enrichment",
+                    })
+                  }
                   disabled={enrichMutation.isPending}
                 >
                   <SparklesIcon size={13} />
@@ -380,21 +405,20 @@ export function CustomerDetailPage() {
         <div className='flex w-[400px] shrink-0 flex-col gap-4 overflow-y-auto border-r p-4'>
           <div className='rounded-lg border bg-background p-4'>
             <div className='flex flex-col items-center gap-3 text-center'>
-              {isEnriching ? (
+              {isEnriching ?
                 <div className='relative size-14'>
                   <div className='size-14 rounded-full bg-muted animate-pulse' />
                   <div className='absolute inset-0 flex items-center justify-center'>
                     <Spinner size={20} />
                   </div>
                 </div>
-              ) : (
-                <Avatar className='size-14'>
+              : <Avatar className='size-14'>
                   <AvatarImage src={customer.logo_url ?? undefined} />
                   <AvatarFallback className='text-base font-semibold'>
                     {customer.name.slice(0, 2).toUpperCase()}
                   </AvatarFallback>
                 </Avatar>
-              )}
+              }
               <div>
                 <p className='font-semibold text-sm'>{customer.name}</p>
                 {customer.main_contact && (
@@ -502,7 +526,9 @@ export function CustomerDetailPage() {
                     {isEnriching && (
                       <span className='flex items-center gap-1.5 rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-medium text-amber-600 dark:text-amber-400'>
                         <Spinner size={10} />
-                        {customer.enrichment_status === "processing" ? "Processing" : "Pending"}
+                        {customer.enrichment_status === "processing" ?
+                          "Processing"
+                        : "Pending"}
                       </span>
                     )}
                     {customer.enrichment_status === "failed" && (
@@ -518,7 +544,7 @@ export function CustomerDetailPage() {
                   </div>
                 </AccordionTrigger>
                 <AccordionContent>
-                  {isEnriching ? (
+                  {isEnriching ?
                     <div className='flex flex-col gap-3 pb-4'>
                       <div className='flex items-center gap-2 text-muted-foreground'>
                         <Spinner size={14} />
@@ -537,13 +563,16 @@ export function CustomerDetailPage() {
                       </div>
                       {/* field rows */}
                       {[1, 2, 3, 4, 5, 6].map((i) => (
-                        <div key={i} className='flex items-center justify-between border-b py-2.5 last:border-b-0'>
+                        <div
+                          key={i}
+                          className='flex items-center justify-between border-b py-2.5 last:border-b-0'
+                        >
                           <div className='h-3 w-20 rounded-sm bg-muted animate-pulse' />
                           <div className='h-3 w-24 rounded-sm bg-muted animate-pulse' />
                         </div>
                       ))}
                     </div>
-                  ) : customer.enrichment_status === "failed" ? (
+                  : customer.enrichment_status === "failed" ?
                     <div className='flex flex-col gap-3 pb-4'>
                       <p className='text-xs text-muted-foreground'>
                         Failed to fetch company information.
@@ -552,32 +581,41 @@ export function CustomerDetailPage() {
                         variant='outline'
                         size='sm'
                         className='w-fit gap-1.5'
-                        onClick={() => toast.promise(enrichMutation.mutateAsync(), {
-                          loading: "Starting enrichment…",
-                          success: "Enrichment started",
-                          error: "Failed to start enrichment",
-                        })}
+                        onClick={() =>
+                          toast.promise(enrichMutation.mutateAsync(), {
+                            loading: "Starting enrichment…",
+                            success: "Enrichment started",
+                            error: "Failed to start enrichment",
+                          })
+                        }
                         disabled={enrichMutation.isPending || !customer.email}
                       >
                         <SparklesIcon size={12} />
                         Try again
                       </Button>
                     </div>
-                  ) : !customer.enrichment_status ? (
+                  : !customer.enrichment_status ?
                     <p className='pb-4 text-xs text-muted-foreground'>
                       Enrichment runs automatically when an email is set. Add an
                       email to trigger it.
                     </p>
-                  ) : (
-                    <div
+                  : <div
                       key={enrichAnimKey}
-                      className={enrichAnimKey > 0 ? 'animate-in fade-in-0 slide-in-from-bottom-1 duration-300 [animation-timing-function:var(--ease-out)]' : ''}
+                      className={
+                        enrichAnimKey > 0 ?
+                          "animate-in fade-in-0 slide-in-from-bottom-1 duration-300 [animation-timing-function:var(--ease-out)]"
+                        : ""
+                      }
                     >
                       <div className='flex flex-col gap-3 pb-4'>
                         {customer.description && (
                           <p
                             className='text-xs text-muted-foreground leading-relaxed'
-                            style={enrichAnimKey > 0 ? { animationDelay: "0ms" } : undefined}
+                            style={
+                              enrichAnimKey > 0 ?
+                                { animationDelay: "0ms" }
+                              : undefined
+                            }
                           >
                             {customer.description}
                           </p>
@@ -691,12 +729,14 @@ export function CustomerDetailPage() {
                         {customer.enriched_at && (
                           <p className='text-[10px] text-muted-foreground/60'>
                             Last enriched{" "}
-                            {new Date(customer.enriched_at).toLocaleDateString()}
+                            {new Date(
+                              customer.enriched_at,
+                            ).toLocaleDateString()}
                           </p>
                         )}
                       </div>
                     </div>
-                  )}
+                  }
                 </AccordionContent>
               </AccordionItem>
             </Accordion>
@@ -736,13 +776,14 @@ export function CustomerDetailPage() {
 
           <div>
             <p className='mb-4 text-sm font-medium'>Statement history</p>
-            {customerStatements.length === 0 ? (
-              <p className='text-xs text-muted-foreground'>No statements generated yet.</p>
-            ) : (
-              <div className='rounded-lg border bg-background divide-y'>
+            {customerStatements.length === 0 ?
+              <p className='text-xs text-muted-foreground'>
+                No statements generated yet.
+              </p>
+            : <div className='rounded-lg border bg-background divide-y'>
                 {customerStatements.map((stmt) => {
-                  const from = formatMonthDay(stmt.date_from)
-                  const to = formatMonthDay(stmt.date_to)
+                  const from = formatMonthDay(stmt.date_from);
+                  const to = formatMonthDay(stmt.date_to);
                   return (
                     <button
                       key={stmt.id}
@@ -750,17 +791,24 @@ export function CustomerDetailPage() {
                       className='w-full flex items-center justify-between px-4 py-3 text-left fine-hover:bg-muted/40 transition-colors'
                     >
                       <div>
-                        <p className='text-xs font-medium'>{from} – {to}</p>
+                        <p className='text-xs font-medium'>
+                          {from} – {to}
+                        </p>
                         <p className='text-[11px] text-muted-foreground mt-0.5'>
-                          {stmt.snapshot_data?.length ?? 0} invoice{(stmt.snapshot_data?.length ?? 0) !== 1 ? "s" : ""} · Generated {formatMonthDay(stmt.created_at)}
+                          {stmt.snapshot_data?.length ?? 0} invoice
+                          {(stmt.snapshot_data?.length ?? 0) !== 1 ? "s" : ""} ·
+                          Generated {formatMonthDay(stmt.created_at)}
                         </p>
                       </div>
-                      <ArrowLeft01Icon size={13} className='text-muted-foreground rotate-180 shrink-0' />
+                      <ArrowLeft01Icon
+                        size={13}
+                        className='text-muted-foreground rotate-180 shrink-0'
+                      />
                     </button>
-                  )
+                  );
                 })}
               </div>
-            )}
+            }
           </div>
         </div>
       </div>

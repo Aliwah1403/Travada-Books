@@ -15,6 +15,7 @@ export type UserProfile = {
   time_format: string
   week_starts_on_monday: boolean
   timezone_auto_sync: boolean
+  transactions_vault_nudge_seen_at: string | null
 }
 
 export type UserOrg = {
@@ -31,6 +32,9 @@ export type UserOrg = {
   phone: string | null
   tax_id: string | null
   zip: string | null
+  opening_balance: number | null
+  opening_balance_date: string | null
+  inbox_id: string
 }
 
 export type UserOrgMembership = {
@@ -49,6 +53,7 @@ type AuthContextValue = {
   orgRole: "owner" | "member" | null
   orgs: UserOrgMembership[]
   orgLoading: boolean
+  orgError: boolean
   switchOrg: (orgId: string) => Promise<void>
   refreshOrg: () => Promise<void>
   refreshProfile: () => Promise<void>
@@ -65,6 +70,7 @@ const AuthContext = createContext<AuthContextValue>({
   orgRole: null,
   orgs: [],
   orgLoading: true,
+  orgError: false,
   switchOrg: async () => {},
   refreshOrg: async () => {},
   refreshProfile: async () => {},
@@ -75,18 +81,19 @@ type FetchResult = {
   orgs: UserOrgMembership[]
   activeOrg: UserOrg | null
   activeRole: "owner" | "member" | null
+  membersError: boolean
 }
 
 async function fetchUserData(userId: string): Promise<FetchResult> {
   const [profileResult, membersResult] = await Promise.all([
     supabase
       .from("users")
-      .select("id, full_name, avatar_url, email, locale, timezone, date_format, time_format, week_starts_on_monday, timezone_auto_sync, active_org_id")
+      .select("id, full_name, avatar_url, email, locale, timezone, date_format, time_format, week_starts_on_monday, timezone_auto_sync, active_org_id, transactions_vault_nudge_seen_at")
       .eq("id", userId)
       .maybeSingle(),
     supabase
       .from("organization_members")
-      .select("role, organizations(id, name, logo_url, base_currency, address_line1, address_line2, city, state, country_code, email, phone, tax_id, zip)")
+      .select("role, organizations(id, name, logo_url, base_currency, address_line1, address_line2, city, state, country_code, email, phone, tax_id, zip, opening_balance, opening_balance_date, inbox_id)")
       .eq("user_id", userId)
       .eq("status", "active"),
   ])
@@ -105,7 +112,9 @@ async function fetchUserData(userId: string): Promise<FetchResult> {
   const orgs: UserOrgMembership[] = rawMembers
     .filter((m) => m.organizations != null)
     .map((m) => ({
-      org: m.organizations as UserOrg,
+      // PostgREST types the embedded relation as an array; it's a to-one FK, so
+      // the runtime value is the single organization row.
+      org: m.organizations as unknown as UserOrg,
       role: m.role as "owner" | "member",
     }))
 
@@ -134,6 +143,7 @@ async function fetchUserData(userId: string): Promise<FetchResult> {
     orgs,
     activeOrg: activeMembership?.org ?? null,
     activeRole: activeMembership?.role ?? null,
+    membersError: !!membersResult.error,
   }
 }
 
@@ -145,6 +155,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [orgRole, setOrgRole] = useState<"owner" | "member" | null>(null)
   const [orgs, setOrgs] = useState<UserOrgMembership[]>([])
   const [orgLoading, setOrgLoading] = useState(true)
+  const [orgError, setOrgError] = useState(false)
   const fetchIdRef = useRef(0)
 
   const refreshOrg = useCallback(async () => {
@@ -158,8 +169,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setOrgs(result.orgs)
       setOrg(result.activeOrg)
       setOrgRole(result.activeRole)
+      setOrgError(result.membersError)
     } catch {
-      // silently ignore — layout stays visible
+      if (fetchId !== fetchIdRef.current) return
+      setOrgError(true)
     }
   }, [session?.user?.id])
 
@@ -181,7 +194,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const fetchId = ++fetchIdRef.current
     const { data } = await supabase
       .from("users")
-      .select("id, full_name, avatar_url, email, locale, timezone, date_format, time_format, week_starts_on_monday, timezone_auto_sync")
+      .select("id, full_name, avatar_url, email, locale, timezone, date_format, time_format, week_starts_on_monday, timezone_auto_sync, transactions_vault_nudge_seen_at")
       .eq("id", userId)
       .maybeSingle()
     if (fetchId !== fetchIdRef.current) return
@@ -203,6 +216,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setOrgRole(null)
         setOrgs([])
         setOrgLoading(false)
+        setOrgError(false)
         localStorage.removeItem("travada:active_org_id")
         posthog.reset()
         if (import.meta.env.PROD) {
@@ -223,18 +237,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setOrgRole(null)
       setOrgs([])
       setOrgLoading(false)
+      setOrgError(false)
       return
     }
     const fetchId = ++fetchIdRef.current
     setOrgLoading(true)
     fetchUserData(session.user.id)
-      .then(({ profile, orgs, activeOrg, activeRole }) => {
+      .then(({ profile, orgs, activeOrg, activeRole, membersError }) => {
         if (fetchId !== fetchIdRef.current) return
         setProfile(profile)
         setOrgs(orgs)
         setOrg(activeOrg)
         setOrgRole(activeRole)
         setOrgLoading(false)
+        setOrgError(membersError)
 
         posthog.identify(session.user.id, {
           org_id: activeOrg?.id,
@@ -258,6 +274,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .catch(() => {
         if (fetchId !== fetchIdRef.current) return
         setOrgLoading(false)
+        setOrgError(true)
       })
   }, [session?.user?.id, loading])
 
@@ -279,6 +296,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       orgRole,
       orgs,
       orgLoading,
+      orgError,
       switchOrg,
       refreshOrg,
       refreshProfile,

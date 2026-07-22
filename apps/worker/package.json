@@ -4,12 +4,13 @@
   "private": true,
   "scripts": {
     "dev": "npx trigger.dev@latest dev --profile travada",
-    "deploy": "npx trigger.dev@latest deploy --profile travada"
+    "deploy": "npx trigger.dev@latest deploy --profile travada",
+    "typecheck": "tsc --noEmit"
   },
   "keywords": [],
   "license": "ISC",
   "devDependencies": {
-    "@trigger.dev/build": "^4.4.6"
+    "@trigger.dev/build": "4.5.5"
   },
   "dependencies": {
     "@ai-sdk/google": "^3.0.81",
@@ -18,11 +19,12 @@
     "@react-email/components": "^0.0.22",
     "@react-email/render": "^1.0.0",
     "@supabase/supabase-js": "^2.106.2",
-    "@trigger.dev/sdk": "^4.4.6",
+    "@trigger.dev/sdk": "4.5.5",
     "@types/papaparse": "^5.5.2",
     "ai": "^6.0.202",
     "chrono-node": "^2.9.1",
     "exa-js": "^2.13.0",
+    "heic-convert": "^2.1.0",
     "jszip": "^3.10.1",
     "mammoth": "^1.12.0",
     "officeparser": "^7.2.1",

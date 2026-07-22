@@ -14,6 +14,7 @@ import {
 } from "@travada-books/ui/components/dropdown-menu";
 import { cn } from "@travada-books/ui/lib/utils";
 import { Spinner } from "@/components/shared/spinner";
+import { ErrorState } from "@/components/shared/error-state";
 import { Filter } from "@/components/ui/filter";
 import { InvoiceStats } from "@/components/invoices/invoice-stats";
 import { InvoiceTable, type Invoice } from "@/components/invoices/invoice-table";
@@ -293,7 +294,7 @@ export function InvoicesPage() {
     [filtersState, search],
   );
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["invoices", orgId, supabaseFilters, page],
     queryFn: () => listInvoices(orgId!, supabaseFilters, page),
     enabled: !!orgId,
@@ -450,6 +451,14 @@ export function InvoicesPage() {
     return (
       <div className="flex flex-col gap-6 p-6">
         <SkeletonRows />
+      </div>
+    );
+  }
+
+  if (isError && !data) {
+    return (
+      <div className="flex flex-col gap-6 p-6">
+        <ErrorState onRetry={refetch} />
       </div>
     );
   }

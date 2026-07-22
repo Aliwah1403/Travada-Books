@@ -58,6 +58,24 @@ export async function inviteMember(
   email: string,
   role: "owner" | "member" = "member",
 ): Promise<string> {
+  const normalizedEmail = email.trim().toLowerCase()
+
+  // Pre-check: distinguish "already a member" from "already invited" so we can
+  // show a precise message. (Invited rows aren't client-readable via RLS, and
+  // active members' email lives in the users table — hence a SECURITY DEFINER RPC.)
+  const { data: existing, error: checkError } = await supabase.rpc("check_org_invite_email", {
+    p_org_id: orgId,
+    p_email: normalizedEmail,
+  })
+  if (checkError) {
+    console.error("check_org_invite_email failed:", checkError)
+    throw new Error("Couldn't verify the invitation. Please try again.")
+  }
+  if (existing === "member")
+    throw new Error("This person is already a member of your organisation.")
+  if (existing === "invited")
+    throw new Error("This email has already been invited.")
+
   const id = crypto.randomUUID()
   const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
   const { error } = await supabase
@@ -65,14 +83,18 @@ export async function inviteMember(
     .insert({
       id,
       org_id: orgId,
-      email: email.trim().toLowerCase(),
+      email: normalizedEmail,
       role,
       status: "invited",
       expires_at: expiresAt,
     })
   if (error) {
-    if (error.code === "23505") throw new Error("This email has already been invited.")
-    throw new Error(error.message)
+    // Race backstop: the partial unique index (org_id, lower(email)) WHERE
+    // status='invited' rejects a concurrent duplicate the pre-check missed.
+    if (error.code === "23505")
+      throw new Error("This email has already been invited.")
+    console.error("inviteMember insert failed:", error)
+    throw new Error("Couldn't create the invitation. Please try again.")
   }
   return id
 }

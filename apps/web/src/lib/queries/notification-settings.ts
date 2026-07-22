@@ -19,6 +19,8 @@ const DEFAULTS: { notification_type: string; channel: NotificationChannel; enabl
   { notification_type: "invoice.overdue",          channel: "email",  enabled: true  },
   { notification_type: "invoice.reminder_upcoming",channel: "in_app", enabled: true  },
   { notification_type: "invoice.reminder_upcoming",channel: "email",  enabled: true  },
+  { notification_type: "invoice.recurring_paused", channel: "in_app", enabled: true  },
+  { notification_type: "invoice.recurring_paused", channel: "email",  enabled: true  },
   { notification_type: "quote.accepted",           channel: "in_app", enabled: true  },
   { notification_type: "quote.accepted",           channel: "email",  enabled: true  },
   { notification_type: "quote.declined",           channel: "in_app", enabled: true  },
@@ -28,6 +30,12 @@ const DEFAULTS: { notification_type: string; channel: NotificationChannel; enabl
   { notification_type: "team.invited",             channel: "email",  enabled: true  },
   { notification_type: "team.joined",              channel: "in_app", enabled: true  },
   { notification_type: "team.joined",              channel: "email",  enabled: true  },
+  // Inbox — in-app only, no email channel for any of these.
+  { notification_type: "inbox.new",                    channel: "in_app", enabled: true  },
+  { notification_type: "inbox.auto_matched",            channel: "in_app", enabled: true  },
+  { notification_type: "inbox.needs_review",            channel: "in_app", enabled: true  },
+  { notification_type: "inbox.cross_currency_matched",  channel: "in_app", enabled: true  },
+  { notification_type: "inbox.match_confirmed",         channel: "in_app", enabled: true  },
 ]
 
 export async function getNotificationPrefs(

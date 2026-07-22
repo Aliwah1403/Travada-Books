@@ -70,6 +70,33 @@ import {
   Csv01Icon as Csv01Svg,
   Mail01Icon as Mail01Svg,
   Link01Icon as Link01Svg,
+  DashboardSquare01Icon as DashboardSquare01Svg,
+  ChartLineData01Icon as ChartLineData01Svg,
+  MoneyExchange01Icon as MoneyExchange01Svg,
+  MoneyBag02Icon as MoneyBag02Svg,
+  UserStar01Icon as UserStar01Svg,
+  ArrowDownRight01Icon as ArrowDownRight01Svg,
+  QuoteUpIcon as QuoteUpSvg,
+  PieChart01Icon as PieChart01Svg,
+  UserRemove01Icon as UserRemove01Svg,
+  TaxesIcon as TaxesSvg,
+  ProfitIcon as ProfitSvg,
+  ReceiptTextIcon as ReceiptTextSvg,
+  Target01Icon as Target01Svg,
+  CheckmarkCircle02Icon as CheckmarkCircle02Svg,
+  CancelCircleIcon as CancelCircleSvg,
+  Link04Icon as Link04Svg,
+  Unlink02Icon as Unlink02Svg,
+  ReloadIcon as ReloadSvg,
+  MailBlock01Icon as MailBlock01Svg,
+  DragDropIcon as DragDropSvg,
+  ChevronLeft as ChevronLeftSvg,
+  ChevronRight as ChevronRightSvg,
+  ShareIcon as ShareSvg,
+  NewTwitterIcon as NewTwitterSvg,
+  MicrosoftIcon as MicrosoftSvg,
+  BankIcon as BankSvg,
+  AiChat01Icon as AiChat01Svg,
 } from "@hugeicons/core-free-icons";
 
 export type IconProps = Omit<HugeiconsIconProps, "icon">;
@@ -150,3 +177,30 @@ export const Ppt01Icon = make(Ppt01Svg);
 export const Csv01Icon = make(Csv01Svg);
 export const Mail01Icon = make(Mail01Svg);
 export const Link01Icon = make(Link01Svg);
+export const DashboardSquare01Icon = make(DashboardSquare01Svg);
+export const ChartLineData01Icon = make(ChartLineData01Svg);
+export const MoneyExchange01Icon = make(MoneyExchange01Svg);
+export const MoneyBag02Icon = make(MoneyBag02Svg);
+export const UserStar01Icon = make(UserStar01Svg);
+export const ArrowDownRight01Icon = make(ArrowDownRight01Svg);
+export const QuoteIcon = make(QuoteUpSvg);
+export const PieChartIcon = make(PieChart01Svg);
+export const UserRemoveIcon = make(UserRemove01Svg);
+export const TaxesIcon = make(TaxesSvg);
+export const ProfitIcon = make(ProfitSvg);
+export const ReceiptTextIcon = make(ReceiptTextSvg);
+export const TargetIcon = make(Target01Svg);
+export const CheckmarkCircle02Icon = make(CheckmarkCircle02Svg);
+export const CancelCircleIcon = make(CancelCircleSvg);
+export const Link04Icon = make(Link04Svg);
+export const Unlink02Icon = make(Unlink02Svg);
+export const ReloadIcon = make(ReloadSvg);
+export const MailBlock01Icon = make(MailBlock01Svg);
+export const DragDropIcon = make(DragDropSvg);
+export const ChevronLeftIcon = make(ChevronLeftSvg);
+export const ChevronRightIcon = make(ChevronRightSvg);
+export const ShareIcon = make(ShareSvg);
+export const XIcon = make(NewTwitterSvg);
+export const MicrosoftIcon = make(MicrosoftSvg);
+export const BankIcon = make(BankSvg);
+export const AiChat01Icon = make(AiChat01Svg);

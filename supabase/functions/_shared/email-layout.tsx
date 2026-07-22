@@ -84,7 +84,8 @@ export function EmailLayout({ preview, orgName, orgLogoUrl, children }: EmailLay
                     <Link href={`${APP_URL}/invoices`} style={{ fontSize: 13, color: colors.muted, textDecoration: "none", display: "block", marginBottom: 10, fontFamily: font }}>Invoices</Link>
                     <Link href={`${APP_URL}/quotes`} style={{ fontSize: 13, color: colors.muted, textDecoration: "none", display: "block", marginBottom: 10, fontFamily: font }}>Quotes</Link>
                     <Link href={`${APP_URL}/customers`} style={{ fontSize: 13, color: colors.muted, textDecoration: "none", display: "block", marginBottom: 10, fontFamily: font }}>Customers</Link>
-                    <Link href={`${APP_URL}/statements`} style={{ fontSize: 13, color: colors.muted, textDecoration: "none", display: "block", marginBottom: 10, fontFamily: font }}>Statements</Link>
+                    <Link href={`${APP_URL}/transactions`} style={{ fontSize: 13, color: colors.muted, textDecoration: "none", display: "block", marginBottom: 10, fontFamily: font }}>Transactions</Link>
+                    <Link href={`${APP_URL}/vault`} style={{ fontSize: 13, color: colors.muted, textDecoration: "none", display: "block", marginBottom: 10, fontFamily: font }}>Vault</Link>
                   </td>
                   <td style={{ verticalAlign: "top", width: "50%" }}>
                     <Text style={{ margin: "0 0 14px", fontSize: 13, fontWeight: 600, color: colors.dark, fontFamily: font }}>Company</Text>

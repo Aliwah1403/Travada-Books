@@ -257,6 +257,7 @@ export const importCsvTask = task({
 
     const uniqueCurrencies = [...new Set(rows.map((r) => r.currency))];
     const rateMap = new Map<string, number>();
+    const missingRatePairs: string[] = [];
     for (const currency of uniqueCurrencies) {
       if (currency === baseCurrency) {
         rateMap.set(currency, 1);
@@ -267,8 +268,20 @@ export const importCsvTask = task({
           .eq("base", currency)
           .eq("target", baseCurrency)
           .single();
-        rateMap.set(currency, rateRow ? Number(rateRow.rate) : 1);
+        if (rateRow) {
+          rateMap.set(currency, Number(rateRow.rate));
+        } else {
+          missingRatePairs.push(`${currency} -> ${baseCurrency}`);
+        }
       }
+    }
+    // Defaulting to a 1:1 rate here would silently misreport foreign-currency
+    // amounts as base-currency amounts in every dashboard aggregation (they
+    // all read base_amount as the money basis). Fail the whole import instead.
+    if (missingRatePairs.length > 0) {
+      throw new Error(
+        `Missing exchange rate for: ${missingRatePairs.join(", ")}. Import aborted to avoid recording incorrect converted amounts.`,
+      );
     }
 
     // 5. Upsert in batches — internal_id deduplicates re-imports
@@ -316,10 +329,22 @@ export const importCsvTask = task({
     // 6. Enrich — merchant name extraction + categorization (Gemini 2.5 Flash Lite, batch 50)
     metadata.set("status", "categorizing");
     logger.log("Enriching transactions", { count: rows.length });
-    await enrichTransactionsTask.triggerAndWait({
+    // triggerAndWait RESOLVES with { ok: false } on child failure rather than
+    // throwing, so this result must be inspected. The rows are already imported
+    // and the import itself still succeeded — but a failed enrichment means no
+    // categories, no embeddings, and (since batch-match-inbox fires at the end
+    // of enrichment) no inbox matching for any of them. Surface it loudly.
+    const enrichResult = await enrichTransactionsTask.triggerAndWait({
       transactionIds: rows.map((r) => r.id),
       orgId,
     });
+    if (!enrichResult.ok) {
+      logger.error("Enrichment failed — transactions imported but uncategorized and unmatched", {
+        orgId,
+        count: rows.length,
+        error: String(enrichResult.error),
+      });
+    }
 
     // 7. Classify the import file as a Capture document
     const { data: captureDoc } = await supabase

@@ -79,6 +79,30 @@ Deno.serve(async (req) => {
     }
   }
 
+  // Global throttle on the welcome-email flow. Normal signup traffic never
+  // approaches this; a bot burst that slips past captcha / auth rate limits gets
+  // capped here so it can't drain the Resend quota. Over the limit → skip the
+  // email + contact-add and return 200 (so the webhook does not retry & re-send).
+  const WELCOME_EMAIL_MAX = 20; // per rolling window
+  const WELCOME_EMAIL_WINDOW_SECONDS = 60;
+  const { data: allowed, error: rateLimitError } = await db.rpc("rate_limit_email", {
+    p_kind: "welcome",
+    p_max: WELCOME_EMAIL_MAX,
+    p_window_seconds: WELCOME_EMAIL_WINDOW_SECONDS,
+  });
+
+  if (rateLimitError) {
+    // Fail open on limiter errors — don't block legitimate signups on a limiter hiccup.
+    console.error("on-user-signup: rate_limit_email check failed (allowing send):", rateLimitError);
+  } else if (allowed === false) {
+    console.warn(
+      `on-user-signup: welcome-email rate limit hit (>${WELCOME_EMAIL_MAX}/${WELCOME_EMAIL_WINDOW_SECONDS}s) — skipping send for ${record.email}`
+    );
+    return new Response(JSON.stringify({ success: true, skipped: "rate_limited" }), {
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
   const TRIGGER_SECRET_KEY = Deno.env.get("TRIGGER_SECRET_KEY");
 
   const triggerPromise = TRIGGER_SECRET_KEY
@@ -98,6 +122,38 @@ Deno.serve(async (req) => {
       }).catch((err) => console.error("Trigger.dev resend-add-contact failed (non-fatal):", err))
     : Promise.resolve();
 
+  const welcomeSequencePromise = TRIGGER_SECRET_KEY && record.id
+    ? fetch("https://api.trigger.dev/api/v1/tasks/welcome-sequence/trigger", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${TRIGGER_SECRET_KEY}`,
+          "Content-Type": "application/json",
+          "x-trigger-api-version": "2023-11-14",
+        },
+        body: JSON.stringify({
+          payload: {
+            email: record.email,
+            firstName: firstName || undefined,
+            userId: record.id,
+          },
+          options: {
+            // A re-fired signup webhook returns the EXISTING run id rather than
+            // starting a second 14-day sequence. Platform default TTL is 30 days,
+            // which already outlives the sequence.
+            idempotencyKey: `welcome-sequence:${record.id}`,
+            tags: [`user_${record.id}`],
+          },
+        }),
+      })
+        .then(async (res) => {
+          if (!res.ok) {
+            const text = await res.text().catch(() => "");
+            throw new Error(`Trigger.dev welcome-sequence failed: ${res.status} ${res.statusText} - ${text}`);
+          }
+        })
+        .catch((err) => console.error("Trigger.dev welcome-sequence failed (non-fatal):", err))
+    : Promise.resolve();
+
   const emailHtml = await render(WelcomeEmail({ firstName: firstName || undefined }));
 
   const [, emailResult] = await Promise.allSettled([
@@ -109,6 +165,7 @@ Deno.serve(async (req) => {
       subject: "Welcome to Travada Books",
       html: emailHtml,
     }),
+    welcomeSequencePromise,
   ]);
 
   if (emailResult.status === "rejected") {

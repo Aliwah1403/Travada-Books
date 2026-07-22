@@ -4,6 +4,12 @@
     "module": "ESNext",
     "moduleResolution": "bundler",
     "skipLibCheck": true,
-    "strict": true
+    "strict": true,
+    // This config has no `include`/`outDir`, so a bare `tsc` at the repo root
+    // would otherwise compile every reachable .ts/.tsx and emit a .js next to
+    // each source file. That collides with esbuild on `trigger.dev deploy`
+    // ("Two output files share the same path") and shadows .ts/.tsx sources in
+    // Vite/Trigger config resolution. noEmit makes the mistake unrepeatable.
+    "noEmit": true
   }
 }

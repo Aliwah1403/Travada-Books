@@ -10,6 +10,8 @@ export async function updateOrg(
     address_line1?: string | null
     base_currency?: string
     logo_url?: string | null
+    opening_balance?: number | null
+    opening_balance_date?: string | null
   },
 ) {
   const { error } = await supabase.from("organizations").update(data).eq("id", orgId)

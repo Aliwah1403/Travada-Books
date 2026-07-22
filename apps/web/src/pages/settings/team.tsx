@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { Button } from "@travada-books/ui/components/button";
 import { Input } from "@travada-books/ui/components/input";
 import { Label } from "@travada-books/ui/components/label";
+import { Cancel01Icon } from "@travada-books/ui/icons";
 import { Badge } from "@travada-books/ui/components/badge";
 import {
   Avatar,
@@ -116,6 +117,19 @@ function DotsIcon() {
 
 // ─── Invite dialog ──────────────────────────────────────────────────────────
 
+const MAX_INVITE_ROWS = 5;
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+type InviteRow = { key: string; email: string; role: "owner" | "member" };
+
+function newInviteRow(): InviteRow {
+  return { key: crypto.randomUUID(), email: "", role: "member" };
+}
+
+type InviteEntry = { email: string; role: "owner" | "member" };
+type InviteOutcome = InviteEntry & { id: string };
+type InviteFailure = InviteEntry & { message: string };
+
 function InviteDialog({
   orgId,
   onInvited,
@@ -125,82 +139,202 @@ function InviteDialog({
 }) {
   const { profile, org } = useAuth();
   const [open, setOpen] = useState(false);
-  const [email, setEmail] = useState("");
-  const [role, setRole] = useState<"owner" | "member">("member");
+  const [rows, setRows] = useState<InviteRow[]>([newInviteRow()]);
+
+  function updateRow(key: string, patch: Partial<InviteRow>) {
+    setRows((prev) => prev.map((r) => (r.key === key ? { ...r, ...patch } : r)));
+  }
+
+  function addRow() {
+    setRows((prev) => (prev.length < MAX_INVITE_ROWS ? [...prev, newInviteRow()] : prev));
+  }
+
+  function removeRow(key: string) {
+    setRows((prev) => (prev.length > 1 ? prev.filter((r) => r.key !== key) : prev));
+  }
 
   const mutation = useMutation({
-    mutationFn: async () => {
-      if (!email.trim()) throw new Error("Please enter an email address.");
-      const id = await inviteMember(orgId, email, role);
-      const inviterName = profile?.full_name || org?.name || "";
-      const { error: invokeError } = await supabase.functions.invoke("invite-member", {
-        body: {
-          invitations: [{ email: email.trim().toLowerCase(), id }],
-          inviterName,
-        },
+    mutationFn: async (entries: InviteEntry[]) => {
+      const results = await Promise.allSettled(
+        entries.map((entry) =>
+          inviteMember(orgId, entry.email, entry.role).then(
+            (id): InviteOutcome => ({ ...entry, id }),
+          ),
+        ),
+      );
+
+      const succeeded: InviteOutcome[] = [];
+      const failed: InviteFailure[] = [];
+      results.forEach((result, i) => {
+        if (result.status === "fulfilled") {
+          succeeded.push(result.value);
+        } else {
+          const entry = entries[i]!;
+          failed.push({
+            ...entry,
+            message: result.reason instanceof Error ? result.reason.message : "Failed to invite.",
+          });
+        }
       });
-      return { emailFailed: !!invokeError };
-    },
-    onSuccess: ({ emailFailed }) => {
-      trackEvent(LogEvents.UserInvited, { role });
-      if (emailFailed) {
-        toast.warning(`Invite created for ${email.trim()}, but the email failed to send. Use "Resend invitation" from the Invitations tab to retry.`);
-      } else {
-        toast.success(`Invite sent to ${email.trim()}.`);
+
+      let emailFailed = false;
+      if (succeeded.length > 0) {
+        const inviterName = profile?.full_name || org?.name || "";
+        const { error: invokeError } = await supabase.functions.invoke("invite-member", {
+          body: {
+            invitations: succeeded.map((s) => ({ email: s.email, id: s.id })),
+            inviterName,
+          },
+        });
+        emailFailed = !!invokeError;
       }
-      setEmail("");
-      setRole("member");
-      setOpen(false);
-      onInvited();
+
+      return { succeeded, failed, emailFailed };
+    },
+    onSuccess: ({ succeeded, failed, emailFailed }) => {
+      succeeded.forEach((s) => trackEvent(LogEvents.UserInvited, { role: s.role }));
+
+      if (succeeded.length > 0) {
+        if (emailFailed) {
+          toast.warning(
+            succeeded.length === 1 ?
+              `Invite created for ${succeeded[0]!.email}, but the email failed to send. Use "Resend invitation" from the Invitations tab to retry.`
+            : `${succeeded.length} invites created, but the emails failed to send. Use "Resend invitation" from the Invitations tab to retry.`,
+          );
+        } else {
+          toast.success(
+            succeeded.length === 1 ?
+              `Invite sent to ${succeeded[0]!.email}.`
+            : `${succeeded.length} invites sent.`,
+          );
+        }
+      }
+
+      if (failed.length > 0) {
+        toast.error(
+          failed.length === 1 ?
+            `${failed[0]!.email}: ${failed[0]!.message}`
+          : `${failed.length} invites failed: ${failed.map((f) => `${f.email} (${f.message})`).join(", ")}`,
+        );
+      }
+
+      if (failed.length === 0) {
+        setRows([newInviteRow()]);
+        setOpen(false);
+      } else {
+        // Keep only the failed rows so the user can fix and retry.
+        setRows(failed.map((f) => ({ key: crypto.randomUUID(), email: f.email, role: f.role })));
+      }
+
+      if (succeeded.length > 0) onInvited();
     },
     onError: (err) => {
       Sentry.captureException(err);
-      toast.error("Failed to send invite. Please try again.");
+      toast.error("Failed to send invites. Please try again.");
     },
   });
 
+  function handleSubmit() {
+    const seen = new Set<string>();
+    const entries: InviteEntry[] = [];
+
+    for (const row of rows) {
+      const trimmed = row.email.trim().toLowerCase();
+      if (!trimmed) continue;
+      if (!EMAIL_REGEX.test(trimmed)) {
+        toast.error(`"${row.email.trim()}" isn't a valid email address.`);
+        return;
+      }
+      if (seen.has(trimmed)) {
+        toast.error(`${trimmed} is entered more than once.`);
+        return;
+      }
+      seen.add(trimmed);
+      entries.push({ email: trimmed, role: row.role });
+    }
+
+    if (entries.length === 0) {
+      toast.error("Please enter at least one email address.");
+      return;
+    }
+
+    mutation.mutate(entries);
+  }
+
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        setOpen(next);
+        if (!next) setRows([newInviteRow()]);
+      }}
+    >
       <DialogTrigger render={<Button size='sm' />}>Invite member</DialogTrigger>
-      <DialogContent className='md:max-w-md'>
+      <DialogContent className='md:max-w-lg'>
         <DialogHeader>
-          <DialogTitle>Invite a team member</DialogTitle>
+          <DialogTitle>Invite team members</DialogTitle>
           <DialogDescription>
             They'll receive an email invite to join your organisation.
             Invitations expire after 7 days.
           </DialogDescription>
         </DialogHeader>
 
-        <div className='flex flex-col gap-4'>
-          <div className='flex flex-col gap-1.5'>
-            <Label htmlFor='invite-email'>Email address</Label>
-            <Input
-              id='invite-email'
-              type='email'
-              placeholder='teammate@example.com'
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") mutation.mutate();
-              }}
-              autoFocus
-            />
+        <div className='flex flex-col gap-2'>
+          <div className='flex gap-2'>
+            <Label className='flex-1'>Email address</Label>
+            <Label className='w-28 shrink-0'>Role</Label>
           </div>
-          <div className='flex flex-col gap-1.5'>
-            <Label htmlFor='invite-role'>Role</Label>
-            <Select
-              value={role}
-              onValueChange={(v) => setRole(v as "owner" | "member")}
+
+          <div className='flex flex-col gap-2'>
+            {rows.map((row, i) => (
+              <div key={row.key} className='flex items-center gap-2'>
+                <Input
+                  type='email'
+                  placeholder='teammate@example.com'
+                  value={row.email}
+                  onChange={(e) => updateRow(row.key, { email: e.target.value })}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") handleSubmit();
+                  }}
+                  autoFocus={i === 0}
+                  className='flex-1'
+                />
+                <Select
+                  value={row.role}
+                  onValueChange={(v) => updateRow(row.key, { role: v as "owner" | "member" })}
+                >
+                  <SelectTrigger className='w-28 shrink-0'>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value='member'>Member</SelectItem>
+                    <SelectItem value='owner'>Owner</SelectItem>
+                  </SelectContent>
+                </Select>
+                {rows.length > 1 && (
+                  <Button
+                    type='button'
+                    variant='ghost'
+                    size='icon'
+                    onClick={() => removeRow(row.key)}
+                    aria-label={`Remove ${row.email.trim() || "row"}`}
+                  >
+                    <Cancel01Icon size={14} />
+                  </Button>
+                )}
+              </div>
+            ))}
+          </div>
+
+          {rows.length < MAX_INVITE_ROWS && (
+            <button
+              type='button'
+              onClick={addRow}
+              className='self-start text-xs text-muted-foreground underline-offset-4 hover:underline'
             >
-              <SelectTrigger id='invite-role' className='w-1/2'>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value='member'>Member</SelectItem>
-                <SelectItem value='owner'>Owner</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+              + Add another
+            </button>
+          )}
         </div>
 
         <DialogFooter>
@@ -209,10 +343,10 @@ function InviteDialog({
           </DialogClose>
           <Button
             size='sm'
-            onClick={() => mutation.mutate()}
+            onClick={() => handleSubmit()}
             disabled={mutation.isPending}
           >
-            {mutation.isPending ? "Sending…" : "Send invite"}
+            {mutation.isPending ? "Sending…" : "Send invites"}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -550,10 +684,6 @@ export function TeamSettingsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["team-members", orgId] });
     },
-    onError: (err) => {
-      Sentry.captureException(err);
-      toast.error("Failed to remove member. Please try again.");
-    },
   });
 
   const leaveMutation = useMutation({
@@ -561,20 +691,12 @@ export function TeamSettingsPage() {
     onSuccess: () => {
       window.location.href = "/";
     },
-    onError: (err) => {
-      Sentry.captureException(err);
-      toast.error("Failed to leave team. Please try again.");
-    },
   });
 
   const cancelMutation = useMutation({
     mutationFn: (invitationId: string) => revokeInvitation(invitationId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["team-invitations", orgId] });
-    },
-    onError: (err) => {
-      Sentry.captureException(err);
-      toast.error("Failed to cancel invitation. Please try again.");
     },
   });
 
@@ -596,7 +718,10 @@ export function TeamSettingsPage() {
     toast.promise(removeMutation.mutateAsync(member.id), {
       loading: "Removing member…",
       success: "Member removed.",
-      error: (err) => String(err),
+      error: (err) => {
+        Sentry.captureException(err);
+        return "Failed to remove member. Please try again.";
+      },
     });
   }
 
@@ -604,7 +729,10 @@ export function TeamSettingsPage() {
     toast.promise(leaveMutation.mutateAsync(member.id), {
       loading: "Leaving team…",
       success: "You have left the team.",
-      error: (err) => String(err),
+      error: (err) => {
+        Sentry.captureException(err);
+        return "Failed to leave team. Please try again.";
+      },
     });
   }
 
@@ -612,7 +740,10 @@ export function TeamSettingsPage() {
     toast.promise(cancelMutation.mutateAsync(inv.id), {
       loading: "Cancelling invitation…",
       success: "Invitation cancelled.",
-      error: (err) => String(err),
+      error: (err) => {
+        Sentry.captureException(err);
+        return "Failed to cancel invitation. Please try again.";
+      },
     });
   }
 
@@ -699,7 +830,10 @@ export function TeamSettingsPage() {
                 toast.promise(roleChangeMutation.mutateAsync({ memberId, role }), {
                   loading: "Updating role…",
                   success: "Role updated.",
-                  error: (err) => String(err),
+                  error: (err) => {
+                    Sentry.captureException(err);
+                    return "Failed to update role. Please try again.";
+                  },
                 })
               }
               onRemove={handleRemove}
@@ -721,7 +855,10 @@ export function TeamSettingsPage() {
                   toast.promise(resendMutation.mutateAsync(inv), {
                     loading: "Resending invite…",
                     success: `Invite resent to ${inv.email}.`,
-                    error: (err) => String(err),
+                    error: (err) => {
+                      Sentry.captureException(err);
+                      return "Failed to resend invite. Please try again.";
+                    },
                   })
                 }
               />
