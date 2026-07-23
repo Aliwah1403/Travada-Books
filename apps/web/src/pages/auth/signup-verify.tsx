@@ -10,6 +10,7 @@ import {
 } from "@travada-books/ui/components/card"
 import * as Sentry from "@sentry/react"
 import { supabase } from "@/lib/supabase"
+import { Turnstile, TURNSTILE_ENABLED } from "@/components/turnstile"
 
 const OTP_LENGTH = 8
 
@@ -20,10 +21,11 @@ export function SignupVerifyPage() {
   const [loading, setLoading] = useState(false)
   const [isResending, setIsResending] = useState(false)
   const [resendCooldown, setResendCooldown] = useState(30)
+  const [captchaToken, setCaptchaToken] = useState("")
   const inputRefs = useRef<(HTMLInputElement | null)[]>([])
 
   const email = sessionStorage.getItem("signup_email") ?? ""
-  const next = sessionStorage.getItem("signup_next") ?? "/invoices"
+  const next = sessionStorage.getItem("signup_next") ?? "/"
   const isValidEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
 
   useEffect(() => {
@@ -109,7 +111,13 @@ export function SignupVerifyPage() {
     if (isResending || loading || resendCooldown > 0) return
     setIsResending(true)
     try {
-      const { error } = await supabase.auth.resend({ type: "signup", email })
+      const { error } = await supabase.auth.resend({
+        type: "signup",
+        email,
+        options: {
+          ...(captchaToken ? { captchaToken } : {}),
+        },
+      })
       if (error) {
         Sentry.captureException(error)
         setError("Failed to resend code. Please try again.")
@@ -118,6 +126,7 @@ export function SignupVerifyPage() {
       setDigits(Array(OTP_LENGTH).fill(""))
       setError("")
       setResendCooldown(30)
+      setCaptchaToken("")
       focusAt(0)
     } finally {
       setIsResending(false)
@@ -154,6 +163,8 @@ export function SignupVerifyPage() {
             ))}
           </div>
 
+          <Turnstile onVerify={setCaptchaToken} />
+
           {error && (
             <p className="text-center text-xs text-destructive">{error}</p>
           )}
@@ -168,7 +179,7 @@ export function SignupVerifyPage() {
               <button
                 type="button"
                 onClick={handleResend}
-                disabled={isResending || loading || resendCooldown > 0}
+                disabled={isResending || loading || resendCooldown > 0 || (TURNSTILE_ENABLED && !captchaToken)}
                 className="text-foreground underline-offset-4 hover:underline disabled:pointer-events-none disabled:opacity-50"
               >
                 {isResending ? "Resending…"

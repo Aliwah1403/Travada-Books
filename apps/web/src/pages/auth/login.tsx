@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@trav
 import * as Sentry from "@sentry/react"
 import { supabase } from "@/lib/supabase"
 import { trackEvent, LogEvents } from "@/lib/analytics"
+import { Turnstile, TURNSTILE_ENABLED } from "@/components/turnstile"
 
 export function LoginPage() {
   const navigate = useNavigate()
@@ -16,17 +17,18 @@ export function LoginPage() {
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
+  const [captchaToken, setCaptchaToken] = useState("")
 
   async function handleGoogleSignIn() {
     const next = searchParams.get("next")
-    let destination = "/invoices"
+    let destination = "/"
     if (next) {
       try {
         const resolved = new URL(decodeURIComponent(next), window.location.origin)
         if (resolved.origin === window.location.origin)
           destination = resolved.pathname + resolved.search + resolved.hash
       } catch {
-        // malformed next param — fall back to /invoices
+        // malformed next param — fall back to /
       }
     }
     const { error } = await supabase.auth.signInWithOAuth({
@@ -43,7 +45,13 @@ export function LoginPage() {
     e.preventDefault()
     setError("")
     setLoading(true)
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+      options: {
+        ...(captchaToken ? { captchaToken } : {}),
+      },
+    })
     setLoading(false)
     if (error) {
       if (error.message === "Invalid login credentials") {
@@ -58,14 +66,14 @@ export function LoginPage() {
     }
     trackEvent(LogEvents.SignIn)
     const next = searchParams.get("next")
-    let destination = "/invoices"
+    let destination = "/"
     if (next) {
       try {
         const resolved = new URL(decodeURIComponent(next), window.location.origin)
         if (resolved.origin === window.location.origin)
           destination = resolved.pathname + resolved.search + resolved.hash
       } catch {
-        // malformed next param — fall back to /invoices
+        // malformed next param — fall back to /
       }
     }
     navigate(destination)
@@ -124,9 +132,11 @@ export function LoginPage() {
             />
           </div>
 
+          <Turnstile onVerify={setCaptchaToken} />
+
           {error && <p className="text-xs text-destructive">{error}</p>}
 
-          <Button type="submit" className="w-full" disabled={loading}>
+          <Button type="submit" className="w-full" disabled={loading || (TURNSTILE_ENABLED && !captchaToken)}>
             {loading ? "Signing in…" : "Sign in"}
           </Button>
         </form>

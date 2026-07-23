@@ -10,6 +10,7 @@ import {
 } from "@travada-books/ui/components/card";
 import * as Sentry from "@sentry/react";
 import { supabase } from "@/lib/supabase";
+import { Turnstile, TURNSTILE_ENABLED } from "@/components/turnstile";
 
 const OTP_LENGTH = 8;
 
@@ -20,6 +21,7 @@ export function VerifyOtpPage() {
   const [loading, setLoading] = useState(false);
   const [isResending, setIsResending] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(30);
+  const [captchaToken, setCaptchaToken] = useState("");
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   useEffect(() => {
@@ -117,7 +119,9 @@ export function VerifyOtpPage() {
     if (isResending || loading || resendCooldown > 0) return;
     setIsResending(true);
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email);
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        ...(captchaToken ? { captchaToken } : {}),
+      });
       if (error) {
         Sentry.captureException(error);
         setError("Failed to resend code. Please try again.");
@@ -126,6 +130,7 @@ export function VerifyOtpPage() {
       setDigits(Array(OTP_LENGTH).fill(""));
       setError("");
       setResendCooldown(30);
+      setCaptchaToken("");
       focusAt(0);
     } finally {
       setIsResending(false);
@@ -166,6 +171,8 @@ export function VerifyOtpPage() {
             ))}
           </div>
 
+          <Turnstile onVerify={setCaptchaToken} />
+
           {error && (
             <p className='text-center text-xs text-destructive'>{error}</p>
           )}
@@ -184,7 +191,7 @@ export function VerifyOtpPage() {
               <button
                 type='button'
                 onClick={handleResend}
-                disabled={isResending || loading || resendCooldown > 0}
+                disabled={isResending || loading || resendCooldown > 0 || (TURNSTILE_ENABLED && !captchaToken)}
                 className='text-foreground underline-offset-4 hover:underline disabled:pointer-events-none disabled:opacity-50'
               >
                 {isResending ? "Resending…" : resendCooldown > 0 ? `Resend code in ${resendCooldown}s` : "Resend code"}

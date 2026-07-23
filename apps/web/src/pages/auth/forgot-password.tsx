@@ -6,18 +6,22 @@ import { Label } from "@travada-books/ui/components/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@travada-books/ui/components/card"
 import * as Sentry from "@sentry/react"
 import { supabase } from "@/lib/supabase"
+import { Turnstile, TURNSTILE_ENABLED } from "@/components/turnstile"
 
 export function ForgotPasswordPage() {
   const navigate = useNavigate()
   const [email, setEmail] = useState("")
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
+  const [captchaToken, setCaptchaToken] = useState("")
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError("")
     setLoading(true)
-    const { error } = await supabase.auth.resetPasswordForEmail(email)
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      ...(captchaToken ? { captchaToken } : {}),
+    })
     setLoading(false)
     if (error) {
       Sentry.captureException(error)
@@ -51,9 +55,11 @@ export function ForgotPasswordPage() {
             />
           </div>
 
+          <Turnstile onVerify={setCaptchaToken} />
+
           {error && <p className="text-xs text-destructive">{error}</p>}
 
-          <Button type="submit" className="w-full" disabled={loading}>
+          <Button type="submit" className="w-full" disabled={loading || (TURNSTILE_ENABLED && !captchaToken)}>
             {loading ? "Sending…" : "Send code"}
           </Button>
 
