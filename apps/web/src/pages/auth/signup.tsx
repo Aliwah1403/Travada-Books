@@ -22,14 +22,14 @@ export function SignupPage() {
 
   async function handleGoogleSignIn() {
     const next = searchParams.get("next")
-    let destination = "/invoices"
+    let destination = "/"
     if (next) {
       try {
         const resolved = new URL(decodeURIComponent(next), window.location.origin)
         if (resolved.origin === window.location.origin)
           destination = resolved.pathname + resolved.search + resolved.hash
       } catch {
-        // malformed next param — fall back to /invoices
+        // malformed next param — fall back to /
       }
     }
     const { error } = await supabase.auth.signInWithOAuth({
@@ -80,7 +80,7 @@ export function SignupPage() {
     }
     trackEvent(LogEvents.Registered, { auth_method: "email" })
     // Determine where to send the user after email confirmation
-    let destination = "/invoices"
+    let destination = "/"
     if (emailRedirectTo) {
       destination = emailRedirectTo
     } else if (next) {
@@ -89,7 +89,7 @@ export function SignupPage() {
         const resolved = new URL(decoded, window.location.origin)
         if (resolved.origin === window.location.origin) destination = decoded
       } catch {
-        // malformed next param — fall back to /invoices
+        // malformed next param — fall back to /
       }
     }
     sessionStorage.setItem("signup_email", email.trim().toLowerCase())

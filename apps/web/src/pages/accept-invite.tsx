@@ -72,7 +72,7 @@ export function AcceptInvitePage() {
           .invoke("notify-team-joined", { body: { memberId: token } })
           .catch((err) => console.error("notify-team-joined failed:", err))
         // Hard redirect so auth-context re-initialises fresh with the new membership
-        window.location.replace("/invoices")
+        window.location.replace("/")
       })
       .catch((err: Error) => {
         sessionStorage.removeItem("pendingInviteToken")
@@ -128,7 +128,7 @@ export function AcceptInvitePage() {
             <CardDescription>This invitation has already been accepted.</CardDescription>
           </CardHeader>
           <CardContent>
-            <Button className="w-full" onClick={() => navigate("/invoices")}>
+            <Button className="w-full" onClick={() => navigate("/")}>
               Go to app
             </Button>
           </CardContent>
@@ -181,7 +181,7 @@ export function AcceptInvitePage() {
             }}>
               Create account for {state.info.email}
             </Button>
-            <Button variant="ghost" className="w-full" onClick={() => navigate("/invoices")}>
+            <Button variant="ghost" className="w-full" onClick={() => navigate("/")}>
               Continue to app
             </Button>
           </CardContent>
@@ -207,7 +207,6 @@ export function AcceptInvitePage() {
       </div>
     )
   }
-
   // state.kind === "ready" and user is not logged in
   const { info } = state
   const roleName = info.role === "owner" ? "Owner" : "Member"

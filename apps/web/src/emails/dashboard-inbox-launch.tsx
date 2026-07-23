@@ -6,6 +6,7 @@ interface Props {
   firstName: string;
   dashboardUrl: string;
   inboxUrl: string;
+  pitchUrl: string;
   unsubscribeUrl: string;
 }
 
@@ -26,6 +27,7 @@ export default function DashboardInboxLaunchEmail({
   firstName = "Jane",
   dashboardUrl = `${APP_URL}/`,
   inboxUrl = `${APP_URL}/inbox`,
+  pitchUrl = `${APP_URL}/pitch`,
   unsubscribeUrl = "https://books.travadasys.com/unsubscribe",
 }: Partial<Props>) {
   return (
@@ -137,6 +139,14 @@ export default function DashboardInboxLaunchEmail({
         Thank you for building this with us through beta. If Dashboard or
         Inbox feel off in any way, or there's something you wish they did,
         just reply — I read every message myself.
+      </Text>
+
+      <Text style={{ ...paragraphStyle, margin: "0 0 40px" }}>
+        Curious where we're headed?{" "}
+        <Link href={pitchUrl} style={{ color: colors.dark, textDecoration: "underline" }}>
+          See the Travada Books story
+        </Link>
+        .
       </Text>
 
       {/* Sign-off */}
