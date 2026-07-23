@@ -9,9 +9,20 @@ import { Label } from "@travada-books/ui/components/label"
 import { Separator } from "@travada-books/ui/components/separator"
 import { Textarea } from "@travada-books/ui/components/textarea"
 import { CurrencySelect } from "@travada-books/ui/components/currency-select"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@travada-books/ui/components/alert-dialog"
 import { DatePicker } from "@/components/shared/date-picker"
 import { useAuth } from "@/contexts/auth-context"
 import { updateOrg, uploadOrgLogo } from "@/lib/queries/org"
+import { reconvertTransactionsBaseCurrency, type ReconvertBaseCurrencyResult } from "@/lib/queries/transactions"
 
 
 export function GeneralSettingsPage() {
@@ -29,6 +40,7 @@ export function GeneralSettingsPage() {
   const [openingBalance, setOpeningBalance] = useState("")
   const [openingBalanceDate, setOpeningBalanceDate] = useState<Date | undefined>(undefined)
   const [openingBalanceError, setOpeningBalanceError] = useState<string | null>(null)
+  const [currencyConfirmOpen, setCurrencyConfirmOpen] = useState(false)
   const lastLoadedOrgIdRef = useRef<string | null>(null)
 
   useEffect(() => {
@@ -79,9 +91,41 @@ export function GeneralSettingsPage() {
   })
 
   const currencyMutation = useMutation({
-    mutationFn: () => updateOrg(orgId!, { base_currency: currency }),
-    onSuccess: () => refreshOrg(),
+    mutationFn: async (): Promise<ReconvertBaseCurrencyResult | null> => {
+      const previousCurrency = org?.base_currency
+      await updateOrg(orgId!, { base_currency: currency })
+      if (!previousCurrency || previousCurrency === currency) return null
+      return reconvertTransactionsBaseCurrency(orgId!, currency)
+    },
+    onSuccess: async (result) => {
+      await refreshOrg()
+      if (result) {
+        queryClient.invalidateQueries({ queryKey: ["transactions", orgId] })
+        queryClient.invalidateQueries({ queryKey: ["transaction-summary", orgId] })
+        queryClient.invalidateQueries({ queryKey: ["metric", orgId] })
+      }
+    },
   })
+
+  function saveCurrency() {
+    toast.promise(currencyMutation.mutateAsync(), {
+      loading: "Saving…",
+      success: (result) => {
+        if (!result) return "Base currency updated."
+        if (result.skippedCount > 0) {
+          return `Base currency updated. ${result.updatedCount} transaction${result.updatedCount === 1 ? "" : "s"} reconverted — ${result.skippedCount} skipped (no exchange rate for ${result.skippedCurrencies.join(", ")}).`
+        }
+        if (result.updatedCount > 0) {
+          return `Base currency updated. ${result.updatedCount} transaction${result.updatedCount === 1 ? "" : "s"} reconverted.`
+        }
+        return "Base currency updated."
+      },
+      error: (err) => {
+        Sentry.captureException(err)
+        return "Failed to update base currency. Please try again."
+      },
+    })
+  }
 
   // Returns the validated { amount, date } payload, or null (and sets an
   // inline field error) when the pair of fields don't form a valid balance.
@@ -289,20 +333,41 @@ export function GeneralSettingsPage() {
         <Button
           size='sm'
           className='w-fit'
-          onClick={() =>
-            toast.promise(currencyMutation.mutateAsync(), {
-              loading: "Saving…",
-              success: "Base currency updated.",
-              error: (err) => {
-                Sentry.captureException(err);
-                return "Failed to update base currency. Please try again.";
-              },
-            })
-          }
+          onClick={() => {
+            if (org?.base_currency && currency !== org.base_currency) {
+              setCurrencyConfirmOpen(true)
+            } else {
+              saveCurrency()
+            }
+          }}
           disabled={currencyMutation.isPending}
         >
           Save changes
         </Button>
+
+        <AlertDialog open={currencyConfirmOpen} onOpenChange={setCurrencyConfirmOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Change base currency to {currency}?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Every existing transaction will be reconverted to {currency} using
+                current exchange rates, and your Dashboard and Transaction totals will
+                update to match. This can take a moment for orgs with a lot of history.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => {
+                  saveCurrency()
+                  setCurrencyConfirmOpen(false)
+                }}
+              >
+                Update currency
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </section>
 
       <Separator />

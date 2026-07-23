@@ -205,6 +205,33 @@ function computeBaseAmount(amount: number, rate: number): number {
   return Math.round(amount * rate * 10000) / 10000
 }
 
+// Reconverts every transaction's base_amount/base_currency after an org
+// changes its base currency — without this, existing rows keep the old
+// base_currency stamped on them and every money-based aggregation (KPI
+// cards, dashboard widgets) silently zeroes out for them.
+export type ReconvertBaseCurrencyResult = {
+  updatedCount: number
+  skippedCount: number
+  skippedCurrencies: string[]
+}
+
+export async function reconvertTransactionsBaseCurrency(
+  orgId: string,
+  baseCurrency: string,
+): Promise<ReconvertBaseCurrencyResult> {
+  const { data, error } = await supabase.rpc("reconvert_transactions_base_currency", {
+    p_org_id: orgId,
+    p_base_currency: baseCurrency,
+  })
+  if (error) throw error
+  const row = data?.[0]
+  return {
+    updatedCount: row?.updated_count ?? 0,
+    skippedCount: row?.skipped_count ?? 0,
+    skippedCurrencies: row?.skipped_currencies ?? [],
+  }
+}
+
 // ─── Transaction summary ──────────────────────────────────────────────────────
 
 export async function getTransactionSummary(
