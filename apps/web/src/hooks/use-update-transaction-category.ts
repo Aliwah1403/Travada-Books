@@ -1,9 +1,9 @@
-import { useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 import { findSimilarTransactions, bulkUpdateTransactions } from "@/lib/queries/transactions"
+import { useInvalidateTransactionQueries } from "@/hooks/use-invalidate-transaction-queries"
 
 export function useUpdateTransactionCategory(orgId: string) {
-  const queryClient = useQueryClient()
+  const invalidateTransactionQueries = useInvalidateTransactionQueries()
 
   async function updateCategoryWithSimilarPrompt(
     transactionId: string,
@@ -27,8 +27,7 @@ export function useUpdateTransactionCategory(orgId: string) {
         label: "Apply",
         onClick: async () => {
           await bulkUpdateTransactions(similar.map((t) => t.id), orgId, { category_id: category.id })
-          queryClient.invalidateQueries({ queryKey: ["transactions", orgId] })
-          queryClient.invalidateQueries({ queryKey: ["transaction-summary", orgId] })
+          invalidateTransactionQueries()
           toast.success(`Updated ${similar.length} transactions`)
         },
       },

@@ -21,6 +21,7 @@ import {
 } from "@travada-books/ui/components/alert-dialog"
 import { DatePicker } from "@/components/shared/date-picker"
 import { useAuth } from "@/contexts/auth-context"
+import { useInvalidateTransactionQueries } from "@/hooks/use-invalidate-transaction-queries"
 import { updateOrg, uploadOrgLogo } from "@/lib/queries/org"
 import { reconvertTransactionsBaseCurrency, type ReconvertBaseCurrencyResult } from "@/lib/queries/transactions"
 
@@ -28,6 +29,7 @@ import { reconvertTransactionsBaseCurrency, type ReconvertBaseCurrencyResult } f
 export function GeneralSettingsPage() {
   const { org, orgId, refreshOrg } = useAuth()
   const queryClient = useQueryClient()
+  const invalidateTransactionQueries = useInvalidateTransactionQueries()
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [name, setName] = useState("")
@@ -100,9 +102,7 @@ export function GeneralSettingsPage() {
     onSuccess: async (result) => {
       await refreshOrg()
       if (result) {
-        queryClient.invalidateQueries({ queryKey: ["transactions", orgId] })
-        queryClient.invalidateQueries({ queryKey: ["transaction-summary", orgId] })
-        queryClient.invalidateQueries({ queryKey: ["metric", orgId] })
+        invalidateTransactionQueries()
       }
     },
   })

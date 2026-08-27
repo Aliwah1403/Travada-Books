@@ -7,7 +7,6 @@ import {
   FileEditIcon,
   User02Icon,
   Wallet01Icon,
-  Timer01Icon,
   Logout02Icon,
   Settings02Icon,
   GridIcon,
@@ -16,6 +15,7 @@ import {
   PlusSignIcon,
   VaultIcon,
   InboxIcon,
+  type Icon,
 } from "@travada-books/ui/icons";
 import { Separator } from "@travada-books/ui/components/separator";
 import {
@@ -54,14 +54,15 @@ const salesNav = [
   { icon: FileEditIcon, label: "Quotes", to: "/quotes" },
 ];
 
-const mainNav = [
+// `comingSoon` is optional — nothing in this group uses it right now (Tracker,
+// the only entry that did, was pulled from the nav), but NavItem still reads it.
+const mainNav: { icon: Icon; label: string; to: string; comingSoon?: boolean }[] = [
   { icon: User02Icon, label: "Customers", to: "/customers" },
   {
     icon: Wallet01Icon,
     label: "Transactions",
     to: "/transactions",
   },
-  { icon: Timer01Icon, label: "Tracker", to: "/tracker", comingSoon: true },
   { icon: VaultIcon, label: "Vault", to: "/vault" },
   { icon: InboxIcon, label: "Inbox", to: "/inbox" },
 ];

@@ -52,6 +52,7 @@ import {
 import { getCustomer } from "@/lib/queries/customers";
 import { getOrgInvoiceTemplate } from "@/lib/queries/invoice-templates";
 import { useAuth } from "@/contexts/auth-context";
+import { useInvalidateTransactionQueries } from "@/hooks/use-invalidate-transaction-queries";
 import { supabase } from "@/lib/supabase";
 import { Spinner } from "@/components/shared/spinner";
 import { InvoicePreview, InvoicePdf } from "@/components/invoice-templates";
@@ -146,6 +147,7 @@ export function InvoiceDetailPage() {
   const { orgId, org, user } = useAuth();
   const { formatDate, formatDateTime, formatActivityDate } = useFormatDate();
   const queryClient = useQueryClient();
+  const invalidateTransactionQueries = useInvalidateTransactionQueries();
   const [internalNote, setInternalNote] = useState("");
   const internalNoteDirtyRef = useRef(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -205,9 +207,24 @@ export function InvoiceDetailPage() {
       patch: Parameters<typeof updateInvoice>[2];
       label: string;
     }) => ({ label }),
-    onSuccess: (_, __, context) => {
+    onSuccess: (_, variables, context) => {
       queryClient.invalidateQueries({ queryKey: ["invoice", id] });
       queryClient.invalidateQueries({ queryKey: ["invoices", orgId] });
+      // Only when this update actually moves the invoice to "paid" — the
+      // invoice-paid DB trigger writes a row into `transactions` at that
+      // point, and invoice totals become relevant to customer summaries. A
+      // draft edit or send shouldn't pay the cost of busting the dashboard.
+      if (variables.patch.status === "paid") {
+        invalidateTransactionQueries();
+        const customerId = invoice?.customer_id;
+        queryClient.invalidateQueries({
+          queryKey: customerId ? ["customer-invoices", customerId] : ["customer-invoices"],
+        });
+        queryClient.invalidateQueries({ queryKey: ["customer-invoice-summaries", orgId] });
+        queryClient.invalidateQueries({
+          queryKey: customerId ? ["customer-invoice-summary", customerId] : ["customer-invoice-summary"],
+        });
+      }
       toast.success(context?.label);
     },
     onError: (_, __, context) => {

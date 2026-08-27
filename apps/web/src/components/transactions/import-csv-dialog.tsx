@@ -1,6 +1,5 @@
 import { useState, useRef, useEffect } from "react";
 import Papa from "papaparse";
-import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -23,6 +22,7 @@ import {
 import { Spokes } from "@travada-books/ui/components/spokes";
 import { cn } from "@travada-books/ui/lib/utils";
 import { useAuth } from "@/contexts/auth-context";
+import { useInvalidateTransactionQueries } from "@/hooks/use-invalidate-transaction-queries";
 import { suggestCsvMapping, type CsvMapping } from "@/lib/queries/ai";
 import { supabase } from "@/lib/supabase";
 import { uploadFileForImport } from "@/lib/queries/vault";
@@ -328,7 +328,7 @@ interface ImportCsvDialogProps {
 
 export function ImportCsvDialog({ open, onOpenChange, initialFile }: ImportCsvDialogProps) {
   const { orgId, org } = useAuth();
-  const queryClient = useQueryClient();
+  const invalidateTransactionQueries = useInvalidateTransactionQueries();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const pdfInputRef = useRef<HTMLInputElement>(null);
 
@@ -459,8 +459,7 @@ export function ImportCsvDialog({ open, onOpenChange, initialFile }: ImportCsvDi
           { duration: 6000 },
         );
         setTimeout(() => {
-          queryClient.invalidateQueries({ queryKey: ["transactions", orgId] });
-          queryClient.invalidateQueries({ queryKey: ["transaction-summary", orgId] });
+          invalidateTransactionQueries();
         }, 8000);
       }
     } catch (err) {
@@ -515,8 +514,7 @@ export function ImportCsvDialog({ open, onOpenChange, initialFile }: ImportCsvDi
           duration: 6000,
         });
         setTimeout(() => {
-          queryClient.invalidateQueries({ queryKey: ["transactions", orgId] });
-          queryClient.invalidateQueries({ queryKey: ["transaction-summary", orgId] });
+          invalidateTransactionQueries();
         }, 30_000);
       }
     } catch (err) {

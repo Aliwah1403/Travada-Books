@@ -35,6 +35,7 @@ import { useTableScroll } from "@/hooks/use-table-scroll";
 import { cn } from "@travada-books/ui/lib/utils";
 import { useAuth } from "@/contexts/auth-context";
 import { useFormatDate } from "@/hooks/use-format-date";
+import { useRealtime } from "@/hooks/use-realtime";
 import { listCustomers, deleteCustomer } from "@/lib/queries/customers";
 import { listAllCustomerInvoiceSummaries } from "@/lib/queries/invoices";
 import { formatCurrency } from "@/lib/format";
@@ -116,6 +117,16 @@ export function CustomersPage() {
     queryKey: ["customer-invoice-summaries", orgId],
     queryFn: () => listAllCustomerInvoiceSummaries(orgId!),
     enabled: !!orgId,
+  });
+
+  // Customer enrichment and other server-side writes (e.g. AI enrichment jobs)
+  // don't go through a client mutation on this page — keep the list fresh.
+  useRealtime({
+    channelName: "customers-list",
+    table: "customers",
+    events: ["INSERT", "UPDATE"],
+    filter: orgId ? `org_id=eq.${orgId}` : undefined,
+    onEvent: () => queryClient.invalidateQueries({ queryKey: ["customers", orgId] }),
   });
 
   const deleteMutation = useMutation({

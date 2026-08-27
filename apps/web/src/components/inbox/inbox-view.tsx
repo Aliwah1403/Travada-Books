@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useSearchParams } from "react-router"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js"
 import { toast } from "sonner"
 import { Button } from "@travada-books/ui/components/button"
 import { Input } from "@travada-books/ui/components/input"
@@ -21,6 +22,7 @@ import {
 } from "@travada-books/ui/icons"
 import { cn } from "@travada-books/ui/lib/utils"
 import { useAuth } from "@/contexts/auth-context"
+import { useRealtime, useDebouncedCallback } from "@/hooks/use-realtime"
 import { EmptyState } from "@/components/shared/empty-state"
 import { ErrorState } from "@/components/shared/error-state"
 import { FileDropzone } from "@/components/shared/file-dropzone"
@@ -144,6 +146,29 @@ export function InboxView() {
       const hasPending = d?.data.some((i) => PENDING_STATUSES.includes(i.status))
       return hasPending ? 4000 : false
     },
+  })
+
+  // Items arrive via server-side email ingestion that no client mutation
+  // knows about, so the list needs its own realtime backstop. Debounced so a
+  // burst of forwarded emails doesn't fire a refetch per row. The empty state
+  // (below) flips to the list automatically once the refetch resolves, since
+  // `items` is derived from the query data.
+  const debouncedInvalidateInbox = useDebouncedCallback(
+    (payload: RealtimePostgresChangesPayload<{ id?: string }>) => {
+      queryClient.invalidateQueries({ queryKey: ["inbox", orgId] })
+      if (payload.eventType === "UPDATE") {
+        const updatedId = payload.new?.id
+        if (updatedId) queryClient.invalidateQueries({ queryKey: ["inbox-item", updatedId] })
+      }
+    },
+    1000,
+  )
+  useRealtime({
+    channelName: "inbox-items",
+    table: "inbox_items",
+    events: ["INSERT", "UPDATE"],
+    filter: orgId ? `org_id=eq.${orgId}` : undefined,
+    onEvent: debouncedInvalidateInbox,
   })
 
   const items = data?.data ?? []

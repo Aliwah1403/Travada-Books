@@ -112,6 +112,15 @@ export function VerifyOtpPage() {
       }
       return;
     }
+    // verifyOtp can resolve without error before the session is actually persisted; confirm it before proceeding
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (!session) {
+      Sentry.captureException(new Error("no session after verifyOtp"));
+      setError("Verification failed. Please try again.");
+      return;
+    }
     navigate("/forgot-password/reset");
   }
 

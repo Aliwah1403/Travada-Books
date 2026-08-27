@@ -16,6 +16,22 @@ import * as Sentry from "@sentry/react"
 import { supabase } from "@/lib/supabase"
 import { useAuth } from "@/contexts/auth-context"
 
+// handle_new_user() inserting the public.users row can lag behind auth signup; retry the FK-dependent insert briefly
+async function insertOwnerMembership(orgId: string, userId: string) {
+  const MAX_ATTEMPTS = 3
+  let lastError: { code?: string; message: string } | null = null
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    const { error } = await supabase
+      .from("organization_members")
+      .insert({ org_id: orgId, user_id: userId, role: "owner", status: "active" })
+    if (!error) return null
+    lastError = error
+    if (error.code !== "23503" || attempt === MAX_ATTEMPTS) return error
+    await new Promise((resolve) => setTimeout(resolve, 400))
+  }
+  return lastError
+}
+
 export function OnboardingOrgPage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
@@ -48,9 +64,7 @@ export function OnboardingOrgPage() {
       return
     }
 
-    const { error: memberError } = await supabase
-      .from("organization_members")
-      .insert({ org_id: orgId, user_id: user.id, role: "owner", status: "active" })
+    const memberError = await insertOwnerMembership(orgId, user.id)
 
     if (memberError) {
       Sentry.captureException(memberError)

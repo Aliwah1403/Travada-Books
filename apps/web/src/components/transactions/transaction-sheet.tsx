@@ -63,6 +63,7 @@ import { linkDocumentsToTransaction } from "@/lib/queries/vault";
 import { supabase } from "@/lib/supabase";
 import { listCustomers } from "@/lib/queries/customers";
 import { useUpdateTransactionCategory } from "@/hooks/use-update-transaction-category";
+import { useInvalidateTransactionQueries } from "@/hooks/use-invalidate-transaction-queries";
 import { parseDateOnly, toDateOnlyString } from "@/lib/format-date";
 import type {
   Transaction,
@@ -122,6 +123,7 @@ export function TransactionSheet({
   const { org, orgId, user } = useAuth();
   const queryClient = useQueryClient();
   const { updateCategoryWithSimilarPrompt } = useUpdateTransactionCategory(orgId ?? "");
+  const invalidateTransactionQueries = useInvalidateTransactionQueries();
   const isEditing = !!transaction;
   const today = toDateOnlyString(new Date());
 
@@ -526,7 +528,7 @@ export function TransactionSheet({
         toast.success("Transaction saved");
       }
 
-      queryClient.invalidateQueries({ queryKey: ["transactions", orgId] });
+      invalidateTransactionQueries();
       if (invoiceId && markInvoicePaid) {
         queryClient.invalidateQueries({ queryKey: ["invoices", orgId] });
         queryClient.invalidateQueries({ queryKey: ["invoice", invoiceId] });

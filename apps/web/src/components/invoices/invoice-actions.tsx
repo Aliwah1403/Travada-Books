@@ -29,6 +29,7 @@ import {
 } from "@/lib/queries/invoices";
 import { updateInvoiceRecurringStatus } from "@/lib/queries/invoice-recurring";
 import { useAuth } from "@/contexts/auth-context";
+import { useInvalidateTransactionQueries } from "@/hooks/use-invalidate-transaction-queries";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import { trackEvent, LogEvents } from "@/lib/analytics";
@@ -53,6 +54,7 @@ export function InvoiceActions({
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { orgId, user } = useAuth();
+  const invalidateTransactionQueries = useInvalidateTransactionQueries();
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [cancelSeriesOpen, setCancelSeriesOpen] = useState(false);
 
@@ -86,6 +88,18 @@ export function InvoiceActions({
 
   function invalidate() {
     queryClient.invalidateQueries({ queryKey: ["invoices", orgId] });
+  }
+
+  // Marking paid also invalidates the transaction/metric queries (the
+  // invoice-paid DB trigger writes a row into `transactions`) plus the
+  // customer-invoice queries, which read invoice totals per-customer. A
+  // draft edit or delete doesn't move any of these, so this is only called
+  // from the mark-as-paid path, not from the shared `invalidate()` above.
+  function invalidateAfterMarkPaid() {
+    invalidateTransactionQueries();
+    queryClient.invalidateQueries({ queryKey: ["customer-invoices"] });
+    queryClient.invalidateQueries({ queryKey: ["customer-invoice-summaries", orgId] });
+    queryClient.invalidateQueries({ queryKey: ["customer-invoice-summary"] });
   }
 
   function invalidateSeries() {
@@ -190,6 +204,7 @@ export function InvoiceActions({
                   }).then(() => {
                     trackEvent(LogEvents.InvoicePaid, { invoice_number: invoiceNumber });
                     invalidate();
+                    invalidateAfterMarkPaid();
                     supabase.functions
                       .invoke("notify-invoice-paid", { body: { invoiceId } })
                       .then((res) => {

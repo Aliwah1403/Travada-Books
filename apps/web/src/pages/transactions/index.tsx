@@ -47,6 +47,7 @@ import { createInboxItem } from "@/lib/queries/inbox";
 import { parseTransactionFilters } from "@/lib/queries/ai";
 import { useAuth } from "@/contexts/auth-context";
 import { useFormatDate } from "@/hooks/use-format-date";
+import { useInvalidateTransactionQueries } from "@/hooks/use-invalidate-transaction-queries";
 
 const PAGE_SIZE = 50;
 
@@ -244,6 +245,7 @@ export function TransactionsPage() {
   const { orgId, org, profile } = useAuth();
   const { formatDate } = useFormatDate();
   const queryClient = useQueryClient();
+  const invalidateTransactionQueries = useInvalidateTransactionQueries();
 
   const [searchParams, setSearchParams] = useSearchParams();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -328,25 +330,20 @@ export function TransactionsPage() {
   const editingTransaction =
     editingId ? (transactions.find((t) => t.id === editingId) ?? null) : null;
 
-  function invalidateTransactions() {
-    queryClient.invalidateQueries({ queryKey: ["transactions", orgId] });
-    queryClient.invalidateQueries({ queryKey: ["transaction-summary", orgId] });
-  }
-
   const deleteMutation = useMutation({
     mutationFn: (id: string) => deleteTransaction(id, orgId!),
-    onSuccess: invalidateTransactions,
+    onSuccess: invalidateTransactionQueries,
   });
 
   const bulkDeleteMutation = useMutation({
     mutationFn: (ids: string[]) => bulkDeleteTransactions(ids, orgId!),
-    onSuccess: invalidateTransactions,
+    onSuccess: invalidateTransactionQueries,
   });
 
   const bulkUpdateMutation = useMutation({
     mutationFn: ({ ids, update }: { ids: string[]; update: BulkTransactionUpdate }) =>
       bulkUpdateTransactions(ids, orgId!, update),
-    onSuccess: invalidateTransactions,
+    onSuccess: invalidateTransactionQueries,
   });
 
   async function handleSearchSubmit(e?: React.FormEvent) {
@@ -830,7 +827,7 @@ export function TransactionsPage() {
           if (!o) setEditingId(null);
         }}
         transaction={editingTransaction}
-        onSaved={invalidateTransactions}
+        onSaved={invalidateTransactionQueries}
       />
     </FileDropzone>
   );

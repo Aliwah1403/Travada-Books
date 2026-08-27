@@ -1,11 +1,11 @@
-import { useEffect, useRef } from "react"
+import { useEffect } from "react"
 import { toast } from "sonner"
 import { useRealtimeRun } from "@trigger.dev/react-hooks"
-import { useQueryClient } from "@tanstack/react-query"
 import { cn } from "@travada-books/ui/lib/utils"
 import { Spokes } from "@travada-books/ui/components/spokes"
 import { CancelCircleIcon, Cancel01Icon, CheckmarkCircle01Icon } from "@travada-books/ui/icons"
-import { supabase } from "@/lib/supabase"
+import { useRealtime, useDebouncedCallback } from "@/hooks/use-realtime"
+import { useInvalidateTransactionQueries } from "@/hooks/use-invalidate-transaction-queries"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -73,35 +73,22 @@ function ImportProgressToast({
   orgId: string
   rowCount: number
 }) {
-  const queryClient = useQueryClient()
-  const invalidateTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const invalidateTransactionQueries = useInvalidateTransactionQueries()
+  const debouncedInvalidateTransactions = useDebouncedCallback(invalidateTransactionQueries, 1500)
 
   const { run, error } = useRealtimeRun<{ imported: number; skipped: number }>(runId, {
     accessToken: publicToken,
   })
 
-  // Supabase realtime — refresh table as rows arrive, debounced
-  useEffect(() => {
-    const channel = supabase
-      .channel(`import-progress-${runId}`)
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "transactions", filter: `org_id=eq.${orgId}` },
-        () => {
-          if (invalidateTimer.current) clearTimeout(invalidateTimer.current)
-          invalidateTimer.current = setTimeout(() => {
-            queryClient.invalidateQueries({ queryKey: ["transactions", orgId] })
-            queryClient.invalidateQueries({ queryKey: ["transaction-summary", orgId] })
-          }, 1500)
-        },
-      )
-      .subscribe()
-
-    return () => {
-      supabase.removeChannel(channel)
-      if (invalidateTimer.current) clearTimeout(invalidateTimer.current)
-    }
-  }, [runId, orgId, queryClient])
+  // Supabase realtime — refresh transactions + dashboard metrics as rows
+  // arrive, debounced so a hundred-row import doesn't fire a hundred refetches.
+  useRealtime({
+    channelName: "import-progress",
+    table: "transactions",
+    events: ["INSERT"],
+    filter: orgId ? `org_id=eq.${orgId}` : undefined,
+    onEvent: debouncedInvalidateTransactions,
+  })
 
   const isFailed = (!!run?.status && TERMINAL_FAILURE_STATUSES.has(run.status)) || !!error
 
@@ -109,11 +96,10 @@ function ImportProgressToast({
   const isTerminal = run?.status === "COMPLETED" || isFailed
   useEffect(() => {
     if (!isTerminal) return
-    queryClient.invalidateQueries({ queryKey: ["transactions", orgId] })
-    queryClient.invalidateQueries({ queryKey: ["transaction-summary", orgId] })
+    invalidateTransactionQueries()
     const timer = setTimeout(() => toast.dismiss(toastId), 3500)
     return () => clearTimeout(timer)
-  }, [isTerminal, orgId, queryClient, toastId])
+  }, [isTerminal, toastId, invalidateTransactionQueries])
 
   const meta = (run?.metadata ?? {}) as ImportMeta
   const isDone = meta.status === "done"

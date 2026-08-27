@@ -5,6 +5,7 @@ import { Input } from "@travada-books/ui/components/input"
 import { Label } from "@travada-books/ui/components/label"
 import { Separator } from "@travada-books/ui/components/separator"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@travada-books/ui/components/card"
+import { EyeIcon, EyeOffIcon } from "@travada-books/ui/icons"
 import * as Sentry from "@sentry/react"
 import { supabase } from "@/lib/supabase"
 import { trackEvent, LogEvents } from "@/lib/analytics"
@@ -15,6 +16,7 @@ export function LoginPage() {
   const [searchParams] = useSearchParams()
   const [email, setEmail] = useState(() => searchParams.get("email") ?? "")
   const [password, setPassword] = useState("")
+  const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
   const [captchaToken, setCaptchaToken] = useState("")
@@ -122,14 +124,25 @@ export function LoginPage() {
                 Forgot password?
               </Link>
             </div>
-            <Input
-              id="password"
-              type="password"
-              placeholder="••••••••"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-            />
+            <div className="relative">
+              <Input
+                id="password"
+                type={showPassword ? "text" : "password"}
+                placeholder="••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                className="pr-9"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((v) => !v)}
+                aria-label={showPassword ? "Hide password" : "Show password"}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              >
+                {showPassword ? <EyeOffIcon size={15} /> : <EyeIcon size={15} />}
+              </button>
+            </div>
           </div>
 
           <Turnstile onVerify={setCaptchaToken} />

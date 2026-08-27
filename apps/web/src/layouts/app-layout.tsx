@@ -7,6 +7,8 @@ import { AppLayoutSkeleton } from "@/components/app-layout-skeleton";
 import { TransactionsVaultNudgeDialog } from "@/components/dashboard/transactions-vault-nudge-dialog";
 import { useAuth } from "@/contexts/auth-context";
 import { markTransactionsVaultNudgeSeen } from "@/lib/queries/profile";
+import { useRealtime, useDebouncedCallback } from "@/hooks/use-realtime";
+import { useInvalidateTransactionQueries } from "@/hooks/use-invalidate-transaction-queries";
 
 const pageTitles: Record<string, string> = {
   "/": "Dashboard",
@@ -45,6 +47,34 @@ export function AppLayout() {
       setNudgeOpen(true);
     }
   }, [profile]);
+
+  // Org-wide backstop for the dashboard's metric queries: rows written by the
+  // invoice-paid DB trigger, the CSV/PDF import worker, or any other
+  // server-side writer never go through a client mutation, so nothing else
+  // invalidates ["metric", orgId] for them. Mounted once here (AppLayout is a
+  // stable parent that rarely re-renders) rather than on the transactions
+  // page, so a user idling on the dashboard still sees fresh numbers.
+  // Debounced ~1s to collapse CSV-import row storms into one refetch.
+  const invalidateTransactionQueries = useInvalidateTransactionQueries();
+  const debouncedInvalidateTransactions = useDebouncedCallback(
+    invalidateTransactionQueries,
+    1000,
+  );
+  // DELETE is deliberately omitted: with the default REPLICA IDENTITY, Postgres
+  // only writes the primary key into the WAL record for a delete, so Supabase
+  // can't evaluate the `org_id=eq.` filter and drops the event entirely — the
+  // subscription would look like it covered deletes while silently never
+  // firing. Every delete path in the app is a client mutation that already
+  // calls useInvalidateTransactionQueries() directly, so nothing is lost.
+  // Covering cross-tab deletes would need `ALTER TABLE public.transactions
+  // REPLICA IDENTITY FULL`, which logs the full old row on every update too.
+  useRealtime({
+    channelName: "app-transactions",
+    table: "transactions",
+    events: ["INSERT", "UPDATE"],
+    filter: orgId ? `org_id=eq.${orgId}` : undefined,
+    onEvent: debouncedInvalidateTransactions,
+  });
 
   function handleNudgeOpenChange(open: boolean) {
     setNudgeOpen(open);

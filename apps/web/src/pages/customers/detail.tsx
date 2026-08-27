@@ -51,7 +51,7 @@ import {
   clearEnrichment,
 } from "@/lib/queries/customers";
 import { Spinner } from "@/components/shared/spinner";
-import { supabase } from "@/lib/supabase";
+import { useRealtime } from "@/hooks/use-realtime";
 import {
   listCustomerInvoices,
   getCustomerInvoiceSummary,
@@ -117,27 +117,13 @@ export function CustomerDetailPage() {
     trackEvent(LogEvents.CustomerViewed);
   }, [customer?.id]);
 
-  useEffect(() => {
-    if (!id) return;
-    const channel = supabase
-      .channel(`customer-enrichment-${id}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "UPDATE",
-          schema: "public",
-          table: "customers",
-          filter: `id=eq.${id}`,
-        },
-        () => {
-          queryClient.invalidateQueries({ queryKey: ["customer", id] });
-        },
-      )
-      .subscribe();
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [id, queryClient]);
+  useRealtime({
+    channelName: "customer-enrichment",
+    table: "customers",
+    events: ["UPDATE"],
+    filter: id ? `id=eq.${id}` : undefined,
+    onEvent: () => queryClient.invalidateQueries({ queryKey: ["customer", id] }),
+  });
 
   // Increment animation key only when transitioning to "done" (not on first load)
   useEffect(() => {

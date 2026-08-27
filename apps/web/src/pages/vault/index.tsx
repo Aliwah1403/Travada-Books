@@ -55,6 +55,7 @@ import { Spinner } from "@/components/shared/spinner";
 import { FileDropzone } from "@/components/shared/file-dropzone";
 import { cn } from "@travada-books/ui/lib/utils";
 import { useAuth } from "@/contexts/auth-context";
+import { useRealtime, useDebouncedCallback } from "@/hooks/use-realtime";
 import { TransactionSheet } from "@/components/transactions/transaction-sheet";
 import { extractDocumentData, classifyDocument, parseVaultFilters } from "@/lib/queries/ai";
 import { DocumentPreviewSheet } from "@/components/vault/document-preview-sheet";
@@ -1097,6 +1098,20 @@ export function VaultPage() {
       );
       return hasPending ? 3000 : false;
     },
+  });
+
+  // Documents get processed/tagged server-side (AI classification, CSV/PDF
+  // import extraction) with no client mutation to invalidate on completion —
+  // keep the list fresh via realtime, debounced to collapse bursts.
+  const debouncedInvalidateVault = useDebouncedCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ["vault", orgId] });
+  }, 1000);
+  useRealtime({
+    channelName: "vault-documents",
+    table: "documents",
+    events: ["INSERT", "UPDATE"],
+    filter: orgId ? `org_id=eq.${orgId}` : undefined,
+    onEvent: debouncedInvalidateVault,
   });
 
   // Keep previewDoc in sync with fresh list data so sheet reflects updates immediately
