@@ -1,4 +1,8 @@
 node_modules
+
+# macOS
+.DS_Store
+
 CLAUDE.md
 .claude
 PLANNED.md
