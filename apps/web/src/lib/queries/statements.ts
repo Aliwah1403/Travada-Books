@@ -9,6 +9,19 @@ export type StatementInvoiceRow = {
   total: number | null
   currency: string
   paid_at: string | null
+  // Optional on purpose: statements are immutable JSONB snapshots, so rows
+  // written before payment tracking existed genuinely have no amount_paid.
+  // Readers must fall back (see statementPaidAmount) rather than assume 0,
+  // which would make every historical statement look unpaid.
+  amount_paid?: number | null
+}
+
+// Money received against a snapshotted invoice, tolerant of pre-ledger rows.
+// Old snapshots recorded paid-ness only via status/paid_at and always implied
+// the full total, which is exactly what the fallback reproduces.
+export function statementPaidAmount(inv: StatementInvoiceRow): number {
+  if (typeof inv.amount_paid === "number") return inv.amount_paid
+  return inv.status === "paid" ? (inv.total ?? 0) : 0
 }
 
 export type Statement = {

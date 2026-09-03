@@ -12,6 +12,7 @@ import {
   MoreHorizontalIcon,
   PencilEdit01Icon,
   Sent02Icon,
+  Wallet01Icon,
 } from "@travada-books/ui/icons";
 import { Button } from "@travada-books/ui/components/button";
 import { Separator } from "@travada-books/ui/components/separator";
@@ -36,6 +37,7 @@ import {
   InvoiceStatusBadge,
   type InvoiceStatus,
 } from "@/components/invoices/invoice-status-badge";
+import { RecordPaymentDialog } from "@/components/invoices/record-payment-dialog";
 import { cn } from "@travada-books/ui/lib/utils";
 import {
   getInvoice,
@@ -43,7 +45,14 @@ import {
   deleteInvoice,
   createInvoice,
   getNextInvoiceNumber,
+  invoiceBalance,
 } from "@/lib/queries/invoices";
+import {
+  listInvoicePayments,
+  createInvoicePayment,
+  deleteInvoicePayment,
+  type InvoicePayment,
+} from "@/lib/queries/payments";
 import { lookupRate } from "@/lib/queries/exchange-rates";
 import {
   getInvoiceRecurring,
@@ -51,13 +60,24 @@ import {
 } from "@/lib/queries/invoice-recurring";
 import { getCustomer } from "@/lib/queries/customers";
 import { getOrgInvoiceTemplate } from "@/lib/queries/invoice-templates";
+import { listTeamMembers } from "@/lib/queries/team";
 import { useAuth } from "@/contexts/auth-context";
-import { useInvalidateTransactionQueries } from "@/hooks/use-invalidate-transaction-queries";
+import { useInvalidateAfterPaymentChange } from "@/hooks/use-invalidate-payment-queries";
 import { supabase } from "@/lib/supabase";
 import { Spinner } from "@/components/shared/spinner";
 import { InvoicePreview, InvoicePdf } from "@/components/invoice-templates";
 import { downloadPdf, urlToDataUrl } from "@/lib/pdf-download";
+import { formatCurrency } from "@/lib/format";
 import { toast } from "sonner";
+
+const PAYMENT_METHOD_LABELS: Record<string, string> = {
+  mpesa: "M-Pesa",
+  bank_transfer: "Bank Transfer",
+  cash: "Cash",
+  card: "Card",
+  cheque: "Cheque",
+  other: "Other",
+};
 
 const RECURRING_LABELS: Record<string, string> = {
   one_time: "One time",
@@ -141,17 +161,63 @@ function ActivityItem({
   );
 }
 
+function PaymentRow({
+  payment,
+  recordedByName,
+  formatDate,
+  currency,
+  onDelete,
+}: {
+  payment: InvoicePayment;
+  recordedByName: string | null;
+  formatDate: (v: string | null) => string;
+  currency: string;
+  onDelete: (payment: InvoicePayment) => void;
+}) {
+  return (
+    <div className='flex items-start justify-between gap-3 py-2.5 text-xs'>
+      <div className='flex flex-col gap-0.5'>
+        <span className='font-medium'>
+          {formatCurrency(payment.amount, currency)}
+        </span>
+        <span className='text-[11px] text-muted-foreground'>
+          {formatDate(payment.paid_at)} · {PAYMENT_METHOD_LABELS[payment.method] ?? payment.method}
+          {payment.reference && ` · ${payment.reference}`}
+        </span>
+        {recordedByName && (
+          <span className='text-[11px] text-muted-foreground'>
+            Recorded by {recordedByName}
+          </span>
+        )}
+      </div>
+      {payment.source !== "gateway" && (
+        <Button
+          variant='ghost'
+          size='icon-sm'
+          className='shrink-0 text-muted-foreground hover:text-destructive'
+          onClick={() => onDelete(payment)}
+          aria-label='Delete payment'
+        >
+          <Delete01Icon size={13} />
+        </Button>
+      )}
+    </div>
+  );
+}
+
 export function InvoiceDetailPage() {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
   const { orgId, org, user } = useAuth();
   const { formatDate, formatDateTime, formatActivityDate } = useFormatDate();
   const queryClient = useQueryClient();
-  const invalidateTransactionQueries = useInvalidateTransactionQueries();
+  const invalidateAfterPaymentChange = useInvalidateAfterPaymentChange();
   const [internalNote, setInternalNote] = useState("");
   const internalNoteDirtyRef = useRef(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [isPdfDownloading, setIsPdfDownloading] = useState(false);
+  const [recordPaymentOpen, setRecordPaymentOpen] = useState(false);
+  const [paymentToDelete, setPaymentToDelete] = useState<InvoicePayment | null>(null);
 
   const {
     data: invoice,
@@ -181,6 +247,30 @@ export function InvoiceDetailPage() {
     enabled: !!orgId,
   });
 
+  const showPaymentsSection =
+    !!invoice &&
+    invoice.status !== "draft" &&
+    invoice.status !== "scheduled" &&
+    invoice.status !== "canceled";
+
+  const { data: payments, isLoading: paymentsLoading } = useQuery({
+    queryKey: ["invoice-payments", id],
+    queryFn: () => listInvoicePayments(id!),
+    enabled: !!id && showPaymentsSection,
+  });
+
+  const { data: teamMembers } = useQuery({
+    queryKey: ["team-members", orgId],
+    queryFn: () => listTeamMembers(orgId!),
+    enabled: !!orgId && showPaymentsSection,
+  });
+
+  function recordedByName(userId: string | null): string | null {
+    if (!userId) return null;
+    const member = teamMembers?.find((m) => m.user_id === userId);
+    return member?.full_name ?? member?.email ?? null;
+  }
+
   const seriesMutation = useMutation({
     mutationFn: (status: "active" | "paused" | "canceled") =>
       updateInvoiceRecurringStatus(invoice!.invoice_recurring_id!, orgId!, status),
@@ -207,24 +297,9 @@ export function InvoiceDetailPage() {
       patch: Parameters<typeof updateInvoice>[2];
       label: string;
     }) => ({ label }),
-    onSuccess: (_, variables, context) => {
+    onSuccess: (_, __, context) => {
       queryClient.invalidateQueries({ queryKey: ["invoice", id] });
       queryClient.invalidateQueries({ queryKey: ["invoices", orgId] });
-      // Only when this update actually moves the invoice to "paid" — the
-      // invoice-paid DB trigger writes a row into `transactions` at that
-      // point, and invoice totals become relevant to customer summaries. A
-      // draft edit or send shouldn't pay the cost of busting the dashboard.
-      if (variables.patch.status === "paid") {
-        invalidateTransactionQueries();
-        const customerId = invoice?.customer_id;
-        queryClient.invalidateQueries({
-          queryKey: customerId ? ["customer-invoices", customerId] : ["customer-invoices"],
-        });
-        queryClient.invalidateQueries({ queryKey: ["customer-invoice-summaries", orgId] });
-        queryClient.invalidateQueries({
-          queryKey: customerId ? ["customer-invoice-summary", customerId] : ["customer-invoice-summary"],
-        });
-      }
       toast.success(context?.label);
     },
     onError: (_, __, context) => {
@@ -247,6 +322,17 @@ export function InvoiceDetailPage() {
       });
     },
   });
+
+  function handleDeletePayment(payment: InvoicePayment) {
+    toast.promise(deleteInvoicePayment(payment.id, orgId!), {
+      loading: "Deleting payment…",
+      success: () => {
+        invalidateAfterPaymentChange(id!);
+        return "Payment deleted";
+      },
+      error: "Failed to delete payment",
+    });
+  }
 
   async function handleDuplicate() {
     const nextNumber = await getNextInvoiceNumber(
@@ -360,35 +446,45 @@ export function InvoiceDetailPage() {
   }
 
   function handleMarkPaid() {
-    updateMutation.mutate(
-      {
-        patch: {
-          status: "paid",
-          paid_at: new Date().toISOString(),
-          ...(!invoice!.from_details && fromDetails ?
-            { from_details: fromDetails }
-          : {}),
-          ...(!invoice!.customer_details && customerDetails ?
-            { customer_details: customerDetails }
-          : {}),
-        },
-        label: "Invoice marked as paid",
-      },
-      {
-        onSuccess: () => {
-          supabase.functions
-            .invoke("notify-invoice-paid", { body: { invoiceId: id } })
-            .then((res) => {
-              if (res.error) {
-                console.error("notify-invoice-paid failed:", res.error);
-                toast.warning("Invoice marked as paid, but the notification email failed to send.");
-              }
-            })
-            .catch((err) => {
-              console.error("notify-invoice-paid failed:", err);
+    if (!invoice) return;
+    const amount = invoiceBalance(invoice);
+    toast.promise(
+      createInvoicePayment({
+        org_id: orgId!,
+        invoice_id: id!,
+        recorded_by: user?.id ?? null,
+        amount,
+        currency: invoice.currency,
+        paid_at: new Date().toISOString(),
+        method: "other",
+      }).then(async () => {
+        invalidateAfterPaymentChange(id!);
+        // Backfill from_details/customer_details if this invoice somehow
+        // reached unpaid/overdue without them — a separate, non-status
+        // write, so it's unaffected by the DB guard on direct paid writes.
+        if (!invoice.from_details || !invoice.customer_details) {
+          await updateInvoice(id!, orgId!, {
+            ...(!invoice.from_details && fromDetails ? { from_details: fromDetails } : {}),
+            ...(!invoice.customer_details && customerDetails ? { customer_details: customerDetails } : {}),
+          }).catch(() => {});
+        }
+        supabase.functions
+          .invoke("notify-invoice-paid", { body: { invoiceId: id } })
+          .then((res) => {
+            if (res.error) {
+              console.error("notify-invoice-paid failed:", res.error);
               toast.warning("Invoice marked as paid, but the notification email failed to send.");
-            });
-        },
+            }
+          })
+          .catch((err) => {
+            console.error("notify-invoice-paid failed:", err);
+            toast.warning("Invoice marked as paid, but the notification email failed to send.");
+          });
+      }),
+      {
+        loading: "Marking as paid…",
+        success: "Invoice marked as paid",
+        error: "Failed to mark as paid",
       },
     );
   }
@@ -443,6 +539,7 @@ export function InvoiceDetailPage() {
 
   const isRecurring = invoice.recurring !== "one_time";
   const status = invoice.status as InvoiceStatus;
+  const isOverpaid = invoice.amount_paid > (invoice.total ?? 0);
 
   const documentData = {
     label: "INVOICE",
@@ -519,17 +616,14 @@ export function InvoiceDetailPage() {
               {updateMutation.isPending ? "Sending…" : "Send Invoice"}
             </Button>
           )}
-          {(status === "unpaid" || status === "overdue") && (
+          {(status === "unpaid" || status === "overdue" || status === "partially_paid") && (
             <Button
               variant='outline'
               className='gap-1.5'
-              onClick={handleMarkPaid}
-              disabled={updateMutation.isPending}
+              onClick={() => setRecordPaymentOpen(true)}
             >
-              {updateMutation.isPending ?
-                <Spinner size={13} />
-              : <Sent02Icon size={13} />}
-              {updateMutation.isPending ? "Saving…" : "Mark as paid"}
+              <Wallet01Icon size={13} />
+              Record payment
             </Button>
           )}
           {status === "draft" && (
@@ -576,7 +670,13 @@ export function InvoiceDetailPage() {
                   Cancel schedule
                 </DropdownMenuItem>
               )}
-              {(status === "unpaid" || status === "overdue") && (
+              {(status === "unpaid" || status === "overdue" || status === "partially_paid") && (
+                <DropdownMenuItem onClick={handleMarkPaid}>
+                  <Sent02Icon size={13} />
+                  Mark as paid
+                </DropdownMenuItem>
+              )}
+              {(status === "unpaid" || status === "overdue" || status === "partially_paid") && (
                 <DropdownMenuItem
                   onClick={() => {
                     toast.promise(
@@ -634,6 +734,37 @@ export function InvoiceDetailPage() {
         </AlertDialogContent>
       </AlertDialog>
 
+      <AlertDialog open={!!paymentToDelete} onOpenChange={(open) => !open && setPaymentToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this payment?</AlertDialogTitle>
+            <AlertDialogDescription>
+              The invoice will return to unpaid/part-paid.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <Button
+              variant='destructive'
+              onClick={() => {
+                if (paymentToDelete) handleDeletePayment(paymentToDelete);
+                setPaymentToDelete(null);
+              }}
+            >
+              Delete
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <RecordPaymentDialog
+        open={recordPaymentOpen}
+        onOpenChange={setRecordPaymentOpen}
+        invoiceId={id!}
+        currency={invoice.currency}
+        balanceDue={invoiceBalance(invoice)}
+      />
+
       {/* Scrollable content */}
       <div className='flex-1 overflow-y-auto bg-muted/30'>
         <div className='mx-auto flex max-w-2xl flex-col gap-0 px-4 py-8'>
@@ -641,6 +772,26 @@ export function InvoiceDetailPage() {
             data={documentData}
             invoiceTemplate={invoice.invoice_template}
           />
+
+          {invoice.amount_paid > 0 &&
+            (isOverpaid || status !== "paid") && (
+              <div className='mt-4 flex items-center justify-between rounded-lg border bg-background px-5 py-3 text-xs'>
+                {isOverpaid ?
+                  <span className='font-medium text-amber-600 dark:text-amber-400'>
+                    Overpaid by {formatCurrency(invoice.amount_paid - (invoice.total ?? 0), invoice.currency)}
+                  </span>
+                : <span>
+                    <span className='font-medium'>
+                      {formatCurrency(invoice.amount_paid, invoice.currency)}
+                    </span>{" "}
+                    <span className='text-muted-foreground'>
+                      of {formatCurrency(invoice.total ?? 0, invoice.currency)} paid ·{" "}
+                      {formatCurrency(invoiceBalance(invoice), invoice.currency)} due
+                    </span>
+                  </span>
+                }
+              </div>
+            )}
 
           {/* Detail sections */}
           <div className='mt-4 rounded-lg border bg-background divide-y'>
@@ -674,6 +825,35 @@ export function InvoiceDetailPage() {
                 </>
               )}
             </div>
+
+            {showPaymentsSection && (
+              <div className='px-5'>
+                <CollapsibleSection title='Payments'>
+                  {paymentsLoading ?
+                    <div className='flex flex-col gap-2 py-2'>
+                      <div className='h-8 w-full animate-pulse rounded-md bg-muted' />
+                      <div className='h-8 w-full animate-pulse rounded-md bg-muted' />
+                    </div>
+                  : !payments || payments.length === 0 ?
+                    <p className='py-2 text-[11px] text-muted-foreground'>
+                      No payments recorded yet.
+                    </p>
+                  : <div className='flex flex-col divide-y'>
+                      {payments.map((payment) => (
+                        <PaymentRow
+                          key={payment.id}
+                          payment={payment}
+                          recordedByName={recordedByName(payment.recorded_by)}
+                          formatDate={formatDate}
+                          currency={invoice.currency}
+                          onDelete={setPaymentToDelete}
+                        />
+                      ))}
+                    </div>
+                  }
+                </CollapsibleSection>
+              </div>
+            )}
 
             {isRecurring && recurringSeries && (
               <div className='px-5'>

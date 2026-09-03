@@ -120,6 +120,7 @@ export function GenerateStatementSheet({
         total: inv.total,
         currency: inv.currency,
         paid_at: inv.paid_at,
+        amount_paid: inv.amount_paid ?? 0,
       }));
 
       const fromDetails = {

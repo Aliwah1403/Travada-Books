@@ -46,7 +46,7 @@ Deno.serve(async (req) => {
 
     const { data: invoice, error } = await db
       .from("invoices")
-      .select("id, org_id, customer_id, invoice_number, due_date, total, currency, token, from_details, customer_details")
+      .select("id, org_id, customer_id, invoice_number, due_date, total, amount_paid, currency, token, from_details, customer_details")
       .eq("id", invoiceId)
       .single()
 
@@ -112,6 +112,7 @@ Deno.serve(async (req) => {
         invoiceNumber: invoice.invoice_number,
         dueDate: invoice.due_date,
         total: invoice.total,
+        amountPaid: invoice.amount_paid,
         currency: invoice.currency,
         daysOverdue,
         publicUrl,

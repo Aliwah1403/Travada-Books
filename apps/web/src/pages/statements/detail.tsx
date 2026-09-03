@@ -21,6 +21,7 @@ import {
 import { cn } from "@travada-books/ui/lib/utils";
 import {
   getStatement,
+  statementPaidAmount,
   type StatementInvoiceRow,
 } from "@/lib/queries/statements";
 import { useAuth } from "@/contexts/auth-context";
@@ -47,7 +48,10 @@ type LedgerEvent = {
   credit: number;
 };
 
-function buildLedger(snapshot: StatementInvoiceRow[]): LedgerEntry[] {
+function buildLedger(
+  snapshot: StatementInvoiceRow[],
+  dateTo: string,
+): LedgerEntry[] {
   const events: LedgerEvent[] = [];
 
   for (const inv of snapshot) {
@@ -59,13 +63,21 @@ function buildLedger(snapshot: StatementInvoiceRow[]): LedgerEntry[] {
       debit: inv.total,
       credit: 0,
     });
-    if (inv.paid_at) {
+    // Credit what was actually received, not the invoice total — otherwise a
+    // part-paid invoice contributes a full debit and no credit, and the
+    // customer is shown the whole amount as still outstanding.
+    const paid = statementPaidAmount(inv);
+    if (paid > 0) {
+      // A partially paid invoice has no paid_at (the sync trigger only sets it
+      // on full payment) and the snapshot holds no per-payment dates, so date
+      // the credit at the statement's closing date rather than invent one.
+      const settled = inv.paid_at && paid >= inv.total;
       events.push({
-        date: inv.paid_at,
-        description: "Payment received",
+        date: settled ? inv.paid_at! : dateTo,
+        description: settled ? "Payment received" : "Payments received to date",
         invoiceNumber: inv.invoice_number ?? undefined,
         debit: 0,
-        credit: inv.total,
+        credit: paid,
       });
     }
   }
@@ -156,7 +168,7 @@ export function StatementDetailPage() {
       const customer = (statement.customer_details ?? {}) as Record<string, string | null>;
       const snap = statement.snapshot_data ?? [];
       const cur = snap[0]?.currency ?? "KES";
-      const ledger = buildLedger(snap);
+      const ledger = buildLedger(snap, statement.date_to);
       await downloadPdf(
         <StatementPdf
           data={{
@@ -207,7 +219,7 @@ export function StatementDetailPage() {
   > | null;
   const snapshot = statement.snapshot_data ?? [];
   const currency = snapshot[0]?.currency ?? "KES";
-  const entries = buildLedger(snapshot);
+  const entries = buildLedger(snapshot, statement.date_to);
   const totalDebits = entries.reduce((s, e) => s + e.debit, 0);
   const totalCredits = entries.reduce((s, e) => s + e.credit, 0);
   const closingBalance = totalDebits - totalCredits;

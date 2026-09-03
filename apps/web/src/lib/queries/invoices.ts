@@ -26,6 +26,7 @@ export type Invoice = {
   tax_amount: number | null
   discount: number | null
   total: number | null
+  amount_paid: number
   customer_details: Record<string, unknown> | null
   from_details: Record<string, unknown> | null
   note: string | null
@@ -107,12 +108,67 @@ export type CustomerInvoiceSummary = {
   outstanding: number
 }
 
+// Statuses that represent an invoice the customer has actually received.
+// draft/scheduled have never been sent, canceled was withdrawn — none of them
+// are money billed, so they stay out of every monetary figure below.
+const ISSUED_STATUSES = new Set(["unpaid", "partially_paid", "overdue", "paid"])
+
+// Statuses that still owe money.
+const OWING_STATUSES = new Set(["unpaid", "partially_paid", "overdue"])
+
+type SummarisableInvoice = {
+  status: string
+  total: number | null
+  amount_paid: number | null
+  converted_amount: number | null
+}
+
+// Reporting happens in the org's base currency, where `converted_amount` is the
+// invoice total. There is no converted twin for `amount_paid`, so apportion it
+// by the same ratio — matching how sync_payment_transaction() derives a
+// payment's base_amount, so the two never disagree.
+function inBaseCurrency(inv: SummarisableInvoice) {
+  const total = inv.total ?? 0
+  const invoiced = inv.converted_amount ?? total
+  const rate = inv.converted_amount != null && total > 0 ? inv.converted_amount / total : 1
+  const paid = (inv.amount_paid ?? 0) * rate
+  return { invoiced, paid }
+}
+
+// Single source of truth for both the customers list and the customer detail
+// page — they previously computed this separately and drifted apart.
+export function summariseCustomerInvoices(
+  invoices: SummarisableInvoice[]
+): CustomerInvoiceSummary {
+  let totalInvoiced = 0
+  let totalPaid = 0
+  let outstanding = 0
+
+  for (const inv of invoices) {
+    if (!ISSUED_STATUSES.has(inv.status)) continue
+    const { invoiced, paid } = inBaseCurrency(inv)
+    totalInvoiced += invoiced
+    // Money actually received. A `partially_paid` invoice contributes its
+    // part payment here rather than nothing, which is what the old
+    // `status === "paid"` test did.
+    totalPaid += paid
+    // Remaining balance, not the full total — and `partially_paid` counts,
+    // which the old unpaid/overdue test missed entirely, so a part-paid
+    // customer showed zero outstanding.
+    if (OWING_STATUSES.has(inv.status)) outstanding += invoiced - paid
+  }
+
+  // invoiceCount deliberately counts every invoice, including drafts, so it
+  // reconciles with the invoice history table rendered beneath these figures.
+  return { invoiceCount: invoices.length, totalInvoiced, totalPaid, outstanding }
+}
+
 const INVOICE_SELECT =
-  "id, created_at, updated_at, org_id, user_id, customer_id, customer_name, token, invoice_number, status, issue_date, due_date, currency, line_items, subtotal, tax_amount, discount, total, customer_details, from_details, note, internal_note, payment_details, recurring, delivery_type, scheduled_at, send_template_id, sent_at, paid_at, viewed_at, quote_id, accept_payments, invoice_template, invoice_recurring_id, recurring_sequence, exchange_rate, converted_amount, base_currency, quotes(quote_number), invoice_recurring(id, status, frequency, next_scheduled_at, end_type, end_after_count, current_count), customers(logo_url)"
+  "id, created_at, updated_at, org_id, user_id, customer_id, customer_name, token, invoice_number, status, issue_date, due_date, currency, line_items, subtotal, tax_amount, discount, total, amount_paid, customer_details, from_details, note, internal_note, payment_details, recurring, delivery_type, scheduled_at, send_template_id, sent_at, paid_at, viewed_at, quote_id, accept_payments, invoice_template, invoice_recurring_id, recurring_sequence, exchange_rate, converted_amount, base_currency, quotes(quote_number), invoice_recurring(id, status, frequency, next_scheduled_at, end_type, end_after_count, current_count), customers(logo_url)"
 
 // Excludes owner identifiers and private fields for unauthenticated token lookups
 const INVOICE_PUBLIC_SELECT =
-  "id, token, invoice_number, status, issue_date, due_date, currency, line_items, subtotal, tax_amount, discount, total, customer_details, from_details, note, payment_details, customer_name, accept_payments"
+  "id, token, invoice_number, status, issue_date, due_date, currency, line_items, subtotal, tax_amount, discount, total, amount_paid, customer_details, from_details, note, payment_details, customer_name, accept_payments"
 
 export type PublicInvoice = {
   id: string
@@ -127,12 +183,21 @@ export type PublicInvoice = {
   tax_amount: number | null
   discount: number | null
   total: number | null
+  amount_paid: number
   customer_details: Record<string, unknown> | null
   from_details: Record<string, unknown> | null
   note: string | null
   payment_details: string | null
   customer_name: string
   accept_payments: boolean
+}
+
+// total is nullable (drafts may not have a computed total yet); amount_paid
+// is always present (defaults to 0 in the DB). Never reads amount_paid off
+// a stale client write — it is derived exclusively by the invoice_payments
+// sync trigger.
+export function invoiceBalance(inv: { total: number | null; amount_paid: number }): number {
+  return (inv.total ?? 0) - (inv.amount_paid ?? 0)
 }
 
 export type InvoiceFilters = {
@@ -251,23 +316,27 @@ export type CustomerSummaryMap = Record<string, CustomerInvoiceSummary & { lastI
 export async function listAllCustomerInvoiceSummaries(orgId: string): Promise<CustomerSummaryMap> {
   const { data, error } = await supabase
     .from("invoices")
-    .select("customer_id, status, total, converted_amount, created_at")
+    .select("customer_id, status, total, amount_paid, converted_amount, created_at")
     .eq("org_id", orgId)
 
   if (error) throw error
 
-  const map: CustomerSummaryMap = {}
+  // Group first, then summarise per customer through the shared helper so the
+  // list page and the detail page cannot disagree.
+  const grouped: Record<string, { rows: typeof data; lastInvoiceAt: string | null }> = {}
   for (const inv of data ?? []) {
     const id = inv.customer_id
     if (!id) continue
-    if (!map[id]) map[id] = { invoiceCount: 0, totalInvoiced: 0, totalPaid: 0, outstanding: 0, lastInvoiceAt: null }
-    const entry = map[id]
-    const amount = inv.converted_amount ?? inv.total ?? 0
-    entry.invoiceCount++
-    entry.totalInvoiced += amount
-    if (inv.status === "paid") entry.totalPaid += amount
-    if (inv.status === "unpaid" || inv.status === "overdue") entry.outstanding += amount
-    if (!entry.lastInvoiceAt || inv.created_at > entry.lastInvoiceAt) entry.lastInvoiceAt = inv.created_at
+    if (!grouped[id]) grouped[id] = { rows: [], lastInvoiceAt: null }
+    grouped[id].rows.push(inv)
+    if (!grouped[id].lastInvoiceAt || inv.created_at > grouped[id].lastInvoiceAt!) {
+      grouped[id].lastInvoiceAt = inv.created_at
+    }
+  }
+
+  const map: CustomerSummaryMap = {}
+  for (const [id, { rows, lastInvoiceAt }] of Object.entries(grouped)) {
+    map[id] = { ...summariseCustomerInvoices(rows), lastInvoiceAt }
   }
   return map
 }
@@ -275,37 +344,27 @@ export async function listAllCustomerInvoiceSummaries(orgId: string): Promise<Cu
 export async function getCustomerInvoiceSummary(customerId: string, orgId: string): Promise<CustomerInvoiceSummary> {
   const { data, error } = await supabase
     .from("invoices")
-    .select("status, total, converted_amount")
+    .select("status, total, amount_paid, converted_amount")
     .eq("customer_id", customerId)
     .eq("org_id", orgId)
 
   if (error) throw error
 
-  const invoices = data ?? []
-  const amount = (inv: { total: number | null; converted_amount: number | null }) =>
-    inv.converted_amount ?? inv.total ?? 0
-  const totalInvoiced = invoices.reduce((sum, inv) => sum + amount(inv), 0)
-  const totalPaid = invoices
-    .filter((inv) => inv.status === "paid")
-    .reduce((sum, inv) => sum + amount(inv), 0)
-  const outstanding = invoices
-    .filter((inv) => inv.status === "unpaid" || inv.status === "overdue")
-    .reduce((sum, inv) => sum + amount(inv), 0)
-
-  return {
-    invoiceCount: invoices.length,
-    totalInvoiced,
-    totalPaid,
-    outstanding,
-  }
+  return summariseCustomerInvoices(data ?? [])
 }
+
+// The bucket encodes the status + balance rules server-side. Passing a status
+// list is no longer possible: once an invoice can be `partially_paid`, a card
+// has to reason about both status and due date, and "how much" differs per
+// bucket (outstanding balance for open/overdue, money received for paid).
+export type InvoiceSummaryBucket = "open" | "overdue" | "paid"
 
 export async function getInvoiceSummary(
   orgId: string,
-  statuses: string[]
+  bucket: InvoiceSummaryBucket
 ): Promise<{ total_amount: number; invoice_count: number; currency: string }> {
   const { data, error } = await supabase
-    .rpc("get_invoice_summary", { p_org_id: orgId, p_statuses: statuses })
+    .rpc("get_invoice_summary", { p_org_id: orgId, p_bucket: bucket })
     .single()
   if (error) throw error
   return data as { total_amount: number; invoice_count: number; currency: string }

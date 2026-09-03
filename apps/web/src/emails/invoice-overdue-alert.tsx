@@ -7,6 +7,11 @@ interface Props {
   invoiceNumber: string | null;
   customerName: string;
   total: number | null;
+  /** Amount already paid toward this invoice. Optional — when omitted (or 0),
+   * behaviour is unchanged and the total is shown as the amount due. When
+   * present and > 0, the balance due (total - amountPaid) becomes the
+   * headline figure instead of the total. */
+  amountPaid?: number | null;
   currency: string;
   viewUrl: string;
 }
@@ -16,12 +21,16 @@ export default function InvoiceOverdueAlertEmail({
   invoiceNumber = "INV-0003",
   customerName = "Callfast Services LTD",
   total = 65000,
+  amountPaid = null,
   currency = "KES",
   viewUrl = "https://books.travadasys.com/invoices/demo",
 }: Partial<Props>) {
   const font =
     "ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
   const label = invoiceNumber ? `Invoice ${invoiceNumber}` : "Invoice";
+  const balanceDue = total != null && amountPaid != null ? total - amountPaid : null;
+  const hasPartialPayment = amountPaid != null && amountPaid > 0 && balanceDue != null;
+  const displayAmount = hasPartialPayment ? balanceDue : total;
 
   return (
     <EmailLayout
@@ -58,8 +67,23 @@ export default function InvoiceOverdueAlertEmail({
           letterSpacing: "-0.02em",
         }}
       >
-        {formatMoney(total, currency)}
+        {formatMoney(displayAmount, currency)}
       </Text>
+
+      {/* Partial payment context */}
+      {hasPartialPayment && (
+        <Text
+          style={{
+            margin: "0 0 8px",
+            fontSize: 13,
+            color: colors.muted,
+            textAlign: "center",
+            fontFamily: font,
+          }}
+        >
+          {formatMoney(balanceDue, currency)} remaining of {formatMoney(total, currency)}
+        </Text>
+      )}
 
       {/* Meta */}
       <Text

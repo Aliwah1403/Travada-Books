@@ -17,6 +17,11 @@ interface Props {
   invoiceNumber: string | null;
   dueDate: string | null;
   total: number | null;
+  /** Amount already paid toward this invoice. Optional — when omitted (or 0),
+   * behaviour is unchanged and the total is shown as the amount due. When
+   * present and > 0, the balance due (total - amountPaid) becomes the
+   * headline figure instead of the total. */
+  amountPaid?: number | null;
   currency: string;
   publicUrl: string;
 }
@@ -29,12 +34,16 @@ export default function InvoiceReminderEmail({
   invoiceNumber = "INV-0008",
   dueDate = "2025-04-15",
   total = 65000,
+  amountPaid = null,
   currency = "KES",
   publicUrl = "https://books.travadasys.com/i/demo",
 }: Partial<Props>) {
   const font =
     "ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
   const label = invoiceNumber ? `Invoice ${invoiceNumber}` : "Invoice";
+  const balanceDue = total != null && amountPaid != null ? total - amountPaid : null;
+  const hasPartialPayment = amountPaid != null && amountPaid > 0 && balanceDue != null;
+  const displayAmount = hasPartialPayment ? balanceDue : total;
 
   return (
     <EmailLayout
@@ -69,8 +78,23 @@ export default function InvoiceReminderEmail({
           letterSpacing: "-0.02em",
         }}
       >
-        {formatMoney(total, currency)}
+        {formatMoney(displayAmount, currency)}
       </Text>
+
+      {/* Partial payment context */}
+      {hasPartialPayment && (
+        <Text
+          style={{
+            margin: "0 0 4px",
+            fontSize: 13,
+            color: colors.muted,
+            textAlign: "center",
+            fontFamily: font,
+          }}
+        >
+          {formatMoney(balanceDue, currency)} remaining of {formatMoney(total, currency)}
+        </Text>
+      )}
 
       {/* Meta */}
       <Text
@@ -124,7 +148,7 @@ export default function InvoiceReminderEmail({
         }}
       >
         This is a friendly reminder that {label} for{" "}
-        <strong style={{ color: colors.dark }}>{formatMoney(total, currency)}</strong>{" "}
+        <strong style={{ color: colors.dark }}>{formatMoney(displayAmount, currency)}</strong>{" "}
         is due on {formatDate(dueDate)}. Please arrange payment at your earliest convenience.
       </Text>
       <Text

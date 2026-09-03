@@ -60,14 +60,31 @@ export const invoiceColumns: ColumnDef<Invoice>[] = [
     header: "Amount",
     enableSorting: true,
     enableHiding: false,
-    cell: ({ row }) => (
-      <span className='text-xs font-medium'>
-        {row.original.currency}{" "}
-        {row.original.amount.toLocaleString("en-KE", {
-          minimumFractionDigits: 2,
-        })}
-      </span>
-    ),
+    cell: ({ row }) => {
+      const { currency, amount, amountPaid, status } = row.original;
+      const fmt = (n: number) =>
+        n.toLocaleString("en-KE", { minimumFractionDigits: 2 });
+
+      if (status === "partially_paid") {
+        const balanceDue = amount - amountPaid;
+        return (
+          <div className='flex flex-col'>
+            <span className='text-xs font-medium'>
+              {currency} {fmt(balanceDue)}
+            </span>
+            <span className='text-[11px] text-muted-foreground'>
+              of {fmt(amount)} due
+            </span>
+          </div>
+        );
+      }
+
+      return (
+        <span className='text-xs font-medium'>
+          {currency} {fmt(amount)}
+        </span>
+      );
+    },
   },
   {
     accessorKey: "issueDate",
@@ -153,6 +170,9 @@ export const invoiceColumns: ColumnDef<Invoice>[] = [
         invoiceNumber={row.original.number}
         seriesId={row.original.seriesId}
         seriesStatus={row.original.seriesStatus}
+        currency={row.original.currency}
+        total={row.original.amount}
+        amountPaid={row.original.amountPaid}
       />
     ),
   },

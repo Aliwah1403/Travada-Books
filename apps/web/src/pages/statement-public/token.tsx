@@ -10,6 +10,7 @@ import { cn } from "@travada-books/ui/lib/utils";
 import { useTheme } from "@/components/theme-provider";
 import {
   getStatementByToken,
+  statementPaidAmount,
   type StatementInvoiceRow,
 } from "@/lib/queries/statements";
 import { StatementPdf } from "@/components/statement-templates/default/pdf";
@@ -28,7 +29,7 @@ type LedgerEntry = {
   currency: string;
 };
 
-function buildLedger(invoices: StatementInvoiceRow[]): {
+function buildLedger(invoices: StatementInvoiceRow[], dateTo: string): {
   entries: LedgerEntry[];
   currency: string;
 } {
@@ -45,13 +46,20 @@ function buildLedger(invoices: StatementInvoiceRow[]): {
       credit: 0,
       currency,
     });
-    if (inv.status === "paid" && inv.paid_at) {
+    // Credit what was actually received, not the invoice total — a part-paid
+    // invoice would otherwise show its full amount as still outstanding.
+    const paid = statementPaidAmount(inv);
+    if (paid > 0) {
+      // Partially paid invoices have no paid_at (set only on full payment) and
+      // the snapshot carries no per-payment dates, so the credit is dated at
+      // the statement's closing date instead of a fabricated one.
+      const settled = Boolean(inv.paid_at) && paid >= (inv.total ?? 0);
       raw.push({
-        date: inv.paid_at.slice(0, 10),
-        description: "Payment received",
+        date: settled ? inv.paid_at!.slice(0, 10) : dateTo,
+        description: settled ? "Payment received" : "Payments received to date",
         invoiceNumber: inv.invoice_number,
         debit: 0,
-        credit: inv.total ?? 0,
+        credit: paid,
         currency,
       });
     }
@@ -138,7 +146,10 @@ export function PublicStatementPage() {
   const customerName = customer.name ?? "Customer";
   const customerEmail = customer.billing_email ?? customer.email ?? null;
 
-  const { entries, currency } = buildLedger(statement.snapshot_data);
+  const { entries, currency } = buildLedger(
+    statement.snapshot_data,
+    statement.date_to,
+  );
   const totalDebits = entries.reduce((s, e) => s + e.debit, 0);
   const totalCredits = entries.reduce((s, e) => s + e.credit, 0);
   const closingBalance = totalDebits - totalCredits;

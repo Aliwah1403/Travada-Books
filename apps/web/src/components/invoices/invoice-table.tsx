@@ -33,6 +33,7 @@ export type Invoice = {
   customer: string;
   customerLogoUrl: string | null;
   amount: number;
+  amountPaid: number;
   currency: string;
   convertedAmount: number | null;
   baseCurrency: string | null;

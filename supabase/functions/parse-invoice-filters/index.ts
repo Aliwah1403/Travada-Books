@@ -13,7 +13,7 @@ Convert the user's natural language query into structured filter parameters.
 
 Return a JSON object with these optional fields (omit or null any not applicable):
 - name: string | null — customer or company name to search for
-- statuses: string[] | null — array of: "draft", "unpaid", "paid", "overdue", "canceled", "scheduled"
+- statuses: string[] | null — array of: "draft", "unpaid", "partially_paid", "paid", "overdue", "canceled", "scheduled"
 - dateFrom: string | null — issue date start in YYYY-MM-DD format
 - dateTo: string | null — issue date end in YYYY-MM-DD format
 - customers: string[] | null — array of customer names from the available customers list
@@ -25,6 +25,7 @@ Rules:
 - Only set fields explicitly mentioned or clearly implied
 - For relative dates ("last month", "this week", "this year") compute absolute YYYY-MM-DD dates
 - "unpaid", "outstanding", "open" → statuses: ["unpaid"]
+- "partially paid", "part paid", "part-paid", "partial payment", "partially settled" → statuses: ["partially_paid"]
 - "paid", "settled" → statuses: ["paid"]
 - "overdue", "late", "past due" → statuses: ["overdue"]
 - "draft" → statuses: ["draft"]

@@ -22,7 +22,7 @@ Deno.serve(async (req) => {
 
     const { data: invoices, error } = await db
       .from("invoices")
-      .select("id, org_id, invoice_number, due_date, total, currency, customer_details, from_details, customer_id, token")
+      .select("id, org_id, invoice_number, due_date, total, amount_paid, currency, customer_details, from_details, customer_id, token")
       .lte("due_date", todayUtc)
       .in("status", ["unpaid", "overdue"])
       .is("overdue_alert_sent_at", null)
@@ -91,6 +91,7 @@ Deno.serve(async (req) => {
                 invoiceNumber: invoice.invoice_number,
                 customerName: customerName ?? "your customer",
                 total: invoice.total,
+                amountPaid: invoice.amount_paid,
                 currency: invoice.currency,
                 viewUrl,
               })

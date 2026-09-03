@@ -8,9 +8,17 @@ import {
   Alert01Icon,
   Cancel01Icon,
   ClockCheckIcon,
+  PieChartIcon,
 } from "@travada-books/ui/icons";
 
-export type InvoiceStatus = "draft" | "scheduled" | "unpaid" | "paid" | "overdue" | "canceled";
+export type InvoiceStatus =
+  | "draft"
+  | "scheduled"
+  | "unpaid"
+  | "partially_paid"
+  | "paid"
+  | "overdue"
+  | "canceled";
 
 const statusConfig: Record<
   InvoiceStatus,
@@ -32,6 +40,12 @@ const statusConfig: Record<
     icon: Sent02Icon,
     className:
       "bg-blue-100 text-blue-700 hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400",
+  },
+  partially_paid: {
+    label: "Part-paid",
+    icon: PieChartIcon,
+    className:
+      "bg-amber-100 text-amber-700 hover:bg-amber-100 dark:bg-amber-900/30 dark:text-amber-400",
   },
   paid: {
     label: "Paid",
@@ -59,7 +73,7 @@ type InvoiceStatusBadgeProps = {
 export function InvoiceStatusBadge({ status }: InvoiceStatusBadgeProps) {
   const { icon: StatusIcon, label, className } = statusConfig[status];
   return (
-    <Badge className={cn("border-0 font-medium rounded-md", className)}>
+    <Badge className={cn("border-0 font-medium rounded-md transition-colors duration-200", className)}>
       <StatusIcon size={12} />
       {label}
     </Badge>

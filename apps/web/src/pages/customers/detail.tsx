@@ -377,7 +377,7 @@ export function CustomerDetailPage() {
               <div>
                 <p className='text-sm'>Invoices</p>
                 <p className='mt-0.5 text-xs text-muted-foreground'>
-                  Total issued
+                  All invoices
                 </p>
               </div>
             </div>
@@ -750,11 +750,21 @@ export function CustomerDetailPage() {
                 number: inv.invoice_number ?? "—",
                 status: inv.status as Invoice["status"],
                 customer: inv.customer_name,
+                // Always on this customer's own page, so the row avatar falls
+                // back to initials exactly as it did before.
+                customerLogoUrl: null,
                 amount: inv.total ?? 0,
+                // Required by the amount cell: a `partially_paid` row renders
+                // `amount - amountPaid`, which is NaN when this is missing.
+                amountPaid: inv.amount_paid ?? 0,
                 currency: inv.currency,
+                convertedAmount: inv.converted_amount ?? null,
+                baseCurrency: inv.base_currency ?? null,
                 dueDate: inv.due_date ? formatDate(inv.due_date) : null,
                 issueDate: inv.issue_date ? formatDate(inv.issue_date) : null,
-                recurring: inv.recurring,
+                recurring: (inv.recurring === "recurring"
+                  ? "monthly"
+                  : inv.recurring) as Invoice["recurring"],
                 token: inv.token,
               }))}
             />

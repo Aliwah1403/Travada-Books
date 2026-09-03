@@ -20,16 +20,17 @@ import {
 } from "@travada-books/ui/components/alert-dialog";
 import { Button } from "@travada-books/ui/components/button";
 import { type InvoiceStatus } from "@/components/invoices/invoice-status-badge";
+import { RecordPaymentDialog } from "@/components/invoices/record-payment-dialog";
 import {
   getInvoice,
   createInvoice,
   getNextInvoiceNumber,
-  updateInvoice,
   deleteInvoice,
 } from "@/lib/queries/invoices";
+import { createInvoicePayment } from "@/lib/queries/payments";
 import { updateInvoiceRecurringStatus } from "@/lib/queries/invoice-recurring";
 import { useAuth } from "@/contexts/auth-context";
-import { useInvalidateTransactionQueries } from "@/hooks/use-invalidate-transaction-queries";
+import { useInvalidateAfterPaymentChange } from "@/hooks/use-invalidate-payment-queries";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import { trackEvent, LogEvents } from "@/lib/analytics";
@@ -41,6 +42,9 @@ type InvoiceActionsProps = {
   invoiceNumber?: string;
   seriesId?: string;
   seriesStatus?: "active" | "paused" | "completed" | "canceled";
+  currency?: string;
+  total?: number;
+  amountPaid?: number;
 };
 
 export function InvoiceActions({
@@ -50,13 +54,18 @@ export function InvoiceActions({
   invoiceNumber,
   seriesId,
   seriesStatus,
+  currency,
+  total,
+  amountPaid,
 }: InvoiceActionsProps) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { orgId, user } = useAuth();
-  const invalidateTransactionQueries = useInvalidateTransactionQueries();
+  const invalidateAfterPaymentChange = useInvalidateAfterPaymentChange();
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [cancelSeriesOpen, setCancelSeriesOpen] = useState(false);
+  const [recordPaymentOpen, setRecordPaymentOpen] = useState(false);
+  const balanceDue = (total ?? 0) - (amountPaid ?? 0);
 
   async function handleDuplicate() {
     const invoice = await getInvoice(invoiceId);
@@ -90,27 +99,19 @@ export function InvoiceActions({
     queryClient.invalidateQueries({ queryKey: ["invoices", orgId] });
   }
 
-  // Marking paid also invalidates the transaction/metric queries (the
-  // invoice-paid DB trigger writes a row into `transactions`) plus the
-  // customer-invoice queries, which read invoice totals per-customer. A
-  // draft edit or delete doesn't move any of these, so this is only called
-  // from the mark-as-paid path, not from the shared `invalidate()` above.
-  function invalidateAfterMarkPaid() {
-    invalidateTransactionQueries();
-    queryClient.invalidateQueries({ queryKey: ["customer-invoices"] });
-    queryClient.invalidateQueries({ queryKey: ["customer-invoice-summaries", orgId] });
-    queryClient.invalidateQueries({ queryKey: ["customer-invoice-summary"] });
-  }
-
   function invalidateSeries() {
-    queryClient.invalidateQueries({ queryKey: ["invoice-recurring", seriesId] });
+    queryClient.invalidateQueries({
+      queryKey: ["invoice-recurring", seriesId],
+    });
   }
 
   if (seriesId) {
     return (
       <>
         <DropdownMenu>
-          <DropdownMenuTrigger render={<Button variant='ghost' size='icon-sm' />}>
+          <DropdownMenuTrigger
+            render={<Button variant='ghost' size='icon-sm' />}
+          >
             <MoreHorizontalIcon size={14} />
           </DropdownMenuTrigger>
           <DropdownMenuContent align='end'>
@@ -118,8 +119,16 @@ export function InvoiceActions({
               <DropdownMenuItem
                 onClick={() => {
                   toast.promise(
-                    updateInvoiceRecurringStatus(seriesId, orgId!, "paused").then(invalidateSeries),
-                    { loading: "Pausing series…", success: "Series paused", error: "Failed to pause" },
+                    updateInvoiceRecurringStatus(
+                      seriesId,
+                      orgId!,
+                      "paused",
+                    ).then(invalidateSeries),
+                    {
+                      loading: "Pausing series…",
+                      success: "Series paused",
+                      error: "Failed to pause",
+                    },
                   );
                 }}
               >
@@ -130,8 +139,16 @@ export function InvoiceActions({
               <DropdownMenuItem
                 onClick={() => {
                   toast.promise(
-                    updateInvoiceRecurringStatus(seriesId, orgId!, "active").then(invalidateSeries),
-                    { loading: "Resuming series…", success: "Series resumed", error: "Failed to resume" },
+                    updateInvoiceRecurringStatus(
+                      seriesId,
+                      orgId!,
+                      "active",
+                    ).then(invalidateSeries),
+                    {
+                      loading: "Resuming series…",
+                      success: "Series resumed",
+                      error: "Failed to resume",
+                    },
                   );
                 }}
               >
@@ -153,7 +170,8 @@ export function InvoiceActions({
             <AlertDialogHeader>
               <AlertDialogTitle>Cancel recurring series?</AlertDialogTitle>
               <AlertDialogDescription>
-                No more invoices will be generated from this series. Invoices already sent are not affected.
+                No more invoices will be generated from this series. Invoices
+                already sent are not affected.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
@@ -163,8 +181,16 @@ export function InvoiceActions({
                 onClick={() => {
                   setCancelSeriesOpen(false);
                   toast.promise(
-                    updateInvoiceRecurringStatus(seriesId, orgId!, "canceled").then(invalidateSeries),
-                    { loading: "Canceling series…", success: "Series canceled", error: "Failed to cancel" },
+                    updateInvoiceRecurringStatus(
+                      seriesId,
+                      orgId!,
+                      "canceled",
+                    ).then(invalidateSeries),
+                    {
+                      loading: "Canceling series…",
+                      success: "Series canceled",
+                      error: "Failed to cancel",
+                    },
                   );
                 }}
               >
@@ -183,7 +209,7 @@ export function InvoiceActions({
         <DropdownMenuTrigger render={<Button variant='ghost' size='icon-sm' />}>
           <MoreHorizontalIcon size={14} />
         </DropdownMenuTrigger>
-        <DropdownMenuContent align='end'>
+        <DropdownMenuContent align='end' className='w-full'>
           <DropdownMenuItem onClick={() => navigate(`/invoices/${invoiceId}`)}>
             View
           </DropdownMenuItem>
@@ -194,42 +220,67 @@ export function InvoiceActions({
               Edit
             </DropdownMenuItem>
           )}
-          {status !== "paid" && status !== "canceled" && status !== "scheduled" && (
-            <DropdownMenuItem
-              onClick={() => {
-                toast.promise(
-                  updateInvoice(invoiceId, orgId!, {
-                    status: "paid",
-                    paid_at: new Date().toISOString(),
-                  }).then(() => {
-                    trackEvent(LogEvents.InvoicePaid, { invoice_number: invoiceNumber });
-                    invalidate();
-                    invalidateAfterMarkPaid();
-                    supabase.functions
-                      .invoke("notify-invoice-paid", { body: { invoiceId } })
-                      .then((res) => {
-                        if (res.error) {
-                          console.error("notify-invoice-paid failed:", res.error);
-                          toast.warning("Invoice marked as paid, but the notification email failed to send.");
-                        }
-                      })
-                      .catch((err) => {
-                        console.error("notify-invoice-paid failed:", err);
-                        toast.warning("Invoice marked as paid, but the notification email failed to send.");
-                      });
-                  }),
-                  {
-                    loading: "Marking as paid…",
-                    success: "Invoice marked as paid",
-                    error: "Failed to mark as paid",
-                  },
-                );
-              }}
-            >
-              Mark as paid
-            </DropdownMenuItem>
-          )}
-          {(status === "unpaid" || status === "overdue") && (
+          {status !== "paid" &&
+            status !== "canceled" &&
+            status !== "scheduled" && (
+              <>
+                <DropdownMenuItem onClick={() => setRecordPaymentOpen(true)}>
+                  Record payment…
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => {
+                    toast.promise(
+                      createInvoicePayment({
+                        org_id: orgId!,
+                        invoice_id: invoiceId,
+                        recorded_by: user?.id ?? null,
+                        amount: balanceDue,
+                        currency: currency ?? "",
+                        paid_at: new Date().toISOString(),
+                        method: "other",
+                      }).then(() => {
+                        trackEvent(LogEvents.InvoicePaid, {
+                          invoice_number: invoiceNumber,
+                        });
+                        invalidate();
+                        invalidateAfterPaymentChange(invoiceId);
+                        supabase.functions
+                          .invoke("notify-invoice-paid", {
+                            body: { invoiceId },
+                          })
+                          .then((res) => {
+                            if (res.error) {
+                              console.error(
+                                "notify-invoice-paid failed:",
+                                res.error,
+                              );
+                              toast.warning(
+                                "Invoice marked as paid, but the notification email failed to send.",
+                              );
+                            }
+                          })
+                          .catch((err) => {
+                            console.error("notify-invoice-paid failed:", err);
+                            toast.warning(
+                              "Invoice marked as paid, but the notification email failed to send.",
+                            );
+                          });
+                      }),
+                      {
+                        loading: "Marking as paid…",
+                        success: "Invoice marked as paid",
+                        error: "Failed to mark as paid",
+                      },
+                    );
+                  }}
+                >
+                  Mark as paid
+                </DropdownMenuItem>
+              </>
+            )}
+          {(status === "unpaid" ||
+            status === "overdue" ||
+            status === "partially_paid") && (
             <DropdownMenuItem
               onClick={() => {
                 toast.promise(
@@ -319,6 +370,21 @@ export function InvoiceActions({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <RecordPaymentDialog
+        open={recordPaymentOpen}
+        onOpenChange={setRecordPaymentOpen}
+        invoiceId={invoiceId}
+        currency={currency ?? ""}
+        balanceDue={balanceDue}
+        onRecorded={(paidInFull) => {
+          if (paidInFull)
+            trackEvent(LogEvents.InvoicePaid, {
+              invoice_number: invoiceNumber,
+            });
+          invalidate();
+        }}
+      />
     </>
   );
 }

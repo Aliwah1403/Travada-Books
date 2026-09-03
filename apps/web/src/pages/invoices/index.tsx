@@ -176,6 +176,7 @@ function toTableInvoice(inv: DbInvoice, formatDate: (v: string | null | undefine
     customer: inv.customer_name,
     customerLogoUrl: inv.customers?.logo_url ?? null,
     amount: inv.total ?? 0,
+    amountPaid: inv.amount_paid ?? 0,
     currency: inv.currency,
     convertedAmount: inv.converted_amount ?? null,
     baseCurrency: inv.base_currency ?? null,
@@ -303,24 +304,27 @@ export function InvoicesPage() {
 
   const { data: openSummary } = useQuery({
     queryKey: ["invoice-summary", orgId, "open"],
-    queryFn: () => getInvoiceSummary(orgId!, ["draft", "unpaid"]),
+    queryFn: () => getInvoiceSummary(orgId!, "open"),
     enabled: !!orgId,
   });
   const { data: overdueSummary } = useQuery({
     queryKey: ["invoice-summary", orgId, "overdue"],
-    queryFn: () => getInvoiceSummary(orgId!, ["overdue"]),
+    queryFn: () => getInvoiceSummary(orgId!, "overdue"),
     enabled: !!orgId,
   });
   const { data: paidSummary } = useQuery({
     queryKey: ["invoice-summary", orgId, "paid"],
-    queryFn: () => getInvoiceSummary(orgId!, ["paid"]),
+    queryFn: () => getInvoiceSummary(orgId!, "paid"),
     enabled: !!orgId,
   });
 
   const stats = {
+    // "Open"/"Overdue" are outstanding balances; "Collected" is money actually
+    // received (it now counts partial payments against invoices that are not
+    // yet fully paid, so calling it "Paid" would overstate what has settled).
     open: fmtSummary(openSummary, "Open", orgCurrency),
     overdue: fmtSummary(overdueSummary, "Overdue", orgCurrency),
-    paid: fmtSummary(paidSummary, "Paid", orgCurrency),
+    paid: fmtSummary(paidSummary, "Collected", orgCurrency),
   };
 
   const invoices = useMemo(

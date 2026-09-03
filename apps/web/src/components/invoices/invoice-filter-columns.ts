@@ -22,6 +22,7 @@ const dtf = createColumnConfigHelper<InvoiceRow>();
 const STATUS_OPTIONS = [
   { value: "draft", label: "Draft" },
   { value: "unpaid", label: "Unpaid" },
+  { value: "partially_paid", label: "Part-paid" },
   { value: "overdue", label: "Overdue" },
   { value: "paid", label: "Paid" },
   { value: "canceled", label: "Canceled" },

@@ -69,8 +69,8 @@ export const invoiceReminders = schedules.task({
 
       const { data: invoices, error: invoiceError } = await supabase
         .from("invoices")
-        .select("id, org_id, customer_id, invoice_number, due_date, total, currency, token, from_details, customer_details")
-        .eq("status", "overdue")
+        .select("id, org_id, customer_id, invoice_number, due_date, total, amount_paid, currency, token, from_details, customer_details")
+        .in("status", ["overdue", "partially_paid"])
         .eq("org_id", orgId)
         .gte("due_date", earliestDateStr)
         .lte("due_date", targetDateStr)
@@ -87,6 +87,15 @@ export const invoiceReminders = schedules.task({
 
       for (const invoice of invoices ?? []) {
         try {
+          // Explicit guard even though both statuses above imply balance > 0
+          // today — once gateway payments (Phase 2) can pay an invoice down
+          // to zero without a status transition landing yet, this keeps a
+          // fully-paid invoice from ever being chased.
+          const balanceDue = (invoice.total ?? 0) - (invoice.amount_paid ?? 0);
+          if (balanceDue <= 0) {
+            continue;
+          }
+
           // Atomically claim this invoice before sending. The .is() condition
           // means only one concurrent worker wins; 0 rows back = already claimed.
           const { data: stamped, error: stampError } = await supabase
@@ -167,6 +176,7 @@ export const invoiceReminders = schedules.task({
               invoiceNumber: invoice.invoice_number,
               dueDate: invoice.due_date,
               total: invoice.total,
+              amountPaid: invoice.amount_paid,
               currency: invoice.currency,
               publicUrl,
             })
