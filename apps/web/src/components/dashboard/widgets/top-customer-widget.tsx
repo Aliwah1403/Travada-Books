@@ -1,9 +1,14 @@
 import { useQuery } from "@tanstack/react-query"
+import NumberFlow from "@number-flow/react"
 import { UserStar01Icon } from "@travada-books/ui/icons"
-import { WidgetCard, WidgetSkeleton, WidgetError } from "@/components/dashboard/widget-card"
+import {
+  WidgetCard,
+  WidgetError,
+  WidgetHeadlineSkeleton,
+  WidgetLineSkeleton,
+} from "@/components/dashboard/widget-card"
 import { EmptyState } from "@/components/shared/empty-state"
 import { getTopCustomer } from "@/lib/queries/metrics"
-import { formatCurrency } from "@/lib/format"
 
 const STALE_TIME = 2 * 60 * 1000
 
@@ -32,7 +37,16 @@ export function TopCustomerWidget({
     staleTime: STALE_TIME,
   })
 
-  if (isLoading) return <WidgetSkeleton />
+  if (isLoading) {
+    return (
+      <WidgetCard title="Top Customer" icon={UserStar01Icon}>
+        <div className="flex flex-col gap-1">
+          <WidgetHeadlineSkeleton />
+          <WidgetLineSkeleton />
+        </div>
+      </WidgetCard>
+    )
+  }
   if (isError) return <WidgetError title="Top Customer" icon={UserStar01Icon} onRetry={() => refetch()} />
 
   if (!data) {
@@ -50,7 +64,12 @@ export function TopCustomerWidget({
       <div className="flex flex-col gap-1">
         <p className="truncate text-xl font-semibold tracking-tight">{data.customer_name ?? "Unnamed customer"}</p>
         <p className="text-xs text-muted-foreground">
-          {formatCurrency(data.revenue * fxRate, displayCurrency)} · {sharePercent}% of revenue
+          <NumberFlow
+            value={data.revenue * fxRate}
+            format={{ style: "currency", currency: displayCurrency }}
+            locales="en-US"
+          />{" "}
+          · {sharePercent}% of revenue
         </p>
       </div>
     </WidgetCard>

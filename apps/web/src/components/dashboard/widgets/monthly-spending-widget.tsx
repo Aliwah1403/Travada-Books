@@ -1,12 +1,19 @@
 import { useMemo } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { parseISO } from "date-fns"
+import NumberFlow from "@number-flow/react"
 import { ReceiptTextIcon, ArrowUpRight01Icon, ArrowDownRight01Icon } from "@travada-books/ui/icons"
-import { WidgetCard, WidgetSkeleton, WidgetError } from "@/components/dashboard/widget-card"
+import {
+  WidgetCard,
+  WidgetError,
+  WidgetHeadlineSkeleton,
+  WidgetLineSkeleton,
+  WidgetChartSkeleton,
+} from "@/components/dashboard/widget-card"
 import { BarChart } from "@/components/charts/bar-chart"
 import { Bar } from "@/components/charts/bar"
 import { getCashFlow } from "@/lib/queries/metrics"
-import { formatCurrency } from "@/lib/format"
+import { resolvePreviousPeriod } from "@/lib/metrics-range"
 
 const SPARKLINE_MARGIN = { top: 2, right: 2, bottom: 2, left: 2 }
 
@@ -39,7 +46,20 @@ export function MonthlySpendingWidget({
     staleTime: STALE_TIME,
   })
 
+  const { from: prevFrom, to: prevTo } = resolvePreviousPeriod(from, to)
+  const {
+    data: prevData,
+    isLoading: isPrevLoading,
+    isError: isPrevError,
+    refetch: refetchPrev,
+  } = useQuery({
+    queryKey: ["metric", orgId, "get_cash_flow", prevFrom, prevTo],
+    queryFn: () => getCashFlow(orgId, prevFrom, prevTo),
+    staleTime: STALE_TIME,
+  })
+
   const months = data ?? []
+  const prevMonths = prevData ?? []
 
   // Hooks must run before any early return (see revenue-widget for the full note).
   const sparklineData = useMemo(
@@ -47,14 +67,32 @@ export function MonthlySpendingWidget({
     [months, fxRate],
   )
 
-  if (isLoading) return <WidgetSkeleton />
-  if (isError) return <WidgetError title="Monthly Spending" icon={ReceiptTextIcon} onRetry={() => refetch()} />
+  if (isLoading || isPrevLoading) {
+    return (
+      <WidgetCard title="Monthly Spending" icon={ReceiptTextIcon}>
+        <div className="flex flex-col gap-1">
+          <WidgetHeadlineSkeleton />
+          <WidgetLineSkeleton />
+          <WidgetChartSkeleton className="mt-2" />
+        </div>
+      </WidgetCard>
+    )
+  }
+  if (isError || isPrevError)
+    return (
+      <WidgetError
+        title="Monthly Spending"
+        icon={ReceiptTextIcon}
+        onRetry={() => {
+          refetch()
+          refetchPrev()
+        }}
+      />
+    )
 
-  const thisMonth = months.at(-1)
-  const lastMonth = months.at(-2)
-  const thisExpense = (thisMonth?.expense ?? 0) * fxRate
-  const lastExpense = (lastMonth?.expense ?? 0) * fxRate
-  const delta = thisExpense - lastExpense
+  const thisExpense = months.reduce((sum, m) => sum + m.expense, 0) * fxRate
+  const prevExpense = prevMonths.reduce((sum, m) => sum + m.expense, 0) * fxRate
+  const delta = thisExpense - prevExpense
   // Spending going up is bad — invert the polarity vs a revenue-style widget.
   const isUp = delta > 0
   const isDown = delta < 0
@@ -63,23 +101,31 @@ export function MonthlySpendingWidget({
   return (
     <WidgetCard title="Monthly Spending" icon={ReceiptTextIcon}>
       <div className="flex flex-col gap-1">
-        <p className="text-xl font-semibold tracking-tight">{formatCurrency(thisExpense, displayCurrency)}</p>
-        {/* No real "last month" in a single-month range — showing a delta
-            against 0 would fabricate a misleading trend. */}
-        {lastMonth && (
-          <div
-            className={
-              isUp
-                ? "flex items-center gap-1 text-xs text-destructive"
-                : isDown
-                  ? "flex items-center gap-1 text-xs text-green-600 dark:text-green-400"
-                  : "flex items-center gap-1 text-xs text-muted-foreground"
-            }
-          >
-            {delta !== 0 && <TrendIcon size={12} className="shrink-0" />}
-            <span>{formatCurrency(Math.abs(delta), displayCurrency)} vs last month</span>
-          </div>
-        )}
+        <NumberFlow
+          value={thisExpense}
+          format={{ style: "currency", currency: displayCurrency }}
+          locales="en-US"
+          className="text-xl font-semibold tracking-tight"
+        />
+        <div
+          className={
+            isUp
+              ? "flex items-center gap-1 text-xs text-destructive"
+              : isDown
+                ? "flex items-center gap-1 text-xs text-green-600 dark:text-green-400"
+                : "flex items-center gap-1 text-xs text-muted-foreground"
+          }
+        >
+          {delta !== 0 && <TrendIcon size={12} className="shrink-0" />}
+          <span>
+            <NumberFlow
+              value={Math.abs(delta)}
+              format={{ style: "currency", currency: displayCurrency }}
+              locales="en-US"
+            />{" "}
+            vs previous period
+          </span>
+        </div>
         {sparklineData.length > 1 && (
           <BarChart data={sparklineData} xDataKey="date" margin={SPARKLINE_MARGIN} className="mt-2 h-10" barGap={0.3}>
             <Bar dataKey="expense" fill="var(--destructive)" lineCap="round" />

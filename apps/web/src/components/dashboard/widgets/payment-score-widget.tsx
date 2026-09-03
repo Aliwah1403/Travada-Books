@@ -1,6 +1,12 @@
 import { useQuery } from "@tanstack/react-query"
 import { TargetIcon, ArrowUpRight01Icon, ArrowDownRight01Icon } from "@travada-books/ui/icons"
-import { WidgetCard, WidgetSkeleton, WidgetError } from "@/components/dashboard/widget-card"
+import {
+  WidgetCard,
+  WidgetError,
+  WidgetHeadlineSkeleton,
+  WidgetLineSkeleton,
+  WidgetGaugeSkeleton,
+} from "@/components/dashboard/widget-card"
 import { EmptyState } from "@/components/shared/empty-state"
 import { Gauge } from "@/components/charts/gauge"
 import { getInvoicePaymentStats } from "@/lib/queries/metrics"
@@ -28,7 +34,17 @@ export function PaymentScoreWidget({ orgId, from, to }: PaymentScoreWidgetProps)
     staleTime: STALE_TIME,
   })
 
-  if (isLoading) return <WidgetSkeleton />
+  if (isLoading) {
+    return (
+      <WidgetCard title="Payment Score" icon={TargetIcon}>
+        <div className="flex flex-col gap-1">
+          <WidgetHeadlineSkeleton />
+          <WidgetLineSkeleton />
+          <WidgetGaugeSkeleton className="mt-2" />
+        </div>
+      </WidgetCard>
+    )
+  }
   if (isError) return <WidgetError title="Payment Score" icon={TargetIcon} onRetry={() => refetch()} />
 
   if (!data || data.invoice_count === 0 || data.avg_days_to_pay === null) {

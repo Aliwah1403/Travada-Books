@@ -13,7 +13,7 @@ import { ChartTooltip } from "@/components/charts/tooltip"
 import { chartCssVars } from "@/components/charts/chart-context"
 import { ChartCard, ChartCardError } from "@/components/dashboard/chart-card"
 import { EmptyState } from "@/components/shared/empty-state"
-import { getRunway } from "@/lib/queries/metrics"
+import { getRunway, getCashFlow } from "@/lib/queries/metrics"
 import { formatCurrency, formatCurrencyCompact } from "@/lib/format"
 
 const STALE_TIME = 2 * 60 * 1000
@@ -23,6 +23,8 @@ const MAX_PROJECTION_MONTHS = 36
 type CashPositionChartProps = {
   orgId: string
   currency: string
+  from: string
+  to: string
   /** Currency to format/plot in — defaults to `currency` (the org's base currency). */
   displayCurrency?: string
   /** Multiplier applied to already-correct base-currency figures before display. Defaults to 1. */
@@ -47,26 +49,56 @@ function buildProjectionSeries(cashBalance: number, avgMonthlyBurn: number, mont
 export function CashPositionChart({
   orgId,
   currency,
+  from,
+  to,
   displayCurrency = currency,
   fxRate = 1,
 }: CashPositionChartProps) {
-  const { data, isLoading, isError, refetch } = useQuery({
+  const runwayQuery = useQuery({
     queryKey: ["metric", orgId, "get_runway"],
     queryFn: () => getRunway(orgId),
     staleTime: STALE_TIME,
   })
 
+  // Range-aware burn rate, same query/key as the Burn Rate chart/widgets —
+  // dedupes when they're on screen together. `cash_balance` from get_runway
+  // stays a live "as of today" figure; only the burn rate driving the
+  // projection is recomputed from the selected range. Do not use
+  // get_runway's own avg_monthly_burn/months_remaining, they're hard-coded
+  // to the last 3 full months and ignore the filter range.
+  const cashFlowQuery = useQuery({
+    queryKey: ["metric", orgId, "get_cash_flow", from, to],
+    queryFn: () => getCashFlow(orgId, from, to),
+    staleTime: STALE_TIME,
+  })
+
+  const data = runwayQuery.data
+  const isLoading = runwayQuery.isLoading || cashFlowQuery.isLoading
+  const isError = runwayQuery.isError || cashFlowQuery.isError
+  const refetch = () => {
+    runwayQuery.refetch()
+    cashFlowQuery.refetch()
+  }
+
+  const avgMonthlyBurn = useMemo(() => {
+    const months = cashFlowQuery.data ?? []
+    const avgMonthlyNet = months.length > 0 ? months.reduce((sum, m) => sum + m.net, 0) / months.length : 0
+    // Mirrors the SQL's GREATEST(0, -avg_monthly_net) — a burn rate can't be negative.
+    return Math.max(0, -avgMonthlyNet)
+  }, [cashFlowQuery.data])
+
+  const monthsRemaining = data?.is_configured && avgMonthlyBurn > 0 ? (data.cash_balance ?? 0) / avgMonthlyBurn : null
+
   const chartData = useMemo(() => {
-    if (!data?.is_configured || data.months_remaining == null) return []
-    const avgMonthlyBurn = data.avg_monthly_burn ?? 0
+    if (!data?.is_configured || monthsRemaining == null) return []
     if (avgMonthlyBurn <= 0) return []
-    return buildProjectionSeries(data.cash_balance ?? 0, avgMonthlyBurn, data.months_remaining).map((p) => ({
+    return buildProjectionSeries(data.cash_balance ?? 0, avgMonthlyBurn, monthsRemaining).map((p) => ({
       ...p,
       balance: p.balance * fxRate,
     }))
-  }, [data, fxRate])
+  }, [data, avgMonthlyBurn, monthsRemaining, fxRate])
 
-  if (isError) return <ChartCardError title="Cash Position" icon={SafeIcon} onRetry={() => refetch()} />
+  if (isError) return <ChartCardError title="Cash Position" icon={SafeIcon} onRetry={refetch} />
 
   if (isLoading) {
     return (
@@ -95,7 +127,7 @@ export function CashPositionChart({
 
   // State b: cash-flow positive — infinite runway. Do not draw a line to
   // zero; show the balance and say it's growing, not shrinking.
-  if (data.months_remaining === null) {
+  if (monthsRemaining === null) {
     return (
       <ChartCard title="Cash Position" icon={SafeIcon} description="Cash-flow positive — no projection needed">
         <div className="flex flex-col gap-1 py-6">

@@ -1,10 +1,25 @@
 import { useQuery } from "@tanstack/react-query"
+import NumberFlow from "@number-flow/react"
 import { CheckmarkCircle01Icon, Alert02Icon } from "@travada-books/ui/icons"
-import { WidgetCard, WidgetSkeleton, WidgetError } from "@/components/dashboard/widget-card"
+import { Badge } from "@travada-books/ui/components/badge"
+import {
+  WidgetCard,
+  WidgetError,
+  WidgetHeadlineSkeleton,
+  WidgetLineSkeleton,
+} from "@/components/dashboard/widget-card"
 import { getOverdueInvoices } from "@/lib/queries/metrics"
-import { formatCurrency } from "@/lib/format"
 
 const STALE_TIME = 2 * 60 * 1000
+
+// Overdue invoices are always a live, current-moment snapshot — they
+// intentionally ignore the dashboard's date-range filter, so a "Live"
+// badge tells the user why the number doesn't move with the filter.
+const LIVE_BADGE = (
+  <Badge variant="outline" className="text-[10px] font-normal text-muted-foreground">
+    Live
+  </Badge>
+)
 
 type OverdueInvoicesWidgetProps = {
   orgId: string
@@ -27,14 +42,24 @@ export function OverdueInvoicesWidget({
     staleTime: STALE_TIME,
   })
 
-  if (isLoading) return <WidgetSkeleton />
+  if (isLoading) {
+    return (
+      <WidgetCard title="Overdue Invoices" icon={Alert02Icon}>
+        <div className="flex flex-col gap-1">
+          <WidgetHeadlineSkeleton />
+          <WidgetLineSkeleton />
+          <WidgetLineSkeleton className="w-40" />
+        </div>
+      </WidgetCard>
+    )
+  }
   if (isError) return <WidgetError title="Overdue Invoices" icon={Alert02Icon} onRetry={() => refetch()} />
 
   const overdueCount = data?.overdue_count ?? 0
 
   if (overdueCount === 0) {
     return (
-      <WidgetCard title="Overdue Invoices" icon={CheckmarkCircle01Icon} to="/invoices">
+      <WidgetCard title="Overdue Invoices" icon={CheckmarkCircle01Icon} to="/invoices" badge={LIVE_BADGE}>
         <div className="flex flex-col gap-1">
           <p className="text-xl font-semibold tracking-tight">Nothing overdue</p>
           <p className="text-xs text-muted-foreground">Every invoice is on track.</p>
@@ -44,11 +69,14 @@ export function OverdueInvoicesWidget({
   }
 
   return (
-    <WidgetCard title="Overdue Invoices" icon={Alert02Icon} to="/invoices">
+    <WidgetCard title="Overdue Invoices" icon={Alert02Icon} to="/invoices" badge={LIVE_BADGE}>
       <div className="flex flex-col gap-1">
-        <p className="text-xl font-semibold tracking-tight">
-          {formatCurrency(data!.overdue_total * fxRate, displayCurrency)}
-        </p>
+        <NumberFlow
+          value={data!.overdue_total * fxRate}
+          format={{ style: "currency", currency: displayCurrency }}
+          locales="en-US"
+          className="text-xl font-semibold tracking-tight"
+        />
         <p className="text-xs text-muted-foreground">
           {overdueCount} invoice{overdueCount !== 1 ? "s" : ""} overdue
         </p>

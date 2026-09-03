@@ -1,7 +1,13 @@
 import { useQuery } from "@tanstack/react-query"
 import { Link } from "react-router"
 import { UserRemoveIcon } from "@travada-books/ui/icons"
-import { WidgetCard, WidgetSkeleton, WidgetError } from "@/components/dashboard/widget-card"
+import {
+  WidgetCard,
+  WidgetError,
+  WidgetHeadlineSkeleton,
+  WidgetLineSkeleton,
+  WidgetGaugeSkeleton,
+} from "@/components/dashboard/widget-card"
 import { EmptyState } from "@/components/shared/empty-state"
 import { Gauge } from "@/components/charts/gauge"
 import { getCustomerChurn } from "@/lib/queries/metrics"
@@ -26,7 +32,24 @@ export function CustomerChurnWidget({ orgId, from, to }: CustomerChurnWidgetProp
     staleTime: STALE_TIME,
   })
 
-  if (isLoading) return <WidgetSkeleton />
+  if (isLoading) {
+    return (
+      <WidgetCard title="Customer Churn" icon={UserRemoveIcon}>
+        <div className="flex flex-col gap-2">
+          <div>
+            <WidgetHeadlineSkeleton />
+            <WidgetLineSkeleton className="mt-1" />
+          </div>
+          <WidgetGaugeSkeleton className="mt-1" />
+          <ul className="flex flex-col gap-1 border-t pt-2">
+            <li><WidgetLineSkeleton /></li>
+            <li><WidgetLineSkeleton /></li>
+            <li><WidgetLineSkeleton /></li>
+          </ul>
+        </div>
+      </WidgetCard>
+    )
+  }
   if (isError) return <WidgetError title="Customer Churn" icon={UserRemoveIcon} onRetry={() => refetch()} />
 
   if (!data || data.trailing_active_count === 0) {

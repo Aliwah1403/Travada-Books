@@ -1,4 +1,13 @@
-import { endOfMonth, format, startOfMonth, startOfYear, subMonths } from "date-fns"
+import {
+  differenceInCalendarDays,
+  endOfMonth,
+  format,
+  parseISO,
+  startOfMonth,
+  startOfYear,
+  subDays,
+  subMonths,
+} from "date-fns"
 
 const ISO_DATE = "yyyy-MM-dd"
 
@@ -65,4 +74,22 @@ export function resolveMetricsRange(
     default:
       return { from: format(startOfMonth(subMonths(now, 11)), ISO_DATE), to }
   }
+}
+
+/**
+ * Resolves the previous period immediately preceding `[from, to]` (inclusive),
+ * with the same number of days, ending the day before `from`.
+ *
+ * E.g. `from=2026-06-01, to=2026-08-31` (92 days) resolves to the 92 days
+ * ending 2026-05-31, i.e. `from=2026-03-01, to=2026-05-31`.
+ */
+export function resolvePreviousPeriod(from: string, to: string): MetricsCustomRange {
+  const fromDate = parseISO(from)
+  const toDate = parseISO(to)
+  const lengthInDays = differenceInCalendarDays(toDate, fromDate) + 1
+
+  const prevTo = subDays(fromDate, 1)
+  const prevFrom = subDays(prevTo, lengthInDays - 1)
+
+  return { from: format(prevFrom, ISO_DATE), to: format(prevTo, ISO_DATE) }
 }

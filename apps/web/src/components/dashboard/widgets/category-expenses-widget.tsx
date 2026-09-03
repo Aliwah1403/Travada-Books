@@ -1,9 +1,14 @@
 import { useQuery } from "@tanstack/react-query"
+import NumberFlow from "@number-flow/react"
 import { PieChartIcon } from "@travada-books/ui/icons"
-import { WidgetCard, WidgetSkeleton, WidgetError } from "@/components/dashboard/widget-card"
+import {
+  WidgetCard,
+  WidgetError,
+  WidgetHeadlineSkeleton,
+  WidgetLineSkeleton,
+} from "@/components/dashboard/widget-card"
 import { EmptyState } from "@/components/shared/empty-state"
 import { getExpensesByCategory } from "@/lib/queries/metrics"
-import { formatCurrency } from "@/lib/format"
 
 const STALE_TIME = 2 * 60 * 1000
 
@@ -32,7 +37,23 @@ export function CategoryExpensesWidget({
     staleTime: STALE_TIME,
   })
 
-  if (isLoading) return <WidgetSkeleton />
+  if (isLoading) {
+    return (
+      <WidgetCard title="Top Expense Categories" icon={PieChartIcon}>
+        <div className="flex flex-col gap-2">
+          <div>
+            <WidgetHeadlineSkeleton />
+            <WidgetLineSkeleton className="mt-1" />
+          </div>
+          <ul className="flex flex-col gap-1 border-t pt-2">
+            <li><WidgetLineSkeleton /></li>
+            <li><WidgetLineSkeleton /></li>
+            <li><WidgetLineSkeleton /></li>
+          </ul>
+        </div>
+      </WidgetCard>
+    )
+  }
   if (isError) return <WidgetError title="Top Expense Categories" icon={PieChartIcon} onRetry={() => refetch()} />
 
   const categories = data ?? []
@@ -54,7 +75,12 @@ export function CategoryExpensesWidget({
         <div>
           <p className="truncate text-xl font-semibold tracking-tight">{top.category_name}</p>
           <p className="text-xs text-muted-foreground">
-            {formatCurrency(top.total * fxRate, displayCurrency)} · {sharePercent}% of spend
+            <NumberFlow
+              value={top.total * fxRate}
+              format={{ style: "currency", currency: displayCurrency }}
+              locales="en-US"
+            />{" "}
+            · {sharePercent}% of spend
           </p>
         </div>
         {categories.length > 1 && (
@@ -71,7 +97,12 @@ export function CategoryExpensesWidget({
                   />
                   <span className="truncate">{category.category_name}</span>
                 </span>
-                <span className="shrink-0 font-medium">{formatCurrency(category.total * fxRate, displayCurrency)}</span>
+                <NumberFlow
+                  value={category.total * fxRate}
+                  format={{ style: "currency", currency: displayCurrency }}
+                  locales="en-US"
+                  className="shrink-0 font-medium"
+                />
               </li>
             ))}
           </ul>

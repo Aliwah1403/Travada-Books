@@ -117,6 +117,8 @@ const MetricsTab = ({
         <CashPositionChart
           orgId={orgId}
           currency={currency}
+          from={from}
+          to={to}
           displayCurrency={displayCurrency}
           fxRate={fxRate}
         />

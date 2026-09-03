@@ -1,12 +1,18 @@
 import { useMemo } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { parseISO } from "date-fns"
+import NumberFlow from "@number-flow/react"
 import { MoneyExchange01Icon } from "@travada-books/ui/icons"
-import { WidgetCard, WidgetSkeleton, WidgetError } from "@/components/dashboard/widget-card"
+import {
+  WidgetCard,
+  WidgetError,
+  WidgetHeadlineSkeleton,
+  WidgetLineSkeleton,
+  WidgetChartSkeleton,
+} from "@/components/dashboard/widget-card"
 import { LineChart, Line } from "@/components/charts/line-chart"
 import { chartCssVars } from "@/components/charts/chart-context"
 import { getCashFlow } from "@/lib/queries/metrics"
-import { formatCurrency } from "@/lib/format"
 
 const SPARKLINE_MARGIN = { top: 2, right: 2, bottom: 2, left: 2 }
 
@@ -43,12 +49,22 @@ export function CashFlowWidget({
     [data, fxRate],
   )
 
-  if (isLoading) return <WidgetSkeleton />
+  if (isLoading) {
+    return (
+      <WidgetCard title="Cash Flow" icon={MoneyExchange01Icon}>
+        <div className="flex flex-col gap-2">
+          <WidgetHeadlineSkeleton />
+          <WidgetLineSkeleton />
+          <WidgetChartSkeleton className="mt-1" />
+        </div>
+      </WidgetCard>
+    )
+  }
   if (isError) return <WidgetError title="Cash Flow" icon={MoneyExchange01Icon} onRetry={() => refetch()} />
 
-  const month = data?.at(-1)
-  const income = (month?.income ?? 0) * fxRate
-  const expense = (month?.expense ?? 0) * fxRate
+  const months = data ?? []
+  const income = months.reduce((sum, m) => sum + m.income, 0) * fxRate
+  const expense = months.reduce((sum, m) => sum + m.expense, 0) * fxRate
   const net = income - expense
 
   return (
@@ -62,10 +78,15 @@ export function CashFlowWidget({
           }
         >
           {net >= 0 ? "+" : "-"}
-          {formatCurrency(Math.abs(net), displayCurrency)}
+          <NumberFlow
+            value={Math.abs(net)}
+            format={{ style: "currency", currency: displayCurrency }}
+            locales="en-US"
+          />
         </p>
         <p className="text-xs text-muted-foreground">
-          {formatCurrency(income, displayCurrency)} in · {formatCurrency(expense, displayCurrency)} out
+          <NumberFlow value={income} format={{ style: "currency", currency: displayCurrency }} locales="en-US" /> in ·{" "}
+          <NumberFlow value={expense} format={{ style: "currency", currency: displayCurrency }} locales="en-US" /> out
         </p>
         {sparklineData.length > 1 && (
           <LineChart data={sparklineData} xDataKey="date" margin={SPARKLINE_MARGIN} className="mt-1 h-10">

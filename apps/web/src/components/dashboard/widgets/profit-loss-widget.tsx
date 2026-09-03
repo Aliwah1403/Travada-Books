@@ -1,11 +1,17 @@
 import { useMemo } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { parseISO } from "date-fns"
+import NumberFlow from "@number-flow/react"
 import { ProfitIcon } from "@travada-books/ui/icons"
-import { WidgetCard, WidgetSkeleton, WidgetError } from "@/components/dashboard/widget-card"
+import {
+  WidgetCard,
+  WidgetError,
+  WidgetHeadlineSkeleton,
+  WidgetLineSkeleton,
+  WidgetChartSkeleton,
+} from "@/components/dashboard/widget-card"
 import { LineChart, Line } from "@/components/charts/line-chart"
 import { getCashFlow } from "@/lib/queries/metrics"
-import { formatCurrency } from "@/lib/format"
 
 const SPARKLINE_MARGIN = { top: 2, right: 2, bottom: 2, left: 2 }
 
@@ -44,12 +50,22 @@ export function ProfitLossWidget({
     [data, fxRate],
   )
 
-  if (isLoading) return <WidgetSkeleton />
+  if (isLoading) {
+    return (
+      <WidgetCard title="Profit & Loss" icon={ProfitIcon}>
+        <div className="flex flex-col gap-1">
+          <WidgetHeadlineSkeleton />
+          <WidgetLineSkeleton className="w-24" />
+          <WidgetChartSkeleton className="mt-1" />
+        </div>
+      </WidgetCard>
+    )
+  }
   if (isError) return <WidgetError title="Profit & Loss" icon={ProfitIcon} onRetry={() => refetch()} />
 
-  const month = data?.at(-1)
-  const income = (month?.income ?? 0) * fxRate
-  const expense = (month?.expense ?? 0) * fxRate
+  const months = data ?? []
+  const income = months.reduce((sum, m) => sum + m.income, 0) * fxRate
+  const expense = months.reduce((sum, m) => sum + m.expense, 0) * fxRate
   const net = income - expense
   const isPositive = net >= 0
   const margin = income > 0 ? Math.round((net / income) * 1000) / 10 : null
@@ -65,7 +81,11 @@ export function ProfitLossWidget({
           }
         >
           {isPositive ? "+" : "-"}
-          {formatCurrency(Math.abs(net), displayCurrency)}
+          <NumberFlow
+            value={Math.abs(net)}
+            format={{ style: "currency", currency: displayCurrency }}
+            locales="en-US"
+          />
         </p>
         <p className="text-xs text-muted-foreground">{margin === null ? "—" : `${margin}% margin`}</p>
         {sparklineData.length > 1 && (

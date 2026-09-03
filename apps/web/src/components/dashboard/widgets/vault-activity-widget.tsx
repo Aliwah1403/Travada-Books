@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query"
 import { formatDistanceToNow } from "date-fns"
 import { VaultIcon } from "@travada-books/ui/icons"
-import { WidgetCard, WidgetSkeleton, WidgetError } from "@/components/dashboard/widget-card"
+import { WidgetCard, WidgetError, WidgetLineSkeleton } from "@/components/dashboard/widget-card"
 import { EmptyState } from "@/components/shared/empty-state"
 import { listDocuments } from "@/lib/queries/vault"
 
@@ -19,7 +19,20 @@ export function VaultActivityWidget({ orgId }: VaultActivityWidgetProps) {
     staleTime: STALE_TIME,
   })
 
-  if (isLoading) return <WidgetSkeleton />
+  if (isLoading) {
+    return (
+      <WidgetCard title="Vault Activity" icon={VaultIcon}>
+        <ul className="flex flex-col gap-1">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <li key={i} className="flex items-center justify-between gap-2 px-1 -mx-1 py-0.5">
+              <WidgetLineSkeleton className="w-24" />
+              <WidgetLineSkeleton className="w-12" />
+            </li>
+          ))}
+        </ul>
+      </WidgetCard>
+    )
+  }
   if (isError) return <WidgetError title="Vault Activity" icon={VaultIcon} onRetry={() => refetch()} />
 
   const recent = (data ?? []).slice(0, RECENT_COUNT)
