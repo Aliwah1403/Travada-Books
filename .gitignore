@@ -5,6 +5,9 @@ node_modules
 
 CLAUDE.md
 .claude
+.codex
+# Turborepo build cache and per-user TUI preferences
+.turbo/
 archive/
 BACKEND.md
 MULTI_ORG.md
