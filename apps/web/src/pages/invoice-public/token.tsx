@@ -5,9 +5,7 @@ import { Copy01Icon, Download01Icon, Wallet01Icon } from "@travada-books/ui/icon
 import { Button } from "@travada-books/ui/components/button"
 import { Spokes } from "@travada-books/ui/components/spokes"
 import { useTheme } from "@/components/theme-provider"
-import { useFormatDate } from "@/hooks/use-format-date"
 import { getInvoiceByToken, invoiceBalance } from "@/lib/queries/invoices"
-import { getInvoicePaymentsByToken } from "@/lib/queries/payments"
 import { InvoicePreview, InvoicePdf } from "@/components/invoice-templates"
 import { downloadPdf } from "@/lib/pdf-download"
 import { formatCurrency } from "@/lib/format"
@@ -16,19 +14,9 @@ import LogoLime from "@/assets/Logo-Lime.svg"
 import { toast } from "sonner"
 import { trackEvent, LogEvents } from "@/lib/analytics"
 
-const PAYMENT_METHOD_LABELS: Record<string, string> = {
-  mpesa: "M-Pesa",
-  bank_transfer: "Bank Transfer",
-  cash: "Cash",
-  card: "Card",
-  cheque: "Cheque",
-  other: "Other",
-}
-
 export function PublicInvoicePage() {
   const { token } = useParams<{ token: string }>()
   const { theme } = useTheme()
-  const { formatDate } = useFormatDate()
   const logo = theme === "dark" ? LogoLime : LogoGreen
   const [isDownloading, setIsDownloading] = useState(false)
 
@@ -36,12 +24,6 @@ export function PublicInvoicePage() {
     queryKey: ["invoice-public", token],
     queryFn: () => getInvoiceByToken(token!),
     enabled: !!token,
-  })
-
-  const { data: payments } = useQuery({
-    queryKey: ["invoice-payments-public", token],
-    queryFn: () => getInvoicePaymentsByToken(token!),
-    enabled: !!token && !!invoice && invoice.amount_paid > 0,
   })
 
   useEffect(() => {
@@ -171,7 +153,13 @@ export function PublicInvoicePage() {
         <div className="w-full max-w-2xl">
           <InvoicePreview data={documentData} invoiceTemplate={invoice.invoice_template} />
 
-          {invoice.amount_paid > 0 && (
+          {/* An invoice states what was billed and does not change once issued —
+              the payment breakdown (dates, methods, per-payment rows) belongs on
+              the statement of account, and never appears in the PDF.
+              The one exception is a bare balance line when the customer can pay
+              from this page: without it someone who has already part-paid sees
+              the full total next to a Pay button and may pay twice. */}
+          {invoice.accept_payments && invoice.amount_paid > 0 && (
             <div className="mt-4 rounded-lg border bg-background px-5 py-4 text-xs">
               <div className="flex items-center justify-between">
                 <span className="font-medium">
@@ -189,26 +177,6 @@ export function PublicInvoicePage() {
                   </span>
                 )}
               </div>
-
-              {payments && payments.length > 0 && (
-                <div className="mt-3 flex flex-col divide-y border-t pt-3">
-                  <p className="pb-2 text-[11px] font-medium text-muted-foreground">
-                    Payments received
-                  </p>
-                  {payments.map((payment, i) => (
-                    <div
-                      key={i}
-                      className="flex items-center justify-between py-2 first:pt-0"
-                    >
-                      <span>{formatCurrency(payment.amount, invoice.currency)}</span>
-                      <span className="text-muted-foreground">
-                        {formatDate(payment.paid_at)} ·{" "}
-                        {PAYMENT_METHOD_LABELS[payment.method] ?? payment.method}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              )}
             </div>
           )}
         </div>

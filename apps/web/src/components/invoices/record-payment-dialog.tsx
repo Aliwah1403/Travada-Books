@@ -4,6 +4,7 @@ import { Alert02Icon, Wallet01Icon } from "@travada-books/ui/icons";
 import { Button } from "@travada-books/ui/components/button";
 import { Label } from "@travada-books/ui/components/label";
 import { Input } from "@travada-books/ui/components/input";
+import { Checkbox } from "@travada-books/ui/components/checkbox";
 import { Textarea } from "@travada-books/ui/components/textarea";
 import {
   Dialog,
@@ -114,14 +115,28 @@ function RecordPaymentForm({
   const [reference, setReference] = useState("");
   const [note, setNote] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [confirmOverpay, setConfirmOverpay] = useState(false);
 
   const parsedAmount = Number(amount);
   const isAmountValid =
     amount.trim() !== "" && Number.isFinite(parsedAmount) && parsedAmount > 0;
   const isOverpaying = isAmountValid && parsedAmount > balanceDue;
+  const overpaidBy = isOverpaying ? parsedAmount - balanceDue : 0;
+  // An overpayment is a liability owed back to the customer and there is no
+  // credit-note system yet, so it must be deliberate rather than a typo that
+  // sails through. Recording it is still permitted — a customer who rounds up
+  // an M-Pesa payment has genuinely paid that amount.
+  const needsOverpayConfirm = isOverpaying && !confirmOverpay;
+
+  function handleAmountChange(next: string) {
+    setAmount(next);
+    // Re-arm the guard on every edit. Without this, confirming a small
+    // overpayment and then mistyping a larger one would submit unconfirmed.
+    setConfirmOverpay(false);
+  }
 
   function handleSubmit() {
-    if (!isAmountValid || !date || !orgId) return;
+    if (!isAmountValid || needsOverpayConfirm || !date || !orgId) return;
 
     // Normalize to noon local time so the UTC-converted ISO string never
     // drifts onto the previous/next calendar day for the picked date.
@@ -174,16 +189,37 @@ function RecordPaymentForm({
               min='0'
               inputMode='decimal'
               value={amount}
-              onChange={(e) => setAmount(e.target.value)}
+              onChange={(e) => handleAmountChange(e.target.value)}
               placeholder='0.00'
               autoFocus
             />
           </InputGroup>
           {isOverpaying ?
-            <p className='flex items-center gap-1.5 text-[11px] text-amber-600 dark:text-amber-400'>
-              <Alert02Icon size={12} className='shrink-0' />
-              This is more than the remaining balance (overpayment will be recorded).
-            </p>
+            <div className='space-y-2 rounded-md border border-amber-500/40 bg-amber-50 p-2.5 dark:bg-amber-900/20'>
+              <p className='flex items-start gap-1.5 text-[11px] text-amber-700 dark:text-amber-400'>
+                <Alert02Icon size={12} className='mt-px shrink-0' />
+                <span>
+                  This is {formatCurrency(overpaidBy, currency)} more than the
+                  remaining balance of {formatCurrency(balanceDue, currency)}.
+                </span>
+              </p>
+              {/* id/htmlFor rather than nesting: Base UI's Checkbox renders a
+                  button, so a wrapping <label> would not toggle it. */}
+              <div className='flex items-start gap-2'>
+                <Checkbox
+                  id='confirm-overpayment'
+                  checked={confirmOverpay}
+                  onCheckedChange={(v) => setConfirmOverpay(!!v)}
+                  className='mt-px'
+                />
+                <Label
+                  htmlFor='confirm-overpayment'
+                  className='cursor-pointer text-[11px] font-normal leading-relaxed text-amber-700 dark:text-amber-400'
+                >
+                  Confirm this overpayment of {formatCurrency(overpaidBy, currency)}
+                </Label>
+              </div>
+            </div>
           : <p className='text-[11px] text-muted-foreground'>
               Balance due: {formatCurrency(balanceDue, currency)}
             </p>
@@ -240,7 +276,11 @@ function RecordPaymentForm({
         <Button variant='outline' onClick={() => onOpenChange(false)}>
           Cancel
         </Button>
-        <Button onClick={handleSubmit} disabled={!isAmountValid || submitting} className='gap-1.5'>
+        <Button
+          onClick={handleSubmit}
+          disabled={!isAmountValid || needsOverpayConfirm || submitting}
+          className='gap-1.5'
+        >
           <Wallet01Icon size={13} />
           {submitting ? "Recording…" : "Record payment"}
         </Button>
