@@ -41,6 +41,7 @@ import { GeneralSettingsPage } from "@/pages/settings/general"
 import { InboxSettingsPage } from "@/pages/settings/inbox"
 import { TeamSettingsPage } from "@/pages/settings/team"
 import { IntegrationsSettingsPage } from "@/pages/settings/integrations"
+import { GmailIntegrationPage } from "@/pages/settings/integrations/gmail"
 import { BillingSettingsPage } from "@/pages/settings/billing"
 
 import { ProfilePage } from "@/pages/account/profile"
@@ -102,6 +103,7 @@ const router = createBrowserRouter([
               { path: "general", element: <GeneralSettingsPage /> },
               { path: "team", element: <TeamSettingsPage /> },
               { path: "integrations", element: <IntegrationsSettingsPage /> },
+              { path: "integrations/gmail", element: <GmailIntegrationPage /> },
               { path: "billing", element: <BillingSettingsPage /> },
               { path: "categories", element: <CategoriesSettingsPage /> },
               { path: "inbox", element: <InboxSettingsPage /> },

@@ -1,4 +1,5 @@
 import React from "react";
+import { siStripe, siWhatsapp, type SimpleIcon } from "simple-icons";
 import {
   HugeiconsIcon,
   type HugeiconsIconProps,
@@ -226,6 +227,29 @@ export const GmailIcon: Icon = ({ size = 24, ...props }: IconProps) =>
       d: "M45 12.298V16.2l-10 7.5V11.2l3.124-2.341A4.298 4.298 0 0 1 45 12.298z",
     }),
   )
+
+// Single-color brand marks from the `simple-icons` registry (WhatsApp, Stripe)
+// — same `fromSimpleIcon` approach as apps/web/src/components/pitch/brand-icons.tsx,
+// ported here so app-facing settings UI doesn't import from the marketing-page-scoped file.
+function fromSimpleIcon(icon: SimpleIcon): Icon {
+  return ({ size = 24, ...props }: IconProps) =>
+    React.createElement(
+      "svg",
+      {
+        role: "img",
+        xmlns: "http://www.w3.org/2000/svg",
+        viewBox: "0 0 24 24",
+        width: size,
+        height: size,
+        fill: `#${icon.hex}`,
+        ...props,
+      },
+      React.createElement("path", { d: icon.path }),
+    )
+}
+
+export const WhatsappIcon: Icon = fromSimpleIcon(siWhatsapp)
+export const StripeIcon: Icon = fromSimpleIcon(siStripe)
 
 export const OutlookIcon: Icon = ({ size = 24, ...props }: IconProps) =>
   React.createElement(

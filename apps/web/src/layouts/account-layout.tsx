@@ -19,11 +19,11 @@ function AccountNavItem({ label, to, comingSoon }: AccountNavItem) {
     return (
       <Tooltip>
         <TooltipTrigger asChild>
-          <div className="flex items-center rounded-md px-3 py-2 text-sm font-medium cursor-not-allowed opacity-40">
+          <div className="flex items-center px-0.5 py-3 text-sm font-medium cursor-not-allowed text-muted-foreground opacity-40">
             {label}
           </div>
         </TooltipTrigger>
-        <TooltipContent side="right">Coming soon</TooltipContent>
+        <TooltipContent side="bottom">Coming soon</TooltipContent>
       </Tooltip>
     )
   }
@@ -33,10 +33,10 @@ function AccountNavItem({ label, to, comingSoon }: AccountNavItem) {
       {({ isActive }) => (
         <span
           className={cn(
-            "flex items-center rounded-md px-3 py-2 text-sm font-medium transition-colors",
-            isActive
-              ? "bg-muted text-foreground"
-              : "text-muted-foreground fine-hover:bg-muted fine-hover:text-foreground",
+            "flex items-center border-b-2 px-0.5 py-3 text-sm transition-colors",
+            isActive ?
+              "border-foreground font-semibold text-foreground"
+            : "border-transparent font-medium text-muted-foreground fine-hover:text-foreground",
           )}
         >
           {label}
@@ -48,13 +48,18 @@ function AccountNavItem({ label, to, comingSoon }: AccountNavItem) {
 
 export function AccountLayout() {
   return (
-    <div className="flex">
-      <nav className="w-52 shrink-0 border-r px-3 py-6 flex flex-col gap-0.5">
+    <div className="flex flex-col">
+      <div className="px-8 pt-8">
+        <h1 className="text-2xl font-semibold">Account</h1>
+      </div>
+
+      <nav className="mt-6 flex items-center gap-6 border-b px-8">
         {accountNav.map((item) => (
           <AccountNavItem key={item.to} {...item} />
         ))}
       </nav>
-      <div className="flex-1 px-8 py-6 max-w-2xl">
+
+      <div className="mx-auto w-full max-w-5xl px-8 py-8">
         <Outlet />
       </div>
     </div>
