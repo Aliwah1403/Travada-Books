@@ -482,3 +482,6 @@ verify_jwt = false
 [functions.inbox-oauth-finish]
 verify_jwt = true
 
+[functions.inbox-sync-now]
+verify_jwt = true
+

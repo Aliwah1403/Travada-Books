@@ -17,7 +17,6 @@ import { Copy01Icon, Delete01Icon } from "@travada-books/ui/icons";
 import { useAuth } from "@/contexts/auth-context";
 import {
   addBlocklistEntry,
-  connectGmail,
   getInboxEmail,
   listBlocklist,
   removeBlocklistEntry,
@@ -37,7 +36,6 @@ export function InboxSettingsPage() {
 
   const [blockType, setBlockType] = useState<"email" | "domain">("email");
   const [blockValue, setBlockValue] = useState("");
-  const [connecting, setConnecting] = useState(false);
 
   const { data: blocklist = [], isLoading: blocklistLoading } = useQuery({
     queryKey: ["inbox-blocklist", orgId],
@@ -101,17 +99,6 @@ export function InboxSettingsPage() {
     );
   }
 
-  async function handleConnectGmail() {
-    setConnecting(true);
-    try {
-      // On success the browser navigates to Google — no success toast needed.
-      await connectGmail();
-    } catch {
-      toast.error("Couldn't start Gmail connection. Please try again.");
-      setConnecting(false);
-    }
-  }
-
   function handleRemove(entry: BlocklistEntry) {
     toast.promise(removeMutation.mutateAsync(entry.id), {
       loading: "Removing…",
@@ -143,6 +130,10 @@ export function InboxSettingsPage() {
             </Button>
           </div>
         : <p className='text-xs text-muted-foreground'>Not available yet</p>}
+
+        <p className='text-xs text-muted-foreground'>
+          Manage connected mailboxes in Settings → Integrations.
+        </p>
       </section>
 
       <Separator />
@@ -227,23 +218,6 @@ export function InboxSettingsPage() {
               </div>
             ))
           }
-        </div>
-      </section>
-
-      <Separator />
-
-      <section className='flex flex-col gap-5'>
-        <div>
-          <h2 className='text-sm font-semibold'>Connected accounts</h2>
-          <p className='text-xs text-muted-foreground mt-0.5'>
-            Connect Gmail or Outlook to pull in receipts automatically.
-          </p>
-        </div>
-
-        <div>
-          <Button onClick={handleConnectGmail} disabled={connecting}>
-            Connect Gmail
-          </Button>
         </div>
       </section>
     </div>

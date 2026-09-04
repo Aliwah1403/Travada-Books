@@ -387,6 +387,36 @@ export async function finishGmailConnect(code: string, state: string): Promise<v
   }
 }
 
+export type InboxAccount = {
+  id: string
+  provider: "gmail" | "outlook"
+  email: string
+  status: "connected" | "disconnected"
+  error_message: string | null
+  last_accessed: string
+  created_at: string
+}
+
+export async function listInboxAccounts(orgId: string): Promise<InboxAccount[]> {
+  const { data, error } = await supabase
+    .from("inbox_accounts")
+    .select("id, provider, email, status, error_message, last_accessed, created_at")
+    .eq("org_id", orgId)
+    .order("created_at", { ascending: false })
+  if (error) throw error
+  return data ?? []
+}
+
+export async function deleteInboxAccount(accountId: string): Promise<void> {
+  const { error } = await supabase.from("inbox_accounts").delete().eq("id", accountId)
+  if (error) throw error
+}
+
+export async function syncInboxAccountNow(accountId: string): Promise<void> {
+  const { error } = await supabase.functions.invoke("inbox-sync-now", { body: { accountId } })
+  if (error) throw new Error("Failed to start sync")
+}
+
 // ─── Suggestion lifecycle (Batch 4) ────────────────────────────────────────
 //
 // confirmSuggestion / matchTransaction both attach the inbox item's file to a
