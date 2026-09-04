@@ -365,6 +365,28 @@ export async function connectGmail() {
   window.location.href = data.url
 }
 
+/**
+ * Second half of the Gmail OAuth flow — called from /inbox/oauth-complete
+ * once the browser is back with the user's real live session. The org-match
+ * check that closes the CSRF hole (state's orgId must equal the caller's
+ * session-derived org) happens server-side in inbox-oauth-finish, not here.
+ */
+export async function finishGmailConnect(code: string, state: string): Promise<void> {
+  const { error } = await supabase.functions.invoke("inbox-oauth-finish", {
+    body: { code, state },
+  })
+  if (error) {
+    let reason = "connect_failed"
+    try {
+      const body = await (error as { context?: Response }).context?.json()
+      if (body?.error) reason = body.error
+    } catch {
+      // ignore — fall back to the generic reason
+    }
+    throw new Error(reason)
+  }
+}
+
 // ─── Suggestion lifecycle (Batch 4) ────────────────────────────────────────
 //
 // confirmSuggestion / matchTransaction both attach the inbox item's file to a

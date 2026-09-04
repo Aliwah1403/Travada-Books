@@ -33,6 +33,7 @@ import { StatementDetailPage } from "@/pages/statements/detail"
 import { TransactionsPage } from "@/pages/transactions/index"
 import { VaultPage } from "@/pages/vault/index"
 import { InboxPage } from "@/pages/inbox/index"
+import { InboxOAuthCompletePage } from "@/pages/inbox/oauth-complete"
 import { CategoriesSettingsPage } from "@/pages/settings/categories"
 import { PublicStatementPage } from "@/pages/statement-public/token"
 
@@ -91,6 +92,7 @@ const router = createBrowserRouter([
           { path: "/transactions", element: <TransactionsPage /> },
           { path: "/vault", element: <VaultPage /> },
           { path: "/inbox", element: <InboxPage /> },
+          { path: "/inbox/oauth-complete", element: <InboxOAuthCompletePage /> },
           { path: "/statements/:id", element: <StatementDetailPage /> },
           {
             path: "/settings",
