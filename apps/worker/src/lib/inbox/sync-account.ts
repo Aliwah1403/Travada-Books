@@ -176,6 +176,11 @@ export async function syncInboxAccount(
 
     inserted.push({ id: item.id, display_name: sanitized });
 
+    // Per-attachment, not per-run — Novu's inbox-new digest step merges
+    // events within its window, so firing one call per document keeps
+    // steps.digest.eventCount an accurate document count.
+    await notifyInbox("inbox.new", orgId, { documentName: sanitized });
+
     try {
       await tasks.trigger<typeof processInboxAttachmentTask>("process-inbox-attachment", {
         inboxItemId: item.id,
@@ -188,10 +193,6 @@ export async function syncInboxAccount(
         error: String(err),
       });
     }
-  }
-
-  if (inserted.length > 0) {
-    await notifyInbox("inbox.new", orgId, { documentName: inserted[0].display_name });
   }
 
   await supabase
