@@ -17,6 +17,7 @@ import { Copy01Icon, Delete01Icon } from "@travada-books/ui/icons";
 import { useAuth } from "@/contexts/auth-context";
 import {
   addBlocklistEntry,
+  connectGmail,
   getInboxEmail,
   listBlocklist,
   removeBlocklistEntry,
@@ -36,6 +37,7 @@ export function InboxSettingsPage() {
 
   const [blockType, setBlockType] = useState<"email" | "domain">("email");
   const [blockValue, setBlockValue] = useState("");
+  const [connecting, setConnecting] = useState(false);
 
   const { data: blocklist = [], isLoading: blocklistLoading } = useQuery({
     queryKey: ["inbox-blocklist", orgId],
@@ -97,6 +99,17 @@ export function InboxSettingsPage() {
           : "Failed to add. Please try again.",
       },
     );
+  }
+
+  async function handleConnectGmail() {
+    setConnecting(true);
+    try {
+      // On success the browser navigates to Google — no success toast needed.
+      await connectGmail();
+    } catch {
+      toast.error("Couldn't start Gmail connection. Please try again.");
+      setConnecting(false);
+    }
   }
 
   function handleRemove(entry: BlocklistEntry) {
@@ -227,8 +240,10 @@ export function InboxSettingsPage() {
           </p>
         </div>
 
-        <div className='flex items-center justify-center rounded-md border border-dashed px-4 py-6 text-xs text-muted-foreground opacity-60 cursor-not-allowed'>
-          Coming soon
+        <div>
+          <Button onClick={handleConnectGmail} disabled={connecting}>
+            Connect Gmail
+          </Button>
         </div>
       </section>
     </div>

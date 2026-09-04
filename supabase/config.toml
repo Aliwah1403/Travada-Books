@@ -473,3 +473,9 @@ verify_jwt = false
 [functions.notify-inbox]
 verify_jwt = true
 
+[functions.inbox-connect]
+verify_jwt = true
+
+[functions.inbox-oauth-callback]
+verify_jwt = false
+

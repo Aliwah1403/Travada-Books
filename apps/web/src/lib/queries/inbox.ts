@@ -354,6 +354,17 @@ export function getInboxEmail(org: { inbox_id?: string | null } | null): string 
   return `${org.inbox_id}@inbox.travadasys.com`
 }
 
+// ─── Connected accounts (Gmail OAuth) ──────────────────────────────────────
+
+export async function connectGmail() {
+  const { data, error } = await supabase.functions.invoke<{ url: string }>("inbox-connect", {
+    body: { provider: "gmail" },
+  })
+  if (error) throw error
+  if (!data?.url) throw new Error("No authorization URL returned")
+  window.location.href = data.url
+}
+
 // ─── Suggestion lifecycle (Batch 4) ────────────────────────────────────────
 //
 // confirmSuggestion / matchTransaction both attach the inbox item's file to a
