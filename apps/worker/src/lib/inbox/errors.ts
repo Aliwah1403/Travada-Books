@@ -14,7 +14,7 @@ export type InboxSyncErrorCode =
   | "network_error"
   | "provider_error";
 
-export type InboxProvider = "gmail";
+export type InboxProvider = "gmail" | "outlook";
 
 interface InboxAuthErrorOptions {
   code: InboxAuthErrorCode;

@@ -42,6 +42,7 @@ import { InboxSettingsPage } from "@/pages/settings/inbox"
 import { TeamSettingsPage } from "@/pages/settings/team"
 import { IntegrationsSettingsPage } from "@/pages/settings/integrations"
 import { GmailIntegrationPage } from "@/pages/settings/integrations/gmail"
+import { OutlookIntegrationPage } from "@/pages/settings/integrations/outlook"
 import { BillingSettingsPage } from "@/pages/settings/billing"
 
 import { ProfilePage } from "@/pages/account/profile"
@@ -104,6 +105,7 @@ const router = createBrowserRouter([
               { path: "team", element: <TeamSettingsPage /> },
               { path: "integrations", element: <IntegrationsSettingsPage /> },
               { path: "integrations/gmail", element: <GmailIntegrationPage /> },
+              { path: "integrations/outlook", element: <OutlookIntegrationPage /> },
               { path: "billing", element: <BillingSettingsPage /> },
               { path: "categories", element: <CategoriesSettingsPage /> },
               { path: "inbox", element: <InboxSettingsPage /> },

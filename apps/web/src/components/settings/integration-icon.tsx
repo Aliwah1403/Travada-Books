@@ -6,7 +6,7 @@ import type { Icon } from "@travada-books/ui/icons"
 // app's `--radius: 0` token (which only affects rounded-md/lg/xl utilities).
 const glowClassName: Record<IntegrationBrand, string> = {
   gmail: "bg-red-400/20",
-  outlook: "bg-blue-500/20",
+  outlook: "bg-blue-500/35",
   mpesa: "bg-[#00A651]/20",
   stripe: "bg-[#635bff]/20",
   whatsapp: "bg-[#25D366]/20",

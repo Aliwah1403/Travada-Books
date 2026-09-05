@@ -365,14 +365,31 @@ export async function connectGmail() {
   window.location.href = data.url
 }
 
+export async function connectOutlook() {
+  const { data, error } = await supabase.functions.invoke<{ url: string }>("inbox-connect", {
+    body: { provider: "outlook" },
+  })
+  if (error) throw error
+  if (!data?.url) throw new Error("No authorization URL returned")
+  window.location.href = data.url
+}
+
 /**
- * Second half of the Gmail OAuth flow — called from /inbox/oauth-complete
- * once the browser is back with the user's real live session. The org-match
- * check that closes the CSRF hole (state's orgId must equal the caller's
- * session-derived org) happens server-side in inbox-oauth-finish, not here.
+ * Second half of the OAuth flow (Gmail or Outlook) — called from
+ * /inbox/oauth-complete once the browser is back with the user's real live
+ * session. The org-match check that closes the CSRF hole (state's orgId
+ * must equal the caller's session-derived org) happens server-side in
+ * inbox-oauth-finish, not here.
  */
-export async function finishGmailConnect(code: string, state: string): Promise<void> {
-  const { error } = await supabase.functions.invoke("inbox-oauth-finish", {
+export async function finishInboxConnect(
+  code: string,
+  state: string,
+): Promise<{ provider: "gmail" | "outlook"; email: string }> {
+  const { data, error } = await supabase.functions.invoke<{
+    ok: true
+    provider: "gmail" | "outlook"
+    email: string
+  }>("inbox-oauth-finish", {
     body: { code, state },
   })
   if (error) {
@@ -385,6 +402,8 @@ export async function finishGmailConnect(code: string, state: string): Promise<v
     }
     throw new Error(reason)
   }
+  if (!data) throw new Error("connect_failed")
+  return data
 }
 
 export type InboxAccount = {

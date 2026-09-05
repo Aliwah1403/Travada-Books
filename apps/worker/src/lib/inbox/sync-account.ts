@@ -66,7 +66,7 @@ export async function syncInboxAccount(
 ): Promise<{ inserted: number }> {
   const { data: account, error: accountError } = await supabase
     .from("inbox_accounts")
-    .select("org_id")
+    .select("org_id, provider")
     .eq("id", accountId)
     .single();
 
@@ -152,7 +152,7 @@ export async function syncInboxAccount(
         reference_id: attachment.referenceId,
         inbox_account_id: accountId,
         status: "new",
-        meta: { source: "gmail" },
+        meta: { source: account.provider },
       })
       .select("id")
       .single();

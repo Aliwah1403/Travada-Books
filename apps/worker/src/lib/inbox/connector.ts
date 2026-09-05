@@ -2,6 +2,7 @@ import { supabase } from "../supabase";
 import { decrypt } from "../crypto";
 import { InboxAuthError, InboxSyncError } from "./errors";
 import { GmailProvider } from "./gmail-provider";
+import { OutlookProvider } from "./outlook-provider";
 import type { Attachment, GetAttachmentsOptions } from "./types";
 
 interface InboxAccountRow {
@@ -11,6 +12,22 @@ interface InboxAccountRow {
   refresh_token: string;
   expiry_date: string;
   last_accessed: string;
+}
+
+// Shared surface both providers satisfy, so the retry-after-refresh logic
+// below is written once against the interface rather than duplicated per
+// provider.
+interface InboxProviderClient {
+  setAccountId(id: string): void;
+  setTokens(t: { access_token: string; refresh_token?: string | null; expiry_date?: number | null }): void;
+  getAttachments(o: GetAttachmentsOptions): Promise<Attachment[]>;
+  refreshTokens(): Promise<void>;
+}
+
+function createProvider(provider: string): InboxProviderClient {
+  if (provider === "gmail") return new GmailProvider();
+  if (provider === "outlook") return new OutlookProvider();
+  throw new Error(`Unsupported inbox provider: ${provider}`);
 }
 
 export async function getInboxAttachments(
@@ -27,11 +44,7 @@ export async function getInboxAttachments(
     throw new Error(`Inbox account not found: ${error?.message ?? accountId}`);
   }
 
-  if (account.provider !== "gmail") {
-    throw new Error(`Unsupported inbox provider: ${account.provider}`);
-  }
-
-  const provider = new GmailProvider();
+  const provider = createProvider(account.provider);
   provider.setAccountId(account.id);
   provider.setTokens({
     access_token: await decrypt(account.access_token),
@@ -65,7 +78,7 @@ export async function getInboxAttachments(
         }
         throw new InboxSyncError({
           code: "fetch_failed",
-          provider: "gmail",
+          provider: account.provider as "gmail" | "outlook",
           message: `Failed to fetch attachments after token refresh: ${
             retryErr instanceof Error ? retryErr.message : "Unknown error"
           }`,
@@ -80,7 +93,7 @@ export async function getInboxAttachments(
 
     throw new InboxSyncError({
       code: "fetch_failed",
-      provider: "gmail",
+      provider: account.provider as "gmail" | "outlook",
       message: `Failed to fetch attachments: ${err instanceof Error ? err.message : "Unknown error"}`,
       cause: err instanceof Error ? err : undefined,
     });

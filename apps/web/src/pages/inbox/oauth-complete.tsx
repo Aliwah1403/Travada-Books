@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react"
 import { useNavigate, useSearchParams } from "react-router"
-import { finishGmailConnect } from "@/lib/queries/inbox"
+import { finishInboxConnect } from "@/lib/queries/inbox"
 
 export function InboxOAuthCompletePage() {
   const [searchParams] = useSearchParams()
@@ -25,14 +25,14 @@ export function InboxOAuthCompletePage() {
       return
     }
 
-    finishGmailConnect(code, state)
-      .then(() => navigate("/inbox?connected=gmail", { replace: true }))
+    finishInboxConnect(code, state)
+      .then((result) => navigate(`/inbox?connected=${result.provider}`, { replace: true }))
       .catch((err: Error) => navigate(`/inbox?error=${encodeURIComponent(err.message)}`, { replace: true }))
   }, [searchParams, navigate])
 
   return (
     <div className="flex min-h-[calc(100vh-57px)] items-center justify-center">
-      <p className="text-sm text-muted-foreground">Connecting Gmail…</p>
+      <p className="text-sm text-muted-foreground">Connecting your mailbox…</p>
     </div>
   )
 }

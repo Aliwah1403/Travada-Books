@@ -9,13 +9,15 @@ const corsHeaders = {
 
 const jsonHeaders = { ...corsHeaders, "Content-Type": "application/json" }
 
-type GmailState = { orgId: string; provider: "gmail" }
+type OAuthState =
+  | { orgId: string; provider: "gmail" }
+  | { orgId: string; provider: "outlook" }
 
-function isGmailState(v: unknown): v is GmailState {
+function isOAuthState(v: unknown): v is OAuthState {
   return (
     typeof v === "object" && v !== null &&
     typeof (v as Record<string, unknown>).orgId === "string" &&
-    (v as Record<string, unknown>).provider === "gmail"
+    ((v as Record<string, unknown>).provider === "gmail" || (v as Record<string, unknown>).provider === "outlook")
   )
 }
 
@@ -35,81 +37,164 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: "missing_params" }), { status: 400, headers: jsonHeaders })
     }
 
-    const parsed = await decryptOAuthState(state, isGmailState)
+    const parsed = await decryptOAuthState(state, isOAuthState)
     if (!parsed) {
       return new Response(JSON.stringify({ error: "invalid_state" }), { status: 400, headers: jsonHeaders })
     }
 
     // THE FIX: the state's orgId must match the caller's real, session-derived
-    // org — before any Google call or DB write. Without this, a victim tricked
-    // into approving an attacker's OAuth consent screen (a legitimate Google
-    // URL carrying the attacker's encrypted state) would have their own Gmail
-    // refresh token exchanged and stored under the attacker's org.
+    // org — before any provider API call or DB write, for both providers.
+    // Without this, a victim tricked into approving an attacker's OAuth
+    // consent screen (a legitimate Google/Microsoft URL carrying the
+    // attacker's encrypted state) would have their own mailbox refresh token
+    // exchanged and stored under the attacker's org.
     if (parsed.orgId !== orgId) {
       return new Response(JSON.stringify({ error: "org_mismatch" }), { status: 403, headers: jsonHeaders })
     }
 
-    const tokenRes = await fetch("https://oauth2.googleapis.com/token", {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({
-        client_id: Deno.env.get("GOOGLE_CLIENT_ID")!,
-        client_secret: Deno.env.get("GOOGLE_CLIENT_SECRET")!,
-        code,
-        redirect_uri: Deno.env.get("GOOGLE_OAUTH_REDIRECT_URI")!,
-        grant_type: "authorization_code",
-      }),
-    })
+    let acct: { id: string }
+    let email: string
 
-    if (!tokenRes.ok) {
-      console.error("inbox-oauth-finish: token exchange failed:", await tokenRes.text())
-      return new Response(JSON.stringify({ error: "token_exchange_failed" }), { status: 502, headers: jsonHeaders })
-    }
+    if (parsed.provider === "gmail") {
+      const tokenRes = await fetch("https://oauth2.googleapis.com/token", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({
+          client_id: Deno.env.get("GOOGLE_CLIENT_ID")!,
+          client_secret: Deno.env.get("GOOGLE_CLIENT_SECRET")!,
+          code,
+          redirect_uri: Deno.env.get("GOOGLE_OAUTH_REDIRECT_URI")!,
+          grant_type: "authorization_code",
+        }),
+      })
 
-    const tokens = await tokenRes.json() as {
-      access_token: string
-      refresh_token?: string
-      expires_in: number
-    }
+      if (!tokenRes.ok) {
+        console.error("inbox-oauth-finish: token exchange failed:", await tokenRes.text())
+        return new Response(JSON.stringify({ error: "token_exchange_failed" }), { status: 502, headers: jsonHeaders })
+      }
 
-    // prompt=consent is set on the authorize URL, so a missing refresh_token is abnormal.
-    if (!tokens.refresh_token) {
-      return new Response(JSON.stringify({ error: "no_refresh_token" }), { status: 400, headers: jsonHeaders })
-    }
+      const tokens = await tokenRes.json() as {
+        access_token: string
+        refresh_token?: string
+        expires_in: number
+      }
 
-    const userinfoRes = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
-      headers: { Authorization: `Bearer ${tokens.access_token}` },
-    })
+      // prompt=consent is set on the authorize URL, so a missing refresh_token is abnormal.
+      if (!tokens.refresh_token) {
+        return new Response(JSON.stringify({ error: "no_refresh_token" }), { status: 400, headers: jsonHeaders })
+      }
 
-    if (!userinfoRes.ok) {
-      console.error("inbox-oauth-finish: userinfo failed:", await userinfoRes.text())
-      return new Response(JSON.stringify({ error: "userinfo_failed" }), { status: 502, headers: jsonHeaders })
-    }
+      const userinfoRes = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
+        headers: { Authorization: `Bearer ${tokens.access_token}` },
+      })
 
-    const { sub, email } = await userinfoRes.json() as { sub: string; email: string }
+      if (!userinfoRes.ok) {
+        console.error("inbox-oauth-finish: userinfo failed:", await userinfoRes.text())
+        return new Response(JSON.stringify({ error: "userinfo_failed" }), { status: 502, headers: jsonHeaders })
+      }
 
-    const expiryDate = new Date(Date.now() + tokens.expires_in * 1000).toISOString()
+      const { sub, email: gmailEmail } = await userinfoRes.json() as { sub: string; email: string }
+      email = gmailEmail
 
-    const { data: acct, error: upsertErr } = await db
-      .from("inbox_accounts")
-      .upsert({
-        org_id: parsed.orgId,
-        provider: "gmail",
-        email,
-        external_id: sub,
-        access_token: await encrypt(tokens.access_token),
-        refresh_token: await encrypt(tokens.refresh_token),
-        expiry_date: expiryDate,
-        status: "connected",
-        error_message: null,
-        last_accessed: new Date().toISOString(),
-      }, { onConflict: "org_id,email" })
-      .select("id")
-      .single()
+      const expiryDate = new Date(Date.now() + tokens.expires_in * 1000).toISOString()
 
-    if (upsertErr) {
-      console.error("inbox-oauth-finish: save failed:", upsertErr.message)
-      return new Response(JSON.stringify({ error: "save_failed" }), { status: 500, headers: jsonHeaders })
+      const { data, error: upsertErr } = await db
+        .from("inbox_accounts")
+        .upsert({
+          org_id: parsed.orgId,
+          provider: parsed.provider,
+          email,
+          external_id: sub,
+          access_token: await encrypt(tokens.access_token),
+          refresh_token: await encrypt(tokens.refresh_token),
+          expiry_date: expiryDate,
+          status: "connected",
+          error_message: null,
+          last_accessed: new Date().toISOString(),
+        }, { onConflict: "org_id,email" })
+        .select("id")
+        .single()
+
+      if (upsertErr) {
+        console.error("inbox-oauth-finish: save failed:", upsertErr.message)
+        return new Response(JSON.stringify({ error: "save_failed" }), { status: 500, headers: jsonHeaders })
+      }
+
+      acct = data
+    } else {
+      const tokenRes = await fetch("https://login.microsoftonline.com/common/oauth2/v2.0/token", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({
+          client_id: Deno.env.get("MICROSOFT_CLIENT_ID")!,
+          client_secret: Deno.env.get("MICROSOFT_CLIENT_SECRET")!,
+          code,
+          redirect_uri: Deno.env.get("MICROSOFT_OAUTH_REDIRECT_URI")!,
+          grant_type: "authorization_code",
+          scope: "offline_access https://graph.microsoft.com/Mail.Read https://graph.microsoft.com/User.Read openid email",
+        }),
+      })
+
+      if (!tokenRes.ok) {
+        console.error("inbox-oauth-finish: token exchange failed:", await tokenRes.text())
+        return new Response(JSON.stringify({ error: "token_exchange_failed" }), { status: 502, headers: jsonHeaders })
+      }
+
+      const tokens = await tokenRes.json() as {
+        access_token: string
+        refresh_token?: string
+        expires_in: number
+      }
+
+      // offline_access is requested on the authorize URL, so a missing
+      // refresh_token is abnormal (mirrors Gmail's no_refresh_token check).
+      if (!tokens.refresh_token) {
+        return new Response(JSON.stringify({ error: "no_refresh_token" }), { status: 400, headers: jsonHeaders })
+      }
+
+      const meRes = await fetch("https://graph.microsoft.com/v1.0/me", {
+        headers: { Authorization: `Bearer ${tokens.access_token}` },
+      })
+
+      if (!meRes.ok) {
+        console.error("inbox-oauth-finish: userinfo failed:", await meRes.text())
+        return new Response(JSON.stringify({ error: "userinfo_failed" }), { status: 502, headers: jsonHeaders })
+      }
+
+      // `mail` is null for some personal Microsoft accounts — fall back to
+      // userPrincipalName in that case.
+      const me = await meRes.json() as { id: string; mail?: string | null; userPrincipalName?: string }
+      const outlookEmail = me.mail ?? me.userPrincipalName
+      if (!outlookEmail) {
+        return new Response(JSON.stringify({ error: "no_email" }), { status: 400, headers: jsonHeaders })
+      }
+      email = outlookEmail
+
+      const expiryDate = new Date(Date.now() + tokens.expires_in * 1000).toISOString()
+
+      const { data, error: upsertErr } = await db
+        .from("inbox_accounts")
+        .upsert({
+          org_id: parsed.orgId,
+          provider: parsed.provider,
+          email,
+          external_id: me.id,
+          access_token: await encrypt(tokens.access_token),
+          refresh_token: await encrypt(tokens.refresh_token),
+          expiry_date: expiryDate,
+          status: "connected",
+          error_message: null,
+          last_accessed: new Date().toISOString(),
+        }, { onConflict: "org_id,email" })
+        .select("id")
+        .single()
+
+      if (upsertErr) {
+        console.error("inbox-oauth-finish: save failed:", upsertErr.message)
+        return new Response(JSON.stringify({ error: "save_failed" }), { status: 500, headers: jsonHeaders })
+      }
+
+      acct = data
     }
 
     // Non-fatal: kick off an immediate full sync so the user sees attachments
@@ -130,7 +215,7 @@ Deno.serve(async (req) => {
       console.error("inbox-oauth-finish: sync-inbox-account trigger threw:", err)
     }
 
-    return new Response(JSON.stringify({ ok: true }), { headers: jsonHeaders })
+    return new Response(JSON.stringify({ ok: true, provider: parsed.provider, email }), { headers: jsonHeaders })
   } catch (err) {
     console.error("inbox-oauth-finish: unexpected error:", err)
     return new Response(JSON.stringify({ error: "unexpected" }), { status: 500, headers: jsonHeaders })

@@ -58,6 +58,27 @@ const ORDER_OPTIONS: InboxOrder[] = ["recent", "oldest", "alphabetical", "docume
 const PENDING_STATUSES: InboxItemStatus[] = ["new", "processing", "analyzing"]
 const PAGE_SIZE = 30
 
+const CONNECT_PROVIDER_LABEL: Record<string, string> = { gmail: "Gmail", outlook: "Outlook" }
+
+// Keys are error codes inbox-oauth-finish/oauth-complete.tsx can put on the
+// redirect: either a raw provider error (e.g. access_denied, when the user
+// cancels on Google/Microsoft's consent screen) or one of our own reason
+// strings from finishInboxConnect's catch block.
+const CONNECT_ERROR_MESSAGES: Record<string, string> = {
+  access_denied: "Connection cancelled.",
+  no_code: "Connection failed — missing authorization code. Please try again.",
+  invalid_state: "Connection failed — the request expired. Please try again.",
+  org_mismatch: "Connection failed. Please try again.",
+  token_exchange_failed: "Connection failed while exchanging tokens. Please try again.",
+  no_refresh_token:
+    "Connection failed — offline access wasn't granted. Please try again and accept all permissions.",
+  userinfo_failed: "Connection failed while fetching account info. Please try again.",
+  no_email: "Connection failed — couldn't determine your email address.",
+  save_failed: "Connection failed while saving. Please try again.",
+  connect_failed: "Connection failed. Please try again.",
+  unexpected: "Something went wrong. Please try again.",
+}
+
 function isAcceptedFile(file: File): boolean {
   const isImage = file.type.startsWith("image/") || file.type === ""
   const isPdf = file.type === "application/pdf"
@@ -119,6 +140,24 @@ export function InboxView() {
       { replace },
     )
   }
+
+  // One-time toast for the OAuth connect redirect (?connected=<provider> or
+  // ?error=<code>, set by oauth-complete.tsx), then strip both params so a
+  // page refresh doesn't re-fire it.
+  useEffect(() => {
+    const connected = searchParams.get("connected")
+    const error = searchParams.get("error")
+    if (!connected && !error) return
+
+    if (connected) {
+      toast.success(`${CONNECT_PROVIDER_LABEL[connected] ?? connected} connected.`)
+    } else if (error) {
+      toast.error(CONNECT_ERROR_MESSAGES[error] ?? "Connection failed. Please try again.")
+    }
+
+    updateParams({ connected: null, error: null })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // Debounce search input -> URL `q` param (page reset happens via the
   // filterKey render-time check above once qParam updates).

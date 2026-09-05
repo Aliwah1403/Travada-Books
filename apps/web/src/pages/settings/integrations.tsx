@@ -20,9 +20,15 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@travada-books/ui/components/alert-dialog"
-import { GmailIcon, OutlookIcon, StripeIcon, WhatsappIcon, Wallet01Icon } from "@travada-books/ui/icons"
+import { GmailIcon, OutlookIcon, StripeIcon, WhatsappIcon, Wallet01Icon, type Icon } from "@travada-books/ui/icons"
 import { useAuth } from "@/contexts/auth-context"
-import { connectGmail, deleteInboxAccount, listInboxAccounts } from "@/lib/queries/inbox"
+import {
+  connectGmail,
+  connectOutlook,
+  deleteInboxAccount,
+  listInboxAccounts,
+  type InboxAccount,
+} from "@/lib/queries/inbox"
 import { IntegrationIcon } from "@/components/settings/integration-icon"
 
 function GallerySkeletonCard() {
@@ -41,19 +47,52 @@ function GallerySkeletonCard() {
   )
 }
 
-function GmailCard() {
+type ConnectedProvider = "gmail" | "outlook"
+
+const connectedProviderConfig: Record<
+  ConnectedProvider,
+  {
+    icon: Icon
+    title: string
+    description: string
+    detailRoute: string
+    connectFn: () => Promise<void>
+  }
+> = {
+  gmail: {
+    icon: GmailIcon,
+    title: "Gmail",
+    description:
+      "Automatically pull receipts and invoices into your inbox from a connected Gmail mailbox.",
+    detailRoute: "/settings/integrations/gmail",
+    connectFn: connectGmail,
+  },
+  outlook: {
+    icon: OutlookIcon,
+    title: "Outlook",
+    description: "Pull receipts and invoices from a connected Outlook mailbox.",
+    detailRoute: "/settings/integrations/outlook",
+    connectFn: connectOutlook,
+  },
+}
+
+function ConnectedProviderCard({ provider }: { provider: ConnectedProvider }) {
+  const { icon, title, description, detailRoute, connectFn } = connectedProviderConfig[provider]
   const { orgId } = useAuth()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [connecting, setConnecting] = useState(false)
   const [confirmOpen, setConfirmOpen] = useState(false)
 
-  const { data: accounts = [], isLoading } = useQuery({
+  const { data: allAccounts = [], isLoading } = useQuery({
     queryKey: ["inbox-accounts", orgId],
     queryFn: () => listInboxAccounts(orgId!),
     enabled: !!orgId,
   })
 
+  // listInboxAccounts returns every provider's accounts — filter to this
+  // card's provider so Gmail/Outlook accounts never leak into each other.
+  const accounts = allAccounts.filter((a: InboxAccount) => a.provider === provider)
   const connectedAccounts = accounts.filter((a) => a.status === "connected")
   const isConnected = connectedAccounts.length > 0
 
@@ -71,10 +110,10 @@ function GmailCard() {
   async function handleConnect() {
     setConnecting(true)
     try {
-      // On success the browser navigates to Google — no success toast needed.
-      await connectGmail()
+      // On success the browser navigates to the provider — no success toast needed.
+      await connectFn()
     } catch {
-      toast.error("Couldn't start Gmail connection. Please try again.")
+      toast.error(`Couldn't start ${title} connection. Please try again.`)
       setConnecting(false)
     }
   }
@@ -82,7 +121,7 @@ function GmailCard() {
   function handleDisconnect() {
     toast.promise(disconnectAllMutation.mutateAsync(), {
       loading: "Disconnecting…",
-      success: "Gmail disconnected.",
+      success: `${title} disconnected.`,
       error: "Something went wrong. Please try again.",
     })
   }
@@ -97,19 +136,16 @@ function GmailCard() {
       <Card
         role="button"
         tabIndex={0}
-        onClick={() => navigate("/settings/integrations/gmail")}
+        onClick={() => navigate(detailRoute)}
         onKeyDown={(e) => {
-          if (e.key === "Enter") navigate("/settings/integrations/gmail")
+          if (e.key === "Enter") navigate(detailRoute)
         }}
         className="cursor-pointer ring-1 ring-foreground/10 transition-colors fine-hover:ring-foreground/25 active:opacity-90"
       >
         <CardHeader>
-          <IntegrationIcon brand="gmail" icon={GmailIcon} />
-          <CardTitle className="mt-2">Gmail</CardTitle>
-          <CardDescription>
-            Automatically pull receipts and invoices into your inbox from a connected Gmail
-            mailbox.
-          </CardDescription>
+          <IntegrationIcon brand={provider} icon={icon} />
+          <CardTitle className="mt-2">{title}</CardTitle>
+          <CardDescription>{description}</CardDescription>
         </CardHeader>
         <CardFooter className="justify-between border-t pt-4">
           <span className="text-xs text-muted-foreground truncate">{statusLabel}</span>
@@ -131,10 +167,10 @@ function GmailCard() {
       <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Disconnect Gmail?</AlertDialogTitle>
+            <AlertDialogTitle>Disconnect {title}?</AlertDialogTitle>
             <AlertDialogDescription>
               {connectedAccounts.length > 1 ?
-                `This stops syncing all ${connectedAccounts.length} connected Gmail accounts. You can reconnect anytime.`
+                `This stops syncing all ${connectedAccounts.length} connected ${title} accounts. You can reconnect anytime.`
               : `This stops syncing ${connectedAccounts[0]?.email}. You can reconnect anytime.`}
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -157,19 +193,13 @@ function GmailCard() {
 }
 
 type ComingSoonProvider = {
-  brand: "outlook" | "mpesa" | "stripe" | "whatsapp"
+  brand: "mpesa" | "stripe" | "whatsapp"
   icon: typeof OutlookIcon
   title: string
   description: string
 }
 
 const comingSoonProviders: ComingSoonProvider[] = [
-  {
-    brand: "outlook",
-    icon: OutlookIcon,
-    title: "Outlook",
-    description: "Pull receipts and invoices from a connected Outlook mailbox.",
-  },
   {
     brand: "mpesa",
     icon: Wallet01Icon,
@@ -218,7 +248,8 @@ export function IntegrationsSettingsPage() {
       </div>
 
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-        <GmailCard />
+        <ConnectedProviderCard provider="gmail" />
+        <ConnectedProviderCard provider="outlook" />
         {comingSoonProviders.map((provider) => (
           <ComingSoonCard key={provider.brand} {...provider} />
         ))}
