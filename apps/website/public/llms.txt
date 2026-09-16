@@ -1,0 +1,36 @@
+# Travada Books
+
+> Travada Books is invoicing and bookkeeping software built in Nairobi for freelancers, consultants, agencies, and small businesses in Kenya.
+
+Travada Books helps business owners automate recurring invoices, schedule invoice delivery, send overdue reminders, convert accepted quotes into invoices, import bank and M-Pesa statements from CSV or PDF, categorise transactions, match receipts from Gmail or Outlook, and keep documents in a searchable vault.
+
+## Core pages
+
+- [Homepage](https://travadabooks.com/): Product overview and common questions
+- [Invoicing](https://travadabooks.com/invoicing): Recurring invoices, scheduled sending, reminders, quotes, and multi-currency billing
+- [Statement import](https://travadabooks.com/statement-import): Bank and M-Pesa CSV/PDF import, categorisation, bulk actions, and export
+- [Inbox](https://travadabooks.com/inbox): Gmail and Outlook receipt ingestion, transaction matching, and document storage
+- [Who it is for](https://travadabooks.com/who-its-for): Use cases for freelancers, consultants, agencies, and small businesses
+- [About](https://travadabooks.com/about): The Travada Books story and Nairobi context
+- [Guides](https://travadabooks.com/guides): Practical invoicing and bookkeeping guidance
+- [Updates](https://travadabooks.com/updates): Product changes and announcements
+
+## Key facts
+
+- Primary market: Kenya
+- Base currency context: Kenyan shillings (KES)
+- Supported invoice currencies include KES and foreign currencies
+- Statement sources include banks and M-Pesa
+- Import formats: CSV and PDF
+- Connected email providers: Gmail and Outlook
+- Intended users: freelancers, consultants, agencies, and small business owners
+- Availability: web application
+- Contact: info@travadabooks.com
+
+## Canonical identity
+
+- Name: Travada Books
+- Company: Travada Systems
+- Website: https://travadabooks.com/
+- Location: Nairobi, Kenya
+

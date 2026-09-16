@@ -22,7 +22,7 @@ Deno.serve(async (req) => {
 
     const { data: quote, error: fetchError } = await db
       .from("quotes")
-      .select("id, org_id, user_id, customer_id, customer_name, quote_number, status, currency, issue_date, line_items, subtotal, tax_amount, discount, total, from_details, customer_details, note")
+      .select("id, org_id, user_id, customer_id, customer_name, quote_number, status, currency, issue_date, line_items, subtotal, tax_amount, discount, vat_rate, discount_percent, total, from_details, customer_details, note, custom_fields")
       .eq("token", token)
       .single()
 
@@ -87,9 +87,12 @@ Deno.serve(async (req) => {
       due_date: dueDate,
       currency: quote.currency,
       line_items: quote.line_items,
+      custom_fields: quote.custom_fields ?? [],
       subtotal: quote.subtotal,
       tax_amount: quote.tax_amount,
       discount: quote.discount,
+      vat_rate: quote.vat_rate,
+      discount_percent: quote.discount_percent,
       total: quote.total,
       from_details: quote.from_details,
       customer_details: quote.customer_details,

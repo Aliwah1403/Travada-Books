@@ -14,6 +14,7 @@ type RecurringSeries = {
   customer_name: string;
   currency: string;
   line_items: unknown[];
+  custom_fields: unknown[] | null;
   subtotal: number;
   tax_amount: number;
   discount: number;
@@ -103,7 +104,7 @@ export const recurringInvoiceGenerator = schedules.task({
     const recurringTable = (supabase as any).from("invoice_recurring");
     const { data: dueSeries, error: queryError } = await recurringTable
       .select(
-        "id, org_id, user_id, customer_id, customer_name, currency, line_items, " +
+        "id, org_id, user_id, customer_id, customer_name, currency, line_items, custom_fields, " +
         "subtotal, tax_amount, discount, total, payment_details, note, accept_payments, " +
         "invoice_template, from_details, customer_details, source_issue_date, source_due_date, " +
         "frequency, end_type, end_on_date, end_after_count, status, current_count, failure_count, " +
@@ -234,6 +235,7 @@ export const recurringInvoiceGenerator = schedules.task({
             issue_date: newIssueDate,
             due_date: newDueDate,
             line_items: series.line_items,
+            custom_fields: series.custom_fields ?? [],
             subtotal: series.subtotal,
             tax_amount: series.tax_amount,
             discount: series.discount,

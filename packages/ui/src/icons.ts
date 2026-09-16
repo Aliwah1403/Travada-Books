@@ -98,6 +98,7 @@ import {
   MicrosoftIcon as MicrosoftSvg,
   BankIcon as BankSvg,
   AiChat01Icon as AiChat01Svg,
+  Menu01Icon as Menu01Svg,
 } from "@hugeicons/core-free-icons";
 
 export type IconProps = Omit<HugeiconsIconProps, "icon">;
@@ -205,6 +206,7 @@ export const XIcon = make(NewTwitterSvg);
 export const MicrosoftIcon = make(MicrosoftSvg);
 export const BankIcon = make(BankSvg);
 export const AiChat01Icon = make(AiChat01Svg);
+export const Menu01Icon = make(Menu01Svg);
 
 // Brand logos (Gmail, Outlook) are fixed multi-color marks, not currentColor
 // glyphs, so they're hand-authored SVGs rather than wrapped Hugeicons.
@@ -229,7 +231,7 @@ export const GmailIcon: Icon = ({ size = 24, ...props }: IconProps) =>
   )
 
 // Single-color brand marks from the `simple-icons` registry (WhatsApp, Stripe)
-// — same `fromSimpleIcon` approach as apps/web/src/components/pitch/brand-icons.tsx,
+// — same `fromSimpleIcon` approach as apps/app/src/components/pitch/brand-icons.tsx,
 // ported here so app-facing settings UI doesn't import from the marketing-page-scoped file.
 function fromSimpleIcon(icon: SimpleIcon): Icon {
   return ({ size = 24, ...props }: IconProps) =>
