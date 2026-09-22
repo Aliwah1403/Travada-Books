@@ -20,12 +20,12 @@ const FOOTER_COLUMNS = PRICING_PUBLISHED
 
 export function Footer() {
   return (
-    <footer className="site-footer border-t border-border/60">
+    <footer className="border-t border-border/60 bg-[color-mix(in_oklab,var(--muted)_36%,var(--background))]">
       <Container className="max-w-7xl py-14 md:py-20">
         <div className="grid gap-12 md:grid-cols-[1.25fr_2fr]">
           <div>
-            <Link to="/" className="site-logo inline-flex items-center gap-2.5">
-              <span className="site-logo__mark"><img src="/logo.svg" alt="" className="h-5 w-5" /></span>
+            <Link to="/" className="inline-flex items-center gap-2.5">
+              <span className="grid h-[2rem] w-[2rem] place-items-center rounded-[.48rem] border border-border bg-foreground"><img src="/logo.svg" alt="" className="h-5 w-5 brightness-0 invert" /></span>
               <span className="font-heading text-sm font-semibold">Travada Books</span>
             </Link>
             <p className="mt-5 max-w-[28ch] font-heading text-sm/relaxed text-muted-foreground">

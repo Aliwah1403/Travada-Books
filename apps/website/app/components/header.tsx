@@ -31,10 +31,10 @@ export function Header() {
   const [mobileOpen, setMobileOpen] = useState(false)
 
   return (
-    <header className="site-header sticky top-0 z-40 border-b border-border/60 bg-background/80 backdrop-blur-xl">
+    <header className="sticky top-0 z-40 border-b border-border/60 bg-[color-mix(in_oklab,var(--background)_87%,transparent)] backdrop-blur-xl">
       <Container className="flex h-[4.5rem] max-w-7xl items-center justify-between">
-        <Link to="/" className="site-logo flex items-center gap-2.5" aria-label={`${SITE_NAME} home`}>
-          <span className="site-logo__mark"><img src="/logo.svg" alt="" className="h-5 w-5" /></span>
+        <Link to="/" className="flex items-center gap-2.5" aria-label={`${SITE_NAME} home`}>
+          <span className="grid h-[2rem] w-[2rem] place-items-center rounded-[.48rem] border border-border bg-foreground"><img src="/logo.svg" alt="" className="h-5 w-5 brightness-0 invert" /></span>
           <span className="font-heading text-sm font-semibold tracking-[-0.025em] text-foreground">{SITE_NAME}</span>
         </Link>
 
@@ -48,11 +48,11 @@ export function Header() {
               Features
               <ArrowDown01Icon className="size-3.5" />
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="site-nav-menu">
+            <DropdownMenuContent align="start" className="w-[19rem] p-[.45rem]">
               {FEATURES_NAV.map((link) => (
-                <DropdownMenuItem key={link.href} className="site-nav-menu__item" render={<Link to={link.href} />}>
-                  <span>{link.label}</span>
-                  <small>{link.description}</small>
+                <DropdownMenuItem key={link.href} className="flex-col items-start gap-[.28rem] px-[.8rem] py-[.7rem]" render={<Link to={link.href} />}>
+                  <span className="text-foreground [font-weight:550] text-[.78rem] leading-[1.2] font-heading">{link.label}</span>
+                  <small className="text-muted-foreground font-normal text-[.64rem] leading-[1.35] font-sans">{link.description}</small>
                 </DropdownMenuItem>
               ))}
             </DropdownMenuContent>
@@ -69,11 +69,11 @@ export function Header() {
               Resources
               <ArrowDown01Icon className="size-3.5" />
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="site-nav-menu">
+            <DropdownMenuContent align="start" className="w-[19rem] p-[.45rem]">
               {RESOURCES_NAV.map((link) => (
-                <DropdownMenuItem key={link.href} className="site-nav-menu__item" render={<Link to={link.href} />}>
-                  <span>{link.label}</span>
-                  <small>{link.description}</small>
+                <DropdownMenuItem key={link.href} className="flex-col items-start gap-[.28rem] px-[.8rem] py-[.7rem]" render={<Link to={link.href} />}>
+                  <span className="text-foreground [font-weight:550] text-[.78rem] leading-[1.2] font-heading">{link.label}</span>
+                  <small className="text-muted-foreground font-normal text-[.64rem] leading-[1.35] font-sans">{link.description}</small>
                 </DropdownMenuItem>
               ))}
             </DropdownMenuContent>
@@ -84,7 +84,7 @@ export function Header() {
           <Button variant="ghost" size="sm" render={<AppLink to="login" location="header" />}>
             Log in
           </Button>
-          <Button className="site-header__cta" size="sm" render={<AppLink to="signup" location="header" />}>
+          <Button className="rounded-[.45rem] bg-foreground px-[.85rem] text-background hover:bg-[color-mix(in_oklab,var(--foreground)_84%,transparent)]" size="sm" render={<AppLink to="signup" location="header" />}>
             Start free <span aria-hidden="true">↗</span>
           </Button>
         </div>

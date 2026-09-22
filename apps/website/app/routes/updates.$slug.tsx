@@ -69,16 +69,16 @@ export default function UpdateDetail({ params }: Route.ComponentProps) {
   const { Component, frontmatter } = entry
 
   return (
-    <article className="content-article">
-      <header className="content-article__header">
+    <article data-dark-surface className="bg-[var(--website-paper)] text-[var(--website-ink)]">
+      <header className="relative overflow-hidden border-b border-[var(--website-line)] bg-[linear-gradient(to_right,color-mix(in_oklab,var(--website-line)_75%,transparent)_1px,transparent_1px),linear-gradient(to_bottom,color-mix(in_oklab,var(--website-line)_55%,transparent)_1px,transparent_1px)] pt-[7rem] pb-[5rem] [background-size:72px_72px] max-[640px]:pt-[5rem] max-[640px]:pb-[4rem]">
         <Container className="max-w-4xl">
-          <p className="section-kicker"><span />{frontmatter.tag ?? "Update"}</p>
-          <h1>{frontmatter.title}</h1>
-          <p className="content-article__summary">{frontmatter.summary}</p>
-          <div className="content-article__byline"><span>By Travada Systems</span><span>Published {frontmatter.publishedAt}</span><span>Built in Nairobi</span></div>
+          <p className="flex items-center gap-[.65rem] text-[.64rem] font-semibold uppercase leading-none tracking-[.11em] text-[var(--website-green)] font-sans"><span className="h-px w-[1.8rem] bg-current" />{frontmatter.tag ?? "Update"}</p>
+          <h1 className="mt-[1.6rem] max-w-[52rem] text-[clamp(3.4rem,6.5vw,6.6rem)] leading-[.9] tracking-[-.073em] [font-weight:520] text-balance">{frontmatter.title}</h1>
+          <p className="mt-[1.7rem] max-w-[43rem] text-[1.05rem] leading-[1.7] text-[color-mix(in_oklab,var(--website-ink)_62%,transparent)] font-heading">{frontmatter.summary}</p>
+          <div className="mt-[2rem] flex flex-wrap gap-x-[1.5rem] gap-y-[.7rem] border-t border-[var(--website-line)] pt-[1rem] font-sans text-[.55rem] leading-none font-medium text-[color-mix(in_oklab,var(--website-ink)_48%,transparent)]"><span>By Travada Systems</span><span>Published {frontmatter.publishedAt}</span><span>Built in Nairobi</span></div>
         </Container>
       </header>
-      <Container className="content-article__body max-w-3xl"><Component components={mdxComponents} /></Container>
+      <Container data-mdx-body className="max-w-3xl pt-[5rem] pb-[8rem] max-[640px]:pt-[4rem] max-[640px]:pb-[6rem]"><Component components={mdxComponents} /></Container>
     </article>
   )
 }
