@@ -10,7 +10,7 @@ import {
   Upload01Icon,
 } from "@travada-books/ui/icons";
 import { cn } from "@travada-books/ui/lib/utils";
-import { LiveInvoiceFigure } from "@/pages/preview/live-invoice-figure";
+import { DashboardFigure } from "@/pages/preview/dashboard-figure";
 
 /**
  * ── Onboarding UI playground — split-screen variant ─────────────────────────
@@ -534,14 +534,9 @@ export function OnboardingSplitFlow() {
   return (
     <SplitLayout
       figure={
-        <LiveInvoiceFigure
-          businessName={businessName}
-          email={email}
-          currency={currency}
-          countryName={country}
-          taxId={taxId}
+        <DashboardFigure
+          workspaceName={businessName}
           hasLogo={hasLogo}
-          inviteCount={invites.length}
           step={step}
         />
       }
