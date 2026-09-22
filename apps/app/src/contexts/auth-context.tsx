@@ -16,6 +16,7 @@ export type UserProfile = {
   week_starts_on_monday: boolean
   timezone_auto_sync: boolean
   transactions_vault_nudge_seen_at: string | null
+  onboarding_checklist_dismissed_at: string | null
 }
 
 export type UserOrg = {
@@ -88,7 +89,7 @@ async function fetchUserData(userId: string): Promise<FetchResult> {
   const [profileResult, membersResult] = await Promise.all([
     supabase
       .from("users")
-      .select("id, full_name, avatar_url, email, locale, timezone, date_format, time_format, week_starts_on_monday, timezone_auto_sync, active_org_id, transactions_vault_nudge_seen_at")
+      .select("id, full_name, avatar_url, email, locale, timezone, date_format, time_format, week_starts_on_monday, timezone_auto_sync, active_org_id, transactions_vault_nudge_seen_at, onboarding_checklist_dismissed_at")
       .eq("id", userId)
       .maybeSingle(),
     supabase
