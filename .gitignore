@@ -41,3 +41,13 @@ LINKEDIN-STRATEGY.md
 WEBSITE-PLAN.md
 linkedin/
 CUSTOMER-PORTAL-PLAN.md
+
+# Agent tooling — per-developer, not shared. `.claude` and `.codex` are above.
+# The ReUI installer writes the same skill into every agent dir it detects.
+.agents/
+.opencode/
+opencode.json
+.cursor/skills/
+.cursor/mcp.json
+.cursor/rules/reui.mdc
+.mcp.json

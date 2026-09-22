@@ -39,6 +39,7 @@ import {
   TooltipTrigger,
 } from "@travada-books/ui/components/tooltip";
 import { NavItem } from "./nav-item";
+import { OnboardingChecklistTrigger } from "./onboarding-checklist-trigger";
 import { useTheme } from "@/components/theme-provider";
 import { useAuth } from "@/contexts/auth-context";
 import { supabase } from "@/lib/supabase";
@@ -297,6 +298,10 @@ export function Sidebar() {
           ))}
         </div>
       </nav>
+
+      <div className='px-2 pb-2'>
+        <OnboardingChecklistTrigger />
+      </div>
 
       <Separator />
 

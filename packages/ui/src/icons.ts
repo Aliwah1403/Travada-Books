@@ -10,6 +10,7 @@ import {
   ArrowLeft01Icon as ArrowLeft01Svg,
   ArrowRight01Icon as ArrowRight01Svg,
   ArrowDown01Icon as ArrowDown01Svg,
+  Building01Icon as Building01Svg,
   Calendar01Icon as Calendar01Svg,
   ClockCheckIcon as ClockCheckSvg,
   EyeIcon as EyeSvg,
@@ -118,6 +119,7 @@ export const Alert01Icon = make(Alert01Svg);
 export const ArrowDown01Icon = make(ArrowDown01Svg);
 export const ArrowLeft01Icon = make(ArrowLeft01Svg);
 export const ArrowRight01Icon = make(ArrowRight01Svg);
+export const Building01Icon = make(Building01Svg);
 export const Calendar01Icon = make(Calendar01Svg);
 export const ClockCheckIcon = make(ClockCheckSvg);
 export const Sent02Icon = make(SendSvg);
