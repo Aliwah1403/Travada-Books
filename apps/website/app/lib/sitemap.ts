@@ -17,6 +17,7 @@ const CORE_STATIC_PATHS = [
   "/invoicing",
   "/statement-import",
   "/inbox",
+  "/integrations",
   "/who-its-for",
   "/about",
   "/updates",
@@ -46,7 +47,7 @@ const LEGAL_PATHS: Record<string, string> = {
 }
 
 export function getSitemapUrls(): SitemapUrl[] {
-  const urls: SitemapUrl[] = CORE_STATIC_PATHS.map((path) => ({ path }))
+  const urls: SitemapUrl[] = CORE_STATIC_PATHS.map((path) => ({ path, lastmod: "2026-09-16" }))
 
   if (PRICING_PUBLISHED) {
     urls.push({ path: "/pricing" })

@@ -19,7 +19,7 @@ type FeatureHeroProps = {
 }
 
 export function FeatureHero({ eyebrow, title, intro }: FeatureHeroProps) {
-  const heroVisual: FeatureVisual = eyebrow === "Invoicing" ? "recurring" : eyebrow === "Inbox" ? "matching" : "import"
+  const heroVisual: FeatureVisual = eyebrow === "Invoicing" ? "payments" : eyebrow === "Inbox" ? "providers" : "categories"
   return (
     <section className="feature-hero">
       <div className="feature-hero__grid" aria-hidden="true" />
@@ -55,10 +55,13 @@ type FeatureRowsProps = {
 // Alternates text/screenshot side on md+ and the muted background band,
 // index by index — same rhythm as the home page's section list.
 export function FeatureRows({ items }: FeatureRowsProps) {
+  const demonstrations = items.slice(0, 2)
+  const essentials = items.slice(2)
+
   return (
     <section className="feature-rows">
       <Container className="max-w-7xl">
-      {items.map((item, index) => {
+      {demonstrations.map((item, index) => {
         const reverse = index % 2 === 1
         return (
           <article className={`feature-row ${reverse ? "feature-row--reverse" : ""}`} key={item.title}>
@@ -73,6 +76,25 @@ export function FeatureRows({ items }: FeatureRowsProps) {
           </article>
         )
       })}
+      {essentials.length > 0 && (
+        <div className="feature-essentials">
+          <div className="feature-essentials__heading">
+            <p className="section-kicker"><span />Also included</p>
+            <h2>The details that keep<br />the workflow moving.</h2>
+          </div>
+          <div
+            className={`feature-essentials__grid${essentials.length === 2 ? " feature-essentials__grid--two" : ""}`}
+          >
+            {essentials.map((item, index) => (
+              <article key={item.title}>
+                <span>0{index + 3}</span>
+                <h3>{item.title}</h3>
+                <p>{item.body}</p>
+              </article>
+            ))}
+          </div>
+        </div>
+      )}
       </Container>
     </section>
   )

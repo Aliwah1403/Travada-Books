@@ -1,6 +1,7 @@
 import { CtaBand } from "~/components/cta-band"
 import { FeatureHero, FeatureRows, type FeatureRowItem } from "~/components/feature-page"
 import { Faq } from "~/components/home/faq"
+import { IntegrationsSection } from "~/components/integrations-section"
 import { STATEMENT_IMPORT_FAQ_ITEMS } from "~/data/faq"
 import { faqPageJsonLd, pageMeta } from "~/lib/seo"
 
@@ -54,6 +55,7 @@ export default function StatementImport() {
         intro="Bring in your bank statement or your M-Pesa records — a CSV, or a PDF, whatever you've got. It reads the file, works out the columns itself, and sorts every transaction so you don't have to."
       />
       <FeatureRows items={ROWS} />
+      <IntegrationsSection compact />
       <Faq items={STATEMENT_IMPORT_FAQ_ITEMS} heading="Statement import — frequently asked questions" />
       <CtaBand heading="Bring in your records. Today." />
     </>

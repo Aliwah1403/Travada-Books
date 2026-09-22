@@ -2,7 +2,7 @@ import { Container } from "~/components/container"
 import { mdxComponents } from "~/components/mdx-components"
 import { NotFoundBody } from "~/components/not-found"
 import { findEntry, type MdxModule } from "~/lib/content"
-import { pageMeta } from "~/lib/seo"
+import { articleJsonLd, pageMeta } from "~/lib/seo"
 
 import type { Route } from "./+types/compare.$slug"
 
@@ -25,13 +25,23 @@ export function meta({ params }: Route.MetaArgs) {
     })
   }
   const { frontmatter } = entry
-  return pageMeta({
-    title: `${frontmatter.title} — Travada Books`,
-    description: frontmatter.summary,
-    path: `/compare/${entry.slug}`,
-    image: frontmatter.image ?? "/og/default.png",
-    type: "article",
-  })
+  const image = frontmatter.image ?? "/og/default.png"
+  return [
+    ...pageMeta({
+      title: `${frontmatter.title} — Travada Books`,
+      description: frontmatter.summary,
+      path: `/compare/${entry.slug}`,
+      image,
+      type: "article",
+    }),
+    articleJsonLd({
+      headline: frontmatter.title,
+      description: frontmatter.summary,
+      datePublished: frontmatter.publishedAt,
+      dateModified: frontmatter.updatedAt,
+      image,
+    }),
+  ]
 }
 
 export default function CompareDetail({ params }: Route.ComponentProps) {
@@ -41,12 +51,16 @@ export default function CompareDetail({ params }: Route.ComponentProps) {
   const { Component, frontmatter } = entry
 
   return (
-    <Container className="py-24">
-      <p className="text-xs font-medium text-muted-foreground uppercase">{frontmatter.tag ?? "Compare"}</p>
-      <h1 className="mt-2 text-3xl font-medium tracking-tight text-foreground">
-        {frontmatter.title}
-      </h1>
-      <Component components={mdxComponents} />
-    </Container>
+    <article className="content-article">
+      <header className="content-article__header">
+        <Container className="max-w-4xl">
+          <p className="section-kicker"><span />{frontmatter.tag ?? "Compare"}</p>
+          <h1>{frontmatter.title}</h1>
+          <p className="content-article__summary">{frontmatter.summary}</p>
+          <div className="content-article__byline"><span>By Travada Systems</span><span>Updated {frontmatter.updatedAt ?? frontmatter.publishedAt}</span><span>Balanced comparison</span></div>
+        </Container>
+      </header>
+      <Container className="content-article__body max-w-3xl"><Component components={mdxComponents} /></Container>
+    </article>
   )
 }

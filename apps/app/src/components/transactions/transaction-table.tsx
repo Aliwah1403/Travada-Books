@@ -41,15 +41,15 @@ import type { TransactionCategory } from "@/lib/queries/transactions";
 // Width of the sticky left columns (used to offset subsequent sticky cols)
 const SELECT_COL_WIDTH = 48;
 const DATE_COL_WIDTH = 130;
-const NAME_COL_WIDTH = 240;
+const NAME_COL_WIDTH = 300;
 
 // Min-width per column id — applied to <th> via style
 const COL_WIDTHS: Record<string, number> = {
   select: SELECT_COL_WIDTH,
   date: DATE_COL_WIDTH,
   name: NAME_COL_WIDTH,
-  counterpartyName: 180,
-  categoryName: 180,
+  counterpartyName: 220,
+  categoryName: 200,
   status: 120,
   paymentMode: 110,
   amount: 150,
@@ -261,7 +261,10 @@ export function TransactionTable({
                             colId === "name" ? { left: SELECT_COL_WIDTH + DATE_COL_WIDTH } :
                             undefined
                           }
-                          className={cn("py-3 px-4", stickyBodyClass(colId))}
+                          className={cn(
+                            "py-3 px-4 overflow-hidden",
+                            stickyBodyClass(colId),
+                          )}
                           onClick={colId === "actions" || colId === "select" ? (e) => e.stopPropagation() : undefined}
                         >
                           {flexRender(cell.column.columnDef.cell, cell.getContext())}

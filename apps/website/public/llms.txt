@@ -10,6 +10,7 @@ Travada Books helps business owners automate recurring invoices, schedule invoic
 - [Invoicing](https://travadabooks.com/invoicing): Recurring invoices, scheduled sending, reminders, quotes, and multi-currency billing
 - [Statement import](https://travadabooks.com/statement-import): Bank and M-Pesa CSV/PDF import, categorisation, bulk actions, and export
 - [Inbox](https://travadabooks.com/inbox): Gmail and Outlook receipt ingestion, transaction matching, and document storage
+- [Integrations](https://travadabooks.com/integrations): Available Gmail and Outlook connections, plus the M-Pesa, Stripe, and WhatsApp roadmap
 - [Who it is for](https://travadabooks.com/who-its-for): Use cases for freelancers, consultants, agencies, and small businesses
 - [About](https://travadabooks.com/about): The Travada Books story and Nairobi context
 - [Guides](https://travadabooks.com/guides): Practical invoicing and bookkeeping guidance
@@ -23,6 +24,7 @@ Travada Books helps business owners automate recurring invoices, schedule invoic
 - Statement sources include banks and M-Pesa
 - Import formats: CSV and PDF
 - Connected email providers: Gmail and Outlook
+- Planned integrations: M-Pesa, Stripe, and WhatsApp
 - Intended users: freelancers, consultants, agencies, and small business owners
 - Availability: web application
 - Contact: info@travadabooks.com
@@ -33,4 +35,3 @@ Travada Books helps business owners automate recurring invoices, schedule invoic
 - Company: Travada Systems
 - Website: https://travadabooks.com/
 - Location: Nairobi, Kenya
-

@@ -34,7 +34,7 @@ export const mdxComponents = {
   h2: ({ className, ...props }: ComponentProps<"h2">) => (
     <h2
       className={cn(
-        "mt-10 text-2xl font-medium tracking-tight text-foreground",
+        "mt-14 text-3xl font-medium tracking-[-0.045em] text-foreground",
         className,
       )}
       {...props}
@@ -42,13 +42,13 @@ export const mdxComponents = {
   ),
   h3: ({ className, ...props }: ComponentProps<"h3">) => (
     <h3
-      className={cn("mt-8 text-lg font-medium text-foreground", className)}
+      className={cn("mt-10 text-xl font-medium tracking-[-0.03em] text-foreground", className)}
       {...props}
     />
   ),
   p: ({ className, ...props }: ComponentProps<"p">) => (
     <p
-      className={cn("mt-4 text-sm/relaxed text-muted-foreground", className)}
+      className={cn("mt-5 font-heading text-base/relaxed text-muted-foreground", className)}
       {...props}
     />
   ),
@@ -56,7 +56,7 @@ export const mdxComponents = {
   ul: ({ className, ...props }: ComponentProps<"ul">) => (
     <ul
       className={cn(
-        "mt-4 list-disc space-y-2 pl-5 text-sm/relaxed text-muted-foreground",
+        "mt-5 list-disc space-y-3 pl-5 font-heading text-base/relaxed text-muted-foreground",
         className,
       )}
       {...props}
@@ -65,7 +65,7 @@ export const mdxComponents = {
   ol: ({ className, ...props }: ComponentProps<"ol">) => (
     <ol
       className={cn(
-        "mt-4 list-decimal space-y-2 pl-5 text-sm/relaxed text-muted-foreground",
+        "mt-5 list-decimal space-y-3 pl-5 font-heading text-base/relaxed text-muted-foreground",
         className,
       )}
       {...props}
@@ -75,9 +75,9 @@ export const mdxComponents = {
     <li className={className} {...props} />
   ),
   table: ({ className, ...props }: ComponentProps<"table">) => (
-    <div className="mt-4 overflow-x-auto">
+    <div className="mt-7 overflow-x-auto border border-border">
       <table
-        className={cn("w-full border-collapse text-sm/relaxed", className)}
+        className={cn("w-full border-collapse font-heading text-sm/relaxed", className)}
         {...props}
       />
     </div>
@@ -85,7 +85,7 @@ export const mdxComponents = {
   th: ({ className, ...props }: ComponentProps<"th">) => (
     <th
       className={cn(
-        "border-b border-border px-3 py-2 text-left font-medium text-foreground",
+        "border-b border-r border-border bg-muted/50 px-4 py-3 text-left font-medium text-foreground last:border-r-0",
         className,
       )}
       {...props}
@@ -94,7 +94,7 @@ export const mdxComponents = {
   td: ({ className, ...props }: ComponentProps<"td">) => (
     <td
       className={cn(
-        "border-b border-border px-3 py-2 text-muted-foreground",
+        "border-r border-b border-border px-4 py-3 text-muted-foreground last:border-r-0",
         className,
       )}
       {...props}
@@ -112,7 +112,7 @@ export const mdxComponents = {
   blockquote: ({ className, ...props }: ComponentProps<"blockquote">) => (
     <blockquote
       className={cn(
-        "mt-4 border-l-2 border-border pl-4 text-sm/relaxed text-muted-foreground italic",
+        "mt-7 border-l-2 border-primary py-2 pl-5 font-heading text-base/relaxed text-foreground italic",
         className,
       )}
       {...props}

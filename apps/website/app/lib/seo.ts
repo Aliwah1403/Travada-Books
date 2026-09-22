@@ -194,6 +194,11 @@ export function articleJsonLd({
           url: absoluteUrl(ORG_LOGO_PATH),
         },
       },
+      author: {
+        "@type": "Organization",
+        name: "Travada Systems",
+        url: SITE_URL,
+      },
     },
   }
 }

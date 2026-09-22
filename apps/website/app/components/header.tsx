@@ -20,7 +20,7 @@ import { ArrowDown01Icon, Menu01Icon } from "@travada-books/ui/icons"
 
 import { AppLink } from "~/components/app-link"
 import { Container } from "~/components/container"
-import { FEATURES_NAV, HEADER_NAV, SITE_NAME } from "~/data/site"
+import { FEATURES_NAV, HEADER_NAV, RESOURCES_NAV, SITE_NAME } from "~/data/site"
 import { PRICING_PUBLISHED } from "~/data/pricing"
 
 const NAV_LINKS = PRICING_PUBLISHED
@@ -48,10 +48,11 @@ export function Header() {
               Features
               <ArrowDown01Icon className="size-3.5" />
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="start">
+            <DropdownMenuContent align="start" className="site-nav-menu">
               {FEATURES_NAV.map((link) => (
-                <DropdownMenuItem key={link.href} render={<Link to={link.href} />}>
-                  {link.label}
+                <DropdownMenuItem key={link.href} className="site-nav-menu__item" render={<Link to={link.href} />}>
+                  <span>{link.label}</span>
+                  <small>{link.description}</small>
                 </DropdownMenuItem>
               ))}
             </DropdownMenuContent>
@@ -62,6 +63,21 @@ export function Header() {
               {link.label}
             </Button>
           ))}
+
+          <DropdownMenu>
+            <DropdownMenuTrigger render={<Button variant="ghost" size="sm" data-icon="inline-end" />}>
+              Resources
+              <ArrowDown01Icon className="size-3.5" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="site-nav-menu">
+              {RESOURCES_NAV.map((link) => (
+                <DropdownMenuItem key={link.href} className="site-nav-menu__item" render={<Link to={link.href} />}>
+                  <span>{link.label}</span>
+                  <small>{link.description}</small>
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </nav>
 
         <div className="hidden items-center gap-2 md:flex">
@@ -85,12 +101,19 @@ export function Header() {
               <SheetTitle>{SITE_NAME}</SheetTitle>
             </SheetHeader>
             <nav className="flex flex-col gap-1 px-6">
+              <span className="px-3 pt-2 pb-1 font-mono text-[10px] text-muted-foreground uppercase">Features</span>
               {FEATURES_NAV.map((link) => (
                 <SheetClose key={link.href} render={<Link to={link.href} />} className="fine-hover:bg-muted fine-hover:text-foreground rounded-md px-3 py-2 text-sm text-muted-foreground active:opacity-80">
                   {link.label}
                 </SheetClose>
               ))}
               {NAV_LINKS.map((link) => (
+                <SheetClose key={link.href} render={<Link to={link.href} />} className="fine-hover:bg-muted fine-hover:text-foreground rounded-md px-3 py-2 text-sm text-muted-foreground active:opacity-80">
+                  {link.label}
+                </SheetClose>
+              ))}
+              <span className="px-3 pt-4 pb-1 font-mono text-[10px] text-muted-foreground uppercase">Resources</span>
+              {RESOURCES_NAV.map((link) => (
                 <SheetClose key={link.href} render={<Link to={link.href} />} className="fine-hover:bg-muted fine-hover:text-foreground rounded-md px-3 py-2 text-sm text-muted-foreground active:opacity-80">
                   {link.label}
                 </SheetClose>

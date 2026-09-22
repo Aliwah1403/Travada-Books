@@ -12,8 +12,8 @@ const modules = import.meta.glob<Record<string, unknown>>("../../content/updates
 // eslint-disable-next-line react-refresh/only-export-components -- route module convention: meta + default component
 export function meta() {
   return pageMeta({
-    title: "Updates — Travada Books",
-    description: "What's shipped recently on Travada Books, as it ships.",
+    title: "Product Updates — Travada Books",
+    description: "New features, improvements and product decisions from the team building Travada Books in Nairobi.",
     path: "/updates",
   })
 }
@@ -22,21 +22,25 @@ export default function UpdatesIndex() {
   const updates = buildFrontmatterCollection(modules, "updates")
 
   return (
-    <Container className="py-24">
-      <h1 className="text-3xl font-medium tracking-tight text-foreground">Updates</h1>
-      <p className="mt-2 text-sm text-muted-foreground">
-        What's shipped recently, as it ships.
-      </p>
+    <div className="updates-index">
+      <Container className="max-w-5xl py-24 md:py-32">
+        <p className="section-kicker"><span />Product updates</p>
+        <h1>What we’ve been<br />building.</h1>
+        <p className="updates-index__intro">New features, product decisions, and improvements—published as they become useful.</p>
 
-      <ul className="mt-10 flex flex-col gap-4">
-        {updates.map((entry) => (
-          <li key={entry.slug}>
-            <Link to={`/updates/${entry.slug}`} className="text-sm text-primary underline">
-              {entry.frontmatter.title}
-            </Link>
-          </li>
-        ))}
-      </ul>
-    </Container>
+        <div className="updates-feed">
+          {updates.map((entry) => (
+            <article key={entry.slug}>
+              <div className="updates-feed__meta"><span>{entry.frontmatter.tag ?? "Update"}</span><time>{entry.frontmatter.publishedAt}</time></div>
+              <Link to={`/updates/${entry.slug}`}>
+                <h2>{entry.frontmatter.title}</h2>
+                <p>{entry.frontmatter.summary}</p>
+                <small>Read update <b>↗</b></small>
+              </Link>
+            </article>
+          ))}
+        </div>
+      </Container>
+    </div>
   )
 }

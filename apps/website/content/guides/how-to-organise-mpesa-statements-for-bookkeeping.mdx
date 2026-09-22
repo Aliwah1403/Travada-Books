@@ -1,0 +1,87 @@
+---
+title: How to organise M-Pesa statements for bookkeeping
+summary: A practical workflow for downloading, cleaning, categorising and reconciling M-Pesa transactions for a Kenyan small business.
+publishedAt: 2026-09-16
+updatedAt: 2026-09-16
+tag: Bookkeeping guide
+---
+
+An M-Pesa statement is a transaction record showing money received, money sent, charges and other activity on an M-Pesa account. For bookkeeping, the useful workflow is to download the complete period, separate business from personal activity, categorise each business transaction, attach supporting documents and reconcile the final totals.
+
+> This guide explains a bookkeeping workflow, not tax advice. Check current filing and record requirements with KRA or a qualified Kenyan tax professional.
+
+## The short version
+
+1. Download a statement covering the full bookkeeping period.
+2. Keep the original file unchanged as your source record.
+3. Import a working copy into your bookkeeping system.
+4. Separate business transactions from transfers and personal activity.
+5. Categorise income, expenses, fees and refunds consistently.
+6. Attach receipts or supplier invoices where available.
+7. Reconcile the opening balance, activity and closing balance.
+8. Review exceptions before exporting or sharing the books.
+
+## 1. Download the complete statement
+
+Use the official M-Pesa application or business portal for the account you are reconciling. Safaricom's consumer statement service supports interactive transaction history and full statements for three, six or twelve months sent to a preferred email. Its current M-Pesa application guide also describes exporting statements after filtering by transaction type or date.
+
+Sources: [Safaricom M-Pesa Statement Service](https://www.safaricom.co.ke/terms-and-conditions-for-m-pesastatement/) and [M-Pesa App Manual](https://www.safaricom.co.ke/images/Downloads/M-PESA_App_Manual.pdf).
+
+Choose dates that match the period in your books. If you report monthly, download the full calendar month. If you are clearing a backlog, use consecutive periods with no gaps.
+
+## 2. Preserve the original
+
+Save the downloaded statement before editing anything. A practical file name is `mpesa-2026-08-original.pdf` or `mpesa-2026-08-original.csv`. Store working exports separately so there is always an unchanged source to return to.
+
+## 3. Import and map the columns
+
+A statement normally includes a transaction date, reference, description, money in, money out and balance. Confirm how those fields map before importing. Pay special attention when credits and debits occupy separate columns; a wrong mapping can reverse income and expenses.
+
+Travada Books accepts CSV and PDF statements, detects likely columns, and lets you confirm the mapping before transactions enter the books.
+
+## 4. Separate transactions by purpose
+
+Use categories that describe why money moved, not only who sent or received it. A useful first pass separates:
+
+- customer income;
+- supplier and operating expenses;
+- M-Pesa charges;
+- owner drawings or personal spending;
+- transfers between your own accounts;
+- refunds and reversals;
+- transactions that still need investigation.
+
+Transfers between your own accounts are not new income or a new expense. Mark them consistently so the same money is not counted twice.
+
+## 5. Match supporting documents
+
+Match business expenses to receipts or supplier invoices where possible. Give documents searchable names and keep them beside the related transaction. If receipts arrive by email, Travada Books can pull PDF attachments from a connected Gmail or Outlook inbox and suggest the matching transaction.
+
+## 6. Reconcile the totals
+
+A reconciled period should satisfy this check:
+
+| Check | Expected result |
+|---|---|
+| Opening balance + money in − money out | Closing balance |
+| Statement transactions | Same transactions recorded in the books |
+| Transfers | Identified and not double-counted |
+| Unexplained differences | Zero, or documented for follow-up |
+
+If the totals do not agree, look for missing date ranges, reversed credit/debit columns, duplicated imports, charges entered separately, or transactions recorded in the wrong period.
+
+## Common mistakes
+
+- Importing screenshots instead of a complete statement.
+- Editing the only copy of the original file.
+- Counting transfers between your own accounts as revenue.
+- Mixing personal and business spending without marking it clearly.
+- Using a different category for the same kind of expense every month.
+- Treating an import as finished before reconciling the closing balance.
+
+## A repeatable monthly routine
+
+Set one day each month to download the previous month's statement, import it, review uncategorised items, attach missing documents and reconcile the balance. A short monthly routine is easier to verify than rebuilding a year from memory.
+
+[See how Travada Books imports bank and M-Pesa statements](/statement-import).
+

@@ -1,6 +1,7 @@
 import { CtaBand } from "~/components/cta-band"
 import { FeatureHero, FeatureRows, type FeatureRowItem } from "~/components/feature-page"
 import { Faq } from "~/components/home/faq"
+import { IntegrationsSection } from "~/components/integrations-section"
 import { INVOICING_FAQ_ITEMS } from "~/data/faq"
 import { faqPageJsonLd, pageMeta } from "~/lib/seo"
 
@@ -64,6 +65,7 @@ export default function Invoicing() {
         intro="It's the 1st of the month, so you open last month's invoice, change the date, change the number, and send it again. You'll do it again in thirty days. Set it up once instead."
       />
       <FeatureRows items={ROWS} />
+      <IntegrationsSection compact />
       <Faq items={INVOICING_FAQ_ITEMS} heading="Invoicing — frequently asked questions" />
       <CtaBand heading="Set it once. Today." />
     </>

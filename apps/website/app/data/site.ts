@@ -13,17 +13,24 @@ export const SIGNUP_URL = `${APP_URL}/signup`
 export type NavLink = {
   label: string
   href: string
+  description?: string
 }
 
 export const FEATURES_NAV: NavLink[] = [
-  { label: "Invoicing", href: "/invoicing" },
-  { label: "Statement import", href: "/statement-import" },
-  { label: "Inbox", href: "/inbox" },
+  { label: "Invoicing", href: "/invoicing", description: "Create, schedule and follow up" },
+  { label: "Statement import", href: "/statement-import", description: "Bring bank and M-Pesa records in" },
+  { label: "Inbox", href: "/inbox", description: "Collect and match receipts" },
 ]
 
 export const HEADER_NAV: NavLink[] = [
   { label: "Who it's for", href: "/who-its-for" },
-  { label: "Updates", href: "/updates" },
+  { label: "Integrations", href: "/integrations" },
+]
+
+export const RESOURCES_NAV: NavLink[] = [
+  { label: "Guides", href: "/guides", description: "Practical answers for running the books" },
+  { label: "Updates", href: "/updates", description: "What we have shipped recently" },
+  { label: "About", href: "/about", description: "Why Travada Books exists" },
 ]
 
 export const FOOTER_LINKS: { heading: string; links: NavLink[] }[] = [
@@ -34,8 +41,9 @@ export const FOOTER_LINKS: { heading: string; links: NavLink[] }[] = [
   {
     heading: "Resources",
     links: [
-      { label: "Updates", href: "/updates" },
+      { label: "Integrations", href: "/integrations" },
       { label: "Guides", href: "/guides" },
+      { label: "Updates", href: "/updates" },
     ],
   },
   {

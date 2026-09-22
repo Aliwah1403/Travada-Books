@@ -1,6 +1,7 @@
 import { CtaBand } from "~/components/cta-band"
 import { FeatureHero, FeatureRows, type FeatureRowItem } from "~/components/feature-page"
 import { Faq } from "~/components/home/faq"
+import { IntegrationsSection } from "~/components/integrations-section"
 import { INBOX_FAQ_ITEMS } from "~/data/faq"
 import { faqPageJsonLd, pageMeta } from "~/lib/seo"
 
@@ -54,6 +55,7 @@ export default function InboxRoute() {
         intro="A receipt lands in your inbox in March, and by tax time it's nowhere to be found. Connect Gmail or Outlook and Travada Books pulls it in on its own — no more digging."
       />
       <FeatureRows items={ROWS} />
+      <IntegrationsSection compact />
       <Faq items={INBOX_FAQ_ITEMS} heading="Inbox — frequently asked questions" />
       <CtaBand heading="Let your receipts find you. Today." />
     </>

@@ -151,7 +151,9 @@ export const transactionColumns: ColumnDef<Transaction>[] = [
     header: "Description",
     enableSorting: true,
     cell: ({ row }) => (
-      <span className='text-xs font-medium truncate'>{row.original.name}</span>
+      <span className='block truncate text-xs font-medium' title={row.original.name}>
+        {row.original.name}
+      </span>
     ),
   },
   {
@@ -160,7 +162,12 @@ export const transactionColumns: ColumnDef<Transaction>[] = [
     cell: ({ row }) => {
       const name = row.original.counterpartyName;
       return name ?
-          <span className='text-xs text-muted-foreground truncate'>{name}</span>
+          <span
+            className='block truncate text-xs text-muted-foreground'
+            title={name}
+          >
+            {name}
+          </span>
         : <span className='text-xs text-muted-foreground/40'>—</span>;
     },
   },
@@ -181,12 +188,14 @@ export const transactionColumns: ColumnDef<Transaction>[] = [
         return <span className='text-xs text-muted-foreground'>—</span>;
       }
       return (
-        <div className='flex items-center gap-2'>
+        <div className='flex min-w-0 items-center gap-2'>
           <div
             className='size-2 rounded-full shrink-0'
             style={{ backgroundColor: categoryColor ?? "gray" }}
           />
-          <span className='text-xs truncate'>{categoryName}</span>
+          <span className='truncate text-xs' title={categoryName}>
+            {categoryName}
+          </span>
         </div>
       );
     },

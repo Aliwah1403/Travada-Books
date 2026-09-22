@@ -5,6 +5,7 @@ export default [
   route("invoicing", "routes/invoicing.tsx"),
   route("statement-import", "routes/statement-import.tsx"),
   route("inbox", "routes/inbox.tsx"),
+  route("integrations", "routes/integrations.tsx"),
   route("who-its-for", "routes/who-its-for.tsx"),
   route("about", "routes/about.tsx"),
   route("pricing", "routes/pricing.tsx"),
