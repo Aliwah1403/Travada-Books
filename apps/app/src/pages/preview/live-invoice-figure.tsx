@@ -1,5 +1,5 @@
 import { cn } from "@travada-books/ui/lib/utils";
-import { zoomStyle, type ZoomTarget } from "./zoom";
+import { zoomStyle, type ZoomTarget } from "@/components/onboarding/zoom";
 
 /**
  * ── Live invoice figure ─────────────────────────────────────────────────────

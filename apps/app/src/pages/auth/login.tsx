@@ -1,34 +1,39 @@
-import { useState } from "react"
-import { Link, useNavigate, useSearchParams } from "react-router"
-import { Button } from "@travada-books/ui/components/button"
-import { Input } from "@travada-books/ui/components/input"
-import { Label } from "@travada-books/ui/components/label"
-import { Separator } from "@travada-books/ui/components/separator"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@travada-books/ui/components/card"
-import { EyeIcon, EyeOffIcon } from "@travada-books/ui/icons"
-import * as Sentry from "@sentry/react"
-import { supabase } from "@/lib/supabase"
-import { trackEvent, LogEvents } from "@/lib/analytics"
-import { Turnstile, TURNSTILE_ENABLED } from "@/components/turnstile"
+import { useState } from "react";
+import { Link, useNavigate, useSearchParams } from "react-router";
+import { Button } from "@travada-books/ui/components/button";
+import { Input } from "@travada-books/ui/components/input";
+import { Label } from "@travada-books/ui/components/label";
+import { Separator } from "@travada-books/ui/components/separator";
+import { EyeIcon, EyeOffIcon } from "@travada-books/ui/icons";
+import * as Sentry from "@sentry/react";
+import { supabase } from "@/lib/supabase";
+import { trackEvent, LogEvents } from "@/lib/analytics";
+import { Turnstile, TURNSTILE_ENABLED } from "@/components/turnstile";
+
+const EYEBROW =
+  "font-mono text-[10px] uppercase tracking-[0.3em] text-muted-foreground";
 
 export function LoginPage() {
-  const navigate = useNavigate()
-  const [searchParams] = useSearchParams()
-  const [email, setEmail] = useState(() => searchParams.get("email") ?? "")
-  const [password, setPassword] = useState("")
-  const [showPassword, setShowPassword] = useState(false)
-  const [error, setError] = useState("")
-  const [loading, setLoading] = useState(false)
-  const [captchaToken, setCaptchaToken] = useState("")
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const [email, setEmail] = useState(() => searchParams.get("email") ?? "");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState("");
 
   async function handleGoogleSignIn() {
-    const next = searchParams.get("next")
-    let destination = "/"
+    const next = searchParams.get("next");
+    let destination = "/";
     if (next) {
       try {
-        const resolved = new URL(decodeURIComponent(next), window.location.origin)
+        const resolved = new URL(
+          decodeURIComponent(next),
+          window.location.origin,
+        );
         if (resolved.origin === window.location.origin)
-          destination = resolved.pathname + resolved.search + resolved.hash
+          destination = resolved.pathname + resolved.search + resolved.hash;
       } catch {
         // malformed next param — fall back to /
       }
@@ -36,64 +41,86 @@ export function LoginPage() {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: { redirectTo: `${window.location.origin}${destination}` },
-    })
+    });
     if (error) {
-      Sentry.captureException(error)
-      setError("Something went wrong. Please try again.")
+      Sentry.captureException(error);
+      setError("Something went wrong. Please try again.");
     }
   }
 
   async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    setError("")
-    setLoading(true)
+    e.preventDefault();
+    setError("");
+    setLoading(true);
     const { error } = await supabase.auth.signInWithPassword({
       email,
       password,
       options: {
         ...(captchaToken ? { captchaToken } : {}),
       },
-    })
-    setLoading(false)
+    });
+    setLoading(false);
     if (error) {
       if (error.message === "Invalid login credentials") {
-        setError("Incorrect email or password.")
+        setError("Incorrect email or password.");
       } else if (error.message.toLowerCase().includes("email not confirmed")) {
-        setError("Please verify your email before signing in.")
+        setError("Please verify your email before signing in.");
       } else {
-        Sentry.captureException(error)
-        setError("Something went wrong. Please try again.")
+        Sentry.captureException(error);
+        setError("Something went wrong. Please try again.");
       }
-      return
+      return;
     }
-    trackEvent(LogEvents.SignIn)
-    const next = searchParams.get("next")
-    let destination = "/"
+    trackEvent(LogEvents.SignIn);
+    const next = searchParams.get("next");
+    let destination = "/";
     if (next) {
       try {
-        const resolved = new URL(decodeURIComponent(next), window.location.origin)
+        const resolved = new URL(
+          decodeURIComponent(next),
+          window.location.origin,
+        );
         if (resolved.origin === window.location.origin)
-          destination = resolved.pathname + resolved.search + resolved.hash
+          destination = resolved.pathname + resolved.search + resolved.hash;
       } catch {
         // malformed next param — fall back to /
       }
     }
-    navigate(destination)
+    navigate(destination);
   }
 
   return (
-    <Card>
-      <CardHeader className="text-center">
-        <CardTitle className="text-base">Sign in to your account</CardTitle>
-        <CardDescription>Enter your email and password below</CardDescription>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-4">
-        <Button variant="outline" className="w-full gap-2" type="button" onClick={handleGoogleSignIn}>
+    <div>
+      <div className="mb-8">
+        <p className={EYEBROW}>Welcome back</p>
+        <h1 className="mt-3 font-heading text-3xl text-foreground">
+          Sign in to your account
+        </h1>
+      </div>
+      <div className="flex flex-col gap-4">
+        <Button
+          variant="outline"
+          className="w-full gap-2"
+          type="button"
+          onClick={handleGoogleSignIn}
+        >
           <svg className="size-4" viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
-            <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
-            <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
-            <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
+            <path
+              d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+              fill="#4285F4"
+            />
+            <path
+              d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+              fill="#34A853"
+            />
+            <path
+              d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
+              fill="#FBBC05"
+            />
+            <path
+              d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+              fill="#EA4335"
+            />
           </svg>
           Continue with Google
         </Button>
@@ -120,7 +147,10 @@ export function LoginPage() {
           <div className="flex flex-col gap-1.5">
             <div className="flex items-center justify-between">
               <Label htmlFor="password">Password</Label>
-              <Link to="/forgot-password" className="text-xs text-muted-foreground underline-offset-4 hover:underline">
+              <Link
+                to="/forgot-password"
+                className="text-xs text-muted-foreground underline-offset-4 fine-hover:underline"
+              >
                 Forgot password?
               </Link>
             </div>
@@ -138,9 +168,13 @@ export function LoginPage() {
                 type="button"
                 onClick={() => setShowPassword((v) => !v)}
                 aria-label={showPassword ? "Hide password" : "Show password"}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground fine-hover:text-foreground"
               >
-                {showPassword ? <EyeOffIcon size={15} /> : <EyeIcon size={15} />}
+                {showPassword ? (
+                  <EyeOffIcon size={15} />
+                ) : (
+                  <EyeIcon size={15} />
+                )}
               </button>
             </div>
           </div>
@@ -149,7 +183,11 @@ export function LoginPage() {
 
           {error && <p className="text-xs text-destructive">{error}</p>}
 
-          <Button type="submit" className="w-full" disabled={loading || (TURNSTILE_ENABLED && !captchaToken)}>
+          <Button
+            type="submit"
+            className="w-full"
+            disabled={loading || (TURNSTILE_ENABLED && !captchaToken)}
+          >
             {loading ? "Signing in…" : "Sign in"}
           </Button>
         </form>
@@ -158,12 +196,12 @@ export function LoginPage() {
           Don&apos;t have an account?{" "}
           <Link
             to={`/signup?email=${encodeURIComponent(email)}${searchParams.get("next") ? `&next=${encodeURIComponent(searchParams.get("next")!)}` : ""}`}
-            className="text-foreground underline-offset-4 hover:underline"
+            className="text-foreground underline-offset-4 fine-hover:underline"
           >
             Create one
           </Link>
         </p>
-      </CardContent>
-    </Card>
-  )
+      </div>
+    </div>
+  );
 }

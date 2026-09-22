@@ -50,7 +50,6 @@ import { ProfilePage } from "@/pages/account/profile"
 import { SecurityPage } from "@/pages/account/security"
 import { NotificationsPage } from "@/pages/account/notifications"
 import { OnboardingOrgPage } from "@/pages/onboarding/org"
-import { OnboardingInvitePage } from "@/pages/onboarding/invite"
 import { AcceptInvitePage } from "@/pages/accept-invite"
 import { DocumentSharePage } from "@/pages/document-share/token"
 import { PitchPage } from "@/pages/pitch/index"
@@ -76,7 +75,7 @@ const router = createBrowserRouter([
         element: <OnboardingLayout />,
         children: [
           { path: "/onboarding/org", element: <OnboardingOrgPage /> },
-          { path: "/onboarding/invite", element: <OnboardingInvitePage /> },
+          { path: "/onboarding/invite", element: <Navigate to="/onboarding/org" replace /> },
         ],
       },
       {

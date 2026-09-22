@@ -4,8 +4,8 @@ import { Input } from "@travada-books/ui/components/input";
 import { Label } from "@travada-books/ui/components/label";
 import { Separator } from "@travada-books/ui/components/separator";
 import { EyeIcon, EyeOffIcon } from "@travada-books/ui/icons";
-import { AuthFigure } from "@/pages/preview/auth-figure";
-import { SplitLayout } from "@/pages/preview/split-layout";
+import { AuthFigure } from "@/components/auth/auth-figure";
+import { SplitLayout } from "@/components/auth/split-layout";
 
 /**
  * ── Auth UI playground — split-screen variant ───────────────────────────────
@@ -140,11 +140,7 @@ function SignInScreen({
 
   return (
     <div>
-      <FormHeader
-        eyebrow="Welcome back"
-        title="Sign in to your account"
-        subtitle="Enter your email and password below"
-      />
+      <FormHeader eyebrow="Welcome back" title="Sign in to your account" />
       <div className="flex flex-col gap-4">
         <GoogleButton />
         <OrSeparator />
@@ -285,7 +281,8 @@ function VerifyScreen() {
   }
 
   function handleKeyDown(index: number, e: React.KeyboardEvent) {
-    if (e.key === "Backspace" && !digits[index] && index > 0) focusAt(index - 1);
+    if (e.key === "Backspace" && !digits[index] && index > 0)
+      focusAt(index - 1);
     else if (e.key === "ArrowLeft" && index > 0) focusAt(index - 1);
     else if (e.key === "ArrowRight" && index < OTP_LENGTH - 1)
       focusAt(index + 1);

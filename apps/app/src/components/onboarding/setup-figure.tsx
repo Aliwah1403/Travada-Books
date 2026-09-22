@@ -33,17 +33,17 @@ const ZOOM: Record<number, ZoomTarget> = {
   4: { scale: 1.35, focus: [1.8, -0.1] }, // ready -> top-right of the workspace
 };
 
-type DashboardFigureProps = {
+type SetupFigureProps = {
   workspaceName: string;
   hasLogo: boolean;
   step: number;
 };
 
-export function DashboardFigure({
+export function SetupFigure({
   workspaceName,
   hasLogo,
   step,
-}: DashboardFigureProps) {
+}: SetupFigureProps) {
   const target = ZOOM[step] ?? ZOOM[4];
   const initial = workspaceName.trim().charAt(0).toUpperCase();
 

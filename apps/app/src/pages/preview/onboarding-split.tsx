@@ -10,8 +10,8 @@ import {
   Upload01Icon,
 } from "@travada-books/ui/icons";
 import { cn } from "@travada-books/ui/lib/utils";
-import { DashboardFigure } from "@/pages/preview/dashboard-figure";
-import { SplitLayout } from "@/pages/preview/split-layout";
+import { SetupFigure } from "@/components/onboarding/setup-figure";
+import { SplitLayout } from "@/components/auth/split-layout";
 
 /**
  * ── Onboarding UI playground — split-screen variant ─────────────────────────
@@ -512,7 +512,7 @@ export function OnboardingSplitFlow() {
   return (
     <SplitLayout
       figure={
-        <DashboardFigure
+        <SetupFigure
           workspaceName={businessName}
           hasLogo={hasLogo}
           step={step}

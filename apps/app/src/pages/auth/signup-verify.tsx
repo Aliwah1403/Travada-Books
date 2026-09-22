@@ -1,18 +1,12 @@
 import { useRef, useState, useCallback, useEffect } from "react"
 import { useNavigate } from "react-router"
 import { Button } from "@travada-books/ui/components/button"
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@travada-books/ui/components/card"
 import * as Sentry from "@sentry/react"
 import { supabase } from "@/lib/supabase"
 import { Turnstile, TURNSTILE_ENABLED } from "@/components/turnstile"
 
 const OTP_LENGTH = 8
+const EYEBROW = "font-mono text-[10px] uppercase tracking-[0.3em] text-muted-foreground"
 
 export function SignupVerifyPage() {
   const navigate = useNavigate()
@@ -143,60 +137,59 @@ export function SignupVerifyPage() {
   const isFilled = digits.every(Boolean)
 
   return (
-    <Card>
-      <CardHeader className="text-center">
-        <CardTitle className="text-base">Check your email</CardTitle>
-        <CardDescription>
+    <div>
+      <div className="mb-8">
+        <p className={EYEBROW}>One more step</p>
+        <h1 className="mt-3 font-heading text-3xl text-foreground">Check your email</h1>
+        <p className="mt-2 text-sm text-muted-foreground">
           We sent an 8-digit verification code to{" "}
           <span className="font-medium text-foreground">{email}</span>
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit} className="flex flex-col gap-6">
-          <div className="flex justify-center gap-2.5" onPaste={handlePaste}>
-            {digits.map((digit, i) => (
-              <input
-                key={i}
-                ref={(el) => { inputRefs.current[i] = el }}
-                type="text"
-                inputMode="numeric"
-                maxLength={1}
-                value={digit}
-                onChange={(e) => handleChange(i, e.target.value)}
-                onKeyDown={(e) => handleKeyDown(i, e)}
-                autoFocus={i === 0}
-                className="size-11 rounded-md border bg-background text-center text-base font-semibold tracking-widest caret-transparent outline-none ring-offset-background transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-              />
-            ))}
-          </div>
+        </p>
+      </div>
+      <form onSubmit={handleSubmit} className="flex flex-col gap-6">
+        <div className="flex justify-center gap-2.5" onPaste={handlePaste}>
+          {digits.map((digit, i) => (
+            <input
+              key={i}
+              ref={(el) => { inputRefs.current[i] = el }}
+              type="text"
+              inputMode="numeric"
+              maxLength={1}
+              value={digit}
+              onChange={(e) => handleChange(i, e.target.value)}
+              onKeyDown={(e) => handleKeyDown(i, e)}
+              autoFocus={i === 0}
+              className="size-11 rounded-md border bg-background text-center text-base font-semibold tracking-widest caret-transparent outline-none ring-offset-background transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            />
+          ))}
+        </div>
 
-          <Turnstile onVerify={setCaptchaToken} />
+        <Turnstile onVerify={setCaptchaToken} />
 
-          {error && (
-            <p className="text-center text-xs text-destructive">{error}</p>
-          )}
+        {error && (
+          <p className="text-center text-xs text-destructive">{error}</p>
+        )}
 
-          <div className="flex flex-col gap-3">
-            <Button type="submit" className="w-full" disabled={!isFilled || loading}>
-              {loading ? "Verifying…" : "Verify code"}
-            </Button>
+        <div className="flex flex-col gap-3">
+          <Button type="submit" className="w-full" disabled={!isFilled || loading}>
+            {loading ? "Verifying…" : "Verify code"}
+          </Button>
 
-            <p className="text-center text-xs text-muted-foreground">
-              Didn&apos;t receive it?{" "}
-              <button
-                type="button"
-                onClick={handleResend}
-                disabled={isResending || loading || resendCooldown > 0 || (TURNSTILE_ENABLED && !captchaToken)}
-                className="text-foreground underline-offset-4 hover:underline disabled:pointer-events-none disabled:opacity-50"
-              >
-                {isResending ? "Resending…"
-                  : resendCooldown > 0 ? `Resend code in ${resendCooldown}s`
-                  : "Resend code"}
-              </button>
-            </p>
-          </div>
-        </form>
-      </CardContent>
-    </Card>
+          <p className="text-center text-xs text-muted-foreground">
+            Didn&apos;t receive it?{" "}
+            <button
+              type="button"
+              onClick={handleResend}
+              disabled={isResending || loading || resendCooldown > 0 || (TURNSTILE_ENABLED && !captchaToken)}
+              className="text-foreground underline-offset-4 fine-hover:underline disabled:pointer-events-none disabled:opacity-50"
+            >
+              {isResending ? "Resending…"
+                : resendCooldown > 0 ? `Resend code in ${resendCooldown}s`
+                : "Resend code"}
+            </button>
+          </p>
+        </div>
+      </form>
+    </div>
   )
 }
