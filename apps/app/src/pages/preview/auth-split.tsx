@@ -346,7 +346,7 @@ export function AuthSplitFlow() {
 
   return (
     <SplitLayout
-      figure={<AuthFigure screen={screen} />}
+      figure={<AuthFigure />}
       form={
         <div className="w-full max-w-sm">
           {screen === "signin" && (
