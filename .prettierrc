@@ -1,0 +1,11 @@
+{
+  "semi": false,
+  "singleQuote": false,
+  "jsxSingleQuote": false,
+  "overrides": [
+    {
+      "files": ["apps/app/**/*.{ts,tsx}", "apps/worker/**/*.ts"],
+      "options": { "semi": true }
+    }
+  ]
+}
