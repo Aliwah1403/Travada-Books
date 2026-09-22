@@ -25,6 +25,7 @@ import { cn } from "@travada-books/ui/lib/utils";
 import LogoGreen from "@/assets/Logo-Green.svg";
 import LogoLime from "@/assets/Logo-Lime.svg";
 import { useTheme } from "@/components/theme-provider";
+import { AuthSplitFlow } from "@/pages/preview/auth-split";
 import { OnboardingSplitFlow } from "@/pages/preview/onboarding-split";
 
 /**
@@ -659,11 +660,12 @@ function ChecklistScreen() {
 
 // ─── Page ───────────────────────────────────────────────────────────────────
 
-type LayoutVariant = "current" | "split";
+type LayoutVariant = "current" | "split" | "auth";
 
 const LAYOUT_VARIANTS: { id: LayoutVariant; label: string }[] = [
   { id: "current", label: "Current" },
   { id: "split", label: "Split" },
+  { id: "auth", label: "Auth" },
 ];
 
 export function OnboardingPreviewPage() {
@@ -734,7 +736,7 @@ export function OnboardingPreviewPage() {
         </div>
       </div>
 
-      {layout === "current" ? (
+      {layout === "current" && (
         <div className="flex justify-center px-4 py-12">
           {step === 1 && <SignupScreen onNext={next} />}
           {step === 2 && <VerifyScreen onNext={next} />}
@@ -742,9 +744,9 @@ export function OnboardingPreviewPage() {
           {step === 4 && <InviteScreen onNext={next} />}
           {step === 5 && <ChecklistScreen />}
         </div>
-      ) : (
-        <OnboardingSplitFlow />
       )}
+      {layout === "split" && <OnboardingSplitFlow />}
+      {layout === "auth" && <AuthSplitFlow />}
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useState } from "react";
 import { Button } from "@travada-books/ui/components/button";
 import { Input } from "@travada-books/ui/components/input";
 import { Label } from "@travada-books/ui/components/label";
@@ -11,6 +11,7 @@ import {
 } from "@travada-books/ui/icons";
 import { cn } from "@travada-books/ui/lib/utils";
 import { DashboardFigure } from "@/pages/preview/dashboard-figure";
+import { SplitLayout } from "@/pages/preview/split-layout";
 
 /**
  * ── Onboarding UI playground — split-screen variant ─────────────────────────
@@ -44,29 +45,6 @@ const CURRENCIES = [
 ];
 
 const STEP_COUNT = 5;
-
-// ─── Layout shell ───────────────────────────────────────────────────────────
-
-function SplitLayout({
-  form,
-  figure,
-}: {
-  form: ReactNode;
-  figure: ReactNode;
-}) {
-  return (
-    <div className="relative h-svh overflow-hidden bg-background text-foreground 2xl:flex 2xl:h-auto 2xl:min-h-svh 2xl:items-center 2xl:justify-center 2xl:overflow-visible 2xl:p-6">
-      <div className="relative mx-auto flex h-full w-full max-w-[1600px] 2xl:aspect-video 2xl:h-auto 2xl:overflow-hidden 2xl:rounded-2xl 2xl:border 2xl:shadow-2xl">
-        <div className="relative flex w-full flex-col items-center justify-center overflow-y-auto px-6 py-10 lg:w-[620px] lg:px-14">
-          {form}
-        </div>
-        <div className="relative hidden flex-1 overflow-hidden border-l lg:block">
-          {figure}
-        </div>
-      </div>
-    </div>
-  );
-}
 
 // ─── Stepper ────────────────────────────────────────────────────────────────
 
