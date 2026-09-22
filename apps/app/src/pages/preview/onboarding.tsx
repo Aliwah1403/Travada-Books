@@ -25,6 +25,7 @@ import { cn } from "@travada-books/ui/lib/utils";
 import LogoGreen from "@/assets/Logo-Green.svg";
 import LogoLime from "@/assets/Logo-Lime.svg";
 import { useTheme } from "@/components/theme-provider";
+import { OnboardingSplitFlow } from "@/pages/preview/onboarding-split";
 
 /**
  * ── Onboarding UI playground ────────────────────────────────────────────────
@@ -658,8 +659,16 @@ function ChecklistScreen() {
 
 // ─── Page ───────────────────────────────────────────────────────────────────
 
+type LayoutVariant = "current" | "split";
+
+const LAYOUT_VARIANTS: { id: LayoutVariant; label: string }[] = [
+  { id: "current", label: "Current" },
+  { id: "split", label: "Split" },
+];
+
 export function OnboardingPreviewPage() {
   const [step, setStep] = useState(1);
+  const [layout, setLayout] = useState<LayoutVariant>("current");
 
   useEffect(() => {
     document.title = "Onboarding playground — Travada Books";
@@ -683,35 +692,59 @@ export function OnboardingPreviewPage() {
           </div>
 
           <div className="flex flex-wrap items-center gap-1.5">
-            {STEPS.map((s) => (
+            {LAYOUT_VARIANTS.map((v) => (
               <button
-                key={s.id}
+                key={v.id}
                 type="button"
-                onClick={() => setStep(s.id)}
+                onClick={() => setLayout(v.id)}
                 className={cn(
                   "rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors active:opacity-80",
-                  s.id === step
+                  v.id === layout
                     ? "bg-foreground text-background"
                     : "text-muted-foreground fine-hover:bg-muted fine-hover:text-foreground",
                 )}
               >
-                <span className="font-mono opacity-60">{s.id}</span> {s.label}
+                {v.label}
               </button>
             ))}
-            <span className="ml-auto font-mono text-[0.6875rem] text-muted-foreground">
-              {current.route}
-            </span>
           </div>
+
+          {layout === "current" && (
+            <div className="flex flex-wrap items-center gap-1.5">
+              {STEPS.map((s) => (
+                <button
+                  key={s.id}
+                  type="button"
+                  onClick={() => setStep(s.id)}
+                  className={cn(
+                    "rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors active:opacity-80",
+                    s.id === step
+                      ? "bg-foreground text-background"
+                      : "text-muted-foreground fine-hover:bg-muted fine-hover:text-foreground",
+                  )}
+                >
+                  <span className="font-mono opacity-60">{s.id}</span> {s.label}
+                </button>
+              ))}
+              <span className="ml-auto font-mono text-[0.6875rem] text-muted-foreground">
+                {current.route}
+              </span>
+            </div>
+          )}
         </div>
       </div>
 
-      <div className="flex justify-center px-4 py-12">
-        {step === 1 && <SignupScreen onNext={next} />}
-        {step === 2 && <VerifyScreen onNext={next} />}
-        {step === 3 && <OrgScreen onNext={next} />}
-        {step === 4 && <InviteScreen onNext={next} />}
-        {step === 5 && <ChecklistScreen />}
-      </div>
+      {layout === "current" ? (
+        <div className="flex justify-center px-4 py-12">
+          {step === 1 && <SignupScreen onNext={next} />}
+          {step === 2 && <VerifyScreen onNext={next} />}
+          {step === 3 && <OrgScreen onNext={next} />}
+          {step === 4 && <InviteScreen onNext={next} />}
+          {step === 5 && <ChecklistScreen />}
+        </div>
+      ) : (
+        <OnboardingSplitFlow />
+      )}
     </div>
   );
 }
