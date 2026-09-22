@@ -65,13 +65,42 @@ const ENTER =
  * Tune `origin` (a CSS `transform-origin` percentage pair) against the real
  * layout if the framed region drifts; `scale` controls how tight the zoom is.
  */
-const ZOOM: Record<number, { scale: number; origin: string }> = {
-  0: { scale: 1.35, origin: "20% 14%" }, // business name -> header
-  1: { scale: 1.35, origin: "80% 78%" }, // currency -> totals block
-  2: { scale: 1.4, origin: "14% 12%" }, // logo + tax id -> header tile
-  3: { scale: 1.1, origin: "50% 55%" }, // invites -> team note
-  4: { scale: 1, origin: "50% 50%" }, // ready -> whole document
+// Reproduces the reference block's spring (Framer: stiffness 300, damping 40,
+// mass 1). That spring is OVERDAMPED — damping ratio 1.155 — so it starts from
+// zero velocity, eases in, and settles over a long tail. `--ease-out` does the
+// opposite: it leaves at full velocity and decelerates, which is what read as
+// too sharp. CSS `linear()` reproduces the real curve exactly; browsers without
+// it fall back to the default `ease`, which is still softer than `--ease-out`.
+const SPRING =
+  "linear(0, 0.0199 2.5%, 0.068 5%, 0.1314 7.5%, 0.2018 10%, 0.3441 15%, 0.4731 20%, 0.582 25%, 0.6709 30%, 0.7982 40%, 0.8771 50%, 0.9254 60%, 0.9547 70%, 0.9725 80%, 0.9833 90%, 1)";
+
+// Where each step points the camera, as a focal point in the invoice's own
+// coordinates (0-1 across, 0-1 down) plus how far to push in.
+const ZOOM: Record<number, { scale: number; focus: [number, number] }> = {
+  0: { scale: 1.35, focus: [0.2, 0.14] }, // business name -> header
+  1: { scale: 1.35, focus: [0.8, 0.78] }, // currency -> totals block
+  2: { scale: 1.4, focus: [0.14, 0.12] }, // logo + tax id -> header tile
+  3: { scale: 1.1, focus: [0.5, 0.55] }, // invites -> team note
+  4: { scale: 1, focus: [0.5, 0.5] }, // ready -> whole document
 };
+
+/**
+ * Builds an interpolatable transform for a focal-point zoom.
+ *
+ * The obvious approach — animating `scale` and switching `transform-origin`
+ * per step — does NOT work: transform-origin is not usefully interpolatable,
+ * so the change applies instantly. Worse, steps 0 and 1 share a scale of 1.35
+ * and differ only in origin, so that transition had nothing to animate at all
+ * and the document simply teleported between them.
+ *
+ * Pinning the origin at 0 0 and folding the focal point into a translate makes
+ * both components animate together, so every step-to-step move is continuous.
+ */
+function zoomTransform(scale: number, [fx, fy]: [number, number]) {
+  const tx = (1 - scale) * fx * 100;
+  const ty = (1 - scale) * fy * 100;
+  return `translate(${tx.toFixed(2)}%, ${ty.toFixed(2)}%) scale(${scale})`;
+}
 
 /** Crossfades between the real value and a placeholder bar of similar width,
  * so a field filling in never changes the invoice's layout. */
@@ -131,13 +160,18 @@ export function LiveInvoiceFigure({
   const vat = subtotal * VAT_RATE;
   const total = subtotal + vat;
   const initial = businessName.trim().charAt(0).toUpperCase();
-  const { scale, origin: transformOrigin } = ZOOM[step] ?? ZOOM[4];
+  const { scale, focus } = ZOOM[step] ?? ZOOM[4];
 
   return (
     <div className="relative flex h-full w-full items-center justify-center overflow-hidden bg-muted/30 p-10">
       <div
-        className="w-full max-w-sm transition-transform duration-500 [transition-timing-function:var(--ease-out)]"
-        style={{ transform: `scale(${scale})`, transformOrigin }}
+        className="w-full max-w-sm transition-transform duration-500"
+        style={{
+          transform: zoomTransform(scale, focus),
+          transformOrigin: "0 0",
+          transitionTimingFunction: SPRING,
+          willChange: "transform",
+        }}
       >
         <div
           className="rounded-lg border bg-background p-6 shadow-xl"
