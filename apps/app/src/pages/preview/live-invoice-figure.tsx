@@ -74,14 +74,23 @@ const ENTER =
 const SPRING =
   "linear(0, 0.0199 2.5%, 0.068 5%, 0.1314 7.5%, 0.2018 10%, 0.3441 15%, 0.4731 20%, 0.582 25%, 0.6709 30%, 0.7982 40%, 0.8771 50%, 0.9254 60%, 0.9547 70%, 0.9725 80%, 0.9833 90%, 1)";
 
-// Where each step points the camera, as a focal point in the invoice's own
+// Where each step points the camera: a focal point in the invoice's own
 // coordinates (0-1 across, 0-1 down) plus how far to push in.
+//
+// The reference block only ever uses two scales — 1 (wide) and 1.5 (close) —
+// and ALTERNATES between them. That alternation is what reads as zoom. An
+// earlier table here ran 1.35, 1.35, 1.4, 1.1, 1.0: consecutive steps barely
+// differed and steps 0 and 1 were identical, so those transitions were pure
+// translation. It panned across the document instead of zooming into it.
+//
+// Every consecutive pair below changes scale by at least 0.2, and the two
+// close-ups are full pushes in from a wide shot.
 const ZOOM: Record<number, { scale: number; focus: [number, number] }> = {
-  0: { scale: 1.35, focus: [0.2, 0.14] }, // business name -> header
-  1: { scale: 1.35, focus: [0.8, 0.78] }, // currency -> totals block
-  2: { scale: 1.4, focus: [0.14, 0.12] }, // logo + tax id -> header tile
-  3: { scale: 1.1, focus: [0.5, 0.55] }, // invites -> team note
-  4: { scale: 1, focus: [0.5, 0.5] }, // ready -> whole document
+  0: { scale: 1.45, focus: [0.22, 0.13] }, // name -> push into the header
+  1: { scale: 1.0, focus: [0.5, 0.5] }, // currency -> pull wide, whole doc reprices
+  2: { scale: 1.5, focus: [0.14, 0.12] }, // logo + tax -> push into the logo tile
+  3: { scale: 1.0, focus: [0.5, 0.5] }, // invites -> pull wide again
+  4: { scale: 1.2, focus: [0.5, 0.45] }, // ready -> settle on the finished invoice
 };
 
 /**
