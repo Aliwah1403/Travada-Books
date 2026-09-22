@@ -48,6 +48,30 @@ const FADE =
   "transition-opacity duration-200 [transition-timing-function:var(--ease-out)]";
 const TINT =
   "transition-colors duration-200 [transition-timing-function:var(--ease-out)]";
+/** Entering values get a touch of scale, not just opacity — CLAUDE.md's
+ * "nothing appears from nothing" rule (minimum scale(0.95)). */
+const ENTER =
+  "transition-[opacity,transform] duration-200 [transition-timing-function:var(--ease-out)]";
+
+/**
+ * Per-step zoom on the invoice illustration. Each entry scales the document
+ * up and anchors the transform origin at the region the current onboarding
+ * step is filling in, so that region stays legible instead of the whole
+ * (shrunk-to-fit-the-panel) document being read at once. Reproduces a
+ * spring(stiffness: 300, damping: 40) scale animation with CSS: that spring
+ * is heavily damped — effectively a strong ease-out with negligible
+ * overshoot — which `--ease-out` already approximates closely.
+ *
+ * Tune `origin` (a CSS `transform-origin` percentage pair) against the real
+ * layout if the framed region drifts; `scale` controls how tight the zoom is.
+ */
+const ZOOM: Record<number, { scale: number; origin: string }> = {
+  0: { scale: 1.35, origin: "20% 14%" }, // business name -> header
+  1: { scale: 1.35, origin: "80% 78%" }, // currency -> totals block
+  2: { scale: 1.4, origin: "14% 12%" }, // logo + tax id -> header tile
+  3: { scale: 1.1, origin: "50% 55%" }, // invites -> team note
+  4: { scale: 1, origin: "50% 50%" }, // ready -> whole document
+};
 
 /** Crossfades between the real value and a placeholder bar of similar width,
  * so a field filling in never changes the invoice's layout. */
@@ -66,8 +90,8 @@ function AssembledText({
       <span
         className={cn(
           "col-start-1 row-start-1 truncate",
-          FADE,
-          filled ? "opacity-100" : "opacity-0",
+          ENTER,
+          filled ? "scale-100 opacity-100" : "scale-[0.96] opacity-0",
           className,
         )}
       >
@@ -107,153 +131,175 @@ export function LiveInvoiceFigure({
   const vat = subtotal * VAT_RATE;
   const total = subtotal + vat;
   const initial = businessName.trim().charAt(0).toUpperCase();
+  const { scale, origin: transformOrigin } = ZOOM[step] ?? ZOOM[4];
 
   return (
-    <div className="flex h-full w-full flex-col items-center justify-center gap-8 bg-muted/30 p-10">
+    <div className="relative flex h-full w-full items-center justify-center overflow-hidden bg-muted/30 p-10">
       <div
-        className="w-full max-w-sm rounded-lg border bg-background p-6 shadow-xl"
-        style={{ transform: "rotate(-2deg)" }}
+        className="w-full max-w-sm transition-transform duration-500 [transition-timing-function:var(--ease-out)]"
+        style={{ transform: `scale(${scale})`, transformOrigin }}
       >
-        {/* Header */}
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex items-start gap-3">
-            <div
-              className={cn(
-                "flex size-10 shrink-0 items-center justify-center rounded-md text-sm font-semibold",
-                TINT,
-                step === 2 && "ring-1 ring-primary/30",
-                hasLogo
-                  ? "bg-primary/15 text-primary"
-                  : "bg-muted text-muted-foreground",
-              )}
-            >
-              {initial}
-            </div>
-            <div className="min-w-0">
+        <div
+          className="rounded-lg border bg-background p-6 shadow-xl"
+          style={{ transform: "rotate(-2deg)" }}
+        >
+          {/* Header */}
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex items-start gap-3">
               <div
                 className={cn(
-                  "-mx-1.5 -my-0.5 rounded px-1.5 py-0.5",
+                  "flex size-10 shrink-0 items-center justify-center rounded-md text-sm font-semibold",
                   TINT,
-                  step === 0 && "bg-primary/5",
+                  step === 2 && "ring-1 ring-primary/30",
+                  hasLogo
+                    ? "bg-primary/15 text-primary"
+                    : "bg-muted text-muted-foreground",
                 )}
               >
+                {initial}
+              </div>
+              <div className="min-w-0">
+                <div
+                  className={cn(
+                    "-mx-1.5 -my-0.5 rounded px-1.5 py-0.5",
+                    TINT,
+                    step === 0 && "bg-primary/5",
+                  )}
+                >
+                  <AssembledText
+                    value={businessName}
+                    placeholderWidth="w-28"
+                    className="text-sm font-semibold text-foreground"
+                  />
+                </div>
                 <AssembledText
-                  value={businessName}
-                  placeholderWidth="w-28"
-                  className="text-sm font-semibold text-foreground"
+                  value={email}
+                  placeholderWidth="w-32"
+                  className="mt-1 text-xs text-muted-foreground"
+                />
+                <AssembledText
+                  value={countryName}
+                  placeholderWidth="w-20"
+                  className="mt-1 text-[11px] text-muted-foreground"
                 />
               </div>
-              <AssembledText
-                value={email}
-                placeholderWidth="w-32"
-                className="mt-1 text-xs text-muted-foreground"
-              />
-              <AssembledText
-                value={countryName}
-                placeholderWidth="w-20"
-                className="mt-1 text-[11px] text-muted-foreground"
-              />
+            </div>
+            <div className="shrink-0 text-right">
+              <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
+                Invoice
+              </p>
+              <p className="font-mono text-xs text-foreground">INV-0001</p>
             </div>
           </div>
-          <div className="shrink-0 text-right">
+
+          {/* Bill to */}
+          <div className="mt-6">
             <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
-              Invoice
+              Bill to
             </p>
-            <p className="font-mono text-xs text-foreground">INV-0001</p>
+            <p className="mt-1 text-sm font-medium text-foreground">
+              {SAMPLE_CUSTOMER.name}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {SAMPLE_CUSTOMER.location}
+            </p>
           </div>
-        </div>
 
-        {/* Bill to */}
-        <div className="mt-6">
-          <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
-            Bill to
-          </p>
-          <p className="mt-1 text-sm font-medium text-foreground">
-            {SAMPLE_CUSTOMER.name}
-          </p>
-          <p className="text-xs text-muted-foreground">
-            {SAMPLE_CUSTOMER.location}
-          </p>
-        </div>
+          {/* Line items */}
+          <div className="mt-6 flex flex-col gap-2 border-t pt-3">
+            {LINE_ITEMS.map((item) => (
+              <div
+                key={item.description}
+                className="flex items-center justify-between gap-3 text-xs"
+              >
+                <span className="text-muted-foreground">{item.description}</span>
+                <span className={cn("font-mono text-foreground", TINT)}>
+                  {formatter.format(item.amount)}
+                </span>
+              </div>
+            ))}
+          </div>
 
-        {/* Line items */}
-        <div className="mt-6 flex flex-col gap-2 border-t pt-3">
-          {LINE_ITEMS.map((item) => (
+          {/* Totals */}
+          <div
+            className={cn(
+              "-mx-2 mt-4 rounded-md border-t px-2 pt-3",
+              TINT,
+              step === 1 && "bg-primary/5",
+            )}
+          >
+            <div className="flex flex-col gap-1.5 text-xs">
+              <div className="flex items-center justify-between text-muted-foreground">
+                <span>Subtotal</span>
+                <span className="font-mono">{formatter.format(subtotal)}</span>
+              </div>
+              <div className="flex items-center justify-between text-muted-foreground">
+                <span>VAT (16%)</span>
+                <span className="font-mono">{formatter.format(vat)}</span>
+              </div>
+              <div className="flex items-center justify-between border-t pt-1.5 text-sm font-semibold text-foreground">
+                <span>Total</span>
+                <span className="font-mono">{formatter.format(total)}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Team note — only once there's someone to share the invoice with */}
+          {inviteCount > 0 && (
             <div
-              key={item.description}
-              className="flex items-center justify-between gap-3 text-xs"
+              className={cn(
+                "-mx-2 mt-4 rounded-md px-2 py-1.5 animate-in fade-in-0 zoom-in-95 duration-200",
+                "[animation-timing-function:var(--ease-out)]",
+                TINT,
+                step === 3 && "bg-primary/5",
+              )}
             >
-              <span className="text-muted-foreground">{item.description}</span>
-              <span className={cn("font-mono text-foreground", TINT)}>
-                {formatter.format(item.amount)}
-              </span>
+              <p className="text-[11px] text-muted-foreground">
+                Visible to {inviteCount + 1} team member
+                {inviteCount === 1 ? "" : "s"}
+              </p>
             </div>
-          ))}
-        </div>
-
-        {/* Totals */}
-        <div
-          className={cn(
-            "-mx-2 mt-4 rounded-md border-t px-2 pt-3",
-            TINT,
-            step === 1 && "bg-primary/5",
           )}
-        >
-          <div className="flex flex-col gap-1.5 text-xs">
-            <div className="flex items-center justify-between text-muted-foreground">
-              <span>Subtotal</span>
-              <span className="font-mono">{formatter.format(subtotal)}</span>
+
+          {/* Footer */}
+          {taxId.trim().length > 0 && (
+            <div
+              className={cn(
+                "-mx-2 mt-4 rounded-md border-t px-2 pt-3 animate-in fade-in-0 zoom-in-95 duration-200",
+                "[animation-timing-function:var(--ease-out)]",
+                TINT,
+                step === 2 && "bg-primary/5",
+              )}
+            >
+              <p className="text-[10px] text-muted-foreground">Tax ID: {taxId}</p>
             </div>
-            <div className="flex items-center justify-between text-muted-foreground">
-              <span>VAT (16%)</span>
-              <span className="font-mono">{formatter.format(vat)}</span>
-            </div>
-            <div className="flex items-center justify-between border-t pt-1.5 text-sm font-semibold text-foreground">
-              <span>Total</span>
-              <span className="font-mono">{formatter.format(total)}</span>
-            </div>
-          </div>
+          )}
         </div>
-
-        {/* Team note — only once there's someone to share the invoice with */}
-        {inviteCount > 0 && (
-          <div
-            className={cn(
-              "-mx-2 mt-4 rounded-md px-2 py-1.5 animate-in fade-in-0 duration-200",
-              "[animation-timing-function:var(--ease-out)]",
-              TINT,
-              step === 3 && "bg-primary/5",
-            )}
-          >
-            <p className="text-[11px] text-muted-foreground">
-              Visible to {inviteCount + 1} team member
-              {inviteCount === 1 ? "" : "s"}
-            </p>
-          </div>
-        )}
-
-        {/* Footer */}
-        {taxId.trim().length > 0 && (
-          <div
-            className={cn(
-              "-mx-2 mt-4 rounded-md border-t px-2 pt-3 animate-in fade-in-0 duration-200",
-              "[animation-timing-function:var(--ease-out)]",
-              TINT,
-              step === 2 && "bg-primary/5",
-            )}
-          >
-            <p className="text-[10px] text-muted-foreground">Tax ID: {taxId}</p>
-          </div>
-        )}
       </div>
 
-      <div className="max-w-xs text-center">
-        <p className="font-mono text-[10px] uppercase tracking-[0.3em] text-muted-foreground">
-          What you&apos;re setting up
-        </p>
-        <p className="mt-2 font-heading text-lg text-foreground">
-          Every invoice you send carries these details.
-        </p>
+      {/* Vignette. The zoom crops the document against the panel's edges, and a
+          hard cut reads as a rendering bug rather than a deliberate close-up —
+          this softens it, and doubles as the ground the caption sits on. */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0"
+        style={{
+          background:
+            "radial-gradient(120% 90% at 50% 45%, transparent 45%, color-mix(in srgb, var(--muted) 92%, transparent) 92%)",
+        }}
+      />
+
+      {/* Pinned, not a flex sibling: scale() doesn't affect layout, so a caption
+          in normal flow gets covered by the zoomed document. */}
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 flex justify-center p-10">
+        <div className="max-w-xs text-center">
+          <p className="font-mono text-[10px] uppercase tracking-[0.3em] text-muted-foreground">
+            What you&apos;re setting up
+          </p>
+          <p className="mt-2 font-heading text-lg text-foreground">
+            Every invoice you send carries these details.
+          </p>
+        </div>
       </div>
     </div>
   );
