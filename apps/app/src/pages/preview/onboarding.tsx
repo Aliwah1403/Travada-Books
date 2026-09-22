@@ -1,5 +1,5 @@
 import { useEffect, useRef, type ReactNode } from "react";
-import { MemoryRouter } from "react-router";
+import { useLocation, useNavigate } from "react-router";
 import { Badge } from "@travada-books/ui/components/badge";
 import { cn } from "@travada-books/ui/lib/utils";
 import LogoGreen from "@/assets/Logo-Green.svg";
@@ -15,44 +15,42 @@ import type { OnboardingChecklistStatus } from "@/lib/queries/onboarding";
  * ── Sandbox wrapper ─────────────────────────────────────────────────────────
  *
  * Every screen below renders the REAL component, not a copy — editing the
- * actual onboarding/auth pages updates this preview live. Each screen gets
- * its own MemoryRouter so:
- *   1. routing guards inside the screen (useLocation, useSearchParams, etc.)
- *      are satisfied,
- *   2. any navigate() call the screen fires is contained inside that
- *      isolated router history instead of escaping to the real app router,
- *   3. the component tree itself is untouched.
+ * actual onboarding/auth pages updates this preview live.
  *
- * Nesting a MemoryRouter inside the app's existing BrowserRouter is
- * intentional and works — the inner one wins for everything rendered below it.
+ * There is deliberately NO nested router here. React Router asserts
+ * "You cannot render a <Router> inside another <Router>", so wrapping each
+ * screen in a MemoryRouter throws on sight. Instead every screen shares this
+ * page's own location, which is engineered in OnboardingPreviewPage to satisfy
+ * all of their guards at once (see the navigate() there).
+ *
+ * What this wrapper does is stop the screens from acting on the real backend:
+ *
+ *   - onSubmitCapture blocks every form submit. Capture phase runs before the
+ *     form's own onSubmit, so stopPropagation() prevents it ever arriving.
+ *     Without this, a logged-in visitor clicking "Continue" on the org screen
+ *     would create a REAL organization, and the invite screen would send REAL
+ *     invite emails. Do not remove this.
+ *   - onClickCapture swallows anchor clicks, so the checklist's <Link> rows
+ *     highlight and do nothing instead of navigating away from the preview.
+ *
+ * Known gap: a button that calls navigate() directly rather than submitting a
+ * form still navigates — "Skip for now" on the invite screen is the one case.
+ * Blocking all clicks would make the screens dead to the touch, which defeats
+ * the point of previewing them.
  */
-function Sandbox({
-  entry,
-  children,
-}: {
-  entry: string | { pathname: string; state?: unknown };
-  children: ReactNode;
-}) {
+function Sandbox({ children }: { children: ReactNode }) {
   return (
-    <MemoryRouter initialEntries={[entry]}>
-      {/*
-        Block form submission inside every sandboxed screen.
-
-        Capture phase runs before the form's own onSubmit handler, so
-        stopPropagation() here prevents the submit from ever reaching it.
-        Without this, a logged-in user clicking "Continue" on the org screen
-        would create a REAL organization in the database (and the invite
-        screen would send real invite emails). Do not remove this.
-      */}
-      <div
-        onSubmitCapture={(e) => {
-          e.preventDefault();
-          e.stopPropagation();
-        }}
-      >
-        {children}
-      </div>
-    </MemoryRouter>
+    <div
+      onSubmitCapture={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+      }}
+      onClickCapture={(e) => {
+        if ((e.target as HTMLElement).closest("a")) e.preventDefault();
+      }}
+    >
+      {children}
+    </div>
   );
 }
 
@@ -165,6 +163,27 @@ const CHECKLIST_PREVIEW_STATUS: OnboardingChecklistStatus = {
 };
 
 export function OnboardingPreviewPage() {
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  // OnboardingInvitePage reads location.state.orgId and returns <Navigate> when
+  // it's missing. Without a nested router every screen shares THIS page's
+  // location, so the fix is to put the orgId on it: replace-navigate to
+  // ourselves once, carrying the state the invite screen's guard needs.
+  //
+  // Until that lands, screen 4 must not mount at all — its <Navigate> would
+  // fire against the real router and throw the visitor out of the preview.
+  const previewOrgId = (location.state as { orgId?: string } | null)?.orgId;
+
+  useEffect(() => {
+    if (!previewOrgId) {
+      navigate("/preview/onboarding", {
+        replace: true,
+        state: { orgId: "preview-org" },
+      });
+    }
+  }, [previewOrgId, navigate]);
+
   useEffect(() => {
     document.title = "Onboarding preview — Travada Books";
     return () => {
@@ -194,7 +213,7 @@ export function OnboardingPreviewPage() {
             route="/signup"
             note="No guard — renders for anyone. Email/password create-account form."
           >
-            <Sandbox entry="/signup">
+            <Sandbox>
               <SignupPage />
             </Sandbox>
           </Frame>
@@ -206,7 +225,7 @@ export function OnboardingPreviewPage() {
               'Redirects to /signup unless sessionStorage has a parseable signup_email — seeded below for this preview. It\'s an 8-digit OTP entry screen, not a "check your email" card.'
             }
           >
-            <Sandbox entry="/signup/verify">
+            <Sandbox>
               <SignupVerifySandbox />
             </Sandbox>
           </Frame>
@@ -216,7 +235,7 @@ export function OnboardingPreviewPage() {
             route="/onboarding/org"
             note="Normally rendered inside OnboardingLayout (logo + stepper, reproduced below — not reused, since that layout redirects when there's no session)."
           >
-            <Sandbox entry="/onboarding/org">
+            <Sandbox>
               <OnboardingChrome activeIndex={0}>
                 <OnboardingOrgPage />
               </OnboardingChrome>
@@ -226,16 +245,17 @@ export function OnboardingPreviewPage() {
           <Frame
             number={4}
             route="/onboarding/invite"
-            note="Requires router state { orgId } or it redirects to /onboarding/org — seeded via MemoryRouter initialEntries below."
+            note="Requires router state { orgId } or it redirects to /onboarding/org — this page replace-navigates to itself to supply it."
           >
-            <Sandbox
-              entry={{
-                pathname: "/onboarding/invite",
-                state: { orgId: "preview-org" },
-              }}
-            >
+            <Sandbox>
               <OnboardingChrome activeIndex={1}>
-                <OnboardingInvitePage />
+                {previewOrgId ? (
+                  <OnboardingInvitePage />
+                ) : (
+                  <p className="py-8 text-center text-xs text-muted-foreground">
+                    Preparing router state…
+                  </p>
+                )}
               </OnboardingChrome>
             </Sandbox>
           </Frame>
@@ -245,7 +265,7 @@ export function OnboardingPreviewPage() {
             route="components/onboarding/onboarding-checklist"
             note="After onboarding — sidebar checklist popover. Shown here at a realistic 1-of-5 opening state."
           >
-            <Sandbox entry="/">
+            <Sandbox>
               <div className="w-80 rounded-md border bg-background shadow-sm">
                 <OnboardingChecklist
                   status={CHECKLIST_PREVIEW_STATUS}
