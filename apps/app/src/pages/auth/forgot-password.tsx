@@ -3,10 +3,10 @@ import { Link, useNavigate } from "react-router"
 import { Button } from "@travada-books/ui/components/button"
 import { Input } from "@travada-books/ui/components/input"
 import { Label } from "@travada-books/ui/components/label"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@travada-books/ui/components/card"
 import * as Sentry from "@sentry/react"
 import { supabase } from "@/lib/supabase"
 import { Turnstile, TURNSTILE_ENABLED } from "@/components/turnstile"
+import { AuthScreenHeader } from "@/components/auth/auth-screen-header"
 
 export function ForgotPasswordPage() {
   const navigate = useNavigate()
@@ -33,44 +33,41 @@ export function ForgotPasswordPage() {
   }
 
   return (
-    <Card>
-      <CardHeader className="text-center">
-        <CardTitle className="text-base">Reset your password</CardTitle>
-        <CardDescription>
-          Enter your email and we&apos;ll send you a one-time code
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="email">Email</Label>
-            <Input
-              id="email"
-              type="email"
-              placeholder="you@example.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              autoFocus
-            />
-          </div>
+    <div>
+      <AuthScreenHeader
+        eyebrow="Forgot password"
+        title="Reset your password"
+        description="Enter your email and we'll send you a one-time code"
+      />
+      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="email">Email</Label>
+          <Input
+            id="email"
+            type="email"
+            placeholder="you@example.com"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            autoFocus
+          />
+        </div>
 
-          <Turnstile onVerify={setCaptchaToken} />
+        <Turnstile onVerify={setCaptchaToken} />
 
-          {error && <p className="text-xs text-destructive">{error}</p>}
+        {error && <p className="text-xs text-destructive">{error}</p>}
 
-          <Button type="submit" className="w-full" disabled={loading || (TURNSTILE_ENABLED && !captchaToken)}>
-            {loading ? "Sending…" : "Send code"}
-          </Button>
+        <Button type="submit" className="w-full" disabled={loading || (TURNSTILE_ENABLED && !captchaToken)}>
+          {loading ? "Sending…" : "Send code"}
+        </Button>
 
-          <p className="text-center text-xs text-muted-foreground">
-            Remembered it?{" "}
-            <Link to="/login" className="text-foreground underline-offset-4 hover:underline">
-              Sign in
-            </Link>
-          </p>
-        </form>
-      </CardContent>
-    </Card>
+        <p className="text-center text-xs text-muted-foreground">
+          Remembered it?{" "}
+          <Link to="/login" className="text-foreground underline-offset-4 fine-hover:underline">
+            Sign in
+          </Link>
+        </p>
+      </form>
+    </div>
   )
 }

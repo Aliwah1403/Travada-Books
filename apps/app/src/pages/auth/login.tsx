@@ -9,9 +9,7 @@ import * as Sentry from "@sentry/react";
 import { supabase } from "@/lib/supabase";
 import { trackEvent, LogEvents } from "@/lib/analytics";
 import { Turnstile, TURNSTILE_ENABLED } from "@/components/turnstile";
-
-const EYEBROW =
-  "font-mono text-[10px] uppercase tracking-[0.3em] text-muted-foreground";
+import { AuthScreenHeader } from "@/components/auth/auth-screen-header";
 
 export function LoginPage() {
   const navigate = useNavigate();
@@ -91,12 +89,7 @@ export function LoginPage() {
 
   return (
     <div>
-      <div className="mb-8">
-        <p className={EYEBROW}>Welcome back</p>
-        <h1 className="mt-3 font-heading text-3xl text-foreground">
-          Sign in to your account
-        </h1>
-      </div>
+      <AuthScreenHeader eyebrow="Welcome back" title="Sign in to your account" />
       <div className="flex flex-col gap-4">
         <Button
           variant="outline"

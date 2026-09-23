@@ -4,9 +4,9 @@ import { Button } from "@travada-books/ui/components/button"
 import * as Sentry from "@sentry/react"
 import { supabase } from "@/lib/supabase"
 import { Turnstile, TURNSTILE_ENABLED } from "@/components/turnstile"
+import { AuthScreenHeader } from "@/components/auth/auth-screen-header"
 
 const OTP_LENGTH = 8
-const EYEBROW = "font-mono text-[10px] uppercase tracking-[0.3em] text-muted-foreground"
 
 export function SignupVerifyPage() {
   const navigate = useNavigate()
@@ -138,14 +138,16 @@ export function SignupVerifyPage() {
 
   return (
     <div>
-      <div className="mb-8">
-        <p className={EYEBROW}>One more step</p>
-        <h1 className="mt-3 font-heading text-3xl text-foreground">Check your email</h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          We sent an 8-digit verification code to{" "}
-          <span className="font-medium text-foreground">{email}</span>
-        </p>
-      </div>
+      <AuthScreenHeader
+        eyebrow="One more step"
+        title="Check your email"
+        description={
+          <>
+            We sent an 8-digit verification code to{" "}
+            <span className="font-medium text-foreground">{email}</span>
+          </>
+        }
+      />
       <form onSubmit={handleSubmit} className="flex flex-col gap-6">
         <div className="flex justify-center gap-2.5" onPaste={handlePaste}>
           {digits.map((digit, i) => (

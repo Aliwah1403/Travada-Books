@@ -9,9 +9,7 @@ import * as Sentry from "@sentry/react";
 import { supabase } from "@/lib/supabase";
 import { trackEvent, LogEvents } from "@/lib/analytics";
 import { Turnstile, TURNSTILE_ENABLED } from "@/components/turnstile";
-
-const EYEBROW =
-  "font-mono text-[10px] uppercase tracking-[0.3em] text-muted-foreground";
+import { AuthScreenHeader } from "@/components/auth/auth-screen-header";
 
 export function SignupPage() {
   const navigate = useNavigate();
@@ -114,15 +112,11 @@ export function SignupPage() {
 
   return (
     <div>
-      <div className="mb-8">
-        <p className={EYEBROW}>Get started</p>
-        <h1 className="mt-3 font-heading text-3xl text-foreground">
-          Welcome to Travada Books
-        </h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Create your account to get started
-        </p>
-      </div>
+      <AuthScreenHeader
+        eyebrow="Get started"
+        title="Welcome to Travada Books"
+        description="Create your account to get started"
+      />
       <div className="flex flex-col gap-4">
         <Button
           variant="outline"
