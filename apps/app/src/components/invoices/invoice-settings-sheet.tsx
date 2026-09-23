@@ -20,6 +20,7 @@ import { Textarea } from "@travada-books/ui/components/textarea";
 import { TickIcon, Delete01Icon, PlusSignIcon } from "@travada-books/ui/icons";
 import { useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { LOGO_ACCEPT, prepareLogoFile } from "@/lib/logo-upload";
 import { toast } from "sonner";
 import { Button } from "@travada-books/ui/components/button";
 import {
@@ -224,14 +225,19 @@ export function InvoiceSettingsSheet({
   }
 
   async function handleLogoUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const picked = e.target.files?.[0];
+    if (fileInputRef.current) fileInputRef.current.value = "";
+    if (!picked) return;
 
-    if (file.size > 2 * 1024 * 1024) {
-      toast.error("File must be 2 MB or smaller");
-      if (fileInputRef.current) fileInputRef.current.value = "";
+    // Same rules as the org logo: large files are resized in the browser, and
+    // WebP is converted to PNG — the PDF renderer can't decode WebP, and this
+    // is the invoice-specific logo, so it lands on every PDF.
+    const prepared = await prepareLogoFile(picked);
+    if (!prepared.ok) {
+      toast.error(prepared.error);
       return;
     }
+    const file = prepared.file;
 
     const ext = file.name.split(".").pop();
     const path = `logos/${orgId}/invoice-logo.${ext}`;
@@ -251,7 +257,6 @@ export function InvoiceSettingsSheet({
     // Bust cache so the new image loads immediately
     update("logoUrl", `${data.publicUrl}?t=${Date.now()}`);
     setUploading(false);
-    if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
   async function handleLogoRemove() {
@@ -300,7 +305,7 @@ export function InvoiceSettingsSheet({
                 <input
                   ref={fileInputRef}
                   type='file'
-                  accept='image/png,image/jpeg,image/jpg,image/webp,image/svg+xml'
+                  accept={LOGO_ACCEPT}
                   className='hidden'
                   onChange={handleLogoUpload}
                 />
