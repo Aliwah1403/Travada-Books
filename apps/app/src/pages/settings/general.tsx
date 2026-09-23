@@ -23,6 +23,7 @@ import { DatePicker } from "@/components/shared/date-picker"
 import { useAuth } from "@/contexts/auth-context"
 import { useInvalidateTransactionQueries } from "@/hooks/use-invalidate-transaction-queries"
 import { updateOrg, uploadOrgLogo } from "@/lib/queries/org"
+import { LOGO_ACCEPT, prepareLogoFile } from "@/lib/logo-upload"
 import { reconvertTransactionsBaseCurrency, type ReconvertBaseCurrencyResult } from "@/lib/queries/transactions"
 
 
@@ -246,39 +247,19 @@ export function GeneralSettingsPage() {
             <input
               ref={fileInputRef}
               type='file'
-              accept='image/png,image/jpeg,image/jpg,image/webp,image/svg+xml'
+              accept={LOGO_ACCEPT}
               className='hidden'
-              onChange={(e) => {
-                const file = e.target.files?.[0]
+              onChange={async (e) => {
+                const input = e.target
+                const file = input.files?.[0]
+                input.value = ""
                 if (!file) return
-                if (file.size > 2 * 1024 * 1024) {
-                  toast.error("Logo must be under 2 MB.")
-                  e.target.value = ""
+                const prepared = await prepareLogoFile(file)
+                if (!prepared.ok) {
+                  toast.error(prepared.error)
                   return
                 }
-                if (file.type !== "image/svg+xml") {
-                  const url = URL.createObjectURL(file)
-                  const img = new Image()
-                  img.onload = () => {
-                    URL.revokeObjectURL(url)
-                    if (img.width > 1024 || img.height > 1024) {
-                      toast.error("Logo must be 1024 × 1024 px or smaller.")
-                      e.target.value = ""
-                      return
-                    }
-                    logoMutation.mutate(file)
-                    e.target.value = ""
-                  }
-                  img.onerror = () => {
-                    URL.revokeObjectURL(url)
-                    toast.error("Unable to decode image.")
-                    e.target.value = ""
-                  }
-                  img.src = url
-                } else {
-                  logoMutation.mutate(file)
-                  e.target.value = ""
-                }
+                logoMutation.mutate(prepared.file)
               }}
             />
             <div className='flex flex-col gap-1'>
@@ -290,7 +271,7 @@ export function GeneralSettingsPage() {
               >
                 {logoMutation.isPending ? "Uploading…" : "Upload logo"}
               </Button>
-              <p className='text-xs text-muted-foreground'>PNG, JPG, WebP or SVG · Max 1024 × 1024 px · 2 MB</p>
+              <p className='text-xs text-muted-foreground'>PNG, JPG, WebP or SVG · up to 10 MB, resized automatically</p>
             </div>
           </div>
         </div>

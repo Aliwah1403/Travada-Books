@@ -18,6 +18,7 @@ import * as Sentry from "@sentry/react"
 import { supabase } from "@/lib/supabase"
 import { useAuth } from "@/contexts/auth-context"
 import { updateOrg, uploadOrgLogo } from "@/lib/queries/org"
+import { LOGO_ACCEPT, prepareLogoFile } from "@/lib/logo-upload"
 import { SplitLayout } from "@/components/auth/split-layout"
 import { SetupFigure } from "@/components/onboarding/setup-figure"
 
@@ -315,10 +316,10 @@ function BrandStep({
           type="button"
           onClick={onPickLogo}
           disabled={logoUploading}
-          className="flex size-24 items-center justify-center overflow-hidden rounded-md border border-dashed border-input text-muted-foreground transition-colors duration-200 [transition-timing-function:var(--ease-out)] fine-hover:border-foreground/40 fine-hover:text-foreground active:opacity-80"
+          className="flex h-28 w-full items-center justify-center overflow-hidden rounded-md border border-dashed border-input p-4 text-muted-foreground transition-colors duration-200 [transition-timing-function:var(--ease-out)] fine-hover:border-foreground/40 fine-hover:text-foreground active:opacity-80"
         >
           {logoUrl ? (
-            <img src={logoUrl} alt="Logo" className="size-full object-contain" />
+            <img src={logoUrl} alt="Logo" className="max-h-full max-w-full object-contain" />
           ) : logoUploading ? (
             <span className="text-[11px]">Uploading…</span>
           ) : businessName.trim() ? (
@@ -549,37 +550,17 @@ export function OnboardingOrgPage() {
     },
   })
 
-  function handleLogoFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
+  async function handleLogoFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const input = e.target
+    const file = input.files?.[0]
+    input.value = ""
     if (!file || !orgId) return
-    if (file.size > 2 * 1024 * 1024) {
-      toast.error("Logo must be under 2 MB.")
-      e.target.value = ""
+    const prepared = await prepareLogoFile(file)
+    if (!prepared.ok) {
+      toast.error(prepared.error)
       return
     }
-    if (file.type !== "image/svg+xml") {
-      const url = URL.createObjectURL(file)
-      const img = new Image()
-      img.onload = () => {
-        URL.revokeObjectURL(url)
-        if (img.width > 1024 || img.height > 1024) {
-          toast.error("Logo must be 1024 × 1024 px or smaller.")
-          e.target.value = ""
-          return
-        }
-        logoMutation.mutate(file)
-        e.target.value = ""
-      }
-      img.onerror = () => {
-        URL.revokeObjectURL(url)
-        toast.error("Unable to decode image.")
-        e.target.value = ""
-      }
-      img.src = url
-    } else {
-      logoMutation.mutate(file)
-      e.target.value = ""
-    }
+    logoMutation.mutate(prepared.file)
   }
 
   // ── Step 1 → 2: create (or update) the org ────────────────────────────────
@@ -805,6 +786,7 @@ export function OnboardingOrgPage() {
         <SetupFigure
           workspaceName={businessName}
           hasLogo={Boolean(logoUrl)}
+          logoUrl={logoUrl}
           step={step}
         />
       }
@@ -878,7 +860,7 @@ export function OnboardingOrgPage() {
           <input
             ref={logoInputRef}
             type="file"
-            accept="image/png,image/jpeg,image/jpg,image/webp,image/svg+xml"
+            accept={LOGO_ACCEPT}
             className="hidden"
             onChange={handleLogoFileChange}
           />

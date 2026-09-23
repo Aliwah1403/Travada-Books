@@ -36,12 +36,19 @@ const ZOOM: Record<number, ZoomTarget> = {
 type SetupFigureProps = {
   workspaceName: string;
   hasLogo: boolean;
+  /**
+   * The uploaded logo. When present it replaces the initial in the workspace
+   * tile. Optional because the playground drives this figure with a fake
+   * `hasLogo` and no real upload.
+   */
+  logoUrl?: string | null;
   step: number;
 };
 
 export function SetupFigure({
   workspaceName,
   hasLogo,
+  logoUrl,
   step,
 }: SetupFigureProps) {
   const target = ZOOM[step] ?? ZOOM[4];
@@ -62,16 +69,27 @@ export function SetupFigure({
           >
             <div className="flex items-center justify-between gap-2 border-b p-4">
               <div className="flex items-center gap-2 overflow-hidden">
-                <div
-                  className={cn(
-                    "flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-md text-sm font-semibold transition-colors duration-200",
-                    hasLogo
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-foreground/15 text-foreground/50",
-                  )}
-                >
-                  {initial}
-                </div>
+                {logoUrl ? (
+                  // Height-locked, width free, so a wide wordmark keeps its
+                  // proportions instead of shrinking to fit a square. Capped so
+                  // the workspace name beside it still gets room.
+                  <img
+                    src={logoUrl}
+                    alt=""
+                    className="h-8 w-auto max-w-24 shrink-0 object-contain animate-in fade-in-0 zoom-in-95 duration-200 [animation-timing-function:var(--ease-out)]"
+                  />
+                ) : (
+                  <div
+                    className={cn(
+                      "flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-md text-sm font-semibold transition-colors duration-200",
+                      hasLogo
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-foreground/15 text-foreground/50",
+                    )}
+                  >
+                    {initial}
+                  </div>
+                )}
                 {workspaceName.trim() ? (
                   <p className="truncate font-semibold">{workspaceName}</p>
                 ) : (
