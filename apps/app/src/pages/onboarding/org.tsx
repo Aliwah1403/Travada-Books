@@ -9,7 +9,6 @@ import { CurrencySelect } from "@travada-books/ui/components/currency-select";
 import {
   ArrowLeft01Icon,
   ArrowRight01Icon,
-  Cancel01Icon,
   Upload01Icon,
 } from "@travada-books/ui/icons";
 import { cn } from "@travada-books/ui/lib/utils";
@@ -18,6 +17,8 @@ import * as Sentry from "@sentry/react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/auth-context";
 import { updateOrg, uploadOrgLogo } from "@/lib/queries/org";
+import { inviteMember } from "@/lib/queries/team";
+import { trackEvent, LogEvents } from "@/lib/analytics";
 import { LOGO_ACCEPT, prepareLogoFile } from "@/lib/logo-upload";
 import { SplitLayout } from "@/components/auth/split-layout";
 import { SetupFigure } from "@/components/onboarding/setup-figure";
@@ -53,14 +54,12 @@ async function insertOwnerMembership(orgId: string, userId: string) {
   const MAX_ATTEMPTS = 3;
   let lastError: { code?: string; message: string } | null = null;
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
-    const { error } = await supabase
-      .from("organization_members")
-      .insert({
-        org_id: orgId,
-        user_id: userId,
-        role: "owner",
-        status: "active",
-      });
+    const { error } = await supabase.from("organization_members").insert({
+      org_id: orgId,
+      user_id: userId,
+      role: "owner",
+      status: "active",
+    });
     if (!error) return null;
     lastError = error;
     if (error.code !== "23503" || attempt === MAX_ATTEMPTS) return error;
@@ -378,25 +377,25 @@ function BrandStep({
 
 // ─── 4. Invite your team ────────────────────────────────────────────────────
 
+type SentInvite = { email: string; emailFailed: boolean };
+
 function TeamStep({
   invites,
   inviteEmail,
   onInviteEmailChange,
-  onAddInvite,
-  onRemoveInvite,
+  onSendInvite,
   onBack,
   onNext,
-  loading,
+  sending,
   error,
 }: {
-  invites: string[];
+  invites: SentInvite[];
   inviteEmail: string;
   onInviteEmailChange: (value: string) => void;
-  onAddInvite: () => void;
-  onRemoveInvite: (email: string) => void;
+  onSendInvite: () => void;
   onBack: () => void;
   onNext: () => void;
-  loading: boolean;
+  sending: boolean;
   error: string;
 }) {
   return (
@@ -415,57 +414,62 @@ function TeamStep({
               type="email"
               placeholder="teammate@example.com"
               value={inviteEmail}
+              disabled={sending}
               onChange={(e) => onInviteEmailChange(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
                   e.preventDefault();
-                  onAddInvite();
+                  onSendInvite();
                 }
               }}
             />
           </div>
-          <Button type="button" variant="outline" onClick={onAddInvite}>
-            Add
+          <Button
+            type="button"
+            variant="outline"
+            onClick={onSendInvite}
+            disabled={sending || inviteEmail.trim().length === 0}
+          >
+            {sending ? "Sending…" : "Send invite"}
           </Button>
         </div>
+
+        {error && <p className="text-xs text-destructive">{error}</p>}
 
         {invites.length === 0 ? (
           <div className="rounded-md border border-dashed border-input px-4 py-6 text-center text-xs text-muted-foreground">
             No invites yet. Add a few or skip — totally fine.
           </div>
         ) : (
+          // No remove control: each row is an invitation that already exists and
+          // may already be in someone's inbox. Hiding it here would misrepresent
+          // that; revoking lives in Settings → Team.
           <ul className="flex flex-col gap-2">
-            {invites.map((email) => (
+            {invites.map((invite) => (
               <li
-                key={email}
+                key={invite.email}
                 className="flex items-center justify-between gap-2 rounded-md border px-3 py-2 text-xs"
               >
-                <span className="truncate">{email}</span>
-                <button
-                  type="button"
-                  onClick={() => onRemoveInvite(email)}
-                  aria-label={`Remove ${email}`}
-                  className="text-muted-foreground transition-colors duration-200 [transition-timing-function:var(--ease-out)] fine-hover:text-destructive"
+                <span className="truncate">{invite.email}</span>
+                <span
+                  className={cn(
+                    "shrink-0 rounded-md px-2 py-0.5 font-medium transition-colors duration-200",
+                    invite.emailFailed
+                      ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
+                      : "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
+                  )}
                 >
-                  <Cancel01Icon size={14} />
-                </button>
+                  {invite.emailFailed ? "Email not sent" : "Sent"}
+                </span>
               </li>
             ))}
           </ul>
         )}
-        {error && <p className="text-xs text-destructive">{error}</p>}
       </div>
       <NavRow
         onBack={onBack}
-        primaryLabel={
-          loading
-            ? "Sending…"
-            : invites.length === 0
-              ? "Skip for now"
-              : `Send ${invites.length} invite${invites.length === 1 ? "" : "s"}`
-        }
+        primaryLabel={invites.length === 0 ? "Skip for now" : "Continue"}
         onPrimary={onNext}
-        primaryLoading={loading}
       />
     </div>
   );
@@ -550,7 +554,7 @@ export function OnboardingOrgPage() {
   const [brandSubmitting, setBrandSubmitting] = useState(false);
   const logoInputRef = useRef<HTMLInputElement>(null);
 
-  const [invites, setInvites] = useState<string[]>([]);
+  const [invites, setInvites] = useState<SentInvite[]>([]);
   const [inviteEmail, setInviteEmail] = useState("");
   const [teamError, setTeamError] = useState("");
   const [teamSubmitting, setTeamSubmitting] = useState(false);
@@ -769,69 +773,69 @@ export function OnboardingOrgPage() {
 
   // ── Step 4: invites ────────────────────────────────────────────────────────
 
-  const addInvite = () => {
+  // Each invite is created and emailed the moment it's sent, rather than batched
+  // onto Continue, so the user sees it land and stays on this step to add more.
+  //
+  // Goes through inviteMember(), the same path Settings → Team uses. It must:
+  // an invited row has user_id NULL and the SELECT policy on organization_members
+  // is `user_id = auth.uid()` (a hard invariant — see CLAUDE.md). Postgres applies
+  // the SELECT policy to INSERT ... RETURNING, so `.insert(rows).select()` on an
+  // invite always fails RLS. inviteMember() generates the id client-side and
+  // inserts without RETURNING, and pre-checks for existing members and invites.
+  async function sendInvite() {
+    if (!orgId || teamSubmitting) return;
     const value = inviteEmail.trim().toLowerCase();
-    if (!value || invites.includes(value)) return;
-    setInvites((prev) => [...prev, value]);
-    setInviteEmail("");
-  };
-
-  const removeInvite = (email: string) =>
-    setInvites((prev) => prev.filter((e) => e !== email));
-
-  async function handleTeamContinue() {
-    if (!orgId) return;
-    if (invites.length === 0) {
-      setStep(4);
+    if (!value) return;
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+      setTeamError("Enter a valid email address.");
+      return;
+    }
+    if (invites.some((invite) => invite.email === value)) {
+      setTeamError("You've already invited this person.");
       return;
     }
 
     setTeamError("");
     setTeamSubmitting(true);
     try {
-      const expiresAt = new Date(
-        Date.now() + 7 * 24 * 60 * 60 * 1000,
-      ).toISOString();
-      const rows = invites.map((inviteeEmail) => ({
-        org_id: orgId,
-        email: inviteeEmail,
-        role: "member" as const,
-        status: "invited" as const,
-        expires_at: expiresAt,
-      }));
-
-      const { data: inserted, error: insertError } = await supabase
-        .from("organization_members")
-        .insert(rows)
-        .select("id, email");
-
-      if (insertError) {
-        console.error("invite insert failed:", insertError);
-        setTeamError("Couldn't add team members. Please try again.");
-        return;
-      }
+      const id = await inviteMember(orgId, value, "member");
+      trackEvent(LogEvents.UserInvited, { role: "member" });
 
       const inviterName = profile?.full_name || businessName || "";
-      const invitations = (inserted ?? []).map((r) => ({
-        email: r.email as string,
-        id: r.id as string,
-      }));
-      const { error: inviteError } = await supabase.functions.invoke(
+      const { error: invokeError } = await supabase.functions.invoke(
         "invite-member",
-        { body: { invitations, inviterName } },
+        { body: { invitations: [{ email: value, id }], inviterName } },
       );
-      if (inviteError) {
-        console.error("invite-member failed:", inviteError);
-        // Non-fatal — members were inserted; proceed but warn.
-        toast.warning(
-          "Team members added, but invite emails failed to send. You can resend from Settings.",
-        );
-      }
 
-      setStep(4);
+      setInvites((prev) => [
+        ...prev,
+        { email: value, emailFailed: Boolean(invokeError) },
+      ]);
+      setInviteEmail("");
+
+      if (invokeError) {
+        console.error("invite-member failed:", invokeError);
+        toast.warning(
+          `Invitation created for ${value}, but the email didn't send. You can resend it from Settings.`,
+        );
+      } else {
+        toast.success(`Invite sent to ${value}`);
+      }
+    } catch (err) {
+      // inviteMember throws user-facing messages: already a member, already
+      // invited, or a generic failure.
+      setTeamError(
+        err instanceof Error
+          ? err.message
+          : "Couldn't send the invite. Please try again.",
+      );
     } finally {
       setTeamSubmitting(false);
     }
+  }
+
+  function handleTeamContinue() {
+    setStep(4);
   }
 
   // ── Step 5: finish ─────────────────────────────────────────────────────────
@@ -903,12 +907,14 @@ export function OnboardingOrgPage() {
             <TeamStep
               invites={invites}
               inviteEmail={inviteEmail}
-              onInviteEmailChange={setInviteEmail}
-              onAddInvite={addInvite}
-              onRemoveInvite={removeInvite}
+              onInviteEmailChange={(value) => {
+                setInviteEmail(value);
+                if (teamError) setTeamError("");
+              }}
+              onSendInvite={sendInvite}
               onBack={goBack}
               onNext={handleTeamContinue}
-              loading={teamSubmitting}
+              sending={teamSubmitting}
               error={teamError}
             />
           )}
