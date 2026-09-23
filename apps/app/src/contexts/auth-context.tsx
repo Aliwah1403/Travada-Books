@@ -195,7 +195,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const fetchId = ++fetchIdRef.current
     const { data } = await supabase
       .from("users")
-      .select("id, full_name, avatar_url, email, locale, timezone, date_format, time_format, week_starts_on_monday, timezone_auto_sync, transactions_vault_nudge_seen_at")
+      .select("id, full_name, avatar_url, email, locale, timezone, date_format, time_format, week_starts_on_monday, timezone_auto_sync, transactions_vault_nudge_seen_at, onboarding_checklist_dismissed_at")
       .eq("id", userId)
       .maybeSingle()
     if (fetchId !== fetchIdRef.current) return

@@ -1,5 +1,5 @@
 import { useRef, useState } from "react"
-import { useNavigate, useSearchParams } from "react-router"
+import { useNavigate } from "react-router"
 import { useMutation } from "@tanstack/react-query"
 import { toast } from "sonner"
 import { Button } from "@travada-books/ui/components/button"
@@ -66,10 +66,9 @@ async function insertOwnerMembership(orgId: string, userId: string) {
 // ─── Stepper ────────────────────────────────────────────────────────────────
 
 /**
- * `total` exists because `?mode=create` — adding a second org from an account
- * that is already onboarded — exits to /invoices after step 2 and never sees
- * steps 3-5. Rendering "Step 01 / 05" there would promise three screens that
- * are not coming, which is the exact fault this redesign set out to remove.
+ * `total` is explicit so the count shown always matches the screens that are
+ * actually coming — the old flow's stepper said "1 of 2" on what was really
+ * the third of four screens.
  */
 function Stepper({ step, total }: { step: number; total: number }) {
   return (
@@ -233,7 +232,10 @@ function LocationStep({
         subtitle="Sets your base currency and tax defaults. Both changeable later."
       />
       <div className="flex flex-col gap-4">
-        <div className="grid grid-cols-2 gap-3">
+        {/* Stacked, not side by side: CurrencySelect shows the code AND the full
+            name, and half of a 384px column can't hold "United Arab Emirates
+            dirham". The pre-redesign form stacked these for the same reason. */}
+        <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="onboarding-country">Country</Label>
             <CountryDropdown
@@ -507,8 +509,6 @@ function ReadyStep({
 
 export function OnboardingOrgPage() {
   const navigate = useNavigate()
-  const [searchParams] = useSearchParams()
-  const isCreateMode = searchParams.get("mode") === "create"
   const { user, profile, refreshOrg } = useAuth()
 
   const [step, setStep] = useState(0)
@@ -688,14 +688,12 @@ export function OnboardingOrgPage() {
       if (!newOrgId) return
       setOrgId(newOrgId)
 
-      if (isCreateMode) {
-        // Adding an additional org from an already-onboarded account: skip the rest of the
-        // wizard, same as the old two-screen flow did.
-        await refreshOrg()
-        navigate("/invoices")
-        return
-      }
-
+      // `?mode=create` (adding a second org) now runs the whole wizard too. The
+      // old two-screen flow exited here because its only remaining screen was
+      // invites; with five steps that would skip the logo and tax id, which a
+      // second business needs just as much as its first. The auth context is
+      // not refreshed until step 5, so the onboarding layout's "already has an
+      // org" guard can't eject the user mid-wizard.
       setStep(2)
     } finally {
       setBusinessSubmitting(false)
@@ -812,7 +810,7 @@ export function OnboardingOrgPage() {
       }
       form={
         <div className="w-full max-w-sm">
-          <Stepper step={step} total={isCreateMode ? 2 : STEP_COUNT} />
+          <Stepper step={step} total={STEP_COUNT} />
 
           {step === 0 && (
             <BusinessNameStep
