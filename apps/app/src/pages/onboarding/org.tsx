@@ -1,26 +1,26 @@
-import { useRef, useState } from "react"
-import { useNavigate } from "react-router"
-import { useMutation } from "@tanstack/react-query"
-import { toast } from "sonner"
-import { Button } from "@travada-books/ui/components/button"
-import { Input } from "@travada-books/ui/components/input"
-import { Label } from "@travada-books/ui/components/label"
-import { CurrencySelect } from "@travada-books/ui/components/currency-select"
+import { useRef, useState } from "react";
+import { useNavigate } from "react-router";
+import { useMutation } from "@tanstack/react-query";
+import { toast } from "sonner";
+import { Button } from "@travada-books/ui/components/button";
+import { Input } from "@travada-books/ui/components/input";
+import { Label } from "@travada-books/ui/components/label";
+import { CurrencySelect } from "@travada-books/ui/components/currency-select";
 import {
   ArrowLeft01Icon,
   ArrowRight01Icon,
   Cancel01Icon,
   Upload01Icon,
-} from "@travada-books/ui/icons"
-import { cn } from "@travada-books/ui/lib/utils"
-import { CountryDropdown } from "@/components/country-dropdown"
-import * as Sentry from "@sentry/react"
-import { supabase } from "@/lib/supabase"
-import { useAuth } from "@/contexts/auth-context"
-import { updateOrg, uploadOrgLogo } from "@/lib/queries/org"
-import { LOGO_ACCEPT, prepareLogoFile } from "@/lib/logo-upload"
-import { SplitLayout } from "@/components/auth/split-layout"
-import { SetupFigure } from "@/components/onboarding/setup-figure"
+} from "@travada-books/ui/icons";
+import { cn } from "@travada-books/ui/lib/utils";
+import { CountryDropdown } from "@/components/country-dropdown";
+import * as Sentry from "@sentry/react";
+import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/contexts/auth-context";
+import { updateOrg, uploadOrgLogo } from "@/lib/queries/org";
+import { LOGO_ACCEPT, prepareLogoFile } from "@/lib/logo-upload";
+import { SplitLayout } from "@/components/auth/split-layout";
+import { SetupFigure } from "@/components/onboarding/setup-figure";
 
 /**
  * ── Onboarding wizard ────────────────────────────────────────────────────────
@@ -43,25 +43,30 @@ import { SetupFigure } from "@/components/onboarding/setup-figure"
  * second one.
  */
 
-const STEP_COUNT = 5
+const STEP_COUNT = 5;
 
 const EYEBROW =
-  "font-mono text-[10px] uppercase tracking-[0.3em] text-muted-foreground"
+  "font-mono text-[10px] uppercase tracking-[0.3em] text-muted-foreground";
 
 // handle_new_user() inserting the public.users row can lag behind auth signup; retry the FK-dependent insert briefly
 async function insertOwnerMembership(orgId: string, userId: string) {
-  const MAX_ATTEMPTS = 3
-  let lastError: { code?: string; message: string } | null = null
+  const MAX_ATTEMPTS = 3;
+  let lastError: { code?: string; message: string } | null = null;
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
     const { error } = await supabase
       .from("organization_members")
-      .insert({ org_id: orgId, user_id: userId, role: "owner", status: "active" })
-    if (!error) return null
-    lastError = error
-    if (error.code !== "23503" || attempt === MAX_ATTEMPTS) return error
-    await new Promise((resolve) => setTimeout(resolve, 400))
+      .insert({
+        org_id: orgId,
+        user_id: userId,
+        role: "owner",
+        status: "active",
+      });
+    if (!error) return null;
+    lastError = error;
+    if (error.code !== "23503" || attempt === MAX_ATTEMPTS) return error;
+    await new Promise((resolve) => setTimeout(resolve, 400));
   }
-  return lastError
+  return lastError;
 }
 
 // ─── Stepper ────────────────────────────────────────────────────────────────
@@ -75,7 +80,8 @@ function Stepper({ step, total }: { step: number; total: number }) {
   return (
     <div className="mb-10 flex flex-col gap-3">
       <p className={EYEBROW}>
-        Step {String(step + 1).padStart(2, "0")} / {String(total).padStart(2, "0")}
+        Step {String(step + 1).padStart(2, "0")} /{" "}
+        {String(total).padStart(2, "0")}
       </p>
       <div className="flex items-center gap-1.5">
         {Array.from({ length: total }).map((_, i) => (
@@ -93,7 +99,7 @@ function Stepper({ step, total }: { step: number; total: number }) {
         ))}
       </div>
     </div>
-  )
+  );
 }
 
 // ─── Shared step chrome ─────────────────────────────────────────────────────
@@ -103,9 +109,9 @@ function StepHeader({
   title,
   subtitle,
 }: {
-  eyebrow: string
-  title: string
-  subtitle: string
+  eyebrow: string;
+  title: string;
+  subtitle: string;
 }) {
   return (
     <div className="mb-8">
@@ -113,7 +119,7 @@ function StepHeader({
       <h1 className="mt-3 font-heading text-3xl text-foreground">{title}</h1>
       <p className="mt-2 text-sm text-muted-foreground">{subtitle}</p>
     </div>
-  )
+  );
 }
 
 function NavRow({
@@ -125,18 +131,23 @@ function NavRow({
   secondaryLabel,
   onSecondary,
 }: {
-  onBack?: () => void
-  primaryLabel: string
-  onPrimary: () => void
-  primaryDisabled?: boolean
-  primaryLoading?: boolean
-  secondaryLabel?: string
-  onSecondary?: () => void
+  onBack?: () => void;
+  primaryLabel: string;
+  onPrimary: () => void;
+  primaryDisabled?: boolean;
+  primaryLoading?: boolean;
+  secondaryLabel?: string;
+  onSecondary?: () => void;
 }) {
   return (
     <div className="mt-8 flex items-center justify-between gap-3">
       {onBack ? (
-        <Button type="button" variant="ghost" onClick={onBack} className="gap-1.5">
+        <Button
+          type="button"
+          variant="ghost"
+          onClick={onBack}
+          className="gap-1.5"
+        >
           <ArrowLeft01Icon size={14} />
           Back
         </Button>
@@ -145,7 +156,12 @@ function NavRow({
       )}
       <div className="flex items-center gap-2">
         {secondaryLabel && onSecondary && (
-          <Button type="button" variant="ghost" onClick={onSecondary} disabled={primaryLoading}>
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={onSecondary}
+            disabled={primaryLoading}
+          >
             {secondaryLabel}
           </Button>
         )}
@@ -160,7 +176,7 @@ function NavRow({
         </Button>
       </div>
     </div>
-  )
+  );
 }
 
 // ─── 1. Business name ───────────────────────────────────────────────────────
@@ -170,9 +186,9 @@ function BusinessNameStep({
   onChange,
   onNext,
 }: {
-  value: string
-  onChange: (value: string) => void
-  onNext: () => void
+  value: string;
+  onChange: (value: string) => void;
+  onNext: () => void;
 }) {
   return (
     <div>
@@ -197,7 +213,7 @@ function BusinessNameStep({
         primaryDisabled={value.trim().length === 0}
       />
     </div>
-  )
+  );
 }
 
 // ─── 2. Where you invoice from ──────────────────────────────────────────────
@@ -214,16 +230,16 @@ function LocationStep({
   loading,
   error,
 }: {
-  country: string
-  onCountryChange: (value: string) => void
-  currency: string
-  onCurrencyChange: (value: string) => void
-  email: string
-  onEmailChange: (value: string) => void
-  onBack: () => void
-  onNext: () => void
-  loading: boolean
-  error: string
+  country: string;
+  onCountryChange: (value: string) => void;
+  currency: string;
+  onCurrencyChange: (value: string) => void;
+  email: string;
+  onEmailChange: (value: string) => void;
+  onBack: () => void;
+  onNext: () => void;
+  loading: boolean;
+  error: string;
 }) {
   return (
     <div>
@@ -273,7 +289,7 @@ function LocationStep({
         primaryLoading={loading}
       />
     </div>
-  )
+  );
 }
 
 // ─── 3. Make it yours ───────────────────────────────────────────────────────
@@ -291,19 +307,19 @@ function BrandStep({
   loading,
   error,
 }: {
-  logoUrl: string | null
-  logoUploading: boolean
-  onPickLogo: () => void
-  businessName: string
-  taxId: string
-  onTaxIdChange: (value: string) => void
-  onBack: () => void
-  onSkip: () => void
-  onNext: () => void
-  loading: boolean
-  error: string
+  logoUrl: string | null;
+  logoUploading: boolean;
+  onPickLogo: () => void;
+  businessName: string;
+  taxId: string;
+  onTaxIdChange: (value: string) => void;
+  onBack: () => void;
+  onSkip: () => void;
+  onNext: () => void;
+  loading: boolean;
+  error: string;
 }) {
-  const initial = businessName.trim().charAt(0).toUpperCase()
+  const initial = businessName.trim().charAt(0).toUpperCase();
   return (
     <div>
       <StepHeader
@@ -319,7 +335,11 @@ function BrandStep({
           className="flex h-28 w-full items-center justify-center overflow-hidden rounded-md border border-dashed border-input p-4 text-muted-foreground transition-colors duration-200 [transition-timing-function:var(--ease-out)] fine-hover:border-foreground/40 fine-hover:text-foreground active:opacity-80"
         >
           {logoUrl ? (
-            <img src={logoUrl} alt="Logo" className="max-h-full max-w-full object-contain" />
+            <img
+              src={logoUrl}
+              alt="Logo"
+              className="max-h-full max-w-full object-contain"
+            />
           ) : logoUploading ? (
             <span className="text-[11px]">Uploading…</span>
           ) : businessName.trim() ? (
@@ -334,16 +354,13 @@ function BrandStep({
           )}
         </button>
         <div className="flex flex-col gap-1.5">
-          <Label htmlFor="onboarding-tax-id">Tax ID</Label>
+          <Label htmlFor="onboarding-tax-id">Tax/VAT ID</Label>
           <Input
             id="onboarding-tax-id"
             placeholder="e.g. P051234567X"
             value={taxId}
             onChange={(e) => onTaxIdChange(e.target.value)}
           />
-          <p className="text-xs text-muted-foreground">
-            KRA PIN in Kenya, TIN in Nigeria — whatever your invoices need.
-          </p>
         </div>
         {error && <p className="text-xs text-destructive">{error}</p>}
       </div>
@@ -356,7 +373,7 @@ function BrandStep({
         primaryLoading={loading}
       />
     </div>
-  )
+  );
 }
 
 // ─── 4. Invite your team ────────────────────────────────────────────────────
@@ -372,15 +389,15 @@ function TeamStep({
   loading,
   error,
 }: {
-  invites: string[]
-  inviteEmail: string
-  onInviteEmailChange: (value: string) => void
-  onAddInvite: () => void
-  onRemoveInvite: (email: string) => void
-  onBack: () => void
-  onNext: () => void
-  loading: boolean
-  error: string
+  invites: string[];
+  inviteEmail: string;
+  onInviteEmailChange: (value: string) => void;
+  onAddInvite: () => void;
+  onRemoveInvite: (email: string) => void;
+  onBack: () => void;
+  onNext: () => void;
+  loading: boolean;
+  error: string;
 }) {
   return (
     <div>
@@ -401,8 +418,8 @@ function TeamStep({
               onChange={(e) => onInviteEmailChange(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
-                  e.preventDefault()
-                  onAddInvite()
+                  e.preventDefault();
+                  onAddInvite();
                 }
               }}
             />
@@ -451,7 +468,7 @@ function TeamStep({
         primaryLoading={loading}
       />
     </div>
-  )
+  );
 }
 
 // ─── 5. Ready ────────────────────────────────────────────────────────────────
@@ -466,7 +483,7 @@ function FactCard({ label, value }: { label: string; value: string }) {
         {value}
       </p>
     </div>
-  )
+  );
 }
 
 function ReadyStep({
@@ -476,13 +493,13 @@ function ReadyStep({
   onFinish,
   finishing,
 }: {
-  businessName: string
-  currency: string
-  inviteCount: number
-  onFinish: () => void
-  finishing: boolean
+  businessName: string;
+  currency: string;
+  inviteCount: number;
+  onFinish: () => void;
+  finishing: boolean;
 }) {
-  const members = inviteCount + 1
+  const members = inviteCount + 1;
   return (
     <div>
       <StepHeader
@@ -499,141 +516,180 @@ function ReadyStep({
         <FactCard label="Currency" value={currency} />
         <FactCard label="Members" value={String(members)} />
       </div>
-      <Button type="button" className="mt-8 w-full" onClick={onFinish} disabled={finishing}>
+      <Button
+        type="button"
+        className="mt-8 w-full"
+        onClick={onFinish}
+        disabled={finishing}
+      >
         {finishing ? "Taking you in…" : "Take me in"}
       </Button>
     </div>
-  )
+  );
 }
 
 // ─── Flow ───────────────────────────────────────────────────────────────────
 
 export function OnboardingOrgPage() {
-  const navigate = useNavigate()
-  const { user, profile, refreshOrg } = useAuth()
+  const navigate = useNavigate();
+  const { user, profile, refreshOrg } = useAuth();
 
-  const [step, setStep] = useState(0)
-  const [orgId, setOrgId] = useState<string | null>(null)
+  const [step, setStep] = useState(0);
+  const [orgId, setOrgId] = useState<string | null>(null);
 
-  const [businessName, setBusinessName] = useState("")
-  const [email, setEmail] = useState("")
-  const [currency, setCurrency] = useState("KES")
-  const [country, setCountry] = useState("KE")
-  const [businessError, setBusinessError] = useState("")
-  const [businessSubmitting, setBusinessSubmitting] = useState(false)
+  const [businessName, setBusinessName] = useState("");
+  const [email, setEmail] = useState("");
+  const [currency, setCurrency] = useState("KES");
+  const [country, setCountry] = useState("KE");
+  const [businessError, setBusinessError] = useState("");
+  const [businessSubmitting, setBusinessSubmitting] = useState(false);
 
-  const [logoUrl, setLogoUrl] = useState<string | null>(null)
-  const [taxId, setTaxId] = useState("")
-  const [brandError, setBrandError] = useState("")
-  const [brandSubmitting, setBrandSubmitting] = useState(false)
-  const logoInputRef = useRef<HTMLInputElement>(null)
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [taxId, setTaxId] = useState("");
+  const [brandError, setBrandError] = useState("");
+  const [brandSubmitting, setBrandSubmitting] = useState(false);
+  const logoInputRef = useRef<HTMLInputElement>(null);
 
-  const [invites, setInvites] = useState<string[]>([])
-  const [inviteEmail, setInviteEmail] = useState("")
-  const [teamError, setTeamError] = useState("")
-  const [teamSubmitting, setTeamSubmitting] = useState(false)
+  const [invites, setInvites] = useState<string[]>([]);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [teamError, setTeamError] = useState("");
+  const [teamSubmitting, setTeamSubmitting] = useState(false);
 
-  const [finishing, setFinishing] = useState(false)
+  const [finishing, setFinishing] = useState(false);
 
-  const goBack = () => setStep((s) => Math.max(s - 1, 0))
+  const goBack = () => setStep((s) => Math.max(s - 1, 0));
 
   const logoMutation = useMutation({
     mutationFn: async (file: File) => {
-      const url = await uploadOrgLogo(orgId!, file)
-      await updateOrg(orgId!, { logo_url: url })
-      return url
+      const url = await uploadOrgLogo(orgId!, file);
+      await updateOrg(orgId!, { logo_url: url });
+      return url;
     },
     onSuccess: (url) => setLogoUrl(url),
     onError: (err) => {
-      Sentry.captureException(err)
-      toast.error("Failed to upload logo. Please try again.")
+      Sentry.captureException(err);
+      toast.error("Failed to upload logo. Please try again.");
     },
-  })
+  });
 
   async function handleLogoFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const input = e.target
-    const file = input.files?.[0]
-    input.value = ""
-    if (!file || !orgId) return
-    const prepared = await prepareLogoFile(file)
+    const input = e.target;
+    const file = input.files?.[0];
+    input.value = "";
+    if (!file || !orgId) return;
+    const prepared = await prepareLogoFile(file);
     if (!prepared.ok) {
-      toast.error(prepared.error)
-      return
+      toast.error(prepared.error);
+      return;
     }
-    logoMutation.mutate(prepared.file)
+    logoMutation.mutate(prepared.file);
   }
 
   // ── Step 1 → 2: create (or update) the org ────────────────────────────────
 
   async function createOrg(): Promise<string | null> {
-    if (!user) return null
-    const newOrgId = crypto.randomUUID()
+    if (!user) return null;
+    const newOrgId = crypto.randomUUID();
 
-    const { error: orgError } = await supabase
-      .from("organizations")
-      .insert({
-        id: newOrgId,
-        name: businessName.trim(),
-        email: email.trim(),
-        base_currency: currency,
-        country_code: country,
-      })
+    const { error: orgError } = await supabase.from("organizations").insert({
+      id: newOrgId,
+      name: businessName.trim(),
+      email: email.trim(),
+      base_currency: currency,
+      country_code: country,
+    });
 
     if (orgError) {
-      Sentry.captureException(orgError)
-      setBusinessError("Failed to create your business. Please try again.")
-      return null
+      Sentry.captureException(orgError);
+      setBusinessError("Failed to create your business. Please try again.");
+      return null;
     }
 
-    const memberError = await insertOwnerMembership(newOrgId, user.id)
+    const memberError = await insertOwnerMembership(newOrgId, user.id);
 
     if (memberError) {
-      Sentry.captureException(memberError)
-      const { error: rbError } = await supabase.from("organizations").delete().eq("id", newOrgId)
+      Sentry.captureException(memberError);
+      const { error: rbError } = await supabase
+        .from("organizations")
+        .delete()
+        .eq("id", newOrgId);
       if (rbError) {
-        console.error(`Rollback failed for org ${newOrgId}: ${rbError.message}`)
-        Sentry.captureException(rbError, { extra: { context: "org_rollback_failed", orgId: newOrgId } })
+        console.error(
+          `Rollback failed for org ${newOrgId}: ${rbError.message}`,
+        );
+        Sentry.captureException(rbError, {
+          extra: { context: "org_rollback_failed", orgId: newOrgId },
+        });
       }
-      setBusinessError("Failed to set up your account. Please try again.")
-      return null
+      setBusinessError("Failed to set up your account. Please try again.");
+      return null;
     }
 
     // Always set active_org_id so the new org becomes the active one
-    const { error: updateError } = await supabase.from("users").update({ active_org_id: newOrgId }).eq("id", user.id)
+    const { error: updateError } = await supabase
+      .from("users")
+      .update({ active_org_id: newOrgId })
+      .eq("id", user.id);
     if (updateError) {
-      Sentry.captureException(updateError)
-      const { error: rbMemberError } = await supabase.from("organization_members").delete().eq("org_id", newOrgId).eq("user_id", user.id)
+      Sentry.captureException(updateError);
+      const { error: rbMemberError } = await supabase
+        .from("organization_members")
+        .delete()
+        .eq("org_id", newOrgId)
+        .eq("user_id", user.id);
       if (rbMemberError) {
-        console.error(`Rollback failed for membership org=${newOrgId} user=${user.id}: ${rbMemberError.message}`)
-        Sentry.captureException(rbMemberError, { extra: { context: "membership_rollback_failed", orgId: newOrgId } })
+        console.error(
+          `Rollback failed for membership org=${newOrgId} user=${user.id}: ${rbMemberError.message}`,
+        );
+        Sentry.captureException(rbMemberError, {
+          extra: { context: "membership_rollback_failed", orgId: newOrgId },
+        });
       }
-      const { error: rbOrgError } = await supabase.from("organizations").delete().eq("id", newOrgId)
+      const { error: rbOrgError } = await supabase
+        .from("organizations")
+        .delete()
+        .eq("id", newOrgId);
       if (rbOrgError) {
-        console.error(`Rollback failed for org ${newOrgId}: ${rbOrgError.message}`)
-        Sentry.captureException(rbOrgError, { extra: { context: "org_rollback_failed", orgId: newOrgId } })
+        console.error(
+          `Rollback failed for org ${newOrgId}: ${rbOrgError.message}`,
+        );
+        Sentry.captureException(rbOrgError, {
+          extra: { context: "org_rollback_failed", orgId: newOrgId },
+        });
       }
-      setBusinessError("Failed to set up your account. Please try again.")
-      return null
+      setBusinessError("Failed to set up your account. Please try again.");
+      return null;
     }
 
     // Seed system transaction categories — non-blocking, failure doesn't block onboarding
-    const { error: seedError } = await supabase.rpc("seed_org_categories", { p_org_id: newOrgId })
+    const { error: seedError } = await supabase.rpc("seed_org_categories", {
+      p_org_id: newOrgId,
+    });
     if (seedError) {
-      console.warn("Failed to seed transaction categories:", seedError.message)
-      Sentry.captureException(seedError, { extra: { context: "seed_org_categories", orgId: newOrgId } })
+      console.warn("Failed to seed transaction categories:", seedError.message);
+      Sentry.captureException(seedError, {
+        extra: { context: "seed_org_categories", orgId: newOrgId },
+      });
     }
 
     // Seed system vault folders — non-blocking
-    const { error: seedFoldersError } = await supabase.rpc("seed_org_vault_folders", { p_org_id: newOrgId })
+    const { error: seedFoldersError } = await supabase.rpc(
+      "seed_org_vault_folders",
+      { p_org_id: newOrgId },
+    );
     if (seedFoldersError) {
-      console.warn("Failed to seed vault folders:", seedFoldersError.message)
-      Sentry.captureException(seedFoldersError, { extra: { context: "seed_org_vault_folders", orgId: newOrgId } })
+      console.warn("Failed to seed vault folders:", seedFoldersError.message);
+      Sentry.captureException(seedFoldersError, {
+        extra: { context: "seed_org_vault_folders", orgId: newOrgId },
+      });
     }
 
-    return newOrgId
+    return newOrgId;
   }
 
-  async function updateOrgBusinessDetails(existingOrgId: string): Promise<boolean> {
+  async function updateOrgBusinessDetails(
+    existingOrgId: string,
+  ): Promise<boolean> {
     const { error } = await supabase
       .from("organizations")
       .update({
@@ -642,32 +698,32 @@ export function OnboardingOrgPage() {
         base_currency: currency,
         country_code: country,
       })
-      .eq("id", existingOrgId)
+      .eq("id", existingOrgId);
     if (error) {
-      Sentry.captureException(error)
-      setBusinessError("Failed to update your business. Please try again.")
-      return false
+      Sentry.captureException(error);
+      setBusinessError("Failed to update your business. Please try again.");
+      return false;
     }
-    return true
+    return true;
   }
 
   async function handleLocationContinue() {
-    if (!user) return
-    setBusinessError("")
-    setBusinessSubmitting(true)
+    if (!user) return;
+    setBusinessError("");
+    setBusinessSubmitting(true);
     try {
       if (orgId) {
         // Org already exists (user went back and is continuing again) — update it in place
         // rather than creating a second org.
-        const ok = await updateOrgBusinessDetails(orgId)
-        if (!ok) return
-        setStep(2)
-        return
+        const ok = await updateOrgBusinessDetails(orgId);
+        if (!ok) return;
+        setStep(2);
+        return;
       }
 
-      const newOrgId = await createOrg()
-      if (!newOrgId) return
-      setOrgId(newOrgId)
+      const newOrgId = await createOrg();
+      if (!newOrgId) return;
+      setOrgId(newOrgId);
 
       // `?mode=create` (adding a second org) now runs the whole wizard too. The
       // old two-screen flow exited here because its only remaining screen was
@@ -675,108 +731,118 @@ export function OnboardingOrgPage() {
       // second business needs just as much as its first. The auth context is
       // not refreshed until step 5, so the onboarding layout's "already has an
       // org" guard can't eject the user mid-wizard.
-      setStep(2)
+      setStep(2);
     } finally {
-      setBusinessSubmitting(false)
+      setBusinessSubmitting(false);
     }
   }
 
   // ── Step 3: logo + tax id ──────────────────────────────────────────────────
 
   async function handleBrandContinue() {
-    setBrandError("")
+    setBrandError("");
     if (!orgId) {
-      setStep(3)
-      return
+      setStep(3);
+      return;
     }
-    const trimmed = taxId.trim()
+    const trimmed = taxId.trim();
     if (!trimmed) {
-      setStep(3)
-      return
+      setStep(3);
+      return;
     }
-    setBrandSubmitting(true)
+    setBrandSubmitting(true);
     try {
-      await updateOrg(orgId, { tax_id: trimmed })
-      setStep(3)
+      await updateOrg(orgId, { tax_id: trimmed });
+      setStep(3);
     } catch (err) {
-      Sentry.captureException(err)
-      setBrandError("Failed to save tax ID. Please try again.")
+      Sentry.captureException(err);
+      setBrandError("Failed to save tax ID. Please try again.");
     } finally {
-      setBrandSubmitting(false)
+      setBrandSubmitting(false);
     }
   }
 
   function handleBrandSkip() {
-    setBrandError("")
-    setStep(3)
+    setBrandError("");
+    setStep(3);
   }
 
   // ── Step 4: invites ────────────────────────────────────────────────────────
 
   const addInvite = () => {
-    const value = inviteEmail.trim().toLowerCase()
-    if (!value || invites.includes(value)) return
-    setInvites((prev) => [...prev, value])
-    setInviteEmail("")
-  }
+    const value = inviteEmail.trim().toLowerCase();
+    if (!value || invites.includes(value)) return;
+    setInvites((prev) => [...prev, value]);
+    setInviteEmail("");
+  };
 
   const removeInvite = (email: string) =>
-    setInvites((prev) => prev.filter((e) => e !== email))
+    setInvites((prev) => prev.filter((e) => e !== email));
 
   async function handleTeamContinue() {
-    if (!orgId) return
+    if (!orgId) return;
     if (invites.length === 0) {
-      setStep(4)
-      return
+      setStep(4);
+      return;
     }
 
-    setTeamError("")
-    setTeamSubmitting(true)
+    setTeamError("");
+    setTeamSubmitting(true);
     try {
-      const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+      const expiresAt = new Date(
+        Date.now() + 7 * 24 * 60 * 60 * 1000,
+      ).toISOString();
       const rows = invites.map((inviteeEmail) => ({
         org_id: orgId,
         email: inviteeEmail,
         role: "member" as const,
         status: "invited" as const,
         expires_at: expiresAt,
-      }))
+      }));
 
       const { data: inserted, error: insertError } = await supabase
         .from("organization_members")
         .insert(rows)
-        .select("id, email")
+        .select("id, email");
 
       if (insertError) {
-        console.error("invite insert failed:", insertError)
-        setTeamError("Couldn't add team members. Please try again.")
-        return
+        console.error("invite insert failed:", insertError);
+        setTeamError("Couldn't add team members. Please try again.");
+        return;
       }
 
-      const inviterName = profile?.full_name || businessName || ""
-      const invitations = (inserted ?? []).map((r) => ({ email: r.email as string, id: r.id as string }))
-      const { error: inviteError } = await supabase.functions.invoke("invite-member", { body: { invitations, inviterName } })
+      const inviterName = profile?.full_name || businessName || "";
+      const invitations = (inserted ?? []).map((r) => ({
+        email: r.email as string,
+        id: r.id as string,
+      }));
+      const { error: inviteError } = await supabase.functions.invoke(
+        "invite-member",
+        { body: { invitations, inviterName } },
+      );
       if (inviteError) {
-        console.error("invite-member failed:", inviteError)
+        console.error("invite-member failed:", inviteError);
         // Non-fatal — members were inserted; proceed but warn.
-        toast.warning("Team members added, but invite emails failed to send. You can resend from Settings.")
+        toast.warning(
+          "Team members added, but invite emails failed to send. You can resend from Settings.",
+        );
       }
 
-      setStep(4)
+      setStep(4);
     } finally {
-      setTeamSubmitting(false)
+      setTeamSubmitting(false);
     }
   }
 
   // ── Step 5: finish ─────────────────────────────────────────────────────────
 
   async function handleFinish() {
-    setFinishing(true)
+    setFinishing(true);
     try {
-      await refreshOrg()
-      navigate("/invoices")
+      await refreshOrg();
+      navigate("/invoices");
     } finally {
-      setFinishing(false)
+      setFinishing(false);
     }
   }
 
@@ -867,5 +933,5 @@ export function OnboardingOrgPage() {
         </div>
       }
     />
-  )
+  );
 }
