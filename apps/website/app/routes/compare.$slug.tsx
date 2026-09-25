@@ -1,3 +1,6 @@
+import { useRef } from "react"
+
+import { ArticleToc } from "~/components/article-toc"
 import { Container } from "~/components/container"
 import { mdxComponents } from "~/components/mdx-components"
 import { NotFoundBody } from "~/components/not-found"
@@ -46,6 +49,7 @@ export function meta({ params }: Route.MetaArgs) {
 
 export default function CompareDetail({ params }: Route.ComponentProps) {
   const entry = findEntry(modules, "compare", params.slug)
+  const bodyRef = useRef<HTMLDivElement>(null)
   if (!entry) return <NotFoundBody />
 
   const { Component, frontmatter } = entry
@@ -60,7 +64,14 @@ export default function CompareDetail({ params }: Route.ComponentProps) {
           <div className="mt-[2rem] flex flex-wrap gap-x-[1.5rem] gap-y-[.7rem] border-t border-[var(--website-line)] pt-[1rem] font-sans text-[.55rem] leading-none font-medium text-[color-mix(in_oklab,var(--website-ink)_48%,transparent)]"><span>By Travada Systems</span><span>Updated {frontmatter.updatedAt ?? frontmatter.publishedAt}</span><span>Balanced comparison</span></div>
         </Container>
       </header>
-      <Container data-mdx-body className="max-w-3xl pt-[5rem] pb-[8rem] max-[640px]:pt-[4rem] max-[640px]:pb-[6rem]"><Component components={mdxComponents} /></Container>
+      <Container className="max-w-[70rem] pt-[5rem] pb-[8rem] max-[640px]:pt-[4rem] max-[640px]:pb-[6rem]">
+        <div className="grid gap-x-16 gap-y-10 lg:grid-cols-[1fr_240px] lg:items-start">
+          <div ref={bodyRef} data-mdx-body className="max-w-3xl min-w-0">
+            <Component components={mdxComponents} />
+          </div>
+          <ArticleToc key={entry.slug} containerRef={bodyRef} />
+        </div>
+      </Container>
     </article>
   )
 }

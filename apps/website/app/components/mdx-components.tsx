@@ -6,6 +6,8 @@ import { Link } from "react-router"
 
 import { cn } from "@travada-books/ui/lib/utils"
 
+import { CompareSplit } from "~/components/compare-split"
+
 function isExternal(href: string) {
   return /^https?:\/\//.test(href) || href.startsWith("mailto:")
 }
@@ -118,4 +120,10 @@ export const mdxComponents = {
       {...props}
     />
   ),
+  // Not a standard element override — an opt-in custom component compare
+  // articles can render directly in MDX (`<CompareSplit oldItems={...}
+  // newItems={...} />`). See compare-split.tsx. Unused by legal.terms /
+  // legal.privacy content, and safe to add here since it's a new key, not
+  // a change to any existing element mapping they rely on.
+  CompareSplit,
 }
