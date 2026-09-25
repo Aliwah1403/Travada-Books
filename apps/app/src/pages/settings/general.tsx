@@ -1,6 +1,6 @@
 import { useRef, useState, useEffect } from "react"
 import * as Sentry from "@sentry/react"
-import { useMutation, useQueryClient } from "@tanstack/react-query"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 import { format, startOfDay, isAfter } from "date-fns"
 import { Button } from "@travada-books/ui/components/button"
@@ -25,10 +25,11 @@ import { useInvalidateTransactionQueries } from "@/hooks/use-invalidate-transact
 import { updateOrg, uploadOrgLogo } from "@/lib/queries/org"
 import { LOGO_ACCEPT, prepareLogoFile } from "@/lib/logo-upload"
 import { reconvertTransactionsBaseCurrency, type ReconvertBaseCurrencyResult } from "@/lib/queries/transactions"
+import { getLatestOrgDataExport, triggerOrgDataExport } from "@/lib/queries/org-exports"
 
 
 export function GeneralSettingsPage() {
-  const { org, orgId, refreshOrg } = useAuth()
+  const { org, orgId, orgRole, refreshOrg } = useAuth()
   const queryClient = useQueryClient()
   const invalidateTransactionQueries = useInvalidateTransactionQueries()
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -165,6 +166,52 @@ export function GeneralSettingsPage() {
       await queryClient.invalidateQueries({ queryKey: ["metric", orgId, "get_runway"] })
     },
   })
+
+  const isOwner = orgRole === "owner"
+
+  const { data: latestExport } = useQuery({
+    queryKey: ["org-data-exports", orgId],
+    queryFn: () => getLatestOrgDataExport(orgId!),
+    enabled: !!orgId && isOwner,
+    // Exports usually finish within a couple of minutes — poll gently while
+    // one is in flight so "Export in progress…" clears on its own.
+    refetchInterval: (query) => (query.state.data?.status === "processing" ? 5000 : false),
+  })
+
+  const exportMutation = useMutation({
+    mutationFn: () => triggerOrgDataExport(),
+    onSuccess: (result) => {
+      queryClient.setQueryData(["org-data-exports", orgId], {
+        id: result.exportId,
+        org_id: orgId,
+        status: "processing",
+        reason: "manual",
+        item_count: null,
+        error: null,
+        created_at: new Date().toISOString(),
+      })
+      return result
+    },
+  })
+
+  function startExport() {
+    toast.promise(exportMutation.mutateAsync(), {
+      loading: "Starting export…",
+      success: (result) => `We'll email ${result.emailTo} when your export is ready.`,
+      error: (err) => {
+        Sentry.captureException(err)
+        return err instanceof Error ? err.message : "Failed to start export. Please try again."
+      },
+    })
+  }
+
+  // A run that died without reaching onFailure leaves its row "processing"
+  // forever; after an hour (the edge function's own 409 window) treat it as
+  // stale so the button comes back.
+  const exportInFlight =
+    latestExport?.status === "processing" &&
+    Date.now() - new Date(latestExport.created_at).getTime() < 60 * 60 * 1000
+  const isExporting = exportMutation.isPending || exportInFlight
 
   return (
     <div className='flex flex-col gap-8'>
@@ -408,6 +455,46 @@ export function GeneralSettingsPage() {
           Save changes
         </Button>
       </section>
+
+      {isOwner && (
+        <>
+          <Separator />
+
+          <section className='flex flex-col gap-5'>
+            <div>
+              <h2 className='text-sm font-semibold'>Export all data</h2>
+              <p className='text-xs text-muted-foreground mt-0.5'>
+                Bundles every customer, invoice, quote, statement, transaction, and file in
+                your organisation into a ZIP and emails you a download link that stays valid
+                for 7 days. Invoice, quote, and statement PDFs aren't included — they can be
+                regenerated from the exported data.
+              </p>
+            </div>
+
+            <div className='flex items-center gap-3'>
+              <Button
+                variant='outline'
+                size='sm'
+                className='w-fit'
+                onClick={startExport}
+                disabled={isExporting}
+              >
+                {isExporting ? "Export in progress…" : "Export all data"}
+              </Button>
+              {!isExporting && latestExport?.status === "completed" && (
+                <p className='text-xs text-muted-foreground'>
+                  Last export: {format(new Date(latestExport.created_at), "d MMM yyyy, HH:mm")}
+                </p>
+              )}
+              {!isExporting && latestExport?.status === "failed" && (
+                <p className='text-xs text-destructive'>
+                  Last export failed. Try again, or contact support if it keeps happening.
+                </p>
+              )}
+            </div>
+          </section>
+        </>
+      )}
     </div>
   )
 }

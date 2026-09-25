@@ -136,10 +136,16 @@ export function SecurityPage() {
         headers: { Authorization: `Bearer ${session?.access_token}` },
       });
       if (res.error) throw new Error(res.error.message);
-      const body = res.data as { error?: string };
+      const body = res.data as { error?: string; emailTo?: string; exporting?: boolean };
       if (body?.error) throw new Error(body.error);
+      return body;
     },
-    onSuccess: async () => {
+    onSuccess: async (body) => {
+      if (body?.exporting) {
+        toast.success(
+          `Deleting your account. We'll email your organisation export${body.emailTo ? ` to ${body.emailTo}` : ""}.`,
+        );
+      }
       await supabase.auth.signOut();
       navigate("/login");
     },
@@ -280,8 +286,10 @@ export function SecurityPage() {
           </h2>
           <p className='text-xs text-muted-foreground mt-0.5'>
             Permanently delete your account. Organisations where you are the
-            only member will be removed along with all their data. Organisations
-            with other members will not be affected.
+            only member are deleted too — each is fully exported (every record
+            plus files; PDFs not included) and emailed to your address first,
+            with a link valid for 30 days. Organisations with other members
+            will not be affected.
           </p>
         </div>
 
@@ -301,8 +309,10 @@ export function SecurityPage() {
               <AlertDialogDescription>
                 This will permanently delete your account. Any organisation
                 where you are the only member will be removed, including all its
-                invoices, quotes, and customer data. Organisations shared with
-                other members will remain intact. This action cannot be undone.
+                invoices, quotes, and customer data — but each is fully exported
+                and emailed to your address first, with a download link valid
+                for 30 days. Organisations shared with other members will remain
+                intact. This action cannot be undone.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <div className='flex flex-col gap-1.5 mt-2'>

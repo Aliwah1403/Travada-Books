@@ -1,4 +1,5 @@
 import { createClient } from "npm:@supabase/supabase-js@2"
+import { prepareOrgForDeletion, rollbackPrepared, triggerDeletion, type PreparedOrgDeletion } from "../_shared/org-deletion.ts"
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -55,57 +56,90 @@ Deno.serve(async (req) => {
     }
   }
 
-  // Clean up Storage logos before deleting orgs
-  if (orgsToDelete.length > 0) {
-    const { data: orgs } = await adminClient
-      .from("organizations")
-      .select("id, logo_url")
-      .in("id", orgsToDelete)
-
-    const logoPaths: string[] = []
-    for (const org of orgs ?? []) {
-      if (org.logo_url) {
-        const match = (org.logo_url as string).match(/\/org-assets\/(.+)$/)
-        if (match?.[1]) logoPaths.push(match[1])
-      }
-    }
-    if (logoPaths.length > 0) {
-      const { error: storageError } = await adminClient.storage.from("org-assets").remove(logoPaths)
-      if (storageError) {
-        console.error("delete-account: storage cleanup failed (non-fatal):", storageError.message)
-      }
+  // No sole-member orgs: nothing to export, behave exactly as before.
+  if (orgsToDelete.length === 0) {
+    const { error: deleteError } = await adminClient.auth.admin.deleteUser(user.id)
+    if (deleteError) {
+      console.error("delete-account: auth user delete failed:", deleteError.message)
+      return json({ error: "Failed to delete account" }, 500)
     }
 
-    const { error: orgDeleteError } = await adminClient
-      .from("organizations")
-      .delete()
-      .in("id", orgsToDelete)
-
-    if (orgDeleteError) {
-      console.error("delete-account: org delete failed:", orgDeleteError.message)
-      return json({ error: "Failed to delete account data" }, 500)
+    const TRIGGER_SECRET_KEY = Deno.env.get("TRIGGER_SECRET_KEY")
+    if (TRIGGER_SECRET_KEY && user.email) {
+      fetch("https://api.trigger.dev/api/v1/tasks/resend-remove-contact/trigger", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${TRIGGER_SECRET_KEY}`,
+          "Content-Type": "application/json",
+          "x-trigger-api-version": "2023-11-14",
+        },
+        body: JSON.stringify({ payload: { email: user.email } }),
+      }).catch((err) => console.error("delete-account: Trigger.dev resend-remove-contact fire failed (non-fatal):", err))
     }
+
+    return json({ success: true })
   }
 
-  const { error: deleteError } = await adminClient.auth.admin.deleteUser(user.id)
-  if (deleteError) {
-    console.error("delete-account: auth user delete failed:", deleteError.message)
-    return json({ error: "Failed to delete account" }, 500)
+  // There ARE sole-member orgs — export + delete each one via the worker
+  // task, then ban + sign out the user (the task deletes the auth user once
+  // every org's export has completed).
+  if (!user.email) return json({ error: "Could not resolve your email address" }, 500)
+
+  const prepared: PreparedOrgDeletion[] = []
+  try {
+    for (const orgId of orgsToDelete) {
+      const p = await prepareOrgForDeletion(adminClient, orgId, {
+        emailTo: user.email,
+        requestedBy: user.id,
+      })
+      prepared.push(p)
+    }
+  } catch (err) {
+    console.error("delete-account: prepare failed:", err)
+    await rollbackPrepared(adminClient, prepared)
+    return json({ error: "Failed to start account deletion. Please try again." }, 500)
   }
 
-  // Remove from Resend audience via Trigger.dev task (fire-and-forget)
-  const TRIGGER_SECRET_KEY = Deno.env.get("TRIGGER_SECRET_KEY")
-  if (TRIGGER_SECRET_KEY && user.email) {
-    fetch("https://api.trigger.dev/api/v1/tasks/resend-remove-contact/trigger", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${TRIGGER_SECRET_KEY}`,
-        "Content-Type": "application/json",
-        "x-trigger-api-version": "2023-11-14",
-      },
-      body: JSON.stringify({ payload: { email: user.email } }),
-    }).catch((err) => console.error("delete-account: Trigger.dev resend-remove-contact fire failed (non-fatal):", err))
+  const triggerResult = await triggerDeletion({
+    ownerEmail: user.email,
+    orgs: prepared.map((p) => ({
+      orgId: p.orgId,
+      orgName: p.orgName,
+      exportId: p.exportId,
+      memberships: p.memberships,
+      members: p.members,
+      pausedRecurringIds: p.pausedRecurringIds,
+    })),
+    deleteUserId: user.id,
+  })
+
+  if (!triggerResult.ok) {
+    await rollbackPrepared(adminClient, prepared)
+    console.error("delete-account: trigger failed:", triggerResult.error)
+    return json({ error: "Failed to start account deletion. Please try again." }, 500)
   }
 
-  return json({ success: true })
+  // Deletion is now in flight. Cut off access to those orgs immediately.
+  const { error: removeMembersError } = await adminClient
+    .from("organization_members")
+    .delete()
+    .in("org_id", orgsToDelete)
+  if (removeMembersError) {
+    console.error("delete-account: failed to remove memberships after trigger (non-fatal):", removeMembersError.message)
+  }
+
+  // Lock the account out now — the task deletes the auth user itself once
+  // every org has been exported and deleted.
+  const { error: banError } = await adminClient.auth.admin.updateUserById(user.id, { ban_duration: "876000h" })
+  if (banError) {
+    console.error("delete-account: failed to ban user (non-fatal):", banError.message)
+  }
+
+  const accessToken = authorization.replace(/^Bearer\s+/i, "")
+  const { error: signOutError } = await adminClient.auth.admin.signOut(accessToken, "global")
+  if (signOutError) {
+    console.error("delete-account: failed to sign out user globally (non-fatal):", signOutError.message)
+  }
+
+  return json({ success: true, emailTo: user.email, exporting: true })
 })

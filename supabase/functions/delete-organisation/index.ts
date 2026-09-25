@@ -1,4 +1,5 @@
 import { createClient } from "npm:@supabase/supabase-js@2"
+import { prepareOrgForDeletion, rollbackPrepared, triggerDeletion } from "../_shared/org-deletion.ts"
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -10,7 +11,8 @@ const json = (body: unknown, status = 200) =>
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders })
-  if (req.method !== "DELETE") return new Response("Method Not Allowed", { status: 405, headers: corsHeaders })
+  // supabase.functions.invoke() sends POST; a DELETE would also need Access-Control-Allow-Methods for the preflight
+  if (req.method !== "POST") return new Response("Method Not Allowed", { status: 405, headers: corsHeaders })
 
   const authorization = req.headers.get("Authorization")
   if (!authorization) return json({ error: "Unauthorized" }, 401)
@@ -31,6 +33,7 @@ Deno.serve(async (req) => {
   )
   const { data: { user }, error: authError } = await userClient.auth.getUser()
   if (authError || !user) return json({ error: "Unauthorized" }, 401)
+  if (!user.email) return json({ error: "Could not resolve your email address" }, 500)
 
   const adminClient = createClient(
     Deno.env.get("SUPABASE_URL")!,
@@ -53,33 +56,59 @@ Deno.serve(async (req) => {
     return json({ error: "Only owners can delete an organisation" }, 403)
   }
 
-  // Clean up Storage logo before deleting
-  const { data: org } = await adminClient
-    .from("organizations")
-    .select("logo_url")
-    .eq("id", orgId)
-    .single()
-
-  if (org?.logo_url) {
-    const match = (org.logo_url as string).match(/\/org-assets\/(.+)$/)
-    if (match?.[1]) {
-      const { error: storageError } = await adminClient.storage.from("org-assets").remove([match[1]])
-      if (storageError) {
-        console.error("delete-organisation: storage cleanup failed (non-fatal):", storageError.message)
-      }
-    }
+  // Snapshot memberships, pause recurring invoices, and open an export row —
+  // all before anything is actually deleted.
+  let prepared
+  try {
+    prepared = await prepareOrgForDeletion(adminClient, orgId, {
+      emailTo: user.email,
+      requestedBy: user.id,
+    })
+  } catch (err) {
+    console.error("delete-organisation: prepare failed:", err)
+    return json({ error: "Failed to start deletion. Please try again." }, 500)
   }
 
-  // Delete org — cascades to invoices, quotes, customers, statements, members, templates
-  const { error: deleteError } = await adminClient
-    .from("organizations")
+  // Kick off the export + delete + purge task. Only once this succeeds do we
+  // touch anything else — if it fails, nothing changes for the caller.
+  const triggerResult = await triggerDeletion({
+    ownerEmail: user.email,
+    orgs: [
+      {
+        orgId: prepared.orgId,
+        orgName: prepared.orgName,
+        exportId: prepared.exportId,
+        memberships: prepared.memberships,
+        members: prepared.members,
+        pausedRecurringIds: prepared.pausedRecurringIds,
+      },
+    ],
+  })
+
+  if (!triggerResult.ok) {
+    await rollbackPrepared(adminClient, [prepared])
+    console.error("delete-organisation: trigger failed:", triggerResult.error)
+    return json({ error: "Failed to start deletion. Please try again." }, 500)
+  }
+
+  // Deletion is now in flight on the worker. Cut off access immediately —
+  // members lose access to the org right away, well before the export/delete
+  // task finishes.
+  const { error: removeMembersError } = await adminClient
+    .from("organization_members")
     .delete()
-    .eq("id", orgId)
-
-  if (deleteError) {
-    console.error("delete-organisation: org delete failed:", deleteError.message)
-    return json({ error: "Failed to delete organisation" }, 500)
+    .eq("org_id", orgId)
+  if (removeMembersError) {
+    console.error("delete-organisation: failed to remove memberships after trigger (non-fatal):", removeMembersError.message)
   }
 
-  return json({ success: true })
+  const { error: clearActiveOrgError } = await adminClient
+    .from("users")
+    .update({ active_org_id: null })
+    .eq("active_org_id", orgId)
+  if (clearActiveOrgError) {
+    console.error("delete-organisation: failed to clear active_org_id (non-fatal):", clearActiveOrgError.message)
+  }
+
+  return json({ success: true, emailTo: user.email })
 })

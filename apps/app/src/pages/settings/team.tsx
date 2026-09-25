@@ -757,10 +757,14 @@ export function TeamSettingsPage() {
         body: { org_id: orgId },
       })
       if (res.error) throw new Error(res.error.message)
-      const body = res.data as { error?: string }
+      const body = res.data as { error?: string; emailTo?: string }
       if (body?.error) throw new Error(body.error)
+      return body
     },
-    onSuccess: () => {
+    onSuccess: (body) => {
+      toast.success(
+        `Deleting ${org?.name ?? "the organisation"}. We'll email your export to ${body?.emailTo ?? user?.email ?? "your email"}.`,
+      )
       window.location.href = "/onboarding/org"
     },
     onError: (err) => {
@@ -875,7 +879,9 @@ export function TeamSettingsPage() {
               <h2 className='text-sm font-semibold text-destructive'>Delete organisation</h2>
               <p className='text-xs text-muted-foreground mt-0.5'>
                 Permanently delete this organisation and all its data — invoices, quotes, and
-                customers. All members will lose access immediately. This cannot be undone.
+                customers. Before deletion, a full export (every record plus files; PDFs not
+                included) is emailed to {user?.email ?? "your email"} with a link valid for 30
+                days. All members will lose access immediately. This cannot be undone.
               </p>
             </div>
 
@@ -890,8 +896,11 @@ export function TeamSettingsPage() {
                   <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
                   <AlertDialogDescription>
                     This will permanently delete <strong>{org?.name}</strong> and all its invoices,
-                    quotes, and customer data. All members will lose access immediately. This action
-                    cannot be undone.
+                    quotes, and customer data. Before deletion, a full export (every record plus
+                    files; PDFs not included) will be emailed to{" "}
+                    <strong>{user?.email ?? "your email"}</strong>, with a download link valid for
+                    30 days. All members will lose access immediately. This action cannot be
+                    undone.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <div className='flex flex-col gap-1.5 mt-2'>
