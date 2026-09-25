@@ -22,6 +22,7 @@ import { trackEvent, LogEvents } from "@/lib/analytics";
 import { LOGO_ACCEPT, prepareLogoFile } from "@/lib/logo-upload";
 import { SplitLayout } from "@/components/auth/split-layout";
 import { SetupFigure } from "@/components/onboarding/setup-figure";
+import { Spinner } from "@/components/shared/spinner";
 
 /**
  * ── Onboarding wizard ────────────────────────────────────────────────────────
@@ -430,9 +431,19 @@ function TeamStep({
             onClick={onSendInvite}
             disabled={sending || inviteEmail.trim().length === 0}
           >
-            {sending ? "Sending…" : "Send invite"}
+            {sending ? (
+              <>
+                <Spinner size={14} />
+                Sending
+              </>
+            ) : (
+              "Send invite"
+            )}
           </Button>
         </div>
+        <p className="-mt-2.5 text-xs text-muted-foreground">
+          Invited as members. Change roles anytime in Settings → Team.
+        </p>
 
         {error && <p className="text-xs text-destructive">{error}</p>}
 

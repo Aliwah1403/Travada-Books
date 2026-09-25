@@ -27,9 +27,9 @@ import { zoomStyle, type ZoomTarget } from "./zoom";
 // framings reuse the block's own origins, `-20% -10%` and `180% -10%`.
 const ZOOM: Record<number, ZoomTarget> = {
   0: { scale: 1.5, focus: [-0.2, -0.1] }, // name -> workspace tile, top-left
-  1: { scale: 1, focus: [0.5, 0.5] }, // currency -> pull wide
+  1: { scale: 0.8, focus: [0.5, 0.5] }, // currency -> pull wide, with margin around the frame
   2: { scale: 1.5, focus: [-0.2, -0.1] }, // logo -> back into the same tile
-  3: { scale: 1, focus: [0.5, 0.5] }, // invites -> pull wide
+  3: { scale: 0.8, focus: [0.5, 0.5] }, // invites -> pull wide, with margin around the frame
   4: { scale: 1.35, focus: [1.8, -0.1] }, // ready -> top-right of the workspace
 };
 

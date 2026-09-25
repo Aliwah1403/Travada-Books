@@ -56,21 +56,37 @@ export function OnboardingChecklistTrigger() {
     onSuccess: () => setLocallyDismissed(true),
   })
 
+  // Opens the list whenever a step flips to done, so the user sees the tick
+  // land and what's next without hunting for the trigger. Compared against
+  // the previous count, not the first fetch: the initial load (or an org
+  // switch) only sets the baseline.
+  //
+  // One effect with auto-dismiss on purpose. Finishing the LAST step must open
+  // the list to show "You're all set up." — as two effects, both would run in
+  // the same commit with `open` still false, and auto-dismiss would hide the
+  // trigger before the user saw it.
+  const prevDoneRef = useRef<{ orgId: string; done: number } | null>(null)
   useEffect(() => {
-    if (!status || !user) return
+    if (!status || !orgId) return
+    const doneNow = CHECKLIST_STEPS.filter((step) => status[step.id]).length
+    const prev = prevDoneRef.current
+    prevDoneRef.current = { orgId, done: doneNow }
+
+    if (prev && prev.orgId === orgId && doneNow > prev.done) {
+      setOpen(true)
+      return
+    }
+
     // Held back while the popover is open so the "You're all set up." state
-    // stays reachable: finish the last step with the list open and you see it,
-    // then closing the popover dismisses for good. Closed, it just disappears.
-    if (open) return
+    // stays reachable: closing the popover then dismisses for good.
+    if (!user || open) return
     if (profile?.onboarding_checklist_dismissed_at) return
     if (hasAutoDismissedRef.current) return
-
-    const allDone = CHECKLIST_STEPS.every((step) => status[step.id])
-    if (!allDone) return
+    if (doneNow < CHECKLIST_STEPS.length) return
 
     hasAutoDismissedRef.current = true
     dismiss()
-  }, [status, user, open, profile?.onboarding_checklist_dismissed_at, dismiss])
+  }, [status, orgId, user, open, profile?.onboarding_checklist_dismissed_at, dismiss])
 
   if (!orgId) return null
   if (isLoading || !status) return null
