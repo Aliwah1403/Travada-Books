@@ -15,7 +15,8 @@ import { Label } from "@travada-books/ui/components/label";
 import { useTheme } from "@/components/theme-provider";
 import { getQuoteByToken } from "@/lib/queries/quotes";
 import { supabase } from "@/lib/supabase";
-import { InvoicePreview, InvoicePdf } from "@/components/invoice-templates";
+import { InvoicePreview } from "@/components/invoice-templates";
+import { InvoicePdf, buildQuoteDocumentData } from "@travada-books/pdf";
 import { downloadPdf } from "@/lib/pdf-download";
 import { parseCustomFields } from "@/lib/custom-fields";
 
@@ -103,13 +104,7 @@ export function PublicQuotePage() {
   const customerSnap = (quote.customer_details ?? {}) as Record<string, string | null>;
   const customerName = customerSnap["name"] ?? quote.customer_name ?? "Customer";
 
-  const documentData = {
-    label: "QUOTATION",
-    number: quote.quote_number,
-    currency: quote.currency,
-    issueDate: quote.issue_date,
-    secondaryDate: quote.valid_until,
-    secondaryDateLabel: "Valid until:",
+  const documentData = buildQuoteDocumentData(quote, {
     from: {
       name: from["name"],
       logo_url: from["logo_url"],
@@ -133,16 +128,9 @@ export function PublicQuotePage() {
       zip: customerSnap["zip"],
       country: customerSnap["country"],
     },
-    customerLabel: "Prepared For",
-    lineItems: quote.line_items ?? [],
-    subtotal: quote.subtotal,
-    taxAmount: quote.tax_amount,
-    discount: quote.discount,
-    total: quote.total,
-    note: quote.note,
     customFields: parseCustomFields(quote.custom_fields),
     publicUrl: window.location.href,
-  };
+  });
 
   async function handleDownload() {
     setIsPdfDownloading(true);

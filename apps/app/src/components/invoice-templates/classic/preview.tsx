@@ -1,45 +1,10 @@
 import { format } from "date-fns"
 import { Separator } from "@travada-books/ui/components/separator"
-import type { LineItem } from "@/lib/queries/invoices"
-import type { CustomField } from "@/lib/custom-fields"
+import type { ClassicDocumentData } from "@travada-books/pdf"
 import { normalizeCustomFields } from "@/lib/custom-fields"
 import { CustomFieldsPreview } from "@/components/invoices/custom-fields"
 
-export type Participant = {
-  name?: string | null
-  logo_url?: string | null
-  address_line1?: string | null
-  address_line2?: string | null
-  city?: string | null
-  zip?: string | null
-  country?: string | null
-  country_code?: string | null
-  phone?: string | null
-  email?: string | null
-  billing_email?: string | null
-  tax_id?: string | null
-}
-
-export type ClassicDocumentData = {
-  label?: string
-  number: string | null
-  currency: string
-  issueDate: string | null
-  secondaryDate?: string | null
-  secondaryDateLabel?: string
-  from: Participant
-  customer: Participant
-  customerLabel?: string
-  lineItems: LineItem[]
-  subtotal: number | null
-  taxAmount: number | null
-  discount: number | null
-  total: number | null
-  note: string | null
-  paymentDetails?: string | null
-  publicUrl?: string | null
-  customFields?: CustomField[] | null
-}
+export type { ClassicDocumentData, Participant } from "@travada-books/pdf"
 
 function fmt(n: number | null | undefined) {
   if (n == null || Number.isNaN(n)) return "0.00"

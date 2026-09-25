@@ -206,6 +206,7 @@ export function CreateQuotePage() {
       base_currency: org?.base_currency ?? null,
       note: notes || null,
       internal_note: null,
+      include_pdf: quoteSettings.includePdf,
       custom_fields: normalizeCustomFields(customFields),
       ...(isSend && { sent_at: new Date().toISOString(), sent_via: "email" }),
       ...(isSend &&
@@ -257,6 +258,14 @@ export function CreateQuotePage() {
         });
         supabase.functions
           .invoke("send-quote-email", { body: { quoteId: quote.id } })
+          .then((res) => {
+            if (res.error) throw res.error;
+            if ((res.data as { queued?: boolean } | null)?.queued) {
+              toast.success(
+                `Emailing it to ${selectedCustomer?.name ?? quote.customer_name} with the PDF attached…`,
+              );
+            }
+          })
           .catch(() => {
             toast.warning("Quote created, but email delivery failed.");
           });

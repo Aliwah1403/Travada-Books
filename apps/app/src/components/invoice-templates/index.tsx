@@ -1,8 +1,5 @@
 import { ClassicPreview } from "./classic/preview"
-import { InvoiceSharedPdf } from "./pdf"
-import type { ClassicDocumentData } from "./classic/preview"
-
-export type { ClassicDocumentData, Participant } from "./classic/preview"
+import type { ClassicDocumentData } from "@travada-books/pdf"
 
 function getPreview(invoiceTemplate: string | null | undefined, data: ClassicDocumentData) {
   switch (invoiceTemplate) {
@@ -19,8 +16,4 @@ export function InvoicePreview({
   invoiceTemplate?: string | null
 }) {
   return getPreview(invoiceTemplate, data)
-}
-
-export function InvoicePdf({ data }: { data: ClassicDocumentData }) {
-  return <InvoiceSharedPdf data={data} />
 }

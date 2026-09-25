@@ -14,9 +14,10 @@ interface Props {
   totalOwing: number
   currency: string
   publicUrl: string
+  pdfAttached?: boolean
 }
 
-export function StatementSentEmail({ orgName, orgLogoUrl, orgEmail, customerName, dateFrom, dateTo, totalOwing, currency, publicUrl }: Props) {
+export function StatementSentEmail({ orgName, orgLogoUrl, orgEmail, customerName, dateFrom, dateTo, totalOwing, currency, publicUrl, pdfAttached }: Props) {
   const period = [formatDate(dateFrom), formatDate(dateTo)].join(" – ")
 
   return (
@@ -48,6 +49,11 @@ export function StatementSentEmail({ orgName, orgLogoUrl, orgEmail, customerName
       <Text style={{ margin: "0 0 16px", fontSize: 14, color: colors.body, lineHeight: "1.6", fontFamily: font }}>
         Please find your account statement for the period {period}. Your current outstanding balance is <strong style={{ color: colors.dark }}>{formatMoney(totalOwing, currency)}</strong>. View the full statement for a detailed breakdown of all invoices and payments.
       </Text>
+      {pdfAttached && (
+        <Text style={{ margin: "0 0 16px", fontSize: 13, color: colors.muted, lineHeight: "1.5", fontFamily: font }}>
+          The PDF is attached.
+        </Text>
+      )}
       <Text style={{ margin: 0, fontSize: 13, color: colors.muted, fontFamily: font }}>
         Questions? Reply to this email or contact{" "}
         <Link href={`mailto:${orgEmail}`} style={{ color: colors.muted }}>{orgEmail}</Link>

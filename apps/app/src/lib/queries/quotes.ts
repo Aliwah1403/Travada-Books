@@ -41,10 +41,14 @@ export type Quote = {
   declined_at: string | null
   decline_reason: string | null
   viewed_at: string | null
+  include_pdf: boolean
+  email_status: "queued" | "sent" | "failed" | null
+  email_error: string | null
+  email_status_at: string | null
   customers: { logo_url: string | null } | null
 }
 
-export type PublicQuote = Omit<Quote, "org_id" | "user_id" | "internal_note" | "customers" | "exchange_rate" | "converted_amount" | "base_currency" | "vat_rate" | "discount_percent">
+export type PublicQuote = Omit<Quote, "org_id" | "user_id" | "internal_note" | "customers" | "exchange_rate" | "converted_amount" | "base_currency" | "vat_rate" | "discount_percent" | "include_pdf" | "email_status" | "email_error" | "email_status_at">
 
 export type QuoteInput = {
   org_id: string
@@ -74,6 +78,7 @@ export type QuoteInput = {
   from_details?: Record<string, unknown>
   customer_details?: Record<string, unknown>
   custom_fields?: CustomField[]
+  include_pdf?: boolean
 }
 
 export const QUOTE_PAGE_SIZE = 50
@@ -97,7 +102,7 @@ export type QuoteStatsSummary = {
 }
 
 const QUOTE_SELECT =
-  "id, created_at, updated_at, org_id, user_id, customer_id, customer_name, token, quote_number, status, issue_date, valid_until, currency, line_items, subtotal, tax_amount, discount, vat_rate, discount_percent, total, exchange_rate, converted_amount, base_currency, customer_details, from_details, custom_fields, note, internal_note, sent_at, sent_via, resent_at, accepted_at, declined_at, decline_reason, viewed_at, customers(logo_url)"
+  "id, created_at, updated_at, org_id, user_id, customer_id, customer_name, token, quote_number, status, issue_date, valid_until, currency, line_items, subtotal, tax_amount, discount, vat_rate, discount_percent, total, exchange_rate, converted_amount, base_currency, customer_details, from_details, custom_fields, note, internal_note, sent_at, sent_via, resent_at, accepted_at, declined_at, decline_reason, viewed_at, include_pdf, email_status, email_error, email_status_at, customers(logo_url)"
 
 const PUBLIC_QUOTE_SELECT =
   "id, created_at, updated_at, customer_id, customer_name, token, quote_number, status, issue_date, valid_until, currency, line_items, subtotal, tax_amount, discount, total, customer_details, from_details, custom_fields, note, sent_at, resent_at, accepted_at, declined_at, decline_reason, viewed_at"

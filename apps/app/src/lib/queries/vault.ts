@@ -26,7 +26,7 @@ export type VaultDocument = {
   file_path: string
   file_size: number | null
   content_type: string | null
-  source: "upload" | "transaction" | "inbox" | "capture"
+  source: "upload" | "transaction" | "inbox" | "capture" | "invoice" | "quote" | "statement"
   transaction_id: string | null
   folder_id: string | null
   tags: DocumentTag[] | null
@@ -63,7 +63,7 @@ function normalizeDoc(raw: RawVaultDocument): VaultDocument {
 }
 
 export type VaultFilters = {
-  source?: "upload" | "transaction" | "inbox" | "capture"
+  source?: "upload" | "transaction" | "inbox" | "capture" | "invoice" | "quote" | "statement"
   search?: string
   folderId?: string
   dateFrom?: string

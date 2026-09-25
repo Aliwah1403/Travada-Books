@@ -46,6 +46,10 @@ export type Invoice = {
   viewed_at: string | null
   quote_id: string | null
   accept_payments: boolean
+  include_pdf: boolean
+  email_status: "queued" | "sent" | "failed" | null
+  email_error: string | null
+  email_status_at: string | null
   invoice_template: string
   invoice_recurring_id: string | null
   recurring_sequence: number | null
@@ -91,6 +95,7 @@ export type InvoiceInput = {
   sent_at?: string
   sent_via?: string | null
   accept_payments?: boolean
+  include_pdf?: boolean
   invoice_template?: string
   from_details?: Record<string, unknown> | null
   customer_details?: Record<string, unknown> | null
@@ -173,7 +178,7 @@ export function summariseCustomerInvoices(
 }
 
 const INVOICE_SELECT =
-  "id, created_at, updated_at, org_id, user_id, customer_id, customer_name, token, invoice_number, status, issue_date, due_date, currency, line_items, subtotal, tax_amount, discount, vat_rate, discount_percent, total, amount_paid, customer_details, from_details, custom_fields, note, internal_note, payment_details, recurring, delivery_type, scheduled_at, send_template_id, sent_at, sent_via, paid_at, viewed_at, quote_id, accept_payments, invoice_template, invoice_recurring_id, recurring_sequence, exchange_rate, converted_amount, base_currency, quotes(quote_number), invoice_recurring(id, status, frequency, next_scheduled_at, end_type, end_after_count, current_count), customers(logo_url)"
+  "id, created_at, updated_at, org_id, user_id, customer_id, customer_name, token, invoice_number, status, issue_date, due_date, currency, line_items, subtotal, tax_amount, discount, vat_rate, discount_percent, total, amount_paid, customer_details, from_details, custom_fields, note, internal_note, payment_details, recurring, delivery_type, scheduled_at, send_template_id, sent_at, sent_via, paid_at, viewed_at, quote_id, accept_payments, include_pdf, email_status, email_error, email_status_at, invoice_template, invoice_recurring_id, recurring_sequence, exchange_rate, converted_amount, base_currency, quotes(quote_number), invoice_recurring(id, status, frequency, next_scheduled_at, end_type, end_after_count, current_count), customers(logo_url)"
 
 // Excludes owner identifiers and private fields for unauthenticated token lookups
 const INVOICE_PUBLIC_SELECT =

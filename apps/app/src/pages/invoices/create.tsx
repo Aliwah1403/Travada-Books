@@ -503,6 +503,7 @@ export function CreateInvoicePage() {
       scheduled_at: isSchedule && scheduleDate ? scheduleDate.toISOString() : null,
       send_template_id: null, // template picker coming in a later stage
       accept_payments: invoiceSettings.acceptPaymentsEnabled,
+      include_pdf: invoiceSettings.includePdf,
       invoice_template: invoiceSettings.invoiceTemplate,
       custom_fields: normalizeCustomFields(customFields),
       ...(isSend && { sent_at: new Date().toISOString(), sent_via: "email" }),
@@ -550,9 +551,19 @@ export function CreateInvoicePage() {
           invoice_amount: invoice.total,
           recipient_email: selectedCustomer.billing_email || selectedCustomer.email,
         });
-        supabase.functions.invoke("send-invoice-email", { body: { invoiceId: invoice.id } }).catch(() => {
-          toast.warning("Invoice created, but email delivery failed.");
-        });
+        supabase.functions
+          .invoke("send-invoice-email", { body: { invoiceId: invoice.id } })
+          .then((res) => {
+            if (res.error) throw res.error;
+            if ((res.data as { queued?: boolean } | null)?.queued) {
+              toast.success(
+                `Emailing it to ${selectedCustomer.name} with the PDF attached…`,
+              );
+            }
+          })
+          .catch(() => {
+            toast.warning("Invoice created, but email delivery failed.");
+          });
       }
       if (action === "schedule" && scheduleDate) {
         supabase.functions.invoke("trigger-scheduled-send", {
@@ -579,6 +590,7 @@ export function CreateInvoicePage() {
             payment_details: invoice.payment_details ?? "",
             note: invoice.note ?? "",
             accept_payments: invoice.accept_payments,
+            include_pdf: invoice.include_pdf,
             invoice_template: invoice.invoice_template,
             from_details: invoice.from_details ?? null,
             customer_details: invoice.customer_details ?? null,

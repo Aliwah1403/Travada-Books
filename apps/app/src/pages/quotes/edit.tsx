@@ -97,9 +97,16 @@ export function EditQuotePage() {
     enabled: !!orgId,
   });
 
+  // Template supplies the defaults, but the quote row wins for includePdf —
+  // otherwise editing a quote would reset its own "Attach PDF" choice to the
+  // org default (same rule as accept_payments / include_pdf on invoices).
   useEffect(() => {
-    if (quoteTemplate) setQuoteSettings(quoteTemplate);
-  }, [quoteTemplate]);
+    if (quoteTemplate)
+      setQuoteSettings({
+        ...quoteTemplate,
+        includePdf: quote?.include_pdf ?? quoteTemplate.includePdf,
+      });
+  }, [quoteTemplate, quote?.include_pdf]);
 
   // Pre-populate form from existing quote
   useEffect(() => {
@@ -211,6 +218,7 @@ export function EditQuotePage() {
         converted_amount: convertedAmount,
         base_currency: org?.base_currency ?? null,
         note: notes || null,
+        include_pdf: quoteSettings.includePdf,
         custom_fields: normalizeCustomFields(customFields),
         // Reset declined quotes to draft so they can be reviewed and resent
         ...(quote?.status === "declined" ? { status: "draft" } : {}),

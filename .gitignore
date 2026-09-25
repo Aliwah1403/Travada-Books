@@ -41,6 +41,8 @@ LINKEDIN-STRATEGY.md
 WEBSITE-PLAN.md
 linkedin/
 CUSTOMER-PORTAL-PLAN.md
+ORG-EXPORT-PLAN.md
+DOCUMENT-PDF-PLAN.md
 
 # Agent tooling — per-developer, not shared. `.claude` and `.codex` are above.
 # The ReUI installer writes the same skill into every agent dir it detects.

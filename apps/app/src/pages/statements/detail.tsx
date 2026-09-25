@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft01Icon,
   Copy01Icon,
@@ -19,81 +19,14 @@ import {
   DropdownMenuTrigger,
 } from "@travada-books/ui/components/dropdown-menu";
 import { cn } from "@travada-books/ui/lib/utils";
-import {
-  getStatement,
-  statementPaidAmount,
-  type StatementInvoiceRow,
-} from "@/lib/queries/statements";
+import { getStatement } from "@/lib/queries/statements";
 import { useAuth } from "@/contexts/auth-context";
 import { useFormatDate } from "@/hooks/use-format-date";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import { downloadPdf } from "@/lib/pdf-download";
-import { StatementPdf } from "@/components/statement-templates/default/pdf";
-
-type LedgerEntry = {
-  date: string;
-  description: string;
-  invoiceNumber?: string;
-  debit: number;
-  credit: number;
-  balance: number;
-};
-
-type LedgerEvent = {
-  date: string;
-  description: string;
-  invoiceNumber?: string;
-  debit: number;
-  credit: number;
-};
-
-function buildLedger(
-  snapshot: StatementInvoiceRow[],
-  dateTo: string,
-): LedgerEntry[] {
-  const events: LedgerEvent[] = [];
-
-  for (const inv of snapshot) {
-    if (!inv.total) continue;
-    events.push({
-      date: inv.issue_date ?? "",
-      description: "Invoice issued",
-      invoiceNumber: inv.invoice_number ?? undefined,
-      debit: inv.total,
-      credit: 0,
-    });
-    // Credit what was actually received, not the invoice total — otherwise a
-    // part-paid invoice contributes a full debit and no credit, and the
-    // customer is shown the whole amount as still outstanding.
-    const paid = statementPaidAmount(inv);
-    if (paid > 0) {
-      // A partially paid invoice has no paid_at (the sync trigger only sets it
-      // on full payment) and the snapshot holds no per-payment dates, so date
-      // the credit at the statement's closing date rather than invent one.
-      const settled = inv.paid_at && paid >= inv.total;
-      events.push({
-        date: settled ? inv.paid_at! : dateTo,
-        description: settled ? "Payment received" : "Payments received to date",
-        invoiceNumber: inv.invoice_number ?? undefined,
-        debit: 0,
-        credit: paid,
-      });
-    }
-  }
-
-  events.sort((a, b) => a.date.localeCompare(b.date));
-
-  const entries: LedgerEntry[] = [];
-  let balance = 0;
-
-  for (const ev of events) {
-    balance += ev.debit - ev.credit;
-    entries.push({ ...ev, balance });
-  }
-
-  return entries;
-}
+import { StatementPdf, buildStatementDocumentData, buildStatementLedger } from "@travada-books/pdf";
+import { EmailDeliveryNotice } from "@/components/shared/email-delivery-notice";
 
 function fmt(n: number, currency: string) {
   return `${currency} ${n.toLocaleString("en-KE", { minimumFractionDigits: 2 })}`;
@@ -113,9 +46,11 @@ export function StatementDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { orgId } = useAuth();
   const { formatDate, formatDateTime } = useFormatDate();
+  const queryClient = useQueryClient();
   const [copied, setCopied] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [hasSent, setHasSent] = useState(false);
+  const [isRetryingEmail, setIsRetryingEmail] = useState(false);
   const [isPdfDownloading, setIsPdfDownloading] = useState(false);
 
   const {
@@ -126,6 +61,10 @@ export function StatementDetailPage() {
     queryKey: ["statement", id],
     queryFn: () => getStatement(id!, orgId!),
     enabled: !!id && !!orgId,
+    // The PDF-attach send flow queues a background render (see
+    // DOCUMENT-PDF-PLAN.md) — poll gently while it's in flight so the
+    // "still sending" notice clears on its own once the callback lands.
+    refetchInterval: (query) => (query.state.data?.email_status === "queued" ? 5000 : false),
   });
 
   function handleCopyLink() {
@@ -136,28 +75,47 @@ export function StatementDetailPage() {
     setTimeout(() => setCopied(false), 2000);
   }
 
+  // Shared by the send button below and the "Try again" retry on the failed-
+  // delivery notice — invalidates the statement query either way so
+  // email_status (and the notice/poll driven by it) reflect the outcome.
+  async function dispatchStatementEmail(): Promise<{ queued: boolean }> {
+    const res = await supabase.functions.invoke("send-statement-email", { body: { statementId: id } });
+    queryClient.invalidateQueries({ queryKey: ["statement", id] });
+    if (res.error) throw res.error;
+    return { queued: !!(res.data as { queued?: boolean } | null)?.queued };
+  }
+
   function handleSend() {
     if (isSending || hasSent || !id) return;
     setIsSending(true);
-    toast.promise(
-      supabase.functions
-        .invoke("send-statement-email", { body: { statementId: id } })
-        .then((res) => {
-          if (res.error) throw res.error;
-        }),
-      {
-        loading: "Sending…",
-        success: () => {
-          setHasSent(true);
-          setIsSending(false);
-          return "Statement sent by email";
-        },
-        error: () => {
-          setIsSending(false);
-          return "Failed to send email";
-        },
+    toast.promise(dispatchStatementEmail(), {
+      loading: "Sending…",
+      success: ({ queued }) => {
+        setHasSent(true);
+        setIsSending(false);
+        return queued
+          ? "Statement sent. Emailing it to the customer with the PDF attached…"
+          : "Statement sent by email";
       },
-    );
+      error: () => {
+        setIsSending(false);
+        return "Failed to send email";
+      },
+    });
+  }
+
+  async function handleRetryEmail() {
+    setIsRetryingEmail(true);
+    try {
+      const { queued } = await dispatchStatementEmail();
+      setHasSent(true);
+      toast.success(queued ? "Emailing it to the customer with the PDF attached…" : "Email sent");
+    } catch (err) {
+      console.error("send-statement-email retry failed:", err);
+      toast.error("Failed to resend the email", { description: "Please try again." });
+    } finally {
+      setIsRetryingEmail(false);
+    }
   }
 
   async function handleDownloadPdf() {
@@ -168,21 +126,20 @@ export function StatementDetailPage() {
       const customer = (statement.customer_details ?? {}) as Record<string, string | null>;
       const snap = statement.snapshot_data ?? [];
       const cur = snap[0]?.currency ?? "KES";
-      const ledger = buildLedger(snap, statement.date_to);
+      const ledger = buildStatementLedger(snap, { dateTo: statement.date_to, formatDate });
+      const data = buildStatementDocumentData({
+        currency: cur,
+        from,
+        customer,
+        statementDate: formatDate(statement.created_at),
+        dateFrom: formatDate(statement.date_from),
+        dateTo: formatDate(statement.date_to),
+        entries: ledger,
+        notes: statement.notes ?? null,
+        publicUrl: statement.token ? `${window.location.origin}/s/${statement.token}` : null,
+      });
       await downloadPdf(
-        <StatementPdf
-          data={{
-            currency: cur,
-            from,
-            customer,
-            statementDate: formatDate(statement.created_at),
-            dateFrom: formatDate(statement.date_from),
-            dateTo: formatDate(statement.date_to),
-            entries: ledger.map((e) => ({ ...e, date: formatDate(e.date), invoiceNumber: e.invoiceNumber ?? null })),
-            notes: statement.notes ?? null,
-            publicUrl: statement.token ? `${window.location.origin}/s/${statement.token}` : null,
-          }}
-        />,
+        <StatementPdf data={data} />,
         `Statement — ${customer.name ?? "Customer"}`,
       );
     } catch {
@@ -219,7 +176,7 @@ export function StatementDetailPage() {
   > | null;
   const snapshot = statement.snapshot_data ?? [];
   const currency = snapshot[0]?.currency ?? "KES";
-  const entries = buildLedger(snapshot, statement.date_to);
+  const entries = buildStatementLedger(snapshot, { dateTo: statement.date_to, formatDate });
   const totalDebits = entries.reduce((s, e) => s + e.debit, 0);
   const totalCredits = entries.reduce((s, e) => s + e.credit, 0);
   const closingBalance = totalDebits - totalCredits;
@@ -287,6 +244,16 @@ export function StatementDetailPage() {
       {/* Scrollable content */}
       <div className='flex-1 overflow-y-auto bg-muted/30'>
         <div className='mx-auto flex max-w-4xl flex-col gap-4 px-4 py-8'>
+          <EmailDeliveryNotice
+            key={`${statement.email_status ?? "none"}-${statement.email_status_at ?? "none"}`}
+            status={statement.email_status}
+            statusAt={statement.email_status_at}
+            recipient={customerDetails?.billing_email ?? customerDetails?.email}
+            error={statement.email_error}
+            onRetry={handleRetryEmail}
+            retrying={isRetryingEmail}
+          />
+
           {/* Statement document */}
           <div className='rounded-lg border bg-white p-10 text-sm shadow-sm dark:bg-card'>
             {/* Letterhead */}
@@ -400,7 +367,7 @@ export function StatementDetailPage() {
                 : entries.map((entry, i) => (
                     <tr key={i} className='border-b border-dashed'>
                       <td className='py-2.5 text-muted-foreground'>
-                        {entry.date ? formatDate(entry.date) : "—"}
+                        {entry.date}
                       </td>
                       <td className='py-2.5'>{entry.description}</td>
                       <td className='py-2.5 font-mono text-muted-foreground'>

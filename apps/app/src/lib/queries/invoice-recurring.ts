@@ -22,6 +22,7 @@ export type InvoiceRecurring = {
   payment_details: string
   note: string
   accept_payments: boolean
+  include_pdf: boolean
   invoice_template: string
   from_details: Record<string, unknown> | null
   customer_details: Record<string, unknown> | null
@@ -41,7 +42,7 @@ export type InvoiceRecurring = {
 
 export type InvoiceRecurringInput = Omit<InvoiceRecurring, "id" | "created_at" | "current_count" | "failure_count" | "upcoming_notification_sent_at">
 
-const RECURRING_SELECT = "id, created_at, org_id, user_id, customer_id, customer_name, currency, line_items, subtotal, tax_amount, discount, total, payment_details, note, accept_payments, invoice_template, from_details, customer_details, custom_fields, source_issue_date, source_due_date, frequency, end_type, end_on_date, end_after_count, status, current_count, failure_count, next_scheduled_at, upcoming_notification_sent_at"
+const RECURRING_SELECT = "id, created_at, org_id, user_id, customer_id, customer_name, currency, line_items, subtotal, tax_amount, discount, total, payment_details, note, accept_payments, include_pdf, invoice_template, from_details, customer_details, custom_fields, source_issue_date, source_due_date, frequency, end_type, end_on_date, end_after_count, status, current_count, failure_count, next_scheduled_at, upcoming_notification_sent_at"
 
 export async function listInvoiceRecurring(orgId: string): Promise<InvoiceRecurring[]> {
   const { data, error } = await supabase

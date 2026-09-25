@@ -39,6 +39,7 @@ export type InvoiceSettings = {
   showQtyColumn: boolean;
   acceptPaymentsEnabled: boolean;
   selectedPaymentIntegration: string | null;
+  includePdf: boolean;
   cc: string;
   bcc: string;
   logoUrl: string | null;
@@ -58,6 +59,7 @@ export const defaultInvoiceSettings: InvoiceSettings = {
   showQtyColumn: true,
   acceptPaymentsEnabled: false,
   selectedPaymentIntegration: null,
+  includePdf: true,
   cc: "",
   bcc: "",
   logoUrl: null,
@@ -761,8 +763,22 @@ export function InvoiceSettingsSheet({
 
           <Separator />
 
-          {/* Send copy */}
+          {/* Email */}
           <div className='flex flex-col gap-3'>
+            <div className='flex items-start justify-between gap-3'>
+              <div className='flex flex-col gap-1'>
+                <p className='text-xs font-medium'>Attach PDF</p>
+                <p className='text-[11px] text-muted-foreground'>
+                  Attach a PDF copy of the invoice to the email sent to the
+                  customer.
+                </p>
+              </div>
+              <SettingsSwitch
+                id='include-pdf'
+                checked={settings.includePdf}
+                onCheckedChange={(v) => update("includePdf", v)}
+              />
+            </div>
             <div>
               <p className='text-xs font-medium'>Send Copy</p>
               <p className='mt-0.5 text-[11px] text-muted-foreground'>

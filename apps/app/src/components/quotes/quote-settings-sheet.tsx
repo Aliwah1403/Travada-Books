@@ -22,6 +22,7 @@ import { Separator } from "@travada-books/ui/components/separator";
 import { Input } from "@travada-books/ui/components/input";
 import { Textarea } from "@travada-books/ui/components/textarea";
 import { Button } from "@travada-books/ui/components/button";
+import { Switch } from "@travada-books/ui/components/switch";
 import { Delete01Icon, PlusSignIcon } from "@travada-books/ui/icons";
 import type { QuoteSettings } from "@/components/quotes/quote-settings";
 
@@ -354,8 +355,22 @@ export function QuoteSettingsSheet({
 
           <Separator />
 
-          {/* Send copy */}
+          {/* Email */}
           <div className='flex flex-col gap-3'>
+            <div className='flex items-start justify-between gap-3'>
+              <div className='flex flex-col gap-1'>
+                <p className='text-xs font-medium'>Attach PDF</p>
+                <p className='text-[11px] text-muted-foreground'>
+                  Attach a PDF copy of the quote to the email sent to the
+                  customer.
+                </p>
+              </div>
+              <Switch
+                id='quote-include-pdf'
+                checked={settings.includePdf}
+                onCheckedChange={(v) => update("includePdf", v)}
+              />
+            </div>
             <div>
               <p className='text-xs font-medium'>Send Copy</p>
               <p className='mt-0.5 text-[11px] text-muted-foreground'>

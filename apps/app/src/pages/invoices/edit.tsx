@@ -405,6 +405,7 @@ export function EditInvoicePage() {
     setInvoiceSettings((prev) => ({
       ...prev,
       acceptPaymentsEnabled: invoice.accept_payments ?? false,
+      includePdf: invoice.include_pdf ?? true,
     }));
 
     setInitialized(true);
@@ -418,8 +419,9 @@ export function EditInvoicePage() {
       ...prev,
       ...savedTemplate,
       acceptPaymentsEnabled: invoice?.accept_payments ?? prev.acceptPaymentsEnabled,
+      includePdf: invoice?.include_pdf ?? prev.includePdf,
     }));
-  }, [savedTemplate, initialized, invoice?.accept_payments]);
+  }, [savedTemplate, initialized, invoice?.accept_payments, invoice?.include_pdf]);
 
   const [issueDateChangedByUser, setIssueDateChangedByUser] = useState(false);
 
@@ -520,6 +522,7 @@ export function EditInvoicePage() {
       scheduled_at: isSchedule && scheduleDate ? scheduleDate.toISOString() : null,
       send_template_id: null,
       accept_payments: invoiceSettings.acceptPaymentsEnabled,
+      include_pdf: invoiceSettings.includePdf,
       invoice_template: invoiceSettings.invoiceTemplate,
       custom_fields: normalizeCustomFields(customFields),
       ...(isSend && { sent_at: new Date().toISOString(), sent_via: "email" }),

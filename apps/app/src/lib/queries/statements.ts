@@ -36,6 +36,13 @@ export type Statement = {
   snapshot_data: StatementInvoiceRow[]
   from_details: Record<string, unknown> | null
   customer_details: Record<string, unknown> | null
+  include_pdf: boolean
+  // Only populated on owner-facing reads (getStatement/createStatement/
+  // listCustomerStatements) — never selected for the public token RPC, so
+  // these stay undefined on anything a customer can reach.
+  email_status?: "queued" | "sent" | "failed" | null
+  email_error?: string | null
+  email_status_at?: string | null
 }
 
 export type StatementInput = {
@@ -47,15 +54,21 @@ export type StatementInput = {
   snapshot_data: StatementInvoiceRow[]
   from_details: Record<string, unknown> | null
   customer_details: Record<string, unknown> | null
+  include_pdf?: boolean
 }
 
-const STATEMENT_SELECT = "id, created_at, org_id, customer_id, token, date_from, date_to, notes, snapshot_data, from_details, customer_details"
+// Never used for the public token RPC (get_statement_by_token) — it doesn't
+// expose these columns, and a customer viewing their own statement has no
+// business seeing our email delivery diagnostics.
+const STATEMENT_SELECT = "id, created_at, org_id, customer_id, token, date_from, date_to, notes, snapshot_data, from_details, customer_details, include_pdf"
+
+const STATEMENT_DETAIL_SELECT = `${STATEMENT_SELECT}, email_status, email_error, email_status_at`
 
 export async function createStatement(input: StatementInput): Promise<Statement> {
   const { data, error } = await supabase
     .from("statements")
     .insert(input)
-    .select(STATEMENT_SELECT)
+    .select(STATEMENT_DETAIL_SELECT)
     .single()
 
   if (error) throw error
@@ -75,7 +88,7 @@ export async function getStatementByToken(token: string): Promise<Statement> {
 export async function getStatement(id: string, orgId: string): Promise<Statement> {
   const { data, error } = await supabase
     .from("statements")
-    .select(STATEMENT_SELECT)
+    .select(STATEMENT_DETAIL_SELECT)
     .eq("id", id)
     .eq("org_id", orgId)
     .single()
@@ -87,7 +100,7 @@ export async function getStatement(id: string, orgId: string): Promise<Statement
 export async function listCustomerStatements(customerId: string, orgId: string): Promise<Statement[]> {
   const { data, error } = await supabase
     .from("statements")
-    .select(STATEMENT_SELECT)
+    .select(STATEMENT_DETAIL_SELECT)
     .eq("customer_id", customerId)
     .eq("org_id", orgId)
     .order("created_at", { ascending: false })

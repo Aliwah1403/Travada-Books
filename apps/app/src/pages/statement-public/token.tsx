@@ -13,7 +13,7 @@ import {
   statementPaidAmount,
   type StatementInvoiceRow,
 } from "@/lib/queries/statements";
-import { StatementPdf } from "@/components/statement-templates/default/pdf";
+import { StatementPdf, buildStatementDocumentData } from "@travada-books/pdf";
 import { downloadPdf } from "@/lib/pdf-download";
 import LogoGreen from "@/assets/Logo-Green.svg";
 import LogoLime from "@/assets/Logo-Lime.svg";
@@ -174,40 +174,39 @@ export function PublicStatementPage() {
     try {
       const fromSnap = (statement.from_details ?? {}) as Record<string, string | null>;
       const customerSnap = (statement.customer_details ?? {}) as Record<string, string | null>;
+      const data = buildStatementDocumentData({
+        currency,
+        from: {
+          name: fromSnap.name,
+          logo_url: fromSnap.logo_url,
+          address_line1: fromSnap.address_line1,
+          address_line2: fromSnap.address_line2,
+          city: fromSnap.city,
+          zip: fromSnap.zip,
+          country_code: fromSnap.country_code,
+          phone: fromSnap.phone,
+          email: fromSnap.email,
+          tax_id: fromSnap.tax_id,
+        },
+        customer: {
+          name: customerSnap.name,
+          email: customerSnap.email,
+          billing_email: customerSnap.billing_email,
+          phone: customerSnap.phone,
+          address_line1: customerSnap.address_line1,
+          address_line2: customerSnap.address_line2,
+          city: customerSnap.city,
+          zip: customerSnap.zip,
+          country: customerSnap.country,
+        },
+        statementDate: safeFormatDate(statement.created_at),
+        dateFrom: safeFormatDate(statement.date_from),
+        dateTo: safeFormatDate(statement.date_to),
+        entries,
+        notes: statement.notes,
+      });
       await downloadPdf(
-        <StatementPdf
-          data={{
-            currency,
-            from: {
-              name: fromSnap.name,
-              logo_url: fromSnap.logo_url,
-              address_line1: fromSnap.address_line1,
-              address_line2: fromSnap.address_line2,
-              city: fromSnap.city,
-              zip: fromSnap.zip,
-              country_code: fromSnap.country_code,
-              phone: fromSnap.phone,
-              email: fromSnap.email,
-              tax_id: fromSnap.tax_id,
-            },
-            customer: {
-              name: customerSnap.name,
-              email: customerSnap.email,
-              billing_email: customerSnap.billing_email,
-              phone: customerSnap.phone,
-              address_line1: customerSnap.address_line1,
-              address_line2: customerSnap.address_line2,
-              city: customerSnap.city,
-              zip: customerSnap.zip,
-              country: customerSnap.country,
-            },
-            statementDate: safeFormatDate(statement.created_at),
-            dateFrom: safeFormatDate(statement.date_from),
-            dateTo: safeFormatDate(statement.date_to),
-            entries,
-            notes: statement.notes,
-          }}
-        />,
+        <StatementPdf data={data} />,
         `Statement-${customerSnap.name ?? "Customer"}.pdf`,
       );
     } catch {

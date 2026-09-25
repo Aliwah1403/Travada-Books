@@ -28,6 +28,7 @@ import {
   FieldDescription,
   FieldError,
 } from "@travada-books/ui/components/field";
+import { Switch } from "@travada-books/ui/components/switch";
 import { DatePicker } from "@/components/shared/date-picker";
 import { Spinner } from "@/components/shared/spinner";
 import { listCustomerInvoices } from "@/lib/queries/invoices";
@@ -73,6 +74,7 @@ export function GenerateStatementSheet({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [hasSent, setHasSent] = useState(false);
+  const [includePdf, setIncludePdf] = useState(true);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -92,6 +94,7 @@ export function GenerateStatementSheet({
       setGeneratedStatementId(null);
       setIsSending(false);
       setHasSent(false);
+      setIncludePdf(true);
     }
     onOpenChange(next);
   }
@@ -145,6 +148,7 @@ export function GenerateStatementSheet({
         snapshot_data: snapshot,
         from_details: fromDetails,
         customer_details: customerDetails,
+        include_pdf: includePdf,
       });
 
       setGeneratedLink(`${window.location.origin}/s/${statement.token}`);
@@ -217,10 +221,16 @@ export function GenerateStatementSheet({
                     toast.promise(
                       supabase.functions.invoke("send-statement-email", { body: { statementId: generatedStatementId } }).then((res) => {
                         if (res.error) throw res.error;
+                        return !!(res.data as { queued?: boolean } | null)?.queued;
                       }),
                       {
                         loading: "Sending…",
-                        success: () => { setHasSent(true); return "Statement sent by email"; },
+                        success: (queued) => {
+                          setHasSent(true);
+                          return queued
+                            ? `Statement sent. Emailing it to ${customerName} with the PDF attached…`
+                            : "Statement sent by email";
+                        },
                         error: () => { setIsSending(false); return "Failed to send email"; },
                       }
                     );
@@ -341,6 +351,23 @@ export function GenerateStatementSheet({
                   </Field>
                 )}
               />
+
+              <Field orientation='horizontal' className='items-center justify-between'>
+                <div className='flex flex-col gap-0.5'>
+                  <FieldLabel htmlFor='statement-include-pdf' className='text-xs font-medium'>
+                    Attach PDF
+                  </FieldLabel>
+                  <FieldDescription>
+                    Attach a PDF copy of the statement to the email sent to
+                    the customer.
+                  </FieldDescription>
+                </div>
+                <Switch
+                  id='statement-include-pdf'
+                  checked={includePdf}
+                  onCheckedChange={setIncludePdf}
+                />
+              </Field>
 
               <div className='rounded-lg border bg-muted/40 p-4 text-xs text-muted-foreground leading-relaxed'>
                 A unique shareable link will be generated. The statement

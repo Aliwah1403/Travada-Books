@@ -69,7 +69,9 @@ import { useAuth } from "@/contexts/auth-context";
 import { useInvalidateAfterPaymentChange } from "@/hooks/use-invalidate-payment-queries";
 import { supabase } from "@/lib/supabase";
 import { Spinner } from "@/components/shared/spinner";
-import { InvoicePreview, InvoicePdf } from "@/components/invoice-templates";
+import { EmailDeliveryNotice } from "@/components/shared/email-delivery-notice";
+import { InvoicePreview } from "@/components/invoice-templates";
+import { InvoicePdf, buildInvoiceDocumentData } from "@travada-books/pdf";
 import { downloadPdf, urlToDataUrl } from "@/lib/pdf-download";
 import { formatCurrency } from "@/lib/format";
 import { parseCustomFields } from "@/lib/custom-fields";
@@ -224,6 +226,7 @@ export function InvoiceDetailPage() {
   const [recordPaymentOpen, setRecordPaymentOpen] = useState(false);
   const [sendDialogOpen, setSendDialogOpen] = useState(false);
   const [paymentToDelete, setPaymentToDelete] = useState<InvoicePayment | null>(null);
+  const [isRetryingEmail, setIsRetryingEmail] = useState(false);
 
   const {
     data: invoice,
@@ -233,6 +236,10 @@ export function InvoiceDetailPage() {
     queryKey: ["invoice", id],
     queryFn: () => getInvoice(id!),
     enabled: !!id,
+    // The PDF-attach send flow queues a background render (see
+    // DOCUMENT-PDF-PLAN.md) — poll gently while it's in flight so the
+    // "still sending" notice clears on its own once the callback lands.
+    refetchInterval: (query) => (query.state.data?.email_status === "queued" ? 5000 : false),
   });
 
   const { data: customer } = useQuery({
@@ -449,17 +456,45 @@ export function InvoiceDetailPage() {
     });
 
     if (channel === "email") {
-      supabase.functions
-        .invoke("send-invoice-email", { body: { invoiceId: id } })
-        .then((res) => {
-          if (res.error) {
-            console.error("send-invoice-email failed:", res.error);
-            toast.warning("Invoice sent, but email delivery failed. Try resending from the invoice.");
+      dispatchInvoiceEmail()
+        .then(({ queued }) => {
+          if (queued) {
+            toast.success(
+              `Emailing it to ${customerDetails?.name ?? invoice!.customer_name} with the PDF attached…`,
+            );
           }
         })
-        .catch(() => {
+        .catch((err) => {
+          console.error("send-invoice-email failed:", err);
           toast.warning("Invoice sent, but email delivery failed. Try resending from the invoice.");
         });
+    }
+  }
+
+  // Shared by the send flow above and the "Try again" retry on the failed-
+  // delivery notice — invalidates the invoice query either way so
+  // email_status (and the notice/poll driven by it) reflect the outcome.
+  async function dispatchInvoiceEmail(): Promise<{ queued: boolean }> {
+    const res = await supabase.functions.invoke("send-invoice-email", { body: { invoiceId: id } });
+    queryClient.invalidateQueries({ queryKey: ["invoice", id] });
+    if (res.error) throw res.error;
+    return { queued: !!(res.data as { queued?: boolean } | null)?.queued };
+  }
+
+  async function handleRetryEmail() {
+    setIsRetryingEmail(true);
+    try {
+      const { queued } = await dispatchInvoiceEmail();
+      toast.success(
+        queued
+          ? `Emailing it to ${customerDetails?.name ?? invoice!.customer_name} with the PDF attached…`
+          : "Email sent",
+      );
+    } catch (err) {
+      console.error("send-invoice-email retry failed:", err);
+      toast.error("Failed to resend the email", { description: "Please try again." });
+    } finally {
+      setIsRetryingEmail(false);
     }
   }
 
@@ -600,23 +635,9 @@ export function InvoiceDetailPage() {
   const status = invoice.status as InvoiceStatus;
   const isOverpaid = invoice.amount_paid > (invoice.total ?? 0);
 
-  const documentData = {
-    label: "INVOICE",
-    number: invoice.invoice_number,
-    currency: invoice.currency,
-    issueDate: invoice.issue_date,
-    secondaryDate: invoice.due_date,
-    secondaryDateLabel: "Due date:",
+  const documentData = buildInvoiceDocumentData(invoice, {
     from: fromDetails ?? {},
     customer: customerDetails ?? { name: invoice.customer_name },
-    customerLabel: "Bill To",
-    lineItems: invoice.line_items,
-    subtotal: invoice.subtotal,
-    taxAmount: invoice.tax_amount,
-    discount: invoice.discount,
-    total: invoice.total,
-    note: invoice.note,
-    paymentDetails: invoice.payment_details,
     customFields: parseCustomFields(invoice.custom_fields),
     publicUrl:
       (
@@ -626,7 +647,7 @@ export function InvoiceDetailPage() {
       ) ?
         `${window.location.origin}/i/${invoice.token}`
       : null,
-  };
+  });
 
   const invoicePublicUrl = `${window.location.origin}/i/${invoice.token}`;
   const snapshotCustomer = invoice.customer_details;
@@ -851,6 +872,16 @@ export function InvoiceDetailPage() {
       {/* Scrollable content */}
       <div className='flex-1 overflow-y-auto bg-muted/30'>
         <div className='mx-auto flex max-w-2xl flex-col gap-0 px-4 py-8'>
+          <EmailDeliveryNotice
+            key={`${invoice.email_status ?? "none"}-${invoice.email_status_at ?? "none"}`}
+            status={invoice.email_status}
+            statusAt={invoice.email_status_at}
+            recipient={customerEmail}
+            error={invoice.email_error}
+            onRetry={handleRetryEmail}
+            retrying={isRetryingEmail}
+          />
+
           <InvoicePreview
             data={documentData}
             invoiceTemplate={invoice.invoice_template}

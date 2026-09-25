@@ -9,6 +9,7 @@ type QuoteTemplateRow = {
   default_note: string | null
   cc: string
   bcc: string
+  include_pdf: boolean
   validity_days: number | null
   quote_number_prefix: string | null
   quote_number_digits: number | null
@@ -16,7 +17,7 @@ type QuoteTemplateRow = {
 }
 
 const TEMPLATE_SELECT =
-  "id, org_id, is_default, quote_template, default_note, cc, bcc, validity_days, quote_number_prefix, quote_number_digits, custom_field_labels"
+  "id, org_id, is_default, quote_template, default_note, cc, bcc, include_pdf, validity_days, quote_number_prefix, quote_number_digits, custom_field_labels"
 
 export async function getOrgQuoteTemplate(orgId: string): Promise<QuoteSettings | null> {
   const { data, error } = await supabase
@@ -52,6 +53,7 @@ export async function upsertOrgQuoteTemplate(
     default_note: settings.defaultNote || null,
     cc: settings.cc,
     bcc: settings.bcc,
+    include_pdf: settings.includePdf,
     validity_days: settings.validityDays ?? null,
     quote_number_prefix: settings.quoteNumberPrefix || "QUO-",
     quote_number_digits: settings.quoteNumberDigits ?? 4,
@@ -82,6 +84,7 @@ function rowToSettings(row: QuoteTemplateRow): QuoteSettings {
     defaultNote: row.default_note ?? "",
     cc: row.cc ?? "",
     bcc: row.bcc ?? "",
+    includePdf: row.include_pdf ?? true,
     validityDays: row.validity_days ?? null,
     quoteNumberPrefix: row.quote_number_prefix ?? "QUO-",
     quoteNumberDigits: ([3, 4, 5].includes(digits) ? digits : 4) as QuoteSettings["quoteNumberDigits"],

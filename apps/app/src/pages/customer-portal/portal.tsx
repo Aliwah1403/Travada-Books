@@ -37,7 +37,7 @@ import {
   InvoiceStatusBadge,
   type InvoiceStatus,
 } from "@/components/invoices/invoice-status-badge"
-import { InvoicePdf } from "@/components/invoice-templates"
+import { InvoicePdf, buildInvoiceDocumentData } from "@travada-books/pdf"
 import { downloadPdf } from "@/lib/pdf-download"
 import { getInvoiceByToken } from "@/lib/queries/invoices"
 import { parseCustomFields } from "@/lib/custom-fields"
@@ -113,13 +113,7 @@ async function downloadInvoicePdf(token: string): Promise<void> {
   const from = (invoice.from_details ?? {}) as Snapshot
   const customerSnap = (invoice.customer_details ?? {}) as Snapshot
 
-  const documentData = {
-    label: "INVOICE",
-    number: invoice.invoice_number,
-    currency: invoice.currency,
-    issueDate: invoice.issue_date,
-    secondaryDate: invoice.due_date,
-    secondaryDateLabel: "Due date:",
+  const documentData = buildInvoiceDocumentData(invoice, {
     from: {
       name: from.name,
       logo_url: from.logo_url,
@@ -143,17 +137,9 @@ async function downloadInvoicePdf(token: string): Promise<void> {
       zip: customerSnap.zip,
       country: customerSnap.country,
     },
-    customerLabel: "Bill To",
-    lineItems: invoice.line_items ?? [],
-    subtotal: invoice.subtotal,
-    taxAmount: invoice.tax_amount,
-    discount: invoice.discount,
-    total: invoice.total,
-    note: invoice.note,
-    paymentDetails: invoice.payment_details,
     customFields: parseCustomFields(invoice.custom_fields),
     publicUrl: `${window.location.origin}/i/${token}`,
-  }
+  })
 
   await downloadPdf(<InvoicePdf data={documentData} />, invoice.invoice_number ?? "Invoice")
 }

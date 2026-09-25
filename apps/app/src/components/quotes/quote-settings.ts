@@ -3,6 +3,7 @@ export type QuoteSettings = {
   defaultNote: string;
   cc: string;
   bcc: string;
+  includePdf: boolean;
   validityDays: number | null;
   quoteNumberPrefix: string;
   quoteNumberDigits: 3 | 4 | 5;
@@ -14,6 +15,7 @@ export const defaultQuoteSettings: QuoteSettings = {
   defaultNote: "",
   cc: "",
   bcc: "",
+  includePdf: true,
   validityDays: null,
   quoteNumberPrefix: "QUO-",
   quoteNumberDigits: 4,

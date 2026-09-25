@@ -51,10 +51,11 @@ import {
 import { getCustomer } from "@/lib/queries/customers";
 import { supabase } from "@/lib/supabase";
 import type { Invoice } from "@/lib/queries/invoices";
-import { InvoicePdf } from "@/components/invoice-templates";
+import { InvoicePdf, buildQuoteDocumentData } from "@travada-books/pdf";
 import { downloadPdf, urlToDataUrl } from "@/lib/pdf-download";
 import { parseCustomFields } from "@/lib/custom-fields";
 import { CustomFieldsPreview } from "@/components/invoices/custom-fields";
+import { EmailDeliveryNotice } from "@/components/shared/email-delivery-notice";
 import { formatCurrency } from "@/lib/format";
 
 function DetailRow({ label, value }: { label: string; value: string }) {
@@ -143,6 +144,7 @@ export function QuoteDetailPage() {
   const [internalNote, setInternalNote] = useState("");
   const [internalNoteSaved, setInternalNoteSaved] = useState(false);
   const [internalNoteDirty, setInternalNoteDirty] = useState(false);
+  const [isRetryingEmail, setIsRetryingEmail] = useState(false);
 
   const {
     data: quote,
@@ -152,6 +154,10 @@ export function QuoteDetailPage() {
     queryKey: ["quote", id],
     queryFn: () => getQuote(id!, orgId!),
     enabled: !!id && !!orgId,
+    // The PDF-attach send flow queues a background render (see
+    // DOCUMENT-PDF-PLAN.md) — poll gently while it's in flight so the
+    // "still sending" notice clears on its own once the callback lands.
+    refetchInterval: (query) => (query.state.data?.email_status === "queued" ? 5000 : false),
   });
 
   useEffect(() => {
@@ -191,7 +197,7 @@ export function QuoteDetailPage() {
 
     setIsSending(true);
     try {
-      const sentQuote = await sendQuote(
+      await sendQuote(
         quote.id,
         orgId,
         {
@@ -229,15 +235,14 @@ export function QuoteDetailPage() {
       );
 
       if (channel === "email") {
-        supabase.functions
-          .invoke("send-quote-email", { body: { quoteId: sentQuote.id } })
-          .then((res) => {
-            if (res.error) {
-              console.error("send-quote-email failed:", res.error);
-              toast.warning("Quote sent, but email delivery failed. Try resending from the quote.");
+        dispatchQuoteEmail()
+          .then(({ queued }) => {
+            if (queued) {
+              toast.success(`Emailing it to ${customer?.name ?? quote.customer_name} with the PDF attached…`);
             }
           })
-          .catch(() => {
+          .catch((err) => {
+            console.error("send-quote-email failed:", err);
             toast.warning("Quote sent, but email delivery failed. Try resending from the quote.");
           });
       }
@@ -246,6 +251,33 @@ export function QuoteDetailPage() {
       throw new Error("send_quote_failed");
     } finally {
       setIsSending(false);
+    }
+  }
+
+  // Shared by the send flow above and the "Try again" retry on the failed-
+  // delivery notice — invalidates the quote query either way so email_status
+  // (and the notice/poll driven by it) reflect the outcome.
+  async function dispatchQuoteEmail(): Promise<{ queued: boolean }> {
+    const res = await supabase.functions.invoke("send-quote-email", { body: { quoteId: id } });
+    queryClient.invalidateQueries({ queryKey: ["quote", id] });
+    if (res.error) throw res.error;
+    return { queued: !!(res.data as { queued?: boolean } | null)?.queued };
+  }
+
+  async function handleRetryEmail() {
+    setIsRetryingEmail(true);
+    try {
+      const { queued } = await dispatchQuoteEmail();
+      toast.success(
+        queued
+          ? `Emailing it to ${customer?.name ?? quote?.customer_name} with the PDF attached…`
+          : "Email sent",
+      );
+    } catch (err) {
+      console.error("send-quote-email retry failed:", err);
+      toast.error("Failed to resend the email", { description: "Please try again." });
+    } finally {
+      setIsRetryingEmail(false);
     }
   }
 
@@ -292,13 +324,7 @@ export function QuoteDetailPage() {
       const customerSnap = (quote.customer_details ?? {}) as Record<string, string | null>;
       const rawLogoUrl = from["logo_url"] ?? org?.logo_url ?? null;
       const logoDataUrl = rawLogoUrl ? await urlToDataUrl(rawLogoUrl).catch(() => null) : null;
-      const documentData = {
-        label: "QUOTATION",
-        number: quote.quote_number,
-        currency: quote.currency,
-        issueDate: quote.issue_date,
-        secondaryDate: quote.valid_until,
-        secondaryDateLabel: "Valid until:",
+      const documentData = buildQuoteDocumentData(quote, {
         from: {
           name: from["name"] ?? org?.name,
           logo_url: logoDataUrl,
@@ -322,19 +348,12 @@ export function QuoteDetailPage() {
           zip: customerSnap["zip"] ?? customer?.zip,
           country: customerSnap["country"] ?? customer?.country,
         },
-        customerLabel: "Prepared For",
-        lineItems: quote.line_items,
-        subtotal: quote.subtotal,
-        taxAmount: quote.tax_amount,
-        discount: quote.discount,
-        total: quote.total,
-        note: quote.note,
         customFields: parseCustomFields(quote.custom_fields),
         publicUrl:
           override?.publicUrl !== undefined ? override.publicUrl
           : quote.token && quote.status !== "draft" ? `${window.location.origin}/q/${quote.token}`
           : null,
-      };
+      });
       await downloadPdf(
         <InvoicePdf data={documentData} />,
         quote.quote_number ?? "Quote",
@@ -557,6 +576,16 @@ export function QuoteDetailPage() {
       {/* Scrollable content */}
       <div className='flex-1 overflow-y-auto bg-muted/30'>
         <div className='mx-auto flex max-w-2xl flex-col gap-0 px-4 py-8'>
+          <EmailDeliveryNotice
+            key={`${quote.email_status ?? "none"}-${quote.email_status_at ?? "none"}`}
+            status={quote.email_status}
+            statusAt={quote.email_status_at}
+            recipient={customerEmail}
+            error={quote.email_error}
+            onRetry={handleRetryEmail}
+            retrying={isRetryingEmail}
+          />
+
           {/* Accepted banner */}
           {quote.status === "accepted" && linkedInvoice && (
             <div className='mb-4 flex items-center justify-between rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-xs dark:border-green-900/40 dark:bg-green-900/20'>

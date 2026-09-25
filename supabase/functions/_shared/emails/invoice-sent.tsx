@@ -14,9 +14,10 @@ interface Props {
   total: number | null
   currency: string
   publicUrl: string
+  pdfAttached?: boolean
 }
 
-export function InvoiceSentEmail({ orgName, orgLogoUrl, orgEmail, customerName, invoiceNumber, dueDate, total, currency, publicUrl }: Props) {
+export function InvoiceSentEmail({ orgName, orgLogoUrl, orgEmail, customerName, invoiceNumber, dueDate, total, currency, publicUrl, pdfAttached }: Props) {
   const label = invoiceNumber ? `Invoice ${invoiceNumber}` : "Invoice"
 
   return (
@@ -48,6 +49,11 @@ export function InvoiceSentEmail({ orgName, orgLogoUrl, orgEmail, customerName, 
       <Text style={{ margin: "0 0 16px", fontSize: 14, color: colors.body, lineHeight: "1.6", fontFamily: font }}>
         {orgName} has sent you an invoice for <strong style={{ color: colors.dark }}>{formatMoney(total, currency)}</strong> due by {formatDate(dueDate)}. Click the button above to view and pay online.
       </Text>
+      {pdfAttached && (
+        <Text style={{ margin: "0 0 16px", fontSize: 13, color: colors.muted, lineHeight: "1.5", fontFamily: font }}>
+          The PDF is attached.
+        </Text>
+      )}
       <Text style={{ margin: 0, fontSize: 13, color: colors.muted, fontFamily: font }}>
         Questions? Reply to this email or contact{" "}
         <Link href={`mailto:${orgEmail}`} style={{ color: colors.muted }}>{orgEmail}</Link>
