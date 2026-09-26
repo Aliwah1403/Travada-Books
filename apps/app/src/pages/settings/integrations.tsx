@@ -20,7 +20,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@travada-books/ui/components/alert-dialog"
-import { GmailIcon, OutlookIcon, StripeIcon, WhatsappIcon, Wallet01Icon, type Icon } from "@travada-books/ui/icons"
+import { GmailIcon, MpesaIcon, OutlookIcon, StripeIcon, WhatsappIcon, type Icon } from "@travada-books/ui/icons"
 import { useAuth } from "@/contexts/auth-context"
 import {
   connectGmail,
@@ -202,7 +202,7 @@ type ComingSoonProvider = {
 const comingSoonProviders: ComingSoonProvider[] = [
   {
     brand: "mpesa",
-    icon: Wallet01Icon,
+    icon: MpesaIcon,
     title: "M-Pesa",
     description: "Sync incoming payments automatically and accept M-Pesa STK push on invoices.",
   },

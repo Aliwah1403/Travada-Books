@@ -1,4 +1,4 @@
-import { AiChat01Icon, BankIcon, type Icon } from "@travada-books/ui/icons";
+import { AiChat01Icon, BankIcon, MpesaIcon, type Icon } from "@travada-books/ui/icons";
 
 import {
   GoogleIcon,
@@ -6,7 +6,6 @@ import {
   StripeIcon,
   WhatsappIcon,
 } from "./brand-icons";
-import MpesaLogo from "./Mpesa-Logo.png";
 import { Grid, Slide, SlideHeader } from "./ui";
 
 function LogoBadge({ icon: IconComponent }: { icon: Icon }) {
@@ -20,7 +19,7 @@ function LogoBadge({ icon: IconComponent }: { icon: Icon }) {
 function MPesaBadge() {
   return (
     <span className='flex h-9 items-center rounded-full border border-border bg-background px-3'>
-      <img src={MpesaLogo} alt="M-Pesa" className='h-4 w-auto object-contain' />
+      <MpesaIcon size={27} />
     </span>
   );
 }
@@ -143,11 +142,7 @@ function PaymentsIllustration() {
           <span className='text-xs font-medium text-foreground'>Pay now</span>
           <div className='flex items-center gap-1.5'>
             <StripeIcon size={14} className='text-foreground' />
-            <img
-              src={MpesaLogo}
-              alt="M-Pesa"
-              className='h-3 w-auto object-contain'
-            />
+            <MpesaIcon size={20} />
           </div>
         </div>
         <CheckBadge />

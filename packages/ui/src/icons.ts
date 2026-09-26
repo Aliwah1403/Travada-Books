@@ -1,5 +1,6 @@
 import React from "react";
 import { siStripe, siWhatsapp, type SimpleIcon } from "simple-icons";
+import mpesaLogoUrl from "./assets/mpesa-logo.png";
 import {
   HugeiconsIcon,
   type HugeiconsIconProps,
@@ -254,6 +255,17 @@ function fromSimpleIcon(icon: SimpleIcon): Icon {
 
 export const WhatsappIcon: Icon = fromSimpleIcon(siWhatsapp)
 export const StripeIcon: Icon = fromSimpleIcon(siStripe)
+
+// M-Pesa's official mark is a raster wordmark (~2.75:1), not a square glyph, so
+// it renders as an <img>. Inline height/width win over any square sizing classes
+// callers apply to the other brand icons; `size` still scales it proportionally.
+export const MpesaIcon: Icon = ({ size = 24, className }: IconProps) =>
+  React.createElement("img", {
+    src: mpesaLogoUrl,
+    alt: "M-Pesa",
+    className,
+    style: { height: Number(size) * 0.6, width: "auto" },
+  })
 
 export const OutlookIcon: Icon = ({ size = 24, ...props }: IconProps) =>
   React.createElement(
