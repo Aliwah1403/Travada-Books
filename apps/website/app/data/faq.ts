@@ -149,3 +149,106 @@ export const INBOX_FAQ_ITEMS: FaqItem[] = [
       "Every organisation gets its own Travada inbox address. Forward the email there directly and it's picked up the same way as a connected account.",
   },
 ]
+
+// ⚠️ No "M-Pesa" in this list — quotes sit beside invoicing
+// (WEBSITE-PLAN.md §5 rule 4). This FAQ set renders only on /quotes.
+// COPY: new — needs Curtis's approval.
+export const QUOTES_FAQ_ITEMS: FaqItem[] = [
+  {
+    id: "quote-no-account",
+    question: "Does my customer need an account to accept a quote?",
+    answer:
+      "No. They open the quote from a link, with no app and no signup, and accept or decline it right there.",
+  },
+  {
+    id: "quote-accepted",
+    question: "What happens when a quote is accepted?",
+    answer:
+      "Travada Books drafts the invoice for you with the same line items and emails you to say the quote was accepted. Check the draft and send it when you're ready.",
+  },
+  {
+    id: "quote-declined",
+    question: "What if the customer says no?",
+    answer:
+      "They can decline the quote and leave a reason if they want to. A declined quote can be revised and sent again.",
+  },
+  {
+    id: "quote-expiry",
+    question: "Do quotes expire?",
+    answer:
+      "If you give a quote a valid-until date, it can't be accepted after that day. The customer sees that it has expired instead.",
+  },
+  {
+    id: "quote-currency",
+    question: "Can I quote in another currency?",
+    answer: "Yes. Quotes use the same currencies as invoices, so you can quote in the currency your customer pays in.",
+  },
+]
+
+// ⚠️ No "M-Pesa" in this list — the portal is invoicing content
+// (WEBSITE-PLAN.md §5 rule 4). Renders only on /customer-portal.
+// COPY: new — needs Curtis's approval.
+export const CUSTOMER_PORTAL_FAQ_ITEMS: FaqItem[] = [
+  {
+    id: "portal-login",
+    question: "Does my customer need to log in?",
+    answer:
+      "No. The link is private to that customer and opens without an account, the same way an invoice link does.",
+  },
+  {
+    id: "portal-contents",
+    question: "What does my customer see?",
+    answer:
+      "Their balance due, what they've paid, their invoices, any quotes waiting for an answer, and the statements you've generated for them. Drafts never appear.",
+  },
+  {
+    id: "portal-default",
+    question: "Is the portal on for every customer?",
+    answer: "No. It's off until you switch it on for a customer, from that customer's page.",
+  },
+  {
+    id: "portal-regenerate",
+    question: "What if the link reaches the wrong person?",
+    answer:
+      "Regenerate it. The old link stops working straight away and you can share the new one. Switching the portal off takes effect immediately too.",
+  },
+  {
+    id: "portal-download",
+    question: "Can my customer download their invoices?",
+    answer: "Yes. Any invoice in the portal opens in full and downloads as a PDF.",
+  },
+]
+
+// M-Pesa may appear here only as a payment method you record, never as a
+// way to collect money (WEBSITE-PLAN.md §5 rule 4). Renders only on /payments.
+// COPY: new — needs Curtis's approval.
+export const PAYMENTS_FAQ_ITEMS: FaqItem[] = [
+  {
+    id: "payments-partial",
+    question: "What if a customer only pays part of an invoice?",
+    answer:
+      "Record the payment as it arrives, even if it's less than the full amount. The invoice shows as part-paid with the remaining balance, and you can record further payments as they come in.",
+  },
+  {
+    id: "payments-methods",
+    question: "Which payment methods can I record?",
+    answer:
+      "M-Pesa, bank transfer, cash, card, cheque or other, with an optional reference such as a transaction code or cheque number.",
+  },
+  {
+    id: "payments-mistake",
+    question: "What if I record a payment by mistake?",
+    answer: "Delete it. The invoice's balance and status work themselves out again.",
+  },
+  {
+    id: "payments-overpaid",
+    question: "What if a customer pays more than they owe?",
+    answer:
+      "You can record it, but Travada Books asks you to confirm the overpayment first, so a typo doesn't slip through.",
+  },
+  {
+    id: "payments-books",
+    question: "Do payments show up in my books?",
+    answer: "Yes. Every payment you record also appears in your transactions, linked to the invoice it paid.",
+  },
+]

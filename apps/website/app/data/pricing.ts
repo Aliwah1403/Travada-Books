@@ -14,6 +14,8 @@ export type PricingPlan = {
   period: string
   features: string[]
   ctaLabel: string
+  /** Visually highlighted on /pricing (brand border). Presentation only. */
+  featured?: boolean
 }
 
 // Placeholder plans — every bullet is a feature that's actually shipped
@@ -49,6 +51,7 @@ export const PRICING_PLANS: PricingPlan[] = [
       "Connected inbox — Gmail and Outlook receipt capture",
     ],
     ctaLabel: "Start free",
+    featured: true,
   },
 ]
 

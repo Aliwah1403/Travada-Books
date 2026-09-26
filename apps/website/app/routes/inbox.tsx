@@ -1,7 +1,15 @@
-import { CtaBand } from "~/components/cta-band"
-import { FeatureHero, FeatureRows, type FeatureRowItem } from "~/components/feature-page"
-import { Faq } from "~/components/home/faq"
-import { IntegrationsSection } from "~/components/integrations-section"
+import {
+  InboxIcon,
+  Link01Icon,
+  LockPasswordIcon,
+  Mail01Icon,
+  Search01Icon,
+  SparklesIcon,
+  Upload01Icon,
+} from "@travada-books/ui/icons"
+
+import { FeaturePage, type FeaturePageContent } from "~/components/feature/feature-page"
+import { ReceiptMatch } from "~/components/illustrations/receipt-match"
 import { INBOX_FAQ_ITEMS } from "~/data/faq"
 import { faqPageJsonLd, pageMeta } from "~/lib/seo"
 
@@ -19,45 +27,60 @@ export function meta() {
   ]
 }
 
-const ROWS: FeatureRowItem[] = [
-  {
-    title: "Connect Gmail or Outlook",
-    body: "Connect the inbox you already use. Access is read-only — Travada Books can't send mail as you, and the only thing it pulls in is PDF attachments. Disconnect it whenever you like.",
-    screenshotLabel: "Integrations page — Gmail and Outlook connect buttons",
-    visual: "providers",
-  },
-  {
-    title: "Receipts, pulled in on their own",
-    body: "PDF receipts and supplier invoices that land in your inbox get picked up automatically — you don't have to forward or upload anything yourself.",
-    screenshotLabel: "Inbox list — receipts pulled in from a connected account",
-    visual: "capture",
-  },
-  {
-    title: "Matched to the transaction",
-    body: "When Travada Books is confident it's found the right transaction, it matches the receipt automatically. Where it's less sure, it suggests a match for you to confirm — you're never left guessing which one is right.",
-    screenshotLabel: "Inbox — suggested match, confirm or reject",
-    visual: "matching",
-  },
-  {
-    title: "No inbox to connect? Forward it.",
-    body: "Every organisation gets its own Travada inbox address. Forward a receipt there directly and it's picked up the same way as a connected account — kept in your Vault, matched, and searchable later.",
-    screenshotLabel: "Inbox settings — your organisation's forwarding address",
-    visual: "forwarding",
-  },
-]
+const CONTENT: FeaturePageContent = {
+  eyebrow: { label: "Inbox", icon: InboxIcon },
+  title: "Your receipts find you.",
+  lede: "A receipt lands in your inbox in March, and by tax time it's nowhere to be found. Connect Gmail or Outlook and Travada Books pulls it in on its own — no more digging.",
+  illustration: <ReceiptMatch className="mx-auto w-full max-w-xl lg:max-w-none" />,
+  screenshot: "Inbox — receipts pulled in and matched to transactions",
+  rows: [
+    {
+      label: "Connect",
+      icon: Mail01Icon,
+      title: "Connect Gmail or Outlook",
+      body: "Connect the inbox you already use. Access is read-only — Travada Books can't send mail as you, and the only thing it pulls in is PDF attachments. Disconnect it whenever you like.",
+      screenshot: "Integrations page — Gmail and Outlook connect buttons",
+    },
+    {
+      label: "Capture",
+      icon: Upload01Icon,
+      title: "Receipts, pulled in on their own",
+      body: "PDF receipts and supplier invoices that land in your inbox get picked up automatically — you don't have to forward or upload anything yourself.",
+      screenshot: "Inbox list — receipts pulled in from a connected account",
+    },
+    {
+      label: "Matching",
+      icon: Link01Icon,
+      title: "Matched to the transaction",
+      body: "When Travada Books is confident it's found the right transaction, it matches the receipt automatically. Where it's less sure, it suggests a match for you to confirm — you're never left guessing which one is right.",
+      screenshot: "Inbox — suggested match, confirm or reject",
+    },
+  ],
+  details: [
+    {
+      title: "No inbox to connect? Forward it.",
+      body: "Every organisation gets its own Travada inbox address. Forward a receipt there and it's picked up the same way.",
+      icon: InboxIcon,
+    },
+    {
+      title: "Read-only access",
+      body: "Only PDF attachments on emails you didn't send are pulled in. Nothing else is stored.",
+      icon: LockPasswordIcon,
+    },
+    {
+      title: "Titled for you",
+      body: "Each receipt is read and titled automatically when it arrives in your Vault.",
+      icon: SparklesIcon,
+    },
+    {
+      title: "Searchable later",
+      body: "Find a receipt by its name or by what's actually on the document.",
+      icon: Search01Icon,
+    },
+  ],
+  faq: { title: "Inbox questions", items: INBOX_FAQ_ITEMS },
+}
 
 export default function InboxRoute() {
-  return (
-    <>
-      <FeatureHero
-        eyebrow="Inbox"
-        title="Your receipts find you."
-        intro="A receipt lands in your inbox in March, and by tax time it's nowhere to be found. Connect Gmail or Outlook and Travada Books pulls it in on its own — no more digging."
-      />
-      <FeatureRows items={ROWS} />
-      <IntegrationsSection compact />
-      <Faq items={INBOX_FAQ_ITEMS} heading="Inbox — frequently asked questions" />
-      <CtaBand heading="Let your receipts find you. Today." />
-    </>
-  )
+  return <FeaturePage content={CONTENT} />
 }

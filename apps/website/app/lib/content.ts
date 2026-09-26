@@ -15,6 +15,8 @@ export type Frontmatter = {
   draft?: boolean
   /** Shows the "Draft — placeholder" banner and forces noindex — legal pages only. */
   placeholder?: boolean
+  /** Minutes to read, added at build time by the remark plugin in vite.config.ts. */
+  readingTime?: number
 }
 
 export type ContentEntry = {
@@ -99,8 +101,9 @@ export function findEntry(
 }
 
 /**
- * Frontmatter-only entries from an eager `import.meta.glob(..., { import:
- * "frontmatter" })` of a collection's folder — for list/index pages, which
+ * Frontmatter-only entries from an eager `import.meta.glob(..., { query:
+ * "?frontmatter", import: "frontmatter" })` of a collection's folder (see
+ * mdxFrontmatterModules in vite.config.ts) — for list/index pages, which
  * need metadata but not MDX bodies.
  */
 export function buildFrontmatterCollection(
@@ -116,4 +119,15 @@ export function buildFrontmatterCollection(
     }
   })
   return sortByPublishedDesc(entries.filter((entry) => !entry.frontmatter.draft))
+}
+
+/** Read time per slug, for `EntryList` / `ArticleMore`. */
+export function readingMinutesBySlug(
+  entries: { slug: string; frontmatter: Frontmatter }[],
+): Record<string, number> {
+  const result: Record<string, number> = {}
+  for (const { slug, frontmatter } of entries) {
+    if (frontmatter.readingTime) result[slug] = frontmatter.readingTime
+  }
+  return result
 }

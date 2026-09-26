@@ -10,6 +10,7 @@ declare module "*.mdx" {
     tag?: string
     draft?: boolean
     placeholder?: boolean
+    readingTime?: number
     [key: string]: unknown
   }
 

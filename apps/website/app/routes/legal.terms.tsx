@@ -1,5 +1,7 @@
 import Terms, { frontmatter } from "../../content/legal/terms.mdx"
-import { Container } from "~/components/container"
+import { ArticleLayout } from "~/components/content/article-layout"
+import { LEGAL } from "~/components/content/collections"
+import { LegalDraftNotice } from "~/components/content/legal-draft-notice"
 import { mdxComponents } from "~/components/mdx-components"
 import { formatDate } from "~/lib/date"
 import { pageMeta } from "~/lib/seo"
@@ -15,23 +17,28 @@ export function meta() {
 }
 
 export default function LegalTerms() {
+  const date = frontmatter.updatedAt ?? frontmatter.publishedAt
   return (
-    <Container className="py-24">
-      {frontmatter.placeholder && (
-        <div className="mb-8 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3">
-          <p className="text-xs font-medium text-amber-700 uppercase dark:text-amber-400">
-            Draft — placeholder
-          </p>
-          <p className="mt-1 text-xs text-amber-700/80 dark:text-amber-400/80">
+    <ArticleLayout
+      collection={LEGAL}
+      eyebrowLink={false}
+      lead={false}
+      title={frontmatter.title}
+      tocKey="terms"
+      notice={
+        frontmatter.placeholder ? (
+          <LegalDraftNotice>
             This page is a placeholder and will be replaced with the final terms before launch.
-          </p>
-        </div>
-      )}
-      <h1 className="text-3xl font-medium tracking-tight text-foreground">{frontmatter.title}</h1>
-      <p className="mt-2 text-xs text-muted-foreground">
-        Last updated {formatDate(frontmatter.updatedAt ?? frontmatter.publishedAt)}
-      </p>
+          </LegalDraftNotice>
+        ) : undefined
+      }
+      byline={[
+        <>
+          Last updated <time dateTime={date}>{formatDate(date)}</time>
+        </>,
+      ]}
+    >
       <Terms components={mdxComponents} />
-    </Container>
+    </ArticleLayout>
   )
 }

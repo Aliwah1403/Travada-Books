@@ -17,27 +17,35 @@ const CORE_STATIC_PATHS = [
   "/invoicing",
   "/statement-import",
   "/inbox",
+  "/quotes",
+  "/customer-portal",
+  "/payments",
   "/integrations",
   "/who-its-for",
   "/about",
   "/updates",
   "/guides",
+  "/compare",
 ]
 
 const updatesModules = import.meta.glob<Record<string, unknown>>("../../content/updates/*.mdx", {
   eager: true,
+  query: "?frontmatter",
   import: "frontmatter",
 })
 const guidesModules = import.meta.glob<Record<string, unknown>>("../../content/guides/*.mdx", {
   eager: true,
+  query: "?frontmatter",
   import: "frontmatter",
 })
 const compareModules = import.meta.glob<Record<string, unknown>>("../../content/compare/*.mdx", {
   eager: true,
+  query: "?frontmatter",
   import: "frontmatter",
 })
 const legalModules = import.meta.glob<Record<string, unknown>>("../../content/legal/*.mdx", {
   eager: true,
+  query: "?frontmatter",
   import: "frontmatter",
 })
 
@@ -47,7 +55,10 @@ const LEGAL_PATHS: Record<string, string> = {
 }
 
 export function getSitemapUrls(): SitemapUrl[] {
-  const urls: SitemapUrl[] = CORE_STATIC_PATHS.map((path) => ({ path, lastmod: "2026-09-16" }))
+  // No lastmod for static routes: there's no honest per-page date for them,
+  // and a hardcoded or build-time date would either rot or claim every page
+  // changed on every deploy. MDX entries carry their frontmatter dates.
+  const urls: SitemapUrl[] = CORE_STATIC_PATHS.map((path) => ({ path }))
 
   if (PRICING_PUBLISHED) {
     urls.push({ path: "/pricing" })

@@ -40,8 +40,10 @@ export function CompareSplit({
 }: CompareSplitProps) {
   if (oldItems.length === 0 && newItems.length === 0) return null
 
+  // One hairline frame split down the middle (stacked on phones), like the
+  // site's Split rows. The internal hairline is drawn by the second column.
   return (
-    <div className={cn("mt-10 grid gap-6 sm:grid-cols-2", className)}>
+    <div className={cn("mt-8 grid border border-line sm:grid-cols-2", className)}>
       <CompareColumn label={oldLabel} items={oldItems} tone="old" />
       <CompareColumn label={newLabel} items={newItems} tone="new" />
     </div>
@@ -64,32 +66,26 @@ function CompareColumn({
   return (
     <div
       className={cn(
-        "rounded-[.9rem] border p-6",
-        tone === "old"
-          ? "border-[var(--website-line)] bg-[color-mix(in_oklab,var(--website-ink)_4%,transparent)]"
-          : "border-[color-mix(in_oklab,var(--website-green)_35%,transparent)] bg-[color-mix(in_oklab,var(--website-green)_6%,transparent)]",
+        "flex flex-col",
+        tone === "old" ? "bg-canvas" : "border-t border-line bg-panel sm:border-t-0 sm:border-l",
       )}
     >
-      <p className="font-sans text-[.62rem] font-semibold uppercase leading-none tracking-[.11em] text-[color-mix(in_oklab,var(--website-ink)_55%,transparent)]">
+      <p
+        className={cn(
+          "border-b border-line px-5 py-3 font-mono text-xs tracking-wide uppercase",
+          tone === "old" ? "text-ink-subtle" : "text-brand",
+        )}
+      >
         {label}
       </p>
-      <ul className="mt-4 space-y-3">
+      <ul className="divide-y divide-line">
         {items.map((item) => (
-          <li
-            key={item}
-            className="flex items-start gap-2.5 font-heading text-[.92rem] leading-relaxed text-[color-mix(in_oklab,var(--website-ink)_78%,transparent)]"
-          >
+          <li key={item} className="flex items-start gap-3 px-5 py-3.5 text-base text-pretty text-ink-muted">
             <Icon
               aria-hidden="true"
-              size={18}
-              className={cn(
-                "mt-[.15rem] shrink-0",
-                tone === "old"
-                  ? "text-[color-mix(in_oklab,var(--website-ink)_40%,transparent)]"
-                  : "text-[var(--website-green)]",
-              )}
+              className={cn("mt-1 size-4 shrink-0", tone === "old" ? "text-ink-subtle" : "text-brand-line")}
             />
-            <span>{item}</span>
+            <span className={tone === "new" ? "text-ink" : undefined}>{item}</span>
           </li>
         ))}
       </ul>

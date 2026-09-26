@@ -1,12 +1,30 @@
+import { buttonVariants } from "@travada-books/ui/components/button"
+import {
+  ArrowRight01Icon,
+  CheckmarkCircle01Icon,
+  Link01Icon,
+  Mail01Icon,
+  MpesaIcon,
+  PlusSignIcon,
+} from "@travada-books/ui/icons"
 import { cn } from "@travada-books/ui/lib/utils"
 
-import { CtaBand } from "~/components/cta-band"
-import { Container } from "~/components/container"
-import { INTEGRATIONS } from "~/data/integrations"
+import { AppLink } from "~/components/app-link"
+import { ClosingCta } from "~/components/home/closing"
+import { LearnMore } from "~/components/home/shared"
+import { IntegrationHub } from "~/components/illustrations/integration-hub"
+import { Eyebrow } from "~/components/site/eyebrow"
+import { Section } from "~/components/site/section"
+import { SectionHeading } from "~/components/site/section-heading"
+import { Split } from "~/components/site/split"
+import {
+  INTEGRATION_CATEGORIES,
+  INTEGRATIONS,
+  type Integration,
+  type IntegrationCategory,
+} from "~/data/integrations"
+import { CONTACT_EMAIL } from "~/data/site"
 import { pageMeta } from "~/lib/seo"
-
-const INTEGRATION_GRID_BASE = "grid grid-cols-2 gap-px border border-[var(--website-line)] bg-[var(--website-line)] max-[640px]:grid-cols-1"
-const INTEGRATION_GRID_COMING = "grid-cols-3 max-[900px]:grid-cols-2"
 
 // eslint-disable-next-line react-refresh/only-export-components -- route module convention: meta + default component
 export function meta() {
@@ -17,62 +35,186 @@ export function meta() {
   })
 }
 
-export default function Integrations() {
-  const available = INTEGRATIONS.filter((integration) => integration.status === "available")
-  const comingSoon = INTEGRATIONS.filter((integration) => integration.status === "coming-soon")
+const REQUEST_ID = "request"
 
+/* COPY: needs Curtis's approval */
+const CATEGORY_BLURB: Record<IntegrationCategory, string> = {
+  Email: "Receipts and supplier invoices, pulled in from the inbox you already use.",
+  Imports: "The statements you already get, uploaded and sorted for you.",
+  Payments: "Ways to get paid, on the roadmap and marked until they're ready.",
+  Messaging: "Reach customers on the channel they already use.",
+}
+
+function Hero() {
+  return (
+    <Section flush>
+      <Split
+        center
+        // Same shape as the feature-page hero (components/feature/feature-page.tsx).
+        className="md:grid-cols-1 lg:grid-cols-[5fr_7fr]"
+        startClassName="md:border-r-0 md:border-b lg:border-r lg:border-b-0 md:py-24 lg:py-28"
+        endClassName="lg:px-8"
+        start={
+          <div className="flex flex-col items-start">
+            <Eyebrow icon={Link01Icon}>Integrations</Eyebrow>
+            <h1 className="mt-6 text-5xl font-medium tracking-tight text-balance md:text-6xl">
+              Your tools should bring the paperwork with them.
+            </h1>
+            {/* COPY: needs Curtis's approval */}
+            <p className="mt-6 max-w-xl text-lg text-pretty text-ink-muted">
+              Connect the inbox you already use and upload the statements you already get. Payments and messaging
+              are next, and clearly marked until they&rsquo;re ready.
+            </p>
+            <div className="mt-8 flex flex-wrap items-center gap-x-6 gap-y-4">
+              <AppLink to="signup" location="integrations" className={cn(buttonVariants({ size: "lg" }), "text-sm")}>
+                Start free <ArrowRight01Icon aria-hidden="true" />
+              </AppLink>
+              {/* COPY: needs Curtis's approval */}
+              <LearnMore to={`#${REQUEST_ID}`}>Request an integration</LearnMore>
+            </div>
+            <p className="mt-5 flex items-center gap-2 text-sm text-ink-subtle">
+              <CheckmarkCircle01Icon className="size-4 text-brand-line" aria-hidden="true" />
+              Free during beta · No card required
+            </p>
+          </div>
+        }
+        end={<IntegrationHub className="mx-auto w-full max-w-xl lg:max-w-none" />}
+      />
+    </Section>
+  )
+}
+
+function StatusBadge({ live }: { live: boolean }) {
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 font-mono text-xs tracking-wide uppercase",
+        live ? "border-brand-line/40 bg-brand-soft text-brand" : "border-line bg-canvas text-ink-subtle",
+      )}
+    >
+      {live ? <span aria-hidden="true" className="size-1.5 rounded-full bg-brand-line" /> : null}
+      {live ? "Live" : "Coming soon"}
+    </span>
+  )
+}
+
+function IntegrationCard({ integration }: { integration: Integration }) {
+  const { name, description, status, Icon, glyph } = integration
+  const live = status === "available"
+  return (
+    <li className="flex flex-col bg-panel p-6">
+      <div className="flex items-start justify-between gap-4">
+        <span
+          aria-hidden="true"
+          className={cn(
+            "flex size-12 items-center justify-center border border-line bg-panel",
+            !live && "border-dashed border-line-strong",
+          )}
+        >
+          <span className={cn("flex items-center", !live && "opacity-50 grayscale")}>
+            {/* MpesaIcon is a wide wordmark (height = 0.6 × size), so it takes a larger size. */}
+            <Icon size={Icon === MpesaIcon ? 30 : 28} className={glyph ? "size-7 text-brand" : undefined} />
+          </span>
+        </span>
+        <StatusBadge live={live} />
+      </div>
+      <h3 className={cn("mt-8 text-lg font-medium", live ? "text-ink" : "text-ink-muted")}>{name}</h3>
+      <p className="mt-1.5 text-sm text-pretty text-ink-muted">{description}</p>
+    </li>
+  )
+}
+
+// Fills the empty cell when a category has an odd number of entries, so
+// the hairline grid never shows a bare gap.
+function RequestCard() {
+  return (
+    <li className="flex">
+      <a
+        href={`#${REQUEST_ID}`}
+        className="flex w-full flex-col bg-panel p-6 transition-colors active:opacity-80 fine-hover:bg-canvas"
+      >
+        <span
+          aria-hidden="true"
+          className="flex size-12 items-center justify-center border border-dashed border-line-strong text-ink-subtle"
+        >
+          <PlusSignIcon className="size-5" />
+        </span>
+        {/* COPY: needs Curtis's approval */}
+        <span className="mt-8 text-lg font-medium text-ink">Missing one?</span>
+        <span className="mt-1.5 flex items-center gap-1 text-sm font-medium text-brand">
+          Request an integration <ArrowRight01Icon className="size-4" aria-hidden="true" />
+        </span>
+      </a>
+    </li>
+  )
+}
+
+function Catalogue() {
+  return (
+    <Section size="lg">
+      {/* COPY: needs Curtis's approval */}
+      <SectionHeading
+        eyebrow={<Eyebrow>Catalogue</Eyebrow>}
+        title="What Travada Books works with."
+        lede="Everything marked Live works today. Everything else is on the roadmap, and says so."
+      />
+
+      <div className="mt-12 flex flex-col gap-12 md:mt-16 md:gap-16">
+        {INTEGRATION_CATEGORIES.map((category) => {
+          const items = INTEGRATIONS.filter((integration) => integration.category === category)
+          if (items.length === 0) return null
+          return (
+            <div key={category} className="grid gap-6 border-t border-line pt-8 lg:grid-cols-[3fr_9fr] lg:gap-10">
+              <div className="flex flex-col gap-2">
+                <h2 className="text-lg font-medium text-ink">{category}</h2>
+                <p className="max-w-xs text-sm text-pretty text-ink-muted">{CATEGORY_BLURB[category]}</p>
+              </div>
+              <ul className="grid gap-px border border-line bg-line sm:grid-cols-2">
+                {items.map((integration) => (
+                  <IntegrationCard key={integration.id} integration={integration} />
+                ))}
+                {items.length % 2 === 1 ? <RequestCard /> : null}
+              </ul>
+            </div>
+          )
+        })}
+      </div>
+    </Section>
+  )
+}
+
+function RequestRow() {
+  return (
+    <Section size="sm" tone="canvas" id={REQUEST_ID} className="scroll-mt-16">
+      <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between md:gap-12">
+        <div className="flex items-start gap-4">
+          <span aria-hidden="true" className="flex size-10 shrink-0 items-center justify-center border border-line bg-panel">
+            <Mail01Icon className="size-5 text-brand-line" />
+          </span>
+          {/* COPY: needs Curtis's approval */}
+          <div className="flex flex-col gap-1.5">
+            <h2 className="text-2xl font-medium tracking-tight text-balance">Missing a tool you use?</h2>
+            <p className="max-w-xl text-base text-pretty text-ink-muted">
+              Tell us what it is and what you&rsquo;d want it to do for your business. A person reads every
+              request.
+            </p>
+          </div>
+        </div>
+        <LearnMore to={`mailto:${CONTACT_EMAIL}?subject=Integration%20request`} className="shrink-0 pl-14 md:pl-0">
+          Request an integration
+        </LearnMore>
+      </div>
+    </Section>
+  )
+}
+
+export default function Integrations() {
   return (
     <>
-      <section data-dark-surface className="relative overflow-hidden border-b border-[var(--website-line)] bg-[var(--website-paper)] pt-[8rem] pb-[7rem] text-[var(--website-ink)] max-[640px]:pt-[5rem] max-[640px]:pb-[5rem]">
-        <div className="integrations-hero__grid" aria-hidden="true" />
-        <Container className="relative max-w-7xl">
-          <p className="flex items-center gap-[.65rem] text-[.64rem] font-semibold uppercase leading-none tracking-[.11em] text-[var(--website-green)] font-sans"><span className="h-px w-[1.8rem] bg-current" />Integrations</p>
-          <h1 className="mt-[1.7rem] max-w-[64rem] text-[clamp(4rem,7.4vw,7.6rem)] leading-[.88] tracking-[-.077em] [font-weight:520]">Your tools should bring<br />the paperwork with them.</h1>
-          <p className="mt-[2rem] max-w-[43rem] text-[1rem] leading-[1.7] text-[color-mix(in_oklab,var(--website-ink)_60%,transparent)] font-heading">Connect the inboxes you already use today. Payments and messaging integrations are next—and clearly marked until they are ready.</p>
-        </Container>
-      </section>
-
-      <section data-dark-surface className="bg-[var(--website-paper)] pt-[7rem] pb-[9rem] text-[var(--website-ink)] max-[640px]:pt-[4rem] max-[640px]:pb-[6rem]">
-        <Container className="max-w-7xl">
-          <div className="grid grid-cols-[16rem_1fr] gap-[4rem] border-t border-[var(--website-line)] py-[3.5rem] last:border-b max-[900px]:grid-cols-1 max-[900px]:gap-[2rem]">
-            <div>
-              <span className="text-[var(--website-green)] font-sans text-[.58rem] font-semibold leading-none">01</span>
-              <h2 className="mt-[1.5rem] text-[1.4rem] tracking-[-.04em] [font-weight:560]">Available now</h2>
-              <p className="mt-[.75rem] text-[color-mix(in_oklab,var(--website-ink)_50%,transparent)] font-heading text-[.72rem] leading-[1.55]">Connect from Settings inside Travada Books.</p>
-            </div>
-            <div className={INTEGRATION_GRID_BASE}>
-              {available.map(({ id, name, category, description, Icon }) => (
-                <article key={id} className="min-h-[20rem] bg-[var(--website-paper)] p-[1.6rem] max-[640px]:min-h-[17rem]">
-                  <div className="flex items-start justify-between"><Icon className="h-[2.1rem] w-[2.1rem]" /><span className="rounded-full border border-[var(--website-line)] px-[.55rem] py-[.34rem] font-sans text-[.48rem] leading-none font-semibold uppercase tracking-[.06em] text-[var(--website-green)]">Available</span></div>
-                  <small className="mt-[4.5rem] block font-sans text-[.52rem] leading-none font-semibold uppercase tracking-[.08em] text-[color-mix(in_oklab,var(--website-ink)_45%,transparent)]">{category}</small>
-                  <h3 className="mt-[.7rem] text-[1.35rem] tracking-[-.04em] [font-weight:570]">{name}</h3>
-                  <p className="mt-[.8rem] text-[color-mix(in_oklab,var(--website-ink)_56%,transparent)] font-heading text-[.76rem] leading-[1.62]">{description}</p>
-                </article>
-              ))}
-            </div>
-          </div>
-
-          <div className="grid grid-cols-[16rem_1fr] gap-[4rem] border-t border-[var(--website-line)] py-[3.5rem] last:border-b max-[900px]:grid-cols-1 max-[900px]:gap-[2rem]">
-            <div>
-              <span className="text-[var(--website-green)] font-sans text-[.58rem] font-semibold leading-none">02</span>
-              <h2 className="mt-[1.5rem] text-[1.4rem] tracking-[-.04em] [font-weight:560]">Coming next</h2>
-              <p className="mt-[.75rem] text-[color-mix(in_oklab,var(--website-ink)_50%,transparent)] font-heading text-[.72rem] leading-[1.55]">Published now so the roadmap stays visible and honest.</p>
-            </div>
-            <div className={cn(INTEGRATION_GRID_BASE, INTEGRATION_GRID_COMING)}>
-              {comingSoon.map(({ id, name, category, description, Icon }) => (
-                <article key={id} className="min-h-[20rem] bg-[var(--website-paper)] p-[1.6rem] opacity-[.65] max-[640px]:min-h-[17rem]">
-                  <div className="flex items-start justify-between"><Icon className="h-[2.1rem] w-[2.1rem]" /><span className="rounded-full border border-[var(--website-line)] px-[.55rem] py-[.34rem] font-sans text-[.48rem] leading-none font-semibold uppercase tracking-[.06em] text-[var(--website-green)]">Coming soon</span></div>
-                  <small className="mt-[4.5rem] block font-sans text-[.52rem] leading-none font-semibold uppercase tracking-[.08em] text-[color-mix(in_oklab,var(--website-ink)_45%,transparent)]">{category}</small>
-                  <h3 className="mt-[.7rem] text-[1.35rem] tracking-[-.04em] [font-weight:570]">{name}</h3>
-                  <p className="mt-[.8rem] text-[color-mix(in_oklab,var(--website-ink)_56%,transparent)] font-heading text-[.76rem] leading-[1.62]">{description}</p>
-                </article>
-              ))}
-            </div>
-          </div>
-        </Container>
-      </section>
-
-      <CtaBand heading="Connect the inbox. Clear the backlog." />
+      <Hero />
+      <Catalogue />
+      <RequestRow />
+      <ClosingCta />
     </>
   )
 }

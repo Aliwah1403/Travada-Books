@@ -1,9 +1,10 @@
 import type { Icon } from "@travada-books/ui/icons"
 import {
+  BankIcon,
   GmailIcon,
+  MpesaIcon,
   OutlookIcon,
   StripeIcon,
-  Wallet01Icon,
   WhatsappIcon,
 } from "@travada-books/ui/icons"
 
@@ -12,11 +13,18 @@ export type IntegrationStatus = "available" | "coming-soon"
 export type Integration = {
   id: string
   name: string
-  category: "Email" | "Payments" | "Messaging"
+  category: IntegrationCategory
   description: string
   status: IntegrationStatus
   Icon: Icon
+  /** A monochrome Hugeicon rather than a brand mark — tint it in the UI. */
+  glyph?: boolean
 }
+
+export type IntegrationCategory = "Email" | "Imports" | "Payments" | "Messaging"
+
+// Display order for grouped lists (/integrations catalogue).
+export const INTEGRATION_CATEGORIES: IntegrationCategory[] = ["Email", "Imports", "Payments", "Messaging"]
 
 export const INTEGRATIONS: Integration[] = [
   {
@@ -35,13 +43,34 @@ export const INTEGRATIONS: Integration[] = [
     status: "available",
     Icon: OutlookIcon,
   },
+  // Statement imports are uploads, not connections, but they're live and
+  // they belong in the catalogue. The home hub (home/integrations-hub.tsx)
+  // looks entries up by id, so adding these doesn't change it.
+  // COPY: both descriptions need Curtis's approval.
+  {
+    id: "bank-statements",
+    name: "Bank statements",
+    category: "Imports",
+    description: "Upload a statement from any bank, PDF or CSV. The columns are worked out for you, split debit and credit included.",
+    status: "available",
+    Icon: BankIcon,
+    glyph: true,
+  },
+  {
+    id: "mpesa-statements",
+    name: "M-Pesa statements",
+    category: "Imports",
+    description: "Upload your M-Pesa statement, PDF or CSV, and every transaction comes in sorted.",
+    status: "available",
+    Icon: MpesaIcon,
+  },
   {
     id: "mpesa",
     name: "M-Pesa",
     category: "Payments",
     description: "Sync incoming payments and accept M-Pesa payments from invoices.",
     status: "coming-soon",
-    Icon: Wallet01Icon,
+    Icon: MpesaIcon,
   },
   {
     id: "stripe",

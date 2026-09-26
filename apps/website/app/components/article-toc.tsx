@@ -52,7 +52,7 @@ export function ArticleToc({
       seen.set(base, count + 1)
       const id = count === 0 ? base : `${base}-${count}`
       heading.id = id
-      heading.classList.add("scroll-mt-28")
+      heading.classList.add("scroll-mt-24")
       return { id, label: heading.textContent ?? "" }
     })
     setEntries(nextEntries)
@@ -76,14 +76,9 @@ export function ArticleToc({
 
   return (
     <aside className="hidden lg:block">
-      <nav
-        aria-label="On this page"
-        className="sticky top-[7.5rem] max-h-[calc(100vh-9rem)] overflow-y-auto border-l border-[var(--website-line)] pl-6"
-      >
-        <p className="font-sans text-[.62rem] font-semibold uppercase leading-none tracking-[.11em] text-[color-mix(in_oklab,var(--website-ink)_48%,transparent)]">
-          On this page
-        </p>
-        <ol className="mt-4 space-y-3">
+      <nav aria-label="On this page" className="sticky top-24 max-h-[calc(100dvh-8rem)] overflow-y-auto">
+        <p className="font-mono text-xs tracking-wide text-ink-subtle uppercase">On this page</p>
+        <ol className="mt-4 border-l border-line">
           {entries.map((entry, index) => {
             const isActive = entry.id === activeId
             return (
@@ -92,13 +87,18 @@ export function ArticleToc({
                   href={`#${entry.id}`}
                   aria-current={isActive ? "location" : undefined}
                   className={cn(
-                    "flex gap-2.5 font-heading text-[.82rem] leading-snug transition-colors [transition-timing-function:var(--ease-out)] fine-hover:text-[var(--website-ink)]",
+                    "-ml-px flex gap-3 border-l py-1.5 pl-4 text-sm text-pretty transition-colors active:opacity-80",
                     isActive
-                      ? "font-medium text-[var(--website-green)]"
-                      : "text-[color-mix(in_oklab,var(--website-ink)_55%,transparent)]",
+                      ? "border-brand-line text-ink"
+                      : "border-transparent text-ink-muted fine-hover:text-ink",
                   )}
                 >
-                  <span className="tabular-nums text-[color-mix(in_oklab,var(--website-ink)_38%,transparent)]">
+                  <span
+                    className={cn(
+                      "mt-px font-mono text-xs tabular-nums",
+                      isActive ? "text-brand-line" : "text-ink-subtle",
+                    )}
+                  >
                     {String(index + 1).padStart(2, "0")}
                   </span>
                   {entry.label}

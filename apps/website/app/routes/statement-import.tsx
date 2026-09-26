@@ -1,7 +1,16 @@
-import { CtaBand } from "~/components/cta-band"
-import { FeatureHero, FeatureRows, type FeatureRowItem } from "~/components/feature-page"
-import { Faq } from "~/components/home/faq"
-import { IntegrationsSection } from "~/components/integrations-section"
+import {
+  BankIcon,
+  Download01Icon,
+  FileSpreadsheetIcon,
+  ListViewIcon,
+  SparklesIcon,
+  Tag01Icon,
+  Upload01Icon,
+  ReceiptTextIcon,
+} from "@travada-books/ui/icons"
+
+import { FeaturePage, type FeaturePageContent } from "~/components/feature/feature-page"
+import { StatementFlow } from "~/components/illustrations/statement-flow"
 import { STATEMENT_IMPORT_FAQ_ITEMS } from "~/data/faq"
 import { faqPageJsonLd, pageMeta } from "~/lib/seo"
 
@@ -19,45 +28,60 @@ export function meta() {
   ]
 }
 
-const ROWS: FeatureRowItem[] = [
-  {
-    title: "Any file, any bank",
-    body: "Upload your bank statement or your M-Pesa records — a CSV, or a PDF, whatever your bank gave you. Travada Books works out which column is the date, which is the amount, and which is money in and money out — including statements that split debit and credit into two separate columns, because plenty of them do.",
-    screenshotLabel: "CSV import mid-parse — column mapping detected automatically",
-    visual: "import",
-  },
-  {
-    title: "They sort themselves",
-    body: "Transactions are categorised automatically as they come in, against your own categories — it recognises things like M-Pesa transfers and common local merchants along the way. Anything it gets wrong, you fix once and move on.",
-    screenshotLabel: "Transaction list — categories applied automatically",
-    visual: "categories",
-  },
-  {
-    title: "One action, not a hundred",
-    body: "Need to mark a hundred transactions as paid by M-Pesa, set their category, or mark them recurring? Select as many as you like and do it once — individually is still there for the one-off exception.",
-    screenshotLabel: "Transaction list — multiple rows selected, bulk action toolbar open",
-    visual: "bulk",
-  },
-  {
-    title: "Get it back out",
-    body: "Export whatever you've selected to CSV or Excel whenever you need to — for your accountant, for KRA, or just to keep your own copy.",
-    screenshotLabel: "Export dialog — CSV or Excel format choice",
-    visual: "export",
-  },
-]
+const CONTENT: FeaturePageContent = {
+  eyebrow: { label: "Statement import", icon: BankIcon },
+  title: "A year of records, sorted in one upload.",
+  lede: "Bring in your bank statement or your M-Pesa records — a CSV, or a PDF, whatever you've got. It reads the file, works out the columns itself, and sorts every transaction so you don't have to.",
+  illustration: <StatementFlow className="mx-auto w-full max-w-xl lg:max-w-none" />,
+  screenshot: "Transactions — an imported statement, categorised and ready to review",
+  rows: [
+    {
+      label: "Import",
+      icon: Upload01Icon,
+      title: "Any file, any bank",
+      body: "Upload your bank statement or your M-Pesa records — a CSV, or a PDF, whatever your bank gave you. Travada Books works out which column is the date, which is the amount, and which is money in and money out — including statements that split debit and credit into two separate columns, because plenty of them do.",
+      screenshot: "CSV import mid-parse — column mapping detected automatically",
+    },
+    {
+      label: "Categories",
+      icon: Tag01Icon,
+      title: "They sort themselves",
+      body: "Transactions are categorised automatically as they come in, against your own categories — it recognises things like M-Pesa transfers and common local merchants along the way. Anything it gets wrong, you fix once and move on.",
+      screenshot: "Transaction list — categories applied automatically",
+    },
+    {
+      label: "Bulk actions",
+      icon: ListViewIcon,
+      title: "One action, not a hundred",
+      body: "Need to mark a hundred transactions as paid by M-Pesa, set their category, or mark them recurring? Select as many as you like and do it once — individually is still there for the one-off exception.",
+      screenshot: "Transaction list — multiple rows selected, bulk action toolbar open",
+    },
+  ],
+  details: [
+    {
+      title: "CSV or PDF",
+      body: "Whatever format your bank or M-Pesa exports. No partner bank needed.",
+      icon: FileSpreadsheetIcon,
+    },
+    {
+      title: "Split columns handled",
+      body: "Statements with separate debit and credit columns are read correctly.",
+      icon: SparklesIcon,
+    },
+    {
+      title: "Get it back out",
+      body: "Export whatever you've selected to CSV or Excel, for your accountant or for KRA.",
+      icon: Download01Icon,
+    },
+    {
+      title: "Receipts attach",
+      body: "Receipts from your Inbox are matched to the transactions they belong to.",
+      icon: ReceiptTextIcon,
+    },
+  ],
+  faq: { title: "Statement import questions", items: STATEMENT_IMPORT_FAQ_ITEMS },
+}
 
 export default function StatementImport() {
-  return (
-    <>
-      <FeatureHero
-        eyebrow="Statement import"
-        title="A year of records, sorted in one upload."
-        intro="Bring in your bank statement or your M-Pesa records — a CSV, or a PDF, whatever you've got. It reads the file, works out the columns itself, and sorts every transaction so you don't have to."
-      />
-      <FeatureRows items={ROWS} />
-      <IntegrationsSection compact />
-      <Faq items={STATEMENT_IMPORT_FAQ_ITEMS} heading="Statement import — frequently asked questions" />
-      <CtaBand heading="Bring in your records. Today." />
-    </>
-  )
+  return <FeaturePage content={CONTENT} />
 }

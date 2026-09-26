@@ -1,424 +1,289 @@
 import { useState, type ReactNode } from "react"
-import { Link } from "react-router"
+import { Link, useLocation } from "react-router"
 
 import { Button, buttonVariants } from "@travada-books/ui/components/button"
 import {
+  NavigationMenu,
   NavigationMenuContent,
   NavigationMenuItem,
   NavigationMenuLink,
   NavigationMenuList,
   NavigationMenuTrigger,
 } from "@travada-books/ui/components/navigation-menu"
-import { Navbar4 } from "@travada-books/ui/components/navbar4"
 import {
-  ArrowLeft01Icon,
+  Sheet,
+  SheetContent,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@travada-books/ui/components/sheet"
+import {
   ArrowRight01Icon,
   BankIcon,
-  Cancel01Icon,
-  GridIcon,
+  FileEditIcon,
+  Globe02Icon,
   InboxIcon,
   Invoice01Icon,
   Menu01Icon,
-  UserIcon,
+  MoneyExchange01Icon,
+  TaxesIcon,
+  Wallet01Icon,
+  type Icon,
 } from "@travada-books/ui/icons"
+import { cn } from "@travada-books/ui/lib/utils"
 
 import { AppLink } from "~/components/app-link"
-import { Container } from "~/components/container"
-import { FEATURES_NAV, RESOURCES_NAV, SITE_NAME } from "~/data/site"
-import { PRICING_PUBLISHED } from "~/data/pricing"
+import { FRAME_GUTTER, FRAME_WIDTH } from "~/components/site/layout"
+import { COMING_SOON_NAV, FEATURES_NAV, RESOURCES_NAV, SITE_NAME, type NavLink } from "~/data/site"
 
-const featureIcons = [Invoice01Icon, BankIcon, InboxIcon]
+const FEATURE_ICONS: Record<string, Icon> = {
+  "/invoicing": Invoice01Icon,
+  "/statement-import": BankIcon,
+  "/inbox": InboxIcon,
+  "/quotes": FileEditIcon,
+  "/customer-portal": Globe02Icon,
+  "/payments": Wallet01Icon,
+}
 
-const solutionLinks = [
-  {
-    label: "Freelancers",
-    description:
-      "Invoice clients and keep records without losing billable time.",
-  },
-  {
-    label: "Consultants",
-    description:
-      "Put retainers, reminders, and recurring work on a reliable rhythm.",
-  },
-  {
-    label: "Small businesses",
-    description:
-      "Keep invoices, statements, and receipts together as you grow.",
-  },
-  {
-    label: "Agencies",
-    description: "Move from quote to payment without duplicating the admin.",
-  },
+const COMING_SOON_ICONS: Icon[] = [TaxesIcon, MoneyExchange01Icon]
+
+const TOP_LINKS: NavLink[] = [
+  { label: "Who it's for", href: "/who-its-for" },
+  { label: "Integrations", href: "/integrations" },
 ]
 
-function MegaLink({
-  to,
-  title,
-  description,
-  icon,
-}: {
-  to: string
-  title: string
-  description?: string
-  icon?: ReactNode
-}) {
+// Shared look for triggers and plain top-level links. `transition-colors`
+// overrides the shared component's catch-all transition.
+const TOP_ITEM =
+  "h-9 rounded-md bg-transparent px-3 py-0 text-sm font-medium text-ink-muted transition-colors data-popup-open:text-ink data-[active=true]:bg-transparent data-[active=true]:text-ink"
+
+function Logo({ onClick }: { onClick?: () => void }) {
   return (
-    <NavigationMenuLink
-      render={<Link to={to} />}
-      className="group grid min-h-[7.5rem] grid-cols-[2.2rem_1fr_auto] items-start gap-3 rounded-none border border-border/70 bg-background p-5 hover:bg-muted/55"
+    <Link to="/" onClick={onClick} className="flex shrink-0 items-center gap-2" aria-label={`${SITE_NAME} home`}>
+      <img src="/logo.svg" alt="" width={24} height={24} className="size-6" />
+      <span className="text-base font-semibold tracking-tight text-ink">{SITE_NAME}</span>
+    </Link>
+  )
+}
+
+function IconTile({ icon: IconComponent, muted = false }: { icon: Icon; muted?: boolean }) {
+  return (
+    <span
+      className={cn(
+        "grid size-8 shrink-0 place-items-center rounded-md border border-line",
+        muted ? "bg-canvas text-ink-subtle" : "bg-panel text-ink",
+      )}
     >
-      <span className="grid size-9 place-items-center rounded-md bg-[color-mix(in_oklab,var(--website-green)_10%,white)] text-[var(--website-green)] [&_svg]:size-[1.05rem]">
-        {icon ?? <ArrowRight01Icon />}
-      </span>
-      <span>
-        <strong className="block font-heading text-[.86rem] font-semibold tracking-[-.025em] text-foreground">
-          {title}
-        </strong>
-        {description ? (
-          <small className="mt-2 block max-w-[17rem] font-heading text-[.7rem] leading-[1.5] text-muted-foreground">
-            {description}
-          </small>
-        ) : null}
-      </span>
-      <ArrowRight01Icon className="mt-1 size-4 text-muted-foreground transition-transform duration-200 group-hover:translate-x-1" />
-    </NavigationMenuLink>
+      <IconComponent className="size-4" aria-hidden="true" />
+    </span>
   )
 }
 
-function ProductsMenu() {
+function MenuLabel({ children }: { children: ReactNode }) {
+  return <p className="px-3 pb-2 font-mono text-xs tracking-wide text-ink-subtle uppercase">{children}</p>
+}
+
+function ProductMenu() {
   return (
-    <div className="grid min-h-[22rem] grid-cols-[.72fr_1.28fr] gap-8 p-8">
-      <Link
-        to="/integrations"
-        className="group flex min-h-[18rem] flex-col justify-between overflow-hidden rounded-lg bg-[var(--website-green)] p-7 text-white"
-      >
-        <span className="font-sans text-[.6rem] font-semibold uppercase tracking-[.1em] text-[#dafa4d]">
-          The connected books
-        </span>
-        <div>
-          <GridIcon className="mb-6 size-8 text-[#dafa4d]" />
-          <strong className="block max-w-[18rem] font-heading text-[1.7rem] font-medium leading-[1.03] tracking-[-.055em]">
-            Bring the places your paperwork lives into one calm workflow.
-          </strong>
-          <span className="mt-6 inline-flex items-center gap-2 font-sans text-[.67rem] font-semibold">
-            Explore integrations{" "}
-            <ArrowRight01Icon className="size-4 transition-transform group-hover:translate-x-1" />
-          </span>
-        </div>
-      </Link>
-      <div>
-        <p className="mb-4 font-sans text-[.56rem] font-semibold uppercase tracking-[.1em] text-muted-foreground">
-          Products
-        </p>
-        <div className="grid grid-cols-2 gap-3">
-          {FEATURES_NAV.map((item, index) => {
-            const Icon = featureIcons[index]
-            return (
-              <MegaLink
-                key={item.href}
-                to={item.href}
-                title={item.label}
-                description={item.description}
-                icon={<Icon />}
-              />
-            )
-          })}
-          <MegaLink
-            to="/integrations"
-            title="Integrations"
-            description="Connect the services your business already depends on."
-            icon={<GridIcon />}
-          />
-        </div>
+    <div className="grid grid-cols-[1fr_15rem]">
+      <div className="p-3 pt-4">
+        <MenuLabel>Product</MenuLabel>
+        <ul className="grid grid-cols-2 gap-1">
+          {FEATURES_NAV.map((item) => (
+            <li key={item.href}>
+              <NavigationMenuLink
+                render={<Link to={item.href} />}
+                className="items-start gap-3 rounded-lg p-3 transition-colors"
+              >
+                <IconTile icon={FEATURE_ICONS[item.href] ?? ArrowRight01Icon} />
+                <span className="flex flex-col gap-0.5">
+                  <span className="text-sm font-medium text-ink">{item.label}</span>
+                  <span className="text-xs/relaxed text-ink-muted">{item.description}</span>
+                </span>
+              </NavigationMenuLink>
+            </li>
+          ))}
+        </ul>
       </div>
-    </div>
-  )
-}
-
-function SolutionsMenu() {
-  return (
-    <div className="grid min-h-[22rem] grid-cols-2 gap-3 p-8">
-      {solutionLinks.map((item) => (
-        <MegaLink
-          key={item.label}
-          to="/who-its-for"
-          title={item.label}
-          description={item.description}
-          icon={<UserIcon />}
-        />
-      ))}
+      <div className="border-l border-line bg-canvas p-3 pt-4">
+        <MenuLabel>Coming soon</MenuLabel>
+        <ul className="flex flex-col gap-1">
+          {COMING_SOON_NAV.map((item, index) => (
+            <li key={item.label} className="flex items-start gap-3 p-3">
+              <IconTile icon={COMING_SOON_ICONS[index] ?? ArrowRight01Icon} muted />
+              <span className="flex flex-col gap-0.5">
+                <span className="text-sm font-medium text-ink-muted">{item.label}</span>
+                <span className="text-xs/relaxed text-ink-subtle">{item.description}</span>
+              </span>
+            </li>
+          ))}
+        </ul>
+      </div>
     </div>
   )
 }
 
 function ResourcesMenu() {
   return (
-    <div className="grid min-h-[22rem] grid-cols-[1fr_.72fr] gap-8 p-8">
-      <div>
-        <p className="mb-4 font-sans text-[.56rem] font-semibold uppercase tracking-[.1em] text-muted-foreground">
-          Learn and follow along
-        </p>
-        <div className="grid grid-cols-2 gap-3">
-          {RESOURCES_NAV.map((item) => (
-            <MegaLink
-              key={item.href}
-              to={item.href}
-              title={item.label}
-              description={item.description}
-            />
-          ))}
-        </div>
-      </div>
-      <Link
-        to="/guides"
-        className="group flex min-h-[17rem] flex-col justify-between rounded-lg bg-[#f1f2ee] p-7 text-[var(--website-ink)]"
-      >
-        <span className="font-sans text-[.58rem] font-semibold uppercase tracking-[.1em] text-[var(--website-green)]">
-          From the field guide
-        </span>
-        <div>
-          <strong className="block font-heading text-[1.55rem] font-medium leading-[1.05] tracking-[-.05em]">
-            Practical answers for invoicing and bookkeeping in Kenya.
-          </strong>
-          <span className="mt-6 inline-flex items-center gap-2 font-sans text-[.67rem] font-semibold text-[var(--website-green)]">
-            Read the guides{" "}
-            <ArrowRight01Icon className="size-4 transition-transform group-hover:translate-x-1" />
-          </span>
-        </div>
-      </Link>
+    <div className="p-3 pt-4">
+      <MenuLabel>Resources</MenuLabel>
+      <ul className="flex flex-col gap-1">
+        {RESOURCES_NAV.map((item) => (
+          <li key={item.href}>
+            <NavigationMenuLink
+              render={<Link to={item.href} />}
+              className="flex-col items-start gap-0.5 rounded-lg px-3 py-2.5 transition-colors"
+            >
+              <span className="text-sm font-medium text-ink">{item.label}</span>
+              <span className="text-xs/relaxed text-ink-muted">{item.description}</span>
+            </NavigationMenuLink>
+          </li>
+        ))}
+      </ul>
     </div>
   )
 }
 
-type MobileSection = "products" | "solutions" | "resources" | null
+function isActive(pathname: string, href: string) {
+  return pathname === href || pathname.startsWith(`${href}/`)
+}
 
-const mobileSections = {
-  products: {
-    title: "Products",
-    links: [
-      ...FEATURES_NAV,
-      {
-        label: "Integrations",
-        href: "/integrations",
-        description: "Connect your existing tools",
-      },
-    ],
-  },
-  solutions: {
-    title: "Solutions",
-    links: solutionLinks.map((item) => ({ ...item, href: "/who-its-for" })),
-  },
-  resources: { title: "Resources", links: RESOURCES_NAV },
+function DesktopNav() {
+  const { pathname } = useLocation()
+
+  return (
+    <NavigationMenu
+      className="hidden flex-none lg:flex"
+      // Dropdown timings from CLAUDE.md: quick enter, faster exit, and the
+      // positioner glides between triggers rather than the 350ms default.
+      positionerClassName="duration-150 ease-(--ease-out)"
+      popupClassName="rounded-xl bg-panel shadow-lg ring-line duration-125 data-ending-style:duration-100"
+    >
+      <NavigationMenuList className="gap-0.5">
+        <NavigationMenuItem>
+          <NavigationMenuTrigger className={TOP_ITEM}>Product</NavigationMenuTrigger>
+          <NavigationMenuContent className="w-[min(48rem,calc(100vw-3rem))] p-0 duration-100">
+            <ProductMenu />
+          </NavigationMenuContent>
+        </NavigationMenuItem>
+        {TOP_LINKS.map((item) => (
+          <NavigationMenuItem key={item.href}>
+            <NavigationMenuLink
+              render={<Link to={item.href} />}
+              active={isActive(pathname, item.href)}
+              className={TOP_ITEM}
+            >
+              {item.label}
+            </NavigationMenuLink>
+          </NavigationMenuItem>
+        ))}
+        <NavigationMenuItem>
+          <NavigationMenuTrigger className={TOP_ITEM}>Resources</NavigationMenuTrigger>
+          <NavigationMenuContent className="w-80 p-0 duration-100">
+            <ResourcesMenu />
+          </NavigationMenuContent>
+        </NavigationMenuItem>
+      </NavigationMenuList>
+    </NavigationMenu>
+  )
+}
+
+function MobileGroup({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <div className="flex flex-col gap-1">
+      <p className="px-2 pb-1 font-mono text-xs tracking-wide text-ink-subtle uppercase">{title}</p>
+      {children}
+    </div>
+  )
+}
+
+function MobileLink({ item, onNavigate }: { item: NavLink; onNavigate: () => void }) {
+  const IconComponent = FEATURE_ICONS[item.href]
+  return (
+    <Link
+      to={item.href}
+      onClick={onNavigate}
+      className="flex items-center gap-3 rounded-md px-2 py-2 text-base font-medium text-ink transition-colors active:opacity-80 fine-hover:bg-canvas"
+    >
+      {IconComponent ? <IconComponent className="size-4 text-ink-muted" aria-hidden="true" /> : null}
+      {item.label}
+    </Link>
+  )
+}
+
+function MobileNav() {
+  const [open, setOpen] = useState(false)
+  const close = () => setOpen(false)
+
+  return (
+    <Sheet open={open} onOpenChange={setOpen}>
+      <SheetTrigger
+        render={
+          <Button type="button" variant="outline" size="icon-lg" className="ml-auto lg:hidden" aria-label="Open menu" />
+        }
+      >
+        <Menu01Icon aria-hidden="true" className="size-4" />
+      </SheetTrigger>
+      <SheetContent side="right" className="gap-0 overflow-y-auto bg-panel data-[side=right]:sm:max-w-sm">
+        <SheetHeader className="border-b border-line px-5 py-4">
+          <SheetTitle className="text-sm">
+            <Logo onClick={close} />
+          </SheetTitle>
+        </SheetHeader>
+        <nav aria-label="Main" className="flex flex-col gap-7 px-3 py-6">
+          <MobileGroup title="Product">
+            {FEATURES_NAV.map((item) => (
+              <MobileLink key={item.href} item={item} onNavigate={close} />
+            ))}
+          </MobileGroup>
+          <MobileGroup title="Coming soon">
+            {COMING_SOON_NAV.map((item) => (
+              <span key={item.label} className="px-2 py-2 text-base text-ink-subtle">
+                {item.label}
+              </span>
+            ))}
+          </MobileGroup>
+          <MobileGroup title="Explore">
+            {TOP_LINKS.map((item) => (
+              <MobileLink key={item.href} item={item} onNavigate={close} />
+            ))}
+          </MobileGroup>
+          <MobileGroup title="Resources">
+            {RESOURCES_NAV.map((item) => (
+              <MobileLink key={item.href} item={item} onNavigate={close} />
+            ))}
+          </MobileGroup>
+        </nav>
+        <SheetFooter className="border-t border-line px-5 py-5">
+          <AppLink to="login" location="mobile-nav" className={cn(buttonVariants({ variant: "outline", size: "lg" }), "text-sm")}>
+            Log in
+          </AppLink>
+          <AppLink to="signup" location="mobile-nav" className={cn(buttonVariants({ size: "lg" }), "text-sm")}>
+            Start free
+          </AppLink>
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
+  )
 }
 
 export function Header() {
-  const [mobileOpen, setMobileOpen] = useState(false)
-  const [mobileSection, setMobileSection] = useState<MobileSection>(null)
-
-  const closeMobile = () => {
-    setMobileOpen(false)
-    setMobileSection(null)
-  }
-
   return (
-    <Navbar4
-      className="sticky top-0"
-      brand={
-        <Link
-          to="/"
-          className="flex shrink-0 items-center gap-2.5"
-          aria-label={`${SITE_NAME} home`}
-        >
-          <span className="grid size-8 place-items-center rounded-[.48rem] bg-[var(--website-green)]">
-            <img
-              src="/logo.svg"
-              alt=""
-              className="size-5 brightness-0 invert"
-            />
-          </span>
-          <span className="font-heading text-sm font-semibold tracking-[-0.03em] text-foreground">
-            {SITE_NAME}
-          </span>
-        </Link>
-      }
-      navigation={
-        <NavigationMenuList className="hidden lg:flex">
-          <NavigationMenuItem>
-            <NavigationMenuTrigger>Products</NavigationMenuTrigger>
-            <NavigationMenuContent className="navbar4__content w-[min(72rem,calc(100vw-3rem))] p-0">
-              <ProductsMenu />
-            </NavigationMenuContent>
-          </NavigationMenuItem>
-          <NavigationMenuItem>
-            <NavigationMenuTrigger>Solutions</NavigationMenuTrigger>
-            <NavigationMenuContent className="navbar4__content w-[min(72rem,calc(100vw-3rem))] p-0">
-              <SolutionsMenu />
-            </NavigationMenuContent>
-          </NavigationMenuItem>
-          <NavigationMenuItem>
-            <NavigationMenuLink
-              render={<Link to="/integrations" />}
-              className="px-3 py-2 text-xs font-medium"
-            >
-              Integrations
-            </NavigationMenuLink>
-          </NavigationMenuItem>
-          {PRICING_PUBLISHED ? (
-            <NavigationMenuItem>
-              <NavigationMenuLink
-                render={<Link to="/pricing" />}
-                className="px-3 py-2 text-xs font-medium"
-              >
-                Pricing
-              </NavigationMenuLink>
-            </NavigationMenuItem>
-          ) : null}
-          <NavigationMenuItem>
-            <NavigationMenuTrigger>Resources</NavigationMenuTrigger>
-            <NavigationMenuContent className="navbar4__content w-[min(72rem,calc(100vw-3rem))] p-0">
-              <ResourcesMenu />
-            </NavigationMenuContent>
-          </NavigationMenuItem>
-        </NavigationMenuList>
-      }
-      actions={
-        <div className="hidden shrink-0 items-center gap-2 lg:flex">
-          <AppLink
-            to="login"
-            location="header"
-            className={buttonVariants({ variant: "ghost", size: "sm" })}
-          >
+    <header className="sticky top-0 z-40 border-b border-line bg-panel/80 backdrop-blur-md">
+      <div className={cn(FRAME_WIDTH, FRAME_GUTTER, "flex h-16 items-center gap-6")}>
+        <Logo />
+        <DesktopNav />
+        <div className="ml-auto hidden items-center gap-2 lg:flex">
+          <AppLink to="login" location="header" className={cn(buttonVariants({ variant: "ghost" }), "text-sm")}>
             Log in
           </AppLink>
-          <AppLink
-            to="signup"
-            location="header"
-            className={buttonVariants({
-              size: "sm",
-              className: "rounded-[.45rem] px-[.9rem]",
-            })}
-          >
-            Start free <ArrowRight01Icon />
+          <AppLink to="signup" location="header" className={cn(buttonVariants(), "text-sm")}>
+            Start free
           </AppLink>
         </div>
-      }
-      mobileTrigger={
-        <Button
-          type="button"
-          variant="outline"
-          size="icon"
-          aria-label={mobileOpen ? "Close menu" : "Open menu"}
-          aria-expanded={mobileOpen}
-          className="lg:hidden"
-          onClick={() => {
-            setMobileOpen((open) => !open)
-            if (mobileOpen) setMobileSection(null)
-          }}
-        >
-          {mobileOpen ? (
-            <Cancel01Icon className="size-5" />
-          ) : (
-            <Menu01Icon className="size-5" />
-          )}
-        </Button>
-      }
-      mobileMenu={
-        mobileOpen ? (
-          <div className="fixed inset-x-0 top-[4.75rem] h-[calc(100dvh-4.75rem)] overflow-y-auto border-t border-border bg-background lg:hidden">
-            <Container className="max-w-7xl py-4">
-              {mobileSection ? (
-                <div>
-                  <button
-                    type="button"
-                    className="flex items-center gap-2 py-4 font-sans text-xs font-semibold text-muted-foreground"
-                    onClick={() => setMobileSection(null)}
-                  >
-                    <ArrowLeft01Icon className="size-4" /> Back
-                  </button>
-                  <h2 className="border-b border-border py-5 font-heading text-2xl font-medium tracking-[-.04em]">
-                    {mobileSections[mobileSection].title}
-                  </h2>
-                  <nav
-                    aria-label={`${mobileSections[mobileSection].title} navigation`}
-                  >
-                    {mobileSections[mobileSection].links.map((item) => (
-                      <Link
-                        key={`${item.href}-${item.label}`}
-                        to={item.href}
-                        onClick={closeMobile}
-                        className="group flex items-start justify-between gap-4 border-b border-border py-6"
-                      >
-                        <span>
-                          <strong className="block font-heading text-base font-medium">
-                            {item.label}
-                          </strong>
-                          {item.description ? (
-                            <small className="mt-2 block max-w-[24rem] font-heading text-xs leading-relaxed text-muted-foreground">
-                              {item.description}
-                            </small>
-                          ) : null}
-                        </span>
-                        <ArrowRight01Icon className="mt-1 size-4 text-muted-foreground" />
-                      </Link>
-                    ))}
-                  </nav>
-                </div>
-              ) : (
-                <div>
-                  {(["products", "solutions", "resources"] as const).map(
-                    (section) => (
-                      <button
-                        key={section}
-                        type="button"
-                        className="flex w-full items-center justify-between border-b border-border py-6 font-heading text-lg font-medium"
-                        onClick={() => setMobileSection(section)}
-                      >
-                        {mobileSections[section].title}
-                        <ArrowRight01Icon className="size-4" />
-                      </button>
-                    ),
-                  )}
-                  <Link
-                    to="/integrations"
-                    onClick={closeMobile}
-                    className="flex items-center justify-between border-b border-border py-6 font-heading text-lg font-medium"
-                  >
-                    Integrations <ArrowRight01Icon className="size-4" />
-                  </Link>
-                  {PRICING_PUBLISHED ? (
-                    <Link
-                      to="/pricing"
-                      onClick={closeMobile}
-                      className="flex items-center justify-between border-b border-border py-6 font-heading text-lg font-medium"
-                    >
-                      Pricing <ArrowRight01Icon className="size-4" />
-                    </Link>
-                  ) : null}
-                  <div className="mt-8 grid gap-3">
-                    <AppLink
-                      to="login"
-                      location="mobile-nav"
-                      className={buttonVariants({
-                        variant: "outline",
-                        size: "lg",
-                      })}
-                    >
-                      Log in
-                    </AppLink>
-                    <AppLink
-                      to="signup"
-                      location="mobile-nav"
-                      className={buttonVariants({ size: "lg" })}
-                    >
-                      Start free
-                    </AppLink>
-                  </div>
-                </div>
-              )}
-            </Container>
-          </div>
-        ) : null
-      }
-    />
+        <MobileNav />
+      </div>
+    </header>
   )
 }

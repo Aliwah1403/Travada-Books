@@ -11,6 +11,7 @@ export type AppLinkLocation =
   | "mobile-nav"
   | "hero"
   | "feature-hero"
+  | "integrations"
   | "cta-band"
   | "pricing"
 
@@ -33,7 +34,8 @@ function subscribe() {
 
 // Every link from the marketing site into the app renders through here —
 // used as the Base UI `render` element on <Button> (see header.tsx,
-// home/hero.tsx, feature-page.tsx, cta-band.tsx, pricing.tsx). It fires
+// home/hero.tsx, home/closing.tsx, feature/feature-page.tsx,
+// integrations.tsx, pricing.tsx). It fires
 // `website_cta_clicked { cta, location }` via PostHog (a no-op until it's
 // loaded, see ~/lib/analytics.ts) and, for signup links only, swaps in the
 // UTM-tagged href once hydrated. useSyncExternalStore (rather than

@@ -3,19 +3,9 @@ import { Links, Meta, Outlet, Scripts, ScrollRestoration } from "react-router"
 import { Analytics } from "~/components/analytics"
 import { Footer } from "~/components/footer"
 import { Header } from "~/components/header"
+import { Frame } from "~/components/site/frame"
 
 import "./app.css"
-
-// Applies dark/light before first paint from the OS preference, so there's
-// no flash of the wrong theme. No toggle UI in Batch 1 — see
-// components/theme-provider.tsx in apps/app for the full version.
-const THEME_SCRIPT = `
-  try {
-    if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
-      document.documentElement.classList.add("dark");
-    }
-  } catch (e) {}
-`
 
 export function Layout({ children }: { children: React.ReactNode }) {
   return (
@@ -23,7 +13,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-        <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
         <link
           rel="icon"
           type="image/png"
@@ -64,7 +53,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <Meta />
         <Links />
       </head>
-      <body>
+      <body className="bg-canvas font-sans text-ink antialiased">
         {children}
         <ScrollRestoration />
         <Scripts />
@@ -75,13 +64,13 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
 export default function App() {
   return (
-    <div className="flex min-h-dvh flex-col bg-background text-foreground">
+    <Frame className="bg-canvas text-ink">
       <Analytics />
       <Header />
       <main className="flex-1">
         <Outlet />
       </main>
       <Footer />
-    </div>
+    </Frame>
   )
 }

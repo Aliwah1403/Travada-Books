@@ -1,75 +1,82 @@
 import { Link } from "react-router"
 
-import { Container } from "~/components/container"
+import { cn } from "@travada-books/ui/lib/utils"
+
+import { FRAME_GUTTER, FRAME_WIDTH } from "~/components/site/layout"
 import { PRICING_PUBLISHED } from "~/data/pricing"
-import { FEATURES_NAV, FOOTER_LINKS } from "~/data/site"
+import { CONTACT_EMAIL, FEATURES_NAV, FOOTER_LINKS, SITE_NAME } from "~/data/site"
 
 function isExternal(href: string) {
   return href.startsWith("mailto:") || /^https?:\/\//.test(href)
 }
 
-// Pricing is gated the same way the header gates it (see header.tsx's
-// NAV_LINKS) — appended to the Features column once published.
+// Pricing is appended to the Product column once published (the header
+// doesn't list it at all while pricing is a dummy page).
 const FOOTER_COLUMNS = PRICING_PUBLISHED
   ? FOOTER_LINKS.map((column) =>
-      column.heading === "Features"
+      column.heading === "Product"
         ? { ...column, links: [...FEATURES_NAV, { label: "Pricing", href: "/pricing" }] }
         : column,
     )
   : FOOTER_LINKS
 
+const LINK = "text-sm text-ink-muted transition-colors fine-hover:text-ink"
+
 export function Footer() {
   return (
-    <footer className="border-t border-border/60 bg-[color-mix(in_oklab,var(--muted)_36%,var(--background))]">
-      <Container className="max-w-7xl py-14 md:py-20">
-        <div className="grid gap-12 md:grid-cols-[1.25fr_2fr]">
-          <div>
-            <Link to="/" className="inline-flex items-center gap-2.5">
-              <span className="grid h-[2rem] w-[2rem] place-items-center rounded-[.48rem] border border-border bg-foreground"><img src="/logo.svg" alt="" className="h-5 w-5 brightness-0 invert" /></span>
-              <span className="font-heading text-sm font-semibold">Travada Books</span>
+    <footer className="relative -mt-px border-t border-line bg-panel">
+      <div className={cn(FRAME_WIDTH, FRAME_GUTTER, "py-14 md:py-20")}>
+        <div className="grid gap-12 md:grid-cols-[1fr_2fr]">
+          <div className="flex flex-col items-start gap-4">
+            <Link to="/" className="flex items-center gap-2" aria-label={`${SITE_NAME} home`}>
+              <img src="/logo.svg" alt="" width={24} height={24} className="size-6" />
+              <span className="text-base font-semibold tracking-tight text-ink">{SITE_NAME}</span>
             </Link>
-            <p className="mt-5 max-w-[28ch] font-heading text-sm/relaxed text-muted-foreground">
+            <p className="max-w-xs text-sm text-pretty text-ink-muted">
               Invoicing and bookkeeping that fits how small business is done in Kenya.
             </p>
-            <p className="mt-8 font-mono text-[10px] tracking-[0.12em] text-muted-foreground uppercase">
-              Built in Nairobi · 01°17′S
-            </p>
+            <a href={`mailto:${CONTACT_EMAIL}`} className={LINK}>
+              {CONTACT_EMAIL}
+            </a>
           </div>
           <div className="grid grid-cols-2 gap-8 sm:grid-cols-4">
-          {FOOTER_COLUMNS.map((column) => (
-            <div key={column.heading} className="flex flex-col gap-3">
-              <span className="font-mono text-[10px] font-semibold tracking-[0.1em] text-foreground uppercase">{column.heading}</span>
-              <ul className="flex flex-col gap-2">
-                {column.links.map((link) => (
-                  <li key={link.href}>
-                    {isExternal(link.href) ? (
-                      <a
-                        href={link.href}
-                        className="fine-hover:text-foreground text-xs text-muted-foreground"
-                      >
-                        {link.label}
-                      </a>
-                    ) : (
-                      <Link
-                        to={link.href}
-                        className="fine-hover:text-foreground text-xs text-muted-foreground"
-                      >
-                        {link.label}
-                      </Link>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
+            {FOOTER_COLUMNS.map((column) => (
+              <div key={column.heading} className="flex flex-col gap-4">
+                <h2 className="font-mono text-xs font-normal tracking-wide text-ink-subtle uppercase">
+                  {column.heading}
+                </h2>
+                <ul className="flex flex-col gap-2.5">
+                  {column.links.map((link) => (
+                    <li key={link.href}>
+                      {isExternal(link.href) ? (
+                        <a href={link.href} className={LINK}>
+                          {link.label}
+                        </a>
+                      ) : (
+                        <Link to={link.href} className={LINK}>
+                          {link.label}
+                        </Link>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
           </div>
         </div>
-
-        <div className="mt-14 flex flex-wrap items-center justify-between gap-3 border-t border-border/60 pt-6 text-[11px] text-muted-foreground">
-          <span>© 2026 Travada Systems. All rights reserved.</span>
-          <span className="flex items-center gap-2"><i className="size-1.5 rounded-full bg-emerald-500" /> All systems operational</span>
+      </div>
+      <div className="border-t border-line">
+        <div
+          className={cn(
+            FRAME_WIDTH,
+            FRAME_GUTTER,
+            "flex flex-wrap items-center justify-between gap-3 py-6 font-mono text-xs tracking-wide text-ink-subtle uppercase",
+          )}
+        >
+          <span>© {new Date().getFullYear()} Travada Systems. All rights reserved.</span>
+          <span>Made in Nairobi</span>
         </div>
-      </Container>
+      </div>
     </footer>
   )
 }

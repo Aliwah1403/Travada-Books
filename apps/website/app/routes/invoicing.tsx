@@ -1,7 +1,17 @@
-import { CtaBand } from "~/components/cta-band"
-import { FeatureHero, FeatureRows, type FeatureRowItem } from "~/components/feature-page"
-import { Faq } from "~/components/home/faq"
-import { IntegrationsSection } from "~/components/integrations-section"
+import {
+  Calendar01Icon,
+  ClockCheckIcon,
+  FileEditIcon,
+  Globe02Icon,
+  Invoice01Icon,
+  ReceiptTextIcon,
+  RepeatIcon,
+  UserIcon,
+  Wallet01Icon,
+} from "@travada-books/ui/icons"
+
+import { FeaturePage, type FeaturePageContent } from "~/components/feature/feature-page"
+import { RecurringInvoices } from "~/components/illustrations/recurring-invoices"
 import { INVOICING_FAQ_ITEMS } from "~/data/faq"
 import { faqPageJsonLd, pageMeta } from "~/lib/seo"
 
@@ -23,51 +33,70 @@ export function meta() {
   ]
 }
 
-const ROWS: FeatureRowItem[] = [
-  {
-    title: "Recurring invoices",
-    body: "Same client, same amount, every month? Set it up once. Weekly, every two weeks, monthly, quarterly or yearly — end it on a date, end it after a set number, or let it run until you stop it. You'll see the next three send dates before you commit to anything.",
-    screenshotLabel: "Recurring dialog — frequency picker with the next three send dates",
-    visual: "recurring",
-  },
-  {
-    title: "Scheduled sending",
-    body: "Finished the invoice at midnight because that's when you had a moment? Pick a date and time and it sends itself. It'll be at the top of their inbox when they actually sit down to look.",
-    screenshotLabel: "Send dialog — schedule for a future date and time",
-    visual: "schedule",
-  },
-  {
-    title: "Reminders that go out on their own",
-    body: "The invoice is late. You know it, they know it, and neither of you wants to have the conversation. Choose how many days after the due date, and let the software have it instead — the invoice marks itself overdue and the reminder goes out without you touching it.",
-    screenshotLabel: "Invoice detail — overdue badge and the reminder-days setting",
-    visual: "reminders",
-  },
-  {
-    title: "Quotes that become invoices",
-    body: "Send a quote. The customer opens it with a link — no app, no signup — and accepts or declines. Accept it and the invoice is already drafted, ready for you to check and send. You retype nothing.",
-    screenshotLabel: "Public quote page — Accept and Decline, no login required",
-    visual: "quotes",
-  },
-  {
-    title: "Always know who owes what",
-    body: "A customer who owes you across six invoices gets one statement, one link to send them. Bill a client in pounds or dollars and still see your own totals converted to shillings. And if they only pay part of what's owed, record it — the balance updates itself, and you can log what's left as it arrives.",
-    screenshotLabel: "Record payment dialog — partial payment against the balance due",
-    visual: "payments",
-  },
-]
+// ⚠️ Same rule for everything below: no "M-Pesa" in any copy, label or
+// illustration on this page.
+const CONTENT: FeaturePageContent = {
+  eyebrow: { label: "Invoicing", icon: Invoice01Icon },
+  title: "The invoice you don't have to remember to send.",
+  lede: "It's the 1st of the month, so you open last month's invoice, change the date, change the number, and send it again. You'll do it again in thirty days. Set it up once instead.",
+  illustration: <RecurringInvoices className="mx-auto w-full max-w-xl lg:max-w-none" />,
+  screenshot: "Invoices list — recurring, scheduled and overdue invoices at a glance",
+  rows: [
+    {
+      label: "Recurring",
+      icon: RepeatIcon,
+      title: "Recurring invoices",
+      body: "Same client, same amount, every month? Set it up once. Weekly, every two weeks, monthly, quarterly or yearly — end it on a date, end it after a set number, or let it run until you stop it. You'll see the next three send dates before you commit to anything.",
+      screenshot: "Recurring dialog — frequency picker with the next three send dates",
+    },
+    {
+      label: "Scheduling",
+      icon: Calendar01Icon,
+      title: "Scheduled sending",
+      body: "Finished the invoice at midnight because that's when you had a moment? Pick a date and time and it sends itself. It'll be at the top of their inbox when they actually sit down to look.",
+      screenshot: "Send dialog — schedule for a future date and time",
+    },
+    {
+      label: "Reminders",
+      icon: ClockCheckIcon,
+      title: "Reminders that go out on their own",
+      body: "The invoice is late. You know it, they know it, and neither of you wants to have the conversation. Choose how many days after the due date, and let the software have it instead — the invoice marks itself overdue and the reminder goes out without you touching it.",
+      screenshot: "Invoice detail — overdue badge and the reminder-days setting",
+    },
+    {
+      label: "Quotes",
+      icon: FileEditIcon,
+      title: "Quotes that become invoices",
+      body: "Send a quote. The customer opens it with a link — no app, no signup — and accepts or declines. Accept it and the invoice is already drafted, ready for you to check and send. You retype nothing.",
+      screenshot: "Public quote page — Accept and Decline, no login required",
+    },
+  ],
+  // From the old fifth row, "Always know who owes what", split into items.
+  details: [
+    {
+      title: "One statement per customer",
+      body: "A customer who owes you across six invoices gets one statement, one link to send them.",
+      icon: ReceiptTextIcon,
+    },
+    {
+      title: "Any currency",
+      body: "Bill a client in pounds or dollars and still see your own totals converted to shillings.",
+      icon: Globe02Icon,
+    },
+    {
+      title: "Part payments",
+      body: "Record what arrives and the balance updates itself. Log the rest as it comes in.",
+      icon: Wallet01Icon,
+    },
+    {
+      title: "Customer portal",
+      body: "Give a customer one link to every invoice, quote and statement you've sent them.",
+      icon: UserIcon,
+    },
+  ],
+  faq: { title: "Invoicing questions", items: INVOICING_FAQ_ITEMS },
+}
 
 export default function Invoicing() {
-  return (
-    <>
-      <FeatureHero
-        eyebrow="Invoicing"
-        title="The invoice you don't have to remember to send."
-        intro="It's the 1st of the month, so you open last month's invoice, change the date, change the number, and send it again. You'll do it again in thirty days. Set it up once instead."
-      />
-      <FeatureRows items={ROWS} />
-      <IntegrationsSection compact />
-      <Faq items={INVOICING_FAQ_ITEMS} heading="Invoicing — frequently asked questions" />
-      <CtaBand heading="Set it once. Today." />
-    </>
-  )
+  return <FeaturePage content={CONTENT} />
 }
