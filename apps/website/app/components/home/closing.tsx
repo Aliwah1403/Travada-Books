@@ -82,7 +82,7 @@ const PATTERN = {
 export function ClosingCta() {
   return (
     <Section size="md" tone="canvas">
-      <div className="relative overflow-hidden rounded-xl bg-dark px-6 py-14 text-panel sm:px-10 md:px-16 md:py-20">
+      <div className="relative overflow-hidden rounded-xl bg-brand px-6 py-14 text-panel sm:px-10 md:px-16 md:py-20">
         <div aria-hidden="true" className="pointer-events-none absolute inset-0" style={PATTERN} />
         <div className="relative grid gap-8 md:grid-cols-[3fr_2fr] md:items-end md:gap-12">
           <div>
@@ -96,7 +96,7 @@ export function ClosingCta() {
             <AppLink
               to="signup"
               location="cta-band"
-              className={cn(buttonVariants({ size: "lg" }), "bg-panel text-sm text-ink hover:bg-panel/85")}
+              className={cn(buttonVariants({ size: "lg" }), "bg-panel text-sm text-brand hover:bg-panel/90")}
             >
               Start free <ArrowRight01Icon aria-hidden="true" />
             </AppLink>

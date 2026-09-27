@@ -2,7 +2,6 @@ import { buttonVariants } from "@travada-books/ui/components/button"
 import {
   ArrowRight01Icon,
   CheckmarkCircle01Icon,
-  Link01Icon,
   Mail01Icon,
   MpesaIcon,
   PlusSignIcon,
@@ -12,11 +11,10 @@ import { cn } from "@travada-books/ui/lib/utils"
 import { AppLink } from "~/components/app-link"
 import { ClosingCta } from "~/components/home/closing"
 import { LearnMore } from "~/components/home/shared"
-import { IntegrationHub } from "~/components/illustrations/integration-hub"
+import { ToolMarquee } from "~/components/integrations/tool-marquee"
 import { Eyebrow } from "~/components/site/eyebrow"
 import { Section } from "~/components/site/section"
 import { SectionHeading } from "~/components/site/section-heading"
-import { Split } from "~/components/site/split"
 import {
   INTEGRATION_CATEGORIES,
   INTEGRATIONS,
@@ -47,39 +45,31 @@ const CATEGORY_BLURB: Record<IntegrationCategory, string> = {
 
 function Hero() {
   return (
-    <Section flush>
-      <Split
-        center
-        // Same shape as the feature-page hero (components/feature/feature-page.tsx).
-        className="md:grid-cols-1 lg:grid-cols-[5fr_7fr]"
-        startClassName="md:border-r-0 md:border-b lg:border-r lg:border-b-0 md:py-24 lg:py-28"
-        endClassName="lg:px-8"
-        start={
-          <div className="flex flex-col items-start">
-            <Eyebrow icon={Link01Icon}>Integrations</Eyebrow>
-            <h1 className="mt-6 text-5xl font-medium tracking-tight text-balance md:text-6xl">
-              Your tools should bring the paperwork with them.
-            </h1>
-            {/* COPY: needs Curtis's approval */}
-            <p className="mt-6 max-w-xl text-lg text-pretty text-ink-muted">
-              Connect the inbox you already use and upload the statements you already get. Payments and messaging
-              are next, and clearly marked until they&rsquo;re ready.
-            </p>
-            <div className="mt-8 flex flex-wrap items-center gap-x-6 gap-y-4">
-              <AppLink to="signup" location="integrations" className={cn(buttonVariants({ size: "lg" }), "text-sm")}>
-                Start free <ArrowRight01Icon aria-hidden="true" />
-              </AppLink>
-              {/* COPY: needs Curtis's approval */}
-              <LearnMore to={`#${REQUEST_ID}`}>Request an integration</LearnMore>
-            </div>
-            <p className="mt-5 flex items-center gap-2 text-sm text-ink-subtle">
-              <CheckmarkCircle01Icon className="size-4 text-brand-line" aria-hidden="true" />
-              Free during beta · No card required
-            </p>
-          </div>
-        }
-        end={<IntegrationHub className="mx-auto w-full max-w-xl lg:max-w-none" />}
-      />
+    // Tight vertical rhythm so the marquee, heading, lede and CTA all sit in
+    // the first screen (checked at 1280×800 and 1440×900).
+    <Section innerClassName="py-8 md:py-10">
+      <ToolMarquee />
+      <div className="mx-auto mt-6 flex max-w-3xl flex-col items-center text-center md:mt-8">
+        <h1 className="text-5xl font-medium tracking-tight text-balance md:text-6xl">
+          Your tools should bring the paperwork with them.
+        </h1>
+        {/* COPY: needs Curtis's approval */}
+        <p className="mt-5 max-w-2xl text-lg text-pretty text-ink-muted">
+          Connect the inbox you already use and upload the statements you already get. Payments and messaging are
+          next, and clearly marked until they&rsquo;re ready.
+        </p>
+        <div className="mt-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-4">
+          <AppLink to="signup" location="integrations" className={cn(buttonVariants({ size: "lg" }), "text-sm")}>
+            Start free <ArrowRight01Icon aria-hidden="true" />
+          </AppLink>
+          {/* COPY: needs Curtis's approval */}
+          <LearnMore to={`#${REQUEST_ID}`}>Request an integration</LearnMore>
+        </div>
+        <p className="mt-5 flex items-center gap-2 text-sm text-ink-subtle">
+          <CheckmarkCircle01Icon className="size-4 text-brand-line" aria-hidden="true" />
+          Free during beta · No card required
+        </p>
+      </div>
     </Section>
   )
 }

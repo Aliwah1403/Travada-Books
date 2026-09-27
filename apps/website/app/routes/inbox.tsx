@@ -9,7 +9,9 @@ import {
 } from "@travada-books/ui/icons"
 
 import { FeaturePage, type FeaturePageContent } from "~/components/feature/feature-page"
-import { ReceiptMatch } from "~/components/illustrations/receipt-match"
+import { InboxListMockup } from "~/components/feature/mockups/inbox/inbox-list"
+import { ReceiptMatchFragments } from "~/components/feature/mockups/inbox/receipt-match-fragments"
+import { SuggestedMatchMockup } from "~/components/feature/mockups/inbox/suggested-match"
 import { INBOX_FAQ_ITEMS } from "~/data/faq"
 import { faqPageJsonLd, pageMeta } from "~/lib/seo"
 
@@ -27,33 +29,46 @@ export function meta() {
   ]
 }
 
+// Stand-in until the real screenshot is captured (same pattern as
+// /invoicing). When it lands, replace `src`, `width`/`height` and `alt`
+// with the shot `caption` asks for.
+const STAND_IN = {
+  src: "/shots/dummy-dashboard.webp",
+  width: 2000,
+  height: 1103,
+  alt: "The Travada Books dashboard, with revenue, cash flow, spending and payment score cards",
+}
+
 const CONTENT: FeaturePageContent = {
   eyebrow: { label: "Inbox", icon: InboxIcon },
   title: "Your receipts find you.",
   lede: "A receipt lands in your inbox in March, and by tax time it's nowhere to be found. Connect Gmail or Outlook and Travada Books pulls it in on its own — no more digging.",
-  illustration: <ReceiptMatch className="mx-auto w-full max-w-xl lg:max-w-none" />,
-  screenshot: "Inbox — receipts pulled in and matched to transactions",
+  heroLayout: "floating",
+  visual: <ReceiptMatchFragments />,
   rows: [
     {
       label: "Connect",
       icon: Mail01Icon,
       title: "Connect Gmail or Outlook",
       body: "Connect the inbox you already use. Access is read-only — Travada Books can't send mail as you, and the only thing it pulls in is PDF attachments. Disconnect it whenever you like.",
-      screenshot: "Integrations page — Gmail and Outlook connect buttons",
+      shot: {
+        ...STAND_IN,
+        caption: "Settings → Integrations — Gmail and Outlook cards with their Connect buttons, one Gmail account connected (read-only)",
+      },
     },
     {
       label: "Capture",
       icon: Upload01Icon,
       title: "Receipts, pulled in on their own",
       body: "PDF receipts and supplier invoices that land in your inbox get picked up automatically — you don't have to forward or upload anything yourself.",
-      screenshot: "Inbox list — receipts pulled in from a connected account",
+      visual: <InboxListMockup />,
     },
     {
       label: "Matching",
       icon: Link01Icon,
       title: "Matched to the transaction",
       body: "When Travada Books is confident it's found the right transaction, it matches the receipt automatically. Where it's less sure, it suggests a match for you to confirm — you're never left guessing which one is right.",
-      screenshot: "Inbox — suggested match, confirm or reject",
+      visual: <SuggestedMatchMockup />,
     },
   ],
   details: [

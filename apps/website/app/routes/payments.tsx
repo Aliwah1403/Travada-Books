@@ -10,7 +10,9 @@ import {
 } from "@travada-books/ui/icons"
 
 import { FeaturePage, type FeaturePageContent } from "~/components/feature/feature-page"
-import { PaymentLedger } from "~/components/illustrations/payment-ledger"
+import { LinkedTransactionsMockup } from "~/components/feature/mockups/payments/linked-transactions"
+import { RecordPaymentHeroMockup } from "~/components/feature/mockups/payments/record-payment-hero"
+import { StatementLedgerMockup } from "~/components/feature/mockups/payments/statement-ledger"
 import { PAYMENTS_FAQ_ITEMS } from "~/data/faq"
 import { faqPageJsonLd, pageMeta } from "~/lib/seo"
 
@@ -33,40 +35,56 @@ export function meta() {
   ]
 }
 
+// Stand-in until the real screenshots are captured (same pattern as
+// /invoicing). When one lands, replace `src`, `width`/`height` and `alt`
+// with the shot `caption` asks for.
+const STAND_IN = {
+  src: "/shots/dummy-dashboard.webp",
+  width: 2000,
+  height: 1103,
+  alt: "The Travada Books dashboard, with revenue, cash flow, spending and payment score cards",
+}
+
 const CONTENT: FeaturePageContent = {
   eyebrow: { label: "Payments", icon: Wallet01Icon },
   title: "Paid in parts. Tracked in full.",
   lede: "A customer sends half now and promises the rest at the end of the month. Record what came in, and Travada Books keeps the balance, the status and the statement straight until it's paid off.",
-  illustration: <PaymentLedger className="mx-auto w-full max-w-xl lg:max-w-none" />,
-  screenshot: "Invoice detail — payments received and the balance due",
+  heroLayout: "split-shot",
+  visual: <RecordPaymentHeroMockup />,
   rows: [
     {
       label: "Record",
       icon: Wallet01Icon,
       title: "Record what arrived",
       body: "Enter the amount, the date and how it was paid, with a reference if you have one. Record the whole balance in one go, or part of it whenever money comes in.",
-      screenshot: "Record payment dialog — amount, date, method and reference",
+      shot: {
+        ...STAND_IN,
+        caption: "Invoice detail — Record payment button, the Payments section with two payments (amount, date, method, reference, recorded by)",
+      },
     },
     {
       label: "Status",
       icon: RepeatIcon,
       title: "The status sorts itself out",
       body: "Pay part of an invoice and it shows as part-paid, with the balance left to pay. Pay the rest and it's marked paid. Delete a payment recorded by mistake and the status corrects itself.",
-      screenshot: "Invoice list — part-paid badge with the balance due",
+      shot: {
+        ...STAND_IN,
+        caption: "Invoices list — Part-paid and Paid badges side by side, the part-paid row showing its balance due",
+      },
     },
     {
       label: "Statements",
       icon: ReceiptTextIcon,
       title: "Statements that add up",
       body: "A customer's statement lists each invoice as a charge and what's been paid against it, with a running balance from the opening figure to what's owed today.",
-      screenshot: "Statement — charges, payments and a running balance",
+      visual: <StatementLedgerMockup />,
     },
     {
       label: "Books",
       icon: BankIcon,
       title: "In your books, too",
       body: "Every payment you record also lands in your transactions, linked to the invoice it paid, so your cash figures and your invoices never disagree.",
-      screenshot: "Transactions — a payment linked to its invoice",
+      visual: <LinkedTransactionsMockup />,
     },
   ],
   details: [

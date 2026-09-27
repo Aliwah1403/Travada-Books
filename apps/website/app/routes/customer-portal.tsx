@@ -11,7 +11,9 @@ import {
 } from "@travada-books/ui/icons"
 
 import { FeaturePage, type FeaturePageContent } from "~/components/feature/feature-page"
-import { PortalWindow } from "~/components/illustrations/portal-window"
+import { PortalDocumentsMockup } from "~/components/feature/mockups/customer-portal/portal-documents"
+import { PortalPhoneMockup } from "~/components/feature/mockups/customer-portal/portal-phone"
+import { PortalSharingMockup } from "~/components/feature/mockups/customer-portal/portal-sharing"
 import { CUSTOMER_PORTAL_FAQ_ITEMS } from "~/data/faq"
 import { faqPageJsonLd, pageMeta } from "~/lib/seo"
 
@@ -32,40 +34,58 @@ export function meta() {
   ]
 }
 
+// Stand-in until the real screenshots are captured (same pattern as
+// /invoicing). When one lands, replace `src`, `width`/`height` and `alt`
+// with the shot `caption` asks for.
+// ⚠️ The stand-in shows "Mpesa/Bank Deposit" in an expense card — accepted
+// temporarily; the real portal shots must not show M-Pesa anywhere.
+const STAND_IN = {
+  src: "/shots/dummy-dashboard.webp",
+  width: 2000,
+  height: 1103,
+  alt: "The Travada Books dashboard, with revenue, cash flow, spending and payment score cards",
+}
+
 const CONTENT: FeaturePageContent = {
   eyebrow: { label: "Customer portal", icon: Globe02Icon },
   title: "One link for everything you've sent them.",
   lede: "Invoice links get buried in email threads and chats, and then the customer asks you to send it again. Switch on their portal and send one link instead. Every invoice, quote and statement is there, with what's still owed at the top.",
-  illustration: <PortalWindow className="mx-auto w-full max-w-xl lg:max-w-none" />,
-  screenshot: "Customer portal — balance due, invoices, quotes and statements",
+  heroLayout: "split-shot",
+  visual: <PortalPhoneMockup />,
   rows: [
     {
       label: "Balance",
       icon: DashboardSquare01Icon,
       title: "What's owed comes first",
       body: "The portal opens on the balance due, with how many invoices are overdue and a link straight to the oldest one. Below it sit the total invoiced, the total paid and the number of invoices, the same figures you see on the customer's page.",
-      screenshot: "Portal header — balance due and overdue count",
+      shot: {
+        ...STAND_IN,
+        caption: "Customer portal on desktop — the balance-due card: amount due, overdue count with the oldest due date, View oldest overdue invoice, Total invoiced / Paid / Invoices",
+      },
     },
     {
       label: "Invoices",
       icon: Invoice01Icon,
       title: "Every invoice, sorted",
       body: "Outstanding and paid invoices sit in their own tabs. Part-paid invoices show what's left to pay, and any invoice opens in full or downloads as a PDF.",
-      screenshot: "Portal invoices — Outstanding and Paid tabs",
+      shot: {
+        ...STAND_IN,
+        caption: "Customer portal invoices — Outstanding / Paid toggle with counts, rows with due dates, one part-paid row showing what's left to pay",
+      },
     },
     {
       label: "Quotes and statements",
       icon: ReceiptTextIcon,
       title: "Quotes and statements too",
       body: "Quotes waiting for an answer are listed, so the customer can open one and accept it from the same place. Every statement you've generated for them is one tap away.",
-      screenshot: "Portal — quotes awaiting a response and statements",
+      visual: <PortalDocumentsMockup />,
     },
     {
       label: "Sharing",
       icon: ShareIcon,
       title: "You decide who gets one",
       body: "The portal stays off until you switch it on for a customer. Copy the link or share it on WhatsApp from the customer's page. If it ever reaches the wrong person, regenerate it and the old link stops working straight away.",
-      screenshot: "Customer page — portal switch, copy link and regenerate",
+      visual: <PortalSharingMockup />,
     },
   ],
   details: [

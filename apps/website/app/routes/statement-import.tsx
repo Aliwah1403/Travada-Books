@@ -9,8 +9,9 @@ import {
   ReceiptTextIcon,
 } from "@travada-books/ui/icons"
 
-import { FeaturePage, type FeaturePageContent } from "~/components/feature/feature-page"
-import { StatementFlow } from "~/components/illustrations/statement-flow"
+import { FeaturePage, type FeaturePageContent, type FeatureShot } from "~/components/feature/feature-page"
+import { BulkActionsMockup } from "~/components/feature/mockups/statement-import/bulk-actions"
+import { ColumnMappingMockup } from "~/components/feature/mockups/statement-import/column-mapping"
 import { STATEMENT_IMPORT_FAQ_ITEMS } from "~/data/faq"
 import { faqPageJsonLd, pageMeta } from "~/lib/seo"
 
@@ -28,33 +29,56 @@ export function meta() {
   ]
 }
 
+// Stand-in until the real screenshots are captured (same pattern as
+// /invoicing): a dashboard screenshot with an alt that says what it
+// actually shows. When a real shot lands, replace `src`, `width`/`height`
+// and `alt` with the shot `caption` asks for.
+const STAND_IN = {
+  src: "/shots/dummy-dashboard.webp",
+  width: 2000,
+  height: 1103,
+  alt: "The Travada Books dashboard, with revenue, cash flow, spending and payment score cards",
+}
+
+// Full-app screenshot; the hero shows it large and lets it run off the
+// right edge, so the left two thirds (sidebar + table start) must carry it.
+const HERO_SHOT: FeatureShot = {
+  ...STAND_IN,
+  caption:
+    "Transactions — an imported bank statement, every row categorised (Date, Description, Category with colour dots, Amount), sidebar visible on the left",
+}
+
 const CONTENT: FeaturePageContent = {
   eyebrow: { label: "Statement import", icon: BankIcon },
   title: "A year of records, sorted in one upload.",
   lede: "Bring in your bank statement or your M-Pesa records — a CSV, or a PDF, whatever you've got. It reads the file, works out the columns itself, and sorts every transaction so you don't have to.",
-  illustration: <StatementFlow className="mx-auto w-full max-w-xl lg:max-w-none" />,
-  screenshot: "Transactions — an imported statement, categorised and ready to review",
+  heroLayout: "split-shot",
+  shot: HERO_SHOT,
   rows: [
     {
       label: "Import",
       icon: Upload01Icon,
       title: "Any file, any bank",
       body: "Upload your bank statement or your M-Pesa records — a CSV, or a PDF, whatever your bank gave you. Travada Books works out which column is the date, which is the amount, and which is money in and money out — including statements that split debit and credit into two separate columns, because plenty of them do.",
-      screenshot: "CSV import mid-parse — column mapping detected automatically",
+      visual: <ColumnMappingMockup />,
     },
     {
       label: "Categories",
       icon: Tag01Icon,
       title: "They sort themselves",
       body: "Transactions are categorised automatically as they come in, against your own categories — it recognises things like M-Pesa transfers and common local merchants along the way. Anything it gets wrong, you fix once and move on.",
-      screenshot: "Transaction list — categories applied automatically",
+      shot: {
+        ...STAND_IN,
+        caption:
+          "Transactions list — categories applied automatically as an import lands (colour dots, a couple of rows still showing 'Analyzing')",
+      },
     },
     {
       label: "Bulk actions",
       icon: ListViewIcon,
       title: "One action, not a hundred",
       body: "Need to mark a hundred transactions as paid by M-Pesa, set their category, or mark them recurring? Select as many as you like and do it once — individually is still there for the one-off exception.",
-      screenshot: "Transaction list — multiple rows selected, bulk action toolbar open",
+      visual: <BulkActionsMockup />,
     },
   ],
   details: [
