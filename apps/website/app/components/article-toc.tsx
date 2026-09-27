@@ -14,7 +14,7 @@ function slugify(text: string): string {
 }
 
 /**
- * Sticky "On this page" rail for long-form guide/compare articles.
+ * Sticky "On this page" rail for long-form guide articles.
  *
  * Content lives in MDX with no heading metadata in frontmatter, so the TOC
  * is derived at runtime from the rendered `<h2>`s inside `containerRef`

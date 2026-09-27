@@ -25,7 +25,6 @@ const CORE_STATIC_PATHS = [
   "/about",
   "/updates",
   "/guides",
-  "/compare",
 ]
 
 const updatesModules = import.meta.glob<Record<string, unknown>>("../../content/updates/*.mdx", {
@@ -34,11 +33,6 @@ const updatesModules = import.meta.glob<Record<string, unknown>>("../../content/
   import: "frontmatter",
 })
 const guidesModules = import.meta.glob<Record<string, unknown>>("../../content/guides/*.mdx", {
-  eager: true,
-  query: "?frontmatter",
-  import: "frontmatter",
-})
-const compareModules = import.meta.glob<Record<string, unknown>>("../../content/compare/*.mdx", {
   eager: true,
   query: "?frontmatter",
   import: "frontmatter",
@@ -73,12 +67,6 @@ export function getSitemapUrls(): SitemapUrl[] {
   for (const entry of buildFrontmatterCollection(guidesModules, "guides")) {
     urls.push({
       path: `/guides/${entry.slug}`,
-      lastmod: entry.frontmatter.updatedAt ?? entry.frontmatter.publishedAt,
-    })
-  }
-  for (const entry of buildFrontmatterCollection(compareModules, "compare")) {
-    urls.push({
-      path: `/compare/${entry.slug}`,
       lastmod: entry.frontmatter.updatedAt ?? entry.frontmatter.publishedAt,
     })
   }

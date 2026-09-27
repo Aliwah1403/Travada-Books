@@ -40,7 +40,7 @@ type ArticleLayoutProps = {
   children: ReactNode
 }
 
-// Shared shell for /guides/:slug, /updates/:slug, /compare/:slug and the
+// Shared shell for /guides/:slug, /updates/:slug and the
 // legal pages: a framed header section, then the prose column with the
 // sticky "On this page" rail beside it from lg. The header and body share
 // one grid so the h1 and the first paragraph start on the same line.

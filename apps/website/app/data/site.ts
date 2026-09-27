@@ -32,16 +32,13 @@ export const COMING_SOON_NAV: { label: string; description: string }[] = [
   { label: "Pay invoices by M-Pesa", description: "Let customers pay straight from the invoice" },
 ]
 
-export const COMPARE_HREF = "/compare"
-
 export const HEADER_NAV: NavLink[] = [
   { label: "Who it's for", href: "/who-its-for" },
   { label: "Integrations", href: "/integrations" },
 ]
 
 export const RESOURCES_NAV: NavLink[] = [
-  { label: "Guides", href: "/guides", description: "Practical answers for running the books" },
-  { label: "Compare", href: COMPARE_HREF, description: "Bookkeeping software or spreadsheets?" },
+  { label: "Guides", href: "/guides", description: "How to use Travada Books" },
   { label: "Updates", href: "/updates", description: "What we have shipped recently" },
   { label: "About", href: "/about", description: "Why Travada Books exists" },
 ]
@@ -56,7 +53,6 @@ export const FOOTER_LINKS: { heading: string; links: NavLink[] }[] = [
     links: [
       { label: "Integrations", href: "/integrations" },
       { label: "Guides", href: "/guides" },
-      { label: "Compare", href: COMPARE_HREF },
       { label: "Updates", href: "/updates" },
     ],
   },

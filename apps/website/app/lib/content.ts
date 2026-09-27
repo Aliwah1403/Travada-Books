@@ -1,5 +1,7 @@
 import type { ComponentType } from "react"
 
+import { HELP_CATEGORY_IDS, isHelpCategoryId, type HelpCategoryId } from "~/data/help"
+
 type MdxComponentProps = {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   components?: Record<string, ComponentType<any>>
@@ -17,6 +19,8 @@ export type Frontmatter = {
   placeholder?: boolean
   /** Minutes to read, added at build time by the remark plugin in vite.config.ts. */
   readingTime?: number
+  /** Help centre category (data/help.ts) — required on guides, unused elsewhere. */
+  category?: HelpCategoryId
 }
 
 export type ContentEntry = {
@@ -58,6 +62,12 @@ function validateFrontmatter(
         `content/${collection}/${slug}.mdx is missing required frontmatter field "${field}"`,
       )
     }
+  }
+  // Every guide sits in a help centre category (/guides groups by it).
+  if (collection === "guides" && !isHelpCategoryId(raw.category)) {
+    throw new Error(
+      `content/guides/${slug}.mdx needs a frontmatter "category" — one of: ${HELP_CATEGORY_IDS.join(", ")}`,
+    )
   }
   return raw as Frontmatter
 }

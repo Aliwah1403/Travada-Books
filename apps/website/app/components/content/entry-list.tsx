@@ -21,7 +21,7 @@ type EntryListProps = {
 
 const META = "font-mono text-xs tracking-wide text-ink-subtle uppercase"
 
-// Hairline list of MDX entries — /guides, /updates, /compare and the
+// Hairline list of MDX entries — /guides, /updates and the
 // "More …" block under each article. Whole row is the link; rows are never
 // scaled (CLAUDE.md), only a background tint and an opacity press.
 export function EntryList({

@@ -6,7 +6,6 @@ import { Link } from "react-router"
 
 import { cn } from "@travada-books/ui/lib/utils"
 
-import { CompareSplit } from "~/components/compare-split"
 
 // Classes for the element that wraps a rendered MDX body. They cover what
 // the components map can't reach: raw JSX `<a>` tags written inside MDX
@@ -20,7 +19,9 @@ export const MDX_BODY_CLASS = cn(
 // Long-form articles open with a lead paragraph: larger and in full ink.
 // Only direct children, so a paragraph inside a blockquote never matches.
 export const MDX_LEAD_CLASS =
-  "[&>p:first-child]:mt-0 [&>p:first-child]:text-lg [&>p:first-child]:text-ink md:[&>p:first-child]:text-xl md:[&>p:first-child]:leading-relaxed"
+  "[&>p:first-child]:mt-0 [&>p:first-child]:text-lg [&>p:first-child]:text-ink md:[&>p:first-child]:text-xl md:[&>p:first-child]:leading-relaxed " +
+  // Same lead when a changelog cover (data-cover) comes first.
+  "[&>[data-cover]:first-child+p]:text-lg [&>[data-cover]:first-child+p]:text-ink md:[&>[data-cover]:first-child+p]:text-xl md:[&>[data-cover]:first-child+p]:leading-relaxed"
 
 const BODY_TEXT = "text-base/7 text-ink-muted md:text-lg/8"
 
@@ -144,8 +145,4 @@ export const mdxComponents = {
   img: ({ className, alt = "", ...props }: ComponentProps<"img">) => (
     <img alt={alt} loading="lazy" className={cn("mt-8 w-full border border-line bg-panel", className)} {...props} />
   ),
-  // Not a standard element override — an opt-in custom component compare
-  // articles render directly in MDX (`<CompareSplit oldItems={...}
-  // newItems={...} />`). See compare-split.tsx.
-  CompareSplit,
 }

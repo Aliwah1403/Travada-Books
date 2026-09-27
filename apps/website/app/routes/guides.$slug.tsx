@@ -3,6 +3,7 @@ import { GUIDES } from "~/components/content/collections"
 import { ClosingCta } from "~/components/home/closing"
 import { mdxComponents } from "~/components/mdx-components"
 import { NotFoundBody } from "~/components/not-found"
+import { MPESA_FREE_CATEGORIES, mentionsMpesa } from "~/data/help"
 import { buildCollection, findEntry, readingMinutesBySlug, type MdxModule } from "~/lib/content"
 import { formatDate } from "~/lib/date"
 import { articleJsonLd, pageMeta } from "~/lib/seo"
@@ -58,7 +59,18 @@ export default function GuideDetail({ params }: Route.ComponentProps) {
   const { Component, frontmatter } = entry
   const date = frontmatter.updatedAt ?? frontmatter.publishedAt
   const readTime = minutes[entry.slug]
-  const others = buildCollection(modules, "guides").filter((other) => other.slug !== entry.slug)
+  // Same help centre category first, so a how-to suggests other how-tos and
+  // a Kenya guide suggests other long reads. Invoicing-side articles never
+  // suggest M-Pesa content (WEBSITE-PLAN.md §5).
+  const mpesaFree = frontmatter.category ? MPESA_FREE_CATEGORIES.includes(frontmatter.category) : false
+  const others = buildCollection(modules, "guides")
+    .filter((other) => other.slug !== entry.slug)
+    .filter((other) => !mpesaFree || !mentionsMpesa(`${other.frontmatter.title} ${other.frontmatter.summary}`))
+    .sort(
+      (a, b) =>
+        Number(b.frontmatter.category === frontmatter.category) -
+        Number(a.frontmatter.category === frontmatter.category),
+    )
 
   return (
     <>
@@ -81,7 +93,7 @@ export default function GuideDetail({ params }: Route.ComponentProps) {
       <ArticleMore
         collection={GUIDES}
         title="More guides"
-        indexLabel="All guides"
+        indexLabel="Help centre"
         entries={others}
         minutes={minutes}
       />

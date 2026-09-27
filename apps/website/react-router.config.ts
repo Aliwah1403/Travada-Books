@@ -21,7 +21,7 @@ function readDraftFlag(filePath: string): boolean {
   return value === "true"
 }
 
-function slugsFor(collection: "updates" | "guides" | "compare"): string[] {
+function slugsFor(collection: "updates" | "guides"): string[] {
   const dir = path.join(CONTENT_DIR, collection)
   if (!fs.existsSync(dir)) return []
   return fs
@@ -38,7 +38,6 @@ export default {
       ...getStaticPaths(),
       ...slugsFor("updates").map((slug) => `/updates/${slug}`),
       ...slugsFor("guides").map((slug) => `/guides/${slug}`),
-      ...slugsFor("compare").map((slug) => `/compare/${slug}`),
     ]
   },
 } satisfies Config
