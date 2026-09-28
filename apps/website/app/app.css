@@ -136,12 +136,13 @@ html {
   }
 }
 
-/* One-time staggered entrance for coded product mockups
-   (components/feature/mockups/reveal.tsx). Progressive enhancement: the
-   prerendered HTML has no data-reveal, so everything is visible before
-   hydration. After hydration, a mockup that is still below the fold gets
-   data-reveal="pending" and fades in once when it scrolls into view.
-   Never set under reduced motion. */
+/* One-time staggered entrance for coded product mockups and the home
+   feature-row illustrations (components/feature/mockups/reveal.ts;
+   illustrations step through IsoStep in illustrations/kit.tsx).
+   Progressive enhancement: the prerendered HTML has no data-reveal, so
+   everything is visible before hydration. After hydration, a frame that
+   is still below the fold gets data-reveal="pending" and builds in once
+   when it scrolls into view. Never set under reduced motion. */
 [data-reveal="pending"] [data-reveal-item] {
   opacity: 0;
   transform: translateY(4px);

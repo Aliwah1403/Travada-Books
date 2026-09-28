@@ -1,4 +1,4 @@
-import { useRef, useState, type FormEvent, type ReactNode } from "react"
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react"
 import { Link } from "react-router"
 
 import { Button } from "@travada-books/ui/components/button"
@@ -25,6 +25,7 @@ import { CONTACT_EMAIL } from "~/data/site"
 import { captureEvent } from "~/lib/analytics"
 import { pageMeta } from "~/lib/seo"
 import { submitSupportRequest } from "~/lib/support"
+import { ARROW_NUDGE } from "~/components/home/shared"
 
 // eslint-disable-next-line react-refresh/only-export-components -- route module convention: meta + default component
 export function meta() {
@@ -121,10 +122,15 @@ function formatBytes(bytes: number) {
   return bytes < 1024 * 1024 ? `${Math.max(1, Math.round(bytes / 1024))} KB` : `${(bytes / 1024 / 1024).toFixed(1)} MB`
 }
 
+// Form feedback (field errors, the error banner, attached-file rows) eases
+// in on mount so it doesn't jolt the layout; removal stays instant. The
+// global reduced-motion rule collapses it.
+const FEEDBACK_IN = "animate-in fade-in-0 slide-in-from-top-1 duration-150 [animation-timing-function:var(--ease-out)]"
+
 function FieldMessage({ id, message }: { id: string; message?: string }) {
   if (!message) return null
   return (
-    <p id={`${id}-error`} className="text-xs text-status-overdue">
+    <p id={`${id}-error`} className={cn("text-xs text-status-overdue", FEEDBACK_IN)}>
       {message}
     </p>
   )
@@ -137,10 +143,24 @@ type Status =
   | { state: "error"; message: string }
 
 function Sent({ status, onReset }: { status: Extract<Status, { state: "sent" }>; onReset: () => void }) {
+  // The form that had focus is gone; hand focus to the confirmation.
+  const headingRef = useRef<HTMLHeadingElement>(null)
+  useEffect(() => headingRef.current?.focus(), [])
+
+  // Rare, one-off success moment: the panel settles in (the repo's
+  // empty-state entrance) and the check follows a beat later. No bounce.
   return (
-    <div role="status" className="flex flex-col items-start border border-line bg-panel p-6 md:p-8">
-      <CheckmarkCircle01Icon className="size-6 text-status-paid" aria-hidden="true" />
-      <h2 className="mt-5 text-2xl font-medium tracking-tight">Message sent</h2>
+    <div
+      role="status"
+      className="flex animate-in flex-col items-start border border-line bg-panel p-6 duration-300 fade-in-0 slide-in-from-bottom-2 [animation-timing-function:var(--ease-out)] md:p-8"
+    >
+      <CheckmarkCircle01Icon
+        className="size-6 animate-in text-status-paid delay-75 duration-300 fill-mode-backwards fade-in-0 zoom-in-95 [animation-timing-function:var(--ease-out)]"
+        aria-hidden="true"
+      />
+      <h2 ref={headingRef} tabIndex={-1} className="mt-5 text-2xl font-medium tracking-tight outline-none">
+        Message sent
+      </h2>
       <p className="mt-3 max-w-md text-pretty text-ink-muted">
         Thanks, {status.name.split(" ")[0]}. We've got your message and will reply to{" "}
         <span className="font-medium text-ink">{status.email}</span>.
@@ -328,7 +348,7 @@ function ContactForm() {
           {files.length ? (
             <ul className="divide-y divide-line border border-line">
               {files.map((file) => (
-                <li key={`${file.name}-${file.size}`} className="flex items-center gap-3 px-3 py-2">
+                <li key={`${file.name}-${file.size}`} className={cn("flex items-center gap-3 px-3 py-2", FEEDBACK_IN)}>
                   <span className="min-w-0 flex-1 truncate text-sm text-ink">{file.name}</span>
                   <span className="shrink-0 font-mono text-xs text-ink-subtle">{formatBytes(file.size)}</span>
                   <button
@@ -347,7 +367,10 @@ function ContactForm() {
         </Field>
 
         {status.state === "error" ? (
-          <div role="alert" className="flex gap-3 border border-status-overdue/30 bg-status-overdue-soft px-4 py-3">
+          <div
+            role="alert"
+            className={cn("flex gap-3 border border-status-overdue/30 bg-status-overdue-soft px-4 py-3", FEEDBACK_IN)}
+          >
             <Alert02Icon className="mt-0.5 size-4 shrink-0 text-status-overdue" aria-hidden="true" />
             <p className="text-sm text-pretty text-status-overdue">
               {status.message}
@@ -371,7 +394,7 @@ function ContactForm() {
             </Link>
             .
           </p>
-          <Button type="submit" size="lg" className="text-sm" aria-busy={sending || undefined}>
+          <Button type="submit" size="lg" className={cn("text-sm", ARROW_NUDGE)} aria-busy={sending || undefined}>
             {sending ? "Sending…" : "Send message"}
             {sending ? null : <ArrowRight01Icon aria-hidden="true" />}
           </Button>

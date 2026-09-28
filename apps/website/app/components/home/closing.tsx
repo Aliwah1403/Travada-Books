@@ -11,7 +11,7 @@ import { ArrowRight01Icon } from "@travada-books/ui/icons"
 import { cn } from "@travada-books/ui/lib/utils"
 
 import { AppLink } from "~/components/app-link"
-import { LearnMore } from "~/components/home/shared"
+import { ARROW_NUDGE, LearnMore } from "~/components/home/shared"
 import { Eyebrow } from "~/components/site/eyebrow"
 import { Section } from "~/components/site/section"
 import { FAQ_ITEMS, type FaqItem } from "~/data/faq"
@@ -96,7 +96,7 @@ export function ClosingCta() {
             <AppLink
               to="signup"
               location="cta-band"
-              className={cn(buttonVariants({ size: "lg" }), "bg-panel text-sm text-brand hover:bg-panel/90")}
+              className={cn(buttonVariants({ size: "lg" }), "bg-panel text-sm text-brand hover:bg-panel/90", ARROW_NUDGE)}
             >
               Start free <ArrowRight01Icon aria-hidden="true" />
             </AppLink>

@@ -2,6 +2,7 @@ import type { ReactNode, SVGProps } from "react"
 
 import { cn } from "@travada-books/ui/lib/utils"
 
+import { revealStep } from "~/components/feature/mockups/reveal"
 import { STROKE, cornerInset, isoMatrix, liftOffset, stackPoint } from "~/components/illustrations/iso"
 
 // Illustration kit (WEBSITE-REDO-PLAN.md §3): isometric line art in the
@@ -100,6 +101,19 @@ export function Iso({ x = 0, y = 0, children, ...props }: IsoProps) {
   return (
     <g transform={isoMatrix(x, y)} {...props}>
       {children}
+    </g>
+  )
+}
+
+/** One step of a frame's staggered build (revealStep → app.css). The step
+ *  sits on an untransformed <g> outside the Iso matrix so its entrance
+ *  lifts straight up on screen, not along the flat plane. */
+export function IsoStep({ step, x = 0, y = 0, children }: { step: number; x?: number; y?: number; children: ReactNode }) {
+  return (
+    <g {...revealStep(step)}>
+      <Iso x={x} y={y}>
+        {children}
+      </Iso>
     </g>
   )
 }

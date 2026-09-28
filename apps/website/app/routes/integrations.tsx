@@ -10,7 +10,7 @@ import { cn } from "@travada-books/ui/lib/utils"
 
 import { AppLink } from "~/components/app-link"
 import { ClosingCta } from "~/components/home/closing"
-import { LearnMore } from "~/components/home/shared"
+import { ARROW_NUDGE, LearnMore } from "~/components/home/shared"
 import { ToolMarquee } from "~/components/integrations/tool-marquee"
 import { Eyebrow } from "~/components/site/eyebrow"
 import { Section } from "~/components/site/section"
@@ -59,7 +59,7 @@ function Hero() {
           next, and clearly marked until they&rsquo;re ready.
         </p>
         <div className="mt-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-4">
-          <AppLink to="signup" location="integrations" className={cn(buttonVariants({ size: "lg" }), "text-sm")}>
+          <AppLink to="signup" location="integrations" className={cn(buttonVariants({ size: "lg" }), "text-sm", ARROW_NUDGE)}>
             Start free <ArrowRight01Icon aria-hidden="true" />
           </AppLink>
           {/* COPY: needs Curtis's approval */}

@@ -4,6 +4,11 @@ import { Link } from "react-router"
 import { ArrowRight01Icon } from "@travada-books/ui/icons"
 import { cn } from "@travada-books/ui/lib/utils"
 
+// Hover nudge for a trailing arrow icon: links (LearnMore) and every
+// "Start free →"-style button share it. Fine pointers only.
+export const ARROW_NUDGE =
+  "[&_svg]:transition-transform [&_svg]:duration-150 [&_svg]:[transition-timing-function:var(--ease-out)] fine-hover:[&_svg]:translate-x-0.5"
+
 // Inline brand link with a chevron (Medusa "Learn more ›").
 export function LearnMore({
   to,
@@ -16,7 +21,7 @@ export function LearnMore({
 }) {
   const classes = cn(
     "inline-flex items-center gap-1 text-sm font-medium text-brand transition-colors active:opacity-80 fine-hover:text-brand-line",
-    "[&_svg]:transition-transform [&_svg]:duration-150 [&_svg]:[transition-timing-function:var(--ease-out)] fine-hover:[&_svg]:translate-x-0.5",
+    ARROW_NUDGE,
     className,
   )
   const content = (

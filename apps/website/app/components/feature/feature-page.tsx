@@ -13,6 +13,7 @@ import { Section } from "~/components/site/section"
 import { ShotPlaceholder } from "~/components/site/shot-placeholder"
 import { Split } from "~/components/site/split"
 import type { FaqItem } from "~/data/faq"
+import { ARROW_NUDGE } from "~/components/home/shared"
 
 // One template for every feature page (WEBSITE-REDO-PLAN.md §4 "Feature
 // pages"): hero → alternating rows → "Everything else" grid → page FAQ →
@@ -145,7 +146,7 @@ function HeroCta() {
   return (
     <>
       <div className="mt-8 flex flex-wrap items-center gap-3">
-        <AppLink to="signup" location="feature-hero" className={cn(buttonVariants({ size: "lg" }), "text-sm")}>
+        <AppLink to="signup" location="feature-hero" className={cn(buttonVariants({ size: "lg" }), "text-sm", ARROW_NUDGE)}>
           Start free <ArrowRight01Icon aria-hidden="true" />
         </AppLink>
       </div>

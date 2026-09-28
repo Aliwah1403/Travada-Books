@@ -1,6 +1,7 @@
 import { STROKE, cornerInset, isoPoint } from "~/components/illustrations/iso"
 import { IllustrationFrame, type LabelsFrom } from "~/components/illustrations/frame"
-import { Callout, Iso, IsoSlab, UiAvatar, UiButton, UiLines, UiPill } from "~/components/illustrations/kit"
+import { revealStep } from "~/components/feature/mockups/reveal"
+import { Callout, IsoSlab, IsoStep, UiAvatar, UiButton, UiLines, UiPill } from "~/components/illustrations/kit"
 
 // I3 — home Invoicing row and /invoicing hero (WEBSITE-REDO-PLAN.md §3).
 // A schedule plate: a rail of monthly send dates runs along its back edge
@@ -76,67 +77,80 @@ function Sheet({ index }: { index: number }) {
 }
 
 function Art() {
+  // Built on first scroll-in (IsoStep → app.css): the plate (step 0), the
+  // send dates one by one (2–5), then the sheets and reminder (6–9).
   return (
-    <Iso x={TX} y={TY}>
-      {/* Schedule plate */}
-      <IsoSlab w={PW} h={PH} t={PT} r={10}>
-        {/* Rail: solid through the sent dates, dashed into the future */}
-        <line x1={NODES[0] - 22} y1={RAIL_Y} x2={NODES[NEXT]} y2={RAIL_Y} className="stroke-line-strong" {...STROKE} />
-        <line
-          x1={NODES[NEXT]}
-          y1={RAIL_Y}
-          x2={PW - 20}
-          y2={RAIL_Y}
-          className="stroke-line-strong"
-          strokeDasharray="3 4"
-          {...STROKE}
-        />
-        {/* Reminder hangs off the last date */}
-        <line
-          x1={NODES[3]}
-          y1={RAIL_Y + NODE / 2}
-          x2={NODES[3]}
-          y2={CY}
-          className="stroke-line-strong"
-          strokeDasharray="3 4"
-          {...STROKE}
-        />
-        <UiLines x={18} y={PH - 16} widths={[60]} size={3} />
-      </IsoSlab>
+    <>
+      <IsoStep step={0} x={TX} y={TY}>
+        {/* Schedule plate */}
+        <IsoSlab w={PW} h={PH} t={PT} r={10}>
+          {/* Rail: solid through the sent dates, dashed into the future */}
+          <line x1={NODES[0] - 22} y1={RAIL_Y} x2={NODES[NEXT]} y2={RAIL_Y} className="stroke-line-strong" {...STROKE} />
+          <line
+            x1={NODES[NEXT]}
+            y1={RAIL_Y}
+            x2={PW - 20}
+            y2={RAIL_Y}
+            className="stroke-line-strong"
+            strokeDasharray="3 4"
+            {...STROKE}
+          />
+          {/* Reminder hangs off the last date */}
+          <line
+            x1={NODES[3]}
+            y1={RAIL_Y + NODE / 2}
+            x2={NODES[3]}
+            y2={CY}
+            className="stroke-line-strong"
+            strokeDasharray="3 4"
+            {...STROKE}
+          />
+          <UiLines x={18} y={PH - 16} widths={[60]} size={3} />
+        </IsoSlab>
+      </IsoStep>
 
       {/* Monthly send dates */}
       {NODES.map((cx, i) => (
-        <IsoSlab
-          key={cx}
-          x={cx - NODE / 2 - NODE_T}
-          y={RAIL_Y - NODE / 2 - NODE_T}
-          w={NODE}
-          h={NODE}
-          t={NODE_T}
-          r={4}
-        >
-          {i < NEXT ? (
-            <path d="M6,11.5 L9.5,15 L16,8" fill="none" className="stroke-ink-muted" {...STROKE} />
-          ) : i === NEXT ? (
-            <circle cx={NODE / 2} cy={NODE / 2} r={4} className="fill-ink-subtle" />
-          ) : null}
-        </IsoSlab>
+        <IsoStep key={cx} step={2 + i} x={TX} y={TY}>
+          <IsoSlab
+            x={cx - NODE / 2 - NODE_T}
+            y={RAIL_Y - NODE / 2 - NODE_T}
+            w={NODE}
+            h={NODE}
+            t={NODE_T}
+            r={4}
+          >
+            {i < NEXT ? (
+              <path d="M6,11.5 L9.5,15 L16,8" fill="none" className="stroke-ink-muted" {...STROKE} />
+            ) : i === NEXT ? (
+              <circle cx={NODE / 2} cy={NODE / 2} r={4} className="fill-ink-subtle" />
+            ) : null}
+          </IsoSlab>
+        </IsoStep>
       ))}
 
       {/* Bottom sheet sits on the plate, behind the reminder card */}
-      <Sheet index={0} />
+      <IsoStep step={6} x={TX} y={TY}>
+        <Sheet index={0} />
+      </IsoStep>
 
       {/* Reminder card */}
-      <IsoSlab x={CX - CT} y={CY - CT} w={CW} h={CH} t={CT} r={5}>
-        <circle cx={18} cy={18} r={9} className="fill-canvas stroke-line-strong" {...STROKE} />
-        <path d="M18,12.5 V18 L22,20.5" fill="none" className="stroke-line-strong" {...STROKE} />
-        <UiLines x={34} y={12} widths={[34, 22]} size={3} pitch={8} />
-        <UiLines x={10} y={37} widths={[60, 42]} size={3} pitch={8} />
-      </IsoSlab>
+      <IsoStep step={7} x={TX} y={TY}>
+        <IsoSlab x={CX - CT} y={CY - CT} w={CW} h={CH} t={CT} r={5}>
+          <circle cx={18} cy={18} r={9} className="fill-canvas stroke-line-strong" {...STROKE} />
+          <path d="M18,12.5 V18 L22,20.5" fill="none" className="stroke-line-strong" {...STROKE} />
+          <UiLines x={34} y={12} widths={[34, 22]} size={3} pitch={8} />
+          <UiLines x={10} y={37} widths={[60, 42]} size={3} pitch={8} />
+        </IsoSlab>
+      </IsoStep>
 
-      <Sheet index={1} />
-      <Sheet index={2} />
-    </Iso>
+      <IsoStep step={8} x={TX} y={TY}>
+        <Sheet index={1} />
+      </IsoStep>
+      <IsoStep step={9} x={TX} y={TY}>
+        <Sheet index={2} />
+      </IsoStep>
+    </>
   )
 }
 
@@ -150,9 +164,15 @@ function Callouts() {
   const [cx, cy] = at(CX + CW - ck, CY + ck, CT)
   return (
     <>
-      <Callout x={ix} y={iy} label="Recurring" dx={-20} dy={-26} run={12} fontSize={FONT} tone="brand" />
-      <Callout x={nx} y={ny} label="Next send" dx={22} dy={-34} run={12} fontSize={FONT} />
-      <Callout x={cx} y={cy} label="Reminder" dx={22} dy={40} run={10} fontSize={FONT} />
+      <g {...revealStep(9)}>
+        <Callout x={ix} y={iy} label="Recurring" dx={-20} dy={-26} run={12} fontSize={FONT} tone="brand" />
+      </g>
+      <g {...revealStep(2 + NEXT)}>
+        <Callout x={nx} y={ny} label="Next send" dx={22} dy={-34} run={12} fontSize={FONT} />
+      </g>
+      <g {...revealStep(7)}>
+        <Callout x={cx} y={cy} label="Reminder" dx={22} dy={40} run={10} fontSize={FONT} />
+      </g>
     </>
   )
 }

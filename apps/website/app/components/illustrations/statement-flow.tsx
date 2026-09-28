@@ -1,6 +1,7 @@
 import { STROKE, cornerInset, isoPoint } from "~/components/illustrations/iso"
 import { IllustrationFrame, StemLabel, type LabelsFrom } from "~/components/illustrations/frame"
-import { Callout, Connector, Iso, IsoSlab, UiLines, UiPill } from "~/components/illustrations/kit"
+import { revealStep } from "~/components/feature/mockups/reveal"
+import { Callout, Connector, IsoSlab, IsoStep, UiLines, UiPill } from "~/components/illustrations/kit"
 
 // I4 — home Statement import row and /statement-import hero
 // (WEBSITE-REDO-PLAN.md §3). A left-to-right flow (Medusa "data → insights
@@ -115,28 +116,34 @@ function Art() {
   const hubLeftMid: [number, number] = [hubLeft[0], hubLeft[1] + HT / 2]
   const hubRightMid: [number, number] = [hubRight[0], hubRight[1] + HT / 2]
 
+  // Built in reading order on first scroll-in (IsoStep/revealStep →
+  // app.css): statements (step 0) → Travada (3) → categorised rows (6, 7,
+  // 8 …). Paint order is unchanged: connectors first, then blocks.
   return (
     <g>
-      {/* Connectors first, so the blocks sit on top of their ends */}
-      {SOURCES.map((_, i) => {
-        const [x, y] = sourceOrigin(i)
-        const from = screen(x + SW - sk, y + sk)
-        return (
-          <Connector
-            key={i}
-            from={[from[0], from[1] + ST / 2]}
-            to={hubLeftMid}
-            endDot={false}
-          />
-        )
-      })}
-      {Array.from({ length: ROWS }, (_, i) => {
-        const [x, y] = rowOrigin(i)
-        const to = screen(x + rk, y + RH - rk)
-        return <Connector key={i} from={hubRightMid} to={[to[0], to[1] + RT / 2]} tone="brand" />
-      })}
+      <g {...revealStep(0)}>
+        {SOURCES.map((_, i) => {
+          const [x, y] = sourceOrigin(i)
+          const from = screen(x + SW - sk, y + sk)
+          return (
+            <Connector
+              key={i}
+              from={[from[0], from[1] + ST / 2]}
+              to={hubLeftMid}
+              endDot={false}
+            />
+          )
+        })}
+      </g>
+      <g {...revealStep(6)}>
+        {Array.from({ length: ROWS }, (_, i) => {
+          const [x, y] = rowOrigin(i)
+          const to = screen(x + rk, y + RH - rk)
+          return <Connector key={i} from={hubRightMid} to={[to[0], to[1] + RT / 2]} tone="brand" />
+        })}
+      </g>
 
-      <Iso x={TX} y={TY}>
+      <IsoStep step={0} x={TX} y={TY}>
         {SOURCES.map((source, i) => {
           const [x, y] = sourceOrigin(i)
           return (
@@ -145,23 +152,27 @@ function Art() {
             </IsoSlab>
           )
         })}
+      </IsoStep>
 
-        {/* Travada block (highlighted) */}
+      {/* Travada block (highlighted) */}
+      <IsoStep step={3} x={TX} y={TY}>
         <IsoSlab x={hx} y={hy} w={HW} h={HH} t={HT} r={HR} tone="brand">
           <rect x={14} y={14} width={HW - 28} height={HH - 28} rx={6} className="fill-none stroke-brand-line" {...STROKE} />
           <UiLines x={22} y={24} widths={[20, 14, 18]} size={3} pitch={6} tone="brand" />
         </IsoSlab>
+      </IsoStep>
 
-        {Array.from({ length: ROWS }, (_, i) => {
-          const [x, y] = rowOrigin(i)
-          return (
-            <IsoSlab key={i} x={x} y={y} w={RW} h={RH} t={RT} r={RR}>
+      {Array.from({ length: ROWS }, (_, i) => {
+        const [x, y] = rowOrigin(i)
+        return (
+          <IsoStep key={i} step={6 + i} x={TX} y={TY}>
+            <IsoSlab x={x} y={y} w={RW} h={RH} t={RT} r={RR}>
               <UiLines x={8} y={8} widths={[22 + ((i * 9) % 14)]} size={3} />
               <UiPill x={46} y={5} w={30} h={10} tone={i === 1 ? "brand" : "base"} />
             </IsoSlab>
-          )
-        })}
-      </Iso>
+          </IsoStep>
+        )
+      })}
     </g>
   )
 }
@@ -175,16 +186,22 @@ function Callouts() {
   const rowTop = screen(rx + RW / 2, ry + RH / 2)
   return (
     <>
-      {SOURCES.map((source, i) => {
-        const [x, y] = sourceOrigin(i)
-        const [ax, ay] = screen(x + sk, y + SH - sk)
-        // Labels right-align on one column ending at x = 156.
-        return (
-          <Callout key={source} x={ax} y={ay} label={source} dx={-14} dy={0} run={ax - 14 - 162} fontSize={FONT} />
-        )
-      })}
-      <StemLabel x={hubFront[0]} y={hubFront[1] + HT} label="Travada Books" length={40} fontSize={FONT} brand />
-      <StemLabel x={rowTop[0]} y={rowTop[1]} label="Categorised" length={-44} fontSize={FONT} />
+      <g {...revealStep(0)}>
+        {SOURCES.map((source, i) => {
+          const [x, y] = sourceOrigin(i)
+          const [ax, ay] = screen(x + sk, y + SH - sk)
+          // Labels right-align on one column ending at x = 156.
+          return (
+            <Callout key={source} x={ax} y={ay} label={source} dx={-14} dy={0} run={ax - 14 - 162} fontSize={FONT} />
+          )
+        })}
+      </g>
+      <g {...revealStep(3)}>
+        <StemLabel x={hubFront[0]} y={hubFront[1] + HT} label="Travada Books" length={40} fontSize={FONT} brand />
+      </g>
+      <g {...revealStep(6)}>
+        <StemLabel x={rowTop[0]} y={rowTop[1]} label="Categorised" length={-44} fontSize={FONT} />
+      </g>
     </>
   )
 }

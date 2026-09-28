@@ -19,6 +19,7 @@ import { BooksStack } from "~/components/illustrations/books-stack"
 import { Eyebrow } from "~/components/site/eyebrow"
 import { Section } from "~/components/site/section"
 import { Split } from "~/components/site/split"
+import { ARROW_NUDGE } from "~/components/home/shared"
 
 /* -------------------------------------------------------------------------- */
 /* 1 · Hero                                                                    */
@@ -59,7 +60,7 @@ export function Hero() {
             </p>
 
             <div className="mt-8 flex flex-wrap items-center gap-3">
-              <AppLink to="signup" location="hero" className={cn(buttonVariants({ size: "lg" }), "text-sm")}>
+              <AppLink to="signup" location="hero" className={cn(buttonVariants({ size: "lg" }), "text-sm", ARROW_NUDGE)}>
                 Start free <ArrowRight01Icon aria-hidden="true" />
               </AppLink>
               <a

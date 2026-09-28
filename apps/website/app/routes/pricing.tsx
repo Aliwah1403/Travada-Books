@@ -9,6 +9,7 @@ import { Section } from "~/components/site/section"
 import { SectionHeading } from "~/components/site/section-heading"
 import { PRICING_FAQ_ITEMS, PRICING_PLANS, PRICING_PUBLISHED, type PricingPlan } from "~/data/pricing"
 import { faqPageJsonLd, organizationJsonLd, pageMeta, softwareApplicationJsonLd } from "~/lib/seo"
+import { ARROW_NUDGE } from "~/components/home/shared"
 
 // Dummy page (WEBSITE-PLAN.md §6 "/pricing"): every value comes from
 // data/pricing.ts. PRICING_PUBLISHED still drives noindex here, and the
@@ -66,6 +67,7 @@ function PlanCard({ plan }: { plan: PricingPlan }) {
           buttonVariants({ size: "lg", variant: featured ? "default" : "outline" }),
           "mt-10 w-full text-sm",
           !featured && "bg-panel",
+          ARROW_NUDGE,
         )}
       >
         {plan.ctaLabel} <ArrowRight01Icon aria-hidden="true" />

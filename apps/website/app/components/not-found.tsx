@@ -6,6 +6,7 @@ import { cn } from "@travada-books/ui/lib/utils"
 
 import { MissingPage } from "~/components/illustrations/missing-page"
 import { Section } from "~/components/site/section"
+import { ARROW_NUDGE } from "~/components/home/shared"
 
 // Rendered by the catch-all route and by the $slug routes for an unknown
 // slug. Their meta() sets noindex.
@@ -19,7 +20,7 @@ export function NotFoundBody() {
           The page you're looking for doesn't exist or may have moved.
         </p>
         <div className="mt-8 flex flex-wrap justify-center gap-3">
-          <Link to="/" className={cn(buttonVariants({ size: "lg" }), "text-sm")}>
+          <Link to="/" className={cn(buttonVariants({ size: "lg" }), "text-sm", ARROW_NUDGE)}>
             Back to home <ArrowRight01Icon aria-hidden="true" />
           </Link>
           <Link

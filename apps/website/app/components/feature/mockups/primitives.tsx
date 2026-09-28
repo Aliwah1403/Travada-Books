@@ -1,4 +1,4 @@
-import { useEffect, useRef, type ReactNode } from "react"
+import type { ReactNode } from "react"
 
 import {
   Alert01Icon,
@@ -15,7 +15,7 @@ import {
 } from "@travada-books/ui/icons"
 import { cn } from "@travada-books/ui/lib/utils"
 
-import { revealStep } from "~/components/feature/mockups/reveal"
+import { revealStep, useReveal } from "~/components/feature/mockups/reveal"
 
 // Shared pieces for coded product mockups (Midday-style live HTML
 // recreations of app UI). Illustrative only: every mockup is one
@@ -86,33 +86,6 @@ export function Pill({
       {label}
     </span>
   )
-}
-
-// ── Reveal ──────────────────────────────────────────────────────────────
-
-// One-time staggered entrance (CSS in app.css). Only armed after hydration,
-// only for a mockup that starts below the fold, never under reduced motion,
-// so the prerendered HTML is always fully visible.
-function useReveal() {
-  const ref = useRef<HTMLDivElement>(null)
-  useEffect(() => {
-    const el = ref.current
-    if (!el || typeof IntersectionObserver === "undefined") return
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return
-    if (el.getBoundingClientRect().top < window.innerHeight) return
-    el.dataset.reveal = "pending"
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (!entry.isIntersecting) return
-        el.dataset.reveal = "shown"
-        observer.disconnect()
-      },
-      { rootMargin: "0px 0px -15% 0px" },
-    )
-    observer.observe(el)
-    return () => observer.disconnect()
-  }, [])
-  return ref
 }
 
 // ── Frame ───────────────────────────────────────────────────────────────

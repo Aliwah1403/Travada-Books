@@ -2,6 +2,8 @@ import type { ReactNode } from "react"
 
 import { cn } from "@travada-books/ui/lib/utils"
 
+import { useReveal } from "~/components/feature/mockups/reveal"
+
 // Responsive shell shared by the feature illustrations (I3–I5, I9–I11).
 //
 // Same technique as I1 (books-stack.tsx): one geometry, two renders.
@@ -102,8 +104,12 @@ export function IllustrationFrame({
   labelsFrom = "sm",
   className,
 }: IllustrationFrameProps) {
+  // Arms the one-time staggered build for art that marks its groups with
+  // revealStep() (home feature rows). A no-op for art without steps, for
+  // frames already on screen at load, and under reduced motion.
+  const ref = useReveal()
   return (
-    <div className={className}>
+    <div ref={ref} className={className}>
       <svg viewBox={viewBox} role="img" aria-label={label} className={cn("h-auto w-full", SHOW[labelsFrom])}>
         {art}
         {callouts}
