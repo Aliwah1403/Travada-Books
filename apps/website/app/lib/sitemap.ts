@@ -23,6 +23,7 @@ const CORE_STATIC_PATHS = [
   "/integrations",
   "/who-its-for",
   "/about",
+  "/contact",
   "/updates",
   "/guides",
 ]

@@ -60,7 +60,7 @@ export const FOOTER_LINKS: { heading: string; links: NavLink[] }[] = [
     heading: "Company",
     links: [
       { label: "About", href: "/about" },
-      { label: "Contact", href: `mailto:${CONTACT_EMAIL}` },
+      { label: "Contact", href: "/contact" },
     ],
   },
   {

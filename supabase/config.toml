@@ -434,6 +434,10 @@ verify_jwt = false
 [functions.unsubscribe]
 verify_jwt = false
 
+# Public: the travadabooks.com /contact form (anonymous visitors).
+[functions.submit-support-request]
+verify_jwt = false
+
 [functions.accept-quote]
 verify_jwt = false
 
