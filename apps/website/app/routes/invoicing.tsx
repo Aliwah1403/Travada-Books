@@ -27,7 +27,7 @@ export function meta() {
     ...pageMeta({
       title: "Invoicing — Travada Books",
       description:
-        "Recurring invoices, scheduled sending, automatic reminders and quotes that become invoices on their own. Bill in any currency, see your totals in shillings.",
+        "Recurring invoices, scheduled sending, automatic reminders and quotes that become invoices on their own. Bill in any currency, see your totals in your own.",
       path: "/invoicing",
       image: "/og/invoicing.png",
     }),
@@ -108,7 +108,7 @@ const CONTENT: FeaturePageContent = {
     },
     {
       title: "Any currency",
-      body: "Bill a client in pounds or dollars and still see your own totals converted to shillings.",
+      body: "Bill a client in pounds, dollars or euros and still see your own totals in your base currency.",
       icon: Globe02Icon,
     },
     {

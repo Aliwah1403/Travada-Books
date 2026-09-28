@@ -15,17 +15,17 @@ import { FeatureItem } from "~/components/site/feature-item"
 import { Section } from "~/components/site/section"
 
 /* -------------------------------------------------------------------------- */
-/* 7 · Built for business here                                                 */
+/* 7 · Built for how business really works                                     */
 /* -------------------------------------------------------------------------- */
 
 const LOCAL_FACTS: { title: string; body: string; icon: Icon }[] = [
-  { title: "M-Pesa and bank statements", body: "Import the records Kenyan businesses already receive.", icon: BankIcon },
+  { title: "Mobile money and bank statements", body: "Import M-Pesa and bank statements in whatever layout they arrive.", icon: BankIcon },
   {
-    title: "KES at the centre",
-    body: "Run the books in shillings while invoicing clients in other currencies.",
+    title: "Your currency at the centre",
+    body: "Run the books in your own currency while invoicing clients in theirs.",
     icon: MoneyBag02Icon,
   },
-  { title: "Built in Nairobi", body: "Product decisions come from the workflows we see around us.", icon: Building01Icon },
+  { title: "Built in Nairobi, used anywhere", body: "Shaped by the businesses most tools overlook, and open to everyone.", icon: Building01Icon },
   { title: "Human support", body: "Get a clear answer from a person when the books need attention.", icon: UserIcon },
 ]
 
@@ -34,16 +34,17 @@ export function BuiltForHere() {
     <Section size="lg">
       <div className="grid gap-6 md:grid-cols-2 md:items-end md:gap-12">
         <div className="flex flex-col gap-4">
-          <Eyebrow>Built for business here</Eyebrow>
+          <Eyebrow>Built for how business works</Eyebrow>
           <h2 className="text-3xl font-medium tracking-tight text-balance md:text-4xl">
-            Software that understands how business is done here.
+            Software built for how business really works.
           </h2>
         </div>
         <div className="flex flex-col items-start gap-5">
           <p className="text-lg text-pretty text-ink-muted">
-            Bank statements that split debit and credit. M-Pesa records. Clients who pay in pounds while you
-            run the business in shillings. Travada Books is designed around the work Kenyan businesses actually
-            do.
+            Most accounting tools assume a card-first, single-currency business with tidy bank feeds. Plenty of
+            businesses run on mobile money, statements in every layout, and clients who pay in another currency.
+            Travada Books was built in Nairobi, where that&rsquo;s normal, so it handles all of it, wherever you
+            are.
           </p>
           <LearnMore to="/about">Why we&rsquo;re building Travada</LearnMore>
         </div>

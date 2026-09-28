@@ -31,7 +31,7 @@ const PAGE_SIZE = 5
 export function meta() {
   return pageMeta({
     title: "Changelog — Travada Books",
-    description: "What's new in Travada Books: product updates and company news from the team building it in Nairobi, newest first.",
+    description: "What's new in Travada Books: product updates and company news, newest first.",
     path: "/updates",
   })
 }

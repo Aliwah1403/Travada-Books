@@ -33,7 +33,7 @@ export function Footer() {
               <span className="text-base font-semibold tracking-tight text-ink">{SITE_NAME}</span>
             </Link>
             <p className="max-w-xs text-sm text-pretty text-ink-muted">
-              Invoicing and bookkeeping that fits how small business is done in Kenya.
+              Invoicing and bookkeeping for small businesses and freelancers, wherever you work.
             </p>
             <a href={`mailto:${CONTACT_EMAIL}`} className={LINK}>
               {CONTACT_EMAIL}

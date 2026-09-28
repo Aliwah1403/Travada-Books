@@ -53,9 +53,9 @@ export function Hero() {
             </h1>
 
             <p className="mt-6 max-w-xl text-lg text-pretty text-ink-muted">
-              Invoicing and bookkeeping for freelancers and small businesses in Kenya. Send invoices on
-              schedule, follow up automatically, and organise bank and M-Pesa records without rebuilding
-              another spreadsheet.
+              Invoicing and bookkeeping for freelancers and small businesses, wherever you work. Send invoices
+              on schedule, follow up automatically, and organise your bank and mobile-money records without
+              rebuilding another spreadsheet.
             </p>
 
             <div className="mt-8 flex flex-wrap items-center gap-3">

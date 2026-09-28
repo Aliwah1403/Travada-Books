@@ -138,7 +138,7 @@ const PERSONA_EXTRAS: Record<string, { spot: Spot; features: PersonaFeature[] }>
       },
       {
         title: "Any currency",
-        body: "Bill clients in their currency and see your totals in shillings.",
+        body: "Bill clients in their currency and see your totals in yours.",
         icon: MoneyExchange01Icon,
         href: "/invoicing",
       },
@@ -193,7 +193,7 @@ function Hero() {
             </h1>
             <p className="mt-6 max-w-xl text-lg text-pretty text-ink-muted">
               Travada Books is invoicing and bookkeeping software for freelancers, consultants, agencies, and small
-              businesses in Kenya — the people doing the work and keeping the business moving.
+              businesses, wherever they work — the people doing the work and keeping the business moving.
             </p>
           </div>
         }

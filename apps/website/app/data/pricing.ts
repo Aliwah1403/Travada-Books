@@ -46,7 +46,7 @@ export const PRICING_PLANS: PricingPlan[] = [
     features: [
       "Everything in Starter",
       "Customer statements across multiple invoices",
-      "Bill in any currency, totals shown in shillings",
+      "Bill in any currency, totals in your own",
       "Record partial payments against a balance",
       "Connected inbox — Gmail and Outlook receipt capture",
     ],

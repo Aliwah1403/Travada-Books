@@ -112,16 +112,12 @@ export function softwareApplicationJsonLd(plans: PricingPlan[]): MetaDescriptor 
       "@type": "SoftwareApplication",
       name: SITE_NAME,
       description:
-        "Invoicing and bookkeeping software for freelancers and small businesses in Kenya.",
+        "Invoicing and bookkeeping software for freelancers and small businesses, wherever they work.",
       applicationCategory: "BusinessApplication",
       applicationSubCategory: "Invoicing and bookkeeping software",
       operatingSystem: "Web",
       url: SITE_URL,
-      inLanguage: "en-KE",
-      areaServed: {
-        "@type": "Country",
-        name: "Kenya",
-      },
+      inLanguage: "en",
       audience: {
         "@type": "BusinessAudience",
         audienceType: "Freelancers, consultants, agencies, and small businesses",

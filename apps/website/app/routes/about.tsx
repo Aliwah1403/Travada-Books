@@ -12,6 +12,7 @@ import {
 
 import { ClosingCta } from "~/components/home/closing"
 import { LearnMore } from "~/components/home/shared"
+import { FounderSignature } from "~/components/about/founder-signature"
 import { Eyebrow } from "~/components/site/eyebrow"
 import { FeatureItem } from "~/components/site/feature-item"
 import { Section } from "~/components/site/section"
@@ -23,9 +24,9 @@ import { organizationJsonLd, pageMeta } from "~/lib/seo"
 export function meta() {
   return [
     ...pageMeta({
-      title: "About Travada Books — Built in Nairobi for Kenyan Businesses",
+      title: "About Travada Books — Built in Nairobi, for Businesses Everywhere",
       description:
-        "Travada Books is invoicing and bookkeeping software built by Travada Systems in Nairobi. We were our own first customer and build alongside Kenyan businesses.",
+        "Travada Books is invoicing and bookkeeping software built by Travada Systems in Nairobi. We were our own first customer, and we build it for small businesses and freelancers everywhere.",
       path: "/about",
       image: "/og/about.png",
     }),
@@ -37,18 +38,30 @@ export function meta() {
 // story, h2 section breaks, large body text. No photos.
 const COLUMN = "mx-auto w-full max-w-2xl"
 
-const STORY: { title: string; body: string }[] = [
+// The origin story, told as a short essay (Midday /story): plain section
+// labels, prose paragraphs, then the founders' names and signatures.
+// COPY: needs Curtis's approval.
+const STORY: { label: string; paragraphs: ReactNode[] }[] = [
   {
-    title: "Our own books were getting in the way.",
-    body: "Invoicing Travada Systems customers meant rebuilding the same documents, sending them by hand, and trying to remember who still owed what.",
+    label: "Where it started",
+    paragraphs: [
+      "Travada Books didn’t start as a product. It started as a chore. At Travada Systems, every month meant rebuilding the same invoices for our customers, sending them by hand, and then trying to remember which ones had actually been paid.",
+      "The work itself was going fine. The paperwork around it wasn’t. We kept a spreadsheet, then a second one, then a notebook for the things the spreadsheets missed.",
+    ],
   },
   {
-    title: "Then another business described the same headache.",
-    body: "An agent was struggling to invoice his clients in exactly the same way. Two businesses, one recurring problem: the workflow was broken, not the people.",
+    label: "Then we heard it again",
+    paragraphs: [
+      "Around the same time, we met an agent who was invoicing his clients exactly the way we were: copying last month’s invoice, changing the date, and chasing payments one phone call at a time.",
+      "Two businesses doing completely different work, stuck on the same problem. That told us something. The workflow was broken, not the people using it.",
+    ],
   },
   {
-    title: "So we built the system we wanted to use.",
-    body: "Travada Books now runs our own invoicing and bookkeeping. We build each feature alongside people operating real Kenyan businesses.",
+    label: "So we built the system we wanted",
+    paragraphs: [
+      "We built Travada Books to take that routine off our hands. Invoices that send on schedule. Reminders that follow up on their own. Statements that sort themselves, and receipts that find the transaction they belong to.",
+      "Today it runs our own invoicing and bookkeeping, and every feature starts with someone running a real business who needed it. We build it in Nairobi, where mobile money, statements in every layout and clients who pay in another currency are simply how business works. That’s why Travada Books handles them out of the box, for businesses here and everywhere else.",
+    ],
   },
 ]
 
@@ -64,8 +77,8 @@ const PRINCIPLES: { title: string; body: ReactNode; icon: Icon }[] = [
     icon: EyeIcon,
   },
   {
-    title: "Local by design",
-    body: "M-Pesa, shillings, foreign-currency clients, and the shape of local bank statements are core product decisions — not regional add-ons.",
+    title: "Real-world by design",
+    body: "Mobile money, multiple currencies, and bank statements in every layout are core product decisions — not regional add-ons.",
     icon: Globe02Icon,
   },
   {
@@ -95,23 +108,37 @@ function Story() {
           We were our own first customer.
         </h1>
         <p className="mt-6 text-xl text-pretty text-ink-muted">
-          Travada Books is invoicing and bookkeeping software built by Travada Systems in Nairobi for the businesses
-          that keep Kenya moving.
+          Travada Books is invoicing and bookkeeping software built by Travada Systems in Nairobi, for small
+          businesses and freelancers everywhere.
         </p>
 
-        <div className="mt-16 border-t border-line pt-12 md:mt-20 md:pt-16">
-          <p className="font-mono text-xs tracking-wide text-ink-subtle uppercase">The origin</p>
-          <p className="mt-4 text-2xl font-medium tracking-tight text-balance text-ink md:text-3xl">
-            A tool born from a real invoice that still needed chasing.
-          </p>
-        </div>
-
         {STORY.map((part) => (
-          <div key={part.title} className="mt-12 md:mt-14">
-            <h2 className="text-2xl font-medium tracking-tight text-balance">{part.title}</h2>
-            <p className="mt-4 text-lg text-pretty text-ink-muted">{part.body}</p>
-          </div>
+          <section key={part.label} className="mt-14 border-t border-line pt-10 md:mt-16 md:pt-12">
+            <h2 className="text-base font-medium text-ink">{part.label}</h2>
+            <div className="mt-4 flex flex-col gap-5">
+              {part.paragraphs.map((paragraph, i) => (
+                <p key={i} className="text-lg text-pretty text-ink-muted">
+                  {paragraph}
+                </p>
+              ))}
+            </div>
+          </section>
         ))}
+
+        <p className="mt-12 text-lg font-medium text-pretty text-ink">
+          {/* COPY: needs Curtis's approval */}
+          The work is yours. The paperwork shouldn’t be.
+        </p>
+
+        {/* Sign-off: founders' signatures (Nate's is still a placeholder — see founder-signature.tsx). */}
+        <div className="mt-12">
+          <div className="flex items-end gap-8">
+            <FounderSignature name="curtis" />
+            <FounderSignature name="nate" />
+          </div>
+          <p className="mt-4 text-sm font-medium text-ink">Curtis &amp; Nate</p>
+          <p className="text-sm text-ink-muted">Founders, Travada Systems</p>
+        </div>
       </div>
     </Section>
   )
@@ -120,7 +147,7 @@ function Story() {
 function Principles() {
   return (
     <Section size="lg" tone="canvas">
-      <SectionHeading eyebrow={<Eyebrow>How we build</Eyebrow>} title="Kenya first. Business owners first." />
+      <SectionHeading eyebrow={<Eyebrow>How we build</Eyebrow>} title="Built in Nairobi. Built for business owners everywhere." />
       <div className="mt-12 grid gap-px border border-line bg-line sm:grid-cols-2 md:mt-16 lg:grid-cols-4">
         {PRINCIPLES.map((principle) => (
           <FeatureItem key={principle.title} icon={principle.icon} title={principle.title} className="bg-panel p-6">

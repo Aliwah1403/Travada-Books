@@ -105,7 +105,7 @@ const CONTENT: FeaturePageContent = {
     },
     {
       title: "Any currency",
-      body: "Payments on invoices in other currencies still add up in your shilling totals.",
+      body: "Payments on invoices in other currencies still add up in your base-currency totals.",
       icon: Globe02Icon,
     },
   ],

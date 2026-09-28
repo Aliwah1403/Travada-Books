@@ -28,7 +28,7 @@ export default function LegalTerms() {
       notice={
         frontmatter.placeholder ? (
           <LegalDraftNotice>
-            This page is a placeholder and will be replaced with the final terms before launch.
+            These terms are being reviewed and may change before launch.
           </LegalDraftNotice>
         ) : undefined
       }

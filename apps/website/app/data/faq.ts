@@ -12,7 +12,7 @@ export const FAQ_ITEMS: FaqItem[] = [
     id: "what-is-it",
     question: "What is Travada Books?",
     answer:
-      "Invoicing and bookkeeping software for freelancers and small businesses in Kenya. Send invoices and quotes, import your bank and M-Pesa statements, and keep receipts organised in one place.",
+      "Invoicing and bookkeeping software for freelancers and small businesses, wherever they work. Send invoices and quotes, import your bank and mobile-money statements, and keep receipts organised in one place.",
   },
   {
     id: "who-is-it-for",
@@ -36,7 +36,7 @@ export const FAQ_ITEMS: FaqItem[] = [
     id: "currencies",
     question: "Can I invoice in other currencies?",
     answer:
-      "Yes. Bill a client in pounds, dollars or euros and still see your own totals in shillings.",
+      "Yes. Bill a client in pounds, dollars, euros or shillings and still see your own totals in your base currency.",
   },
   {
     id: "cost",
@@ -83,7 +83,7 @@ export const INVOICING_FAQ_ITEMS: FaqItem[] = [
     id: "invoice-currency",
     question: "Can I invoice a client in another currency?",
     answer:
-      "Yes. Bill a client in pounds, dollars or euros and still see your own totals converted to shillings.",
+      "Yes. Bill a client in pounds, dollars, euros or shillings and still see your own totals converted to your base currency.",
   },
 ]
 

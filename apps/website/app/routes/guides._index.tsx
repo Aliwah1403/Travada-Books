@@ -45,7 +45,7 @@ export function meta() {
   return pageMeta({
     title: "Help Centre — How to Use Travada Books",
     description:
-      "Step-by-step help for Travada Books: set up your business, send invoices and quotes, import statements, record payments and manage your team. Plus guides for running a business in Kenya.",
+      "Step-by-step help for Travada Books: set up your business, send invoices and quotes, import statements, record payments and manage your team. Plus longer guides on keeping business records.",
     path: "/guides",
   })
 }
@@ -81,8 +81,7 @@ function Hero() {
         {/* COPY: needs Curtis's approval */}
         <h1 className="mt-5 text-5xl font-medium tracking-tight text-balance md:text-6xl">How can we help?</h1>
         <p className="mt-5 max-w-2xl text-lg text-pretty text-ink-muted">
-          Step-by-step help with every part of Travada Books, and longer guides on keeping business records in
-          Kenya.
+          Step-by-step help with every part of Travada Books, plus longer guides on keeping business records.
         </p>
         <div className="mt-8 w-full md:mt-10">
           <HelpSearch

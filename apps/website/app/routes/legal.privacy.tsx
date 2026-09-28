@@ -28,7 +28,7 @@ export default function LegalPrivacy() {
       notice={
         frontmatter.placeholder ? (
           <LegalDraftNotice>
-            This page is a placeholder and will be replaced with the final privacy policy before launch.
+            This policy is being reviewed and may change before launch.
           </LegalDraftNotice>
         ) : undefined
       }
