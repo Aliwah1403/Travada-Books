@@ -16,7 +16,6 @@ import { Eyebrow } from "~/components/site/eyebrow"
 import { Section } from "~/components/site/section"
 import { FAQ_ITEMS, type FaqItem } from "~/data/faq"
 import { PRICING_PUBLISHED } from "~/data/pricing"
-import { CONTACT_EMAIL } from "~/data/site"
 
 /* -------------------------------------------------------------------------- */
 /* 11 · FAQ                                                                    */
@@ -38,7 +37,7 @@ export function HomeFaq({
           <Eyebrow>FAQ</Eyebrow>
           <h2 className="text-3xl font-medium tracking-tight text-balance md:text-4xl">{title}</h2>
           <p className="text-lg text-pretty text-ink-muted">Still have a question? A person will answer.</p>
-          <LearnMore to={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</LearnMore>
+          <LearnMore to="/contact">Contact us</LearnMore>
         </div>
 
         <Accordion className="rounded-lg border-line bg-panel">
@@ -52,7 +51,7 @@ export function HomeFaq({
                   </p>
                 ) : item.id === "contact" ? (
                   <p>
-                    Email us at <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>.
+                    Send us a message from the <Link to="/contact">contact page</Link> and a person will reply.
                   </p>
                 ) : (
                   <p>{item.answer}</p>

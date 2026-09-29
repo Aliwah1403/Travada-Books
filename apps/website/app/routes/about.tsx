@@ -17,7 +17,6 @@ import { Eyebrow } from "~/components/site/eyebrow"
 import { FeatureItem } from "~/components/site/feature-item"
 import { Section } from "~/components/site/section"
 import { SectionHeading } from "~/components/site/section-heading"
-import { CONTACT_EMAIL } from "~/data/site"
 import { organizationJsonLd, pageMeta } from "~/lib/seo"
 import { ogImage } from "~/lib/og"
 
@@ -25,9 +24,10 @@ import { ogImage } from "~/lib/og"
 export function meta() {
   return [
     ...pageMeta({
-      title: "About Travada Books — Built in Nairobi, for Businesses Everywhere",
+      title:
+        "About Travada Books — Built in Nairobi, for Businesses Everywhere",
       description:
-        "Travada Books is invoicing and bookkeeping software built by Travada Systems in Nairobi. We were our own first customer, and we build it for small businesses and freelancers everywhere.",
+        "Travada Books is invoicing and bookkeeping software built by Travada in Nairobi. We were our own first customer, and we build it for small businesses and freelancers everywhere.",
       path: "/about",
       image: ogImage("about"),
     }),
@@ -41,7 +41,6 @@ const COLUMN = "mx-auto w-full max-w-2xl"
 
 // The origin story, told as a short essay (Midday /story): plain section
 // labels, prose paragraphs, then the founders' names and signatures.
-// COPY: needs Curtis's approval.
 const STORY: { label: string; paragraphs: ReactNode[] }[] = [
   {
     label: "Where it started",
@@ -93,7 +92,8 @@ const PRINCIPLES: { title: string; body: ReactNode; icon: Icon }[] = [
         >
           Updates
         </Link>
-        , and we say plainly when something such as eTIMS support is still coming.
+        , and we say plainly when something such as eTIMS support is still
+        coming.
       </>
     ),
     icon: ChartLineData01Icon,
@@ -109,12 +109,15 @@ function Story() {
           We were our own first customer.
         </h1>
         <p className="mt-6 text-xl text-pretty text-ink-muted">
-          Travada Books is invoicing and bookkeeping software built by Travada Systems in Nairobi, for small
-          businesses and freelancers everywhere.
+          Travada Books is invoicing and bookkeeping software built by Travada
+          in Nairobi, for small businesses and freelancers everywhere.
         </p>
 
         {STORY.map((part) => (
-          <section key={part.label} className="mt-14 border-t border-line pt-10 md:mt-16 md:pt-12">
+          <section
+            key={part.label}
+            className="mt-14 border-t border-line pt-10 md:mt-16 md:pt-12"
+          >
             <h2 className="text-base font-medium text-ink">{part.label}</h2>
             <div className="mt-4 flex flex-col gap-5">
               {part.paragraphs.map((paragraph, i) => (
@@ -127,7 +130,6 @@ function Story() {
         ))}
 
         <p className="mt-12 text-lg font-medium text-pretty text-ink">
-          {/* COPY: needs Curtis's approval */}
           The work is yours. The paperwork shouldn’t be.
         </p>
 
@@ -148,10 +150,18 @@ function Story() {
 function Principles() {
   return (
     <Section size="lg" tone="canvas">
-      <SectionHeading eyebrow={<Eyebrow>How we build</Eyebrow>} title="Built in Nairobi. Built for business owners everywhere." />
+      <SectionHeading
+        eyebrow={<Eyebrow>How we build</Eyebrow>}
+        title="Built in Nairobi. Built for business owners everywhere."
+      />
       <div className="mt-12 grid gap-px border border-line bg-line sm:grid-cols-2 md:mt-16 lg:grid-cols-4">
         {PRINCIPLES.map((principle) => (
-          <FeatureItem key={principle.title} icon={principle.icon} title={principle.title} className="bg-panel p-6">
+          <FeatureItem
+            key={principle.title}
+            icon={principle.icon}
+            title={principle.title}
+            className="bg-panel p-6"
+          >
             {principle.body}
           </FeatureItem>
         ))}
@@ -165,13 +175,18 @@ function Contact() {
     <Section size="lg">
       <div className={COLUMN}>
         <div className="border border-line bg-panel p-8 md:p-10">
-          {/* COPY: needs Curtis's approval (the "Made in Nairobi" label) */}
           <Eyebrow icon={Building01Icon}>Made in Nairobi</Eyebrow>
-          <h2 className="mt-6 text-3xl font-medium tracking-tight text-balance md:text-4xl">Build it with us.</h2>
-          <p className="mt-4 text-lg text-pretty text-ink-muted">Have a workflow we should see?</p>
+          <h2 className="mt-6 text-3xl font-medium tracking-tight text-balance md:text-4xl">
+            Build it with us.
+          </h2>
+          <p className="mt-4 text-lg text-pretty text-ink-muted">
+            Have a workflow we should see?
+          </p>
           <div className="mt-8 flex flex-col gap-4 border-t border-line pt-6 sm:flex-row sm:items-center sm:justify-between">
-            <LearnMore to={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</LearnMore>
-            <span className="font-mono text-xs tracking-wide text-ink-subtle uppercase">Est. 2026 · Nairobi, Kenya</span>
+            <LearnMore to="/contact?topic=feature">Tell us about it</LearnMore>
+            <span className="font-mono text-xs tracking-wide text-ink-subtle uppercase">
+              Est. 2026 · Nairobi, Kenya
+            </span>
           </div>
         </div>
       </div>

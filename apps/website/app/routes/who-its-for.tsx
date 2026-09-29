@@ -51,7 +51,6 @@ type PersonaFeature = { title: string; body: string; icon: Icon; href: string }
 
 // Keyed by persona id (data/personas.ts). ⚠️ No "M-Pesa" in any invoicing
 // feature below — it appears only in the import-led rows (WEBSITE-PLAN.md §5).
-/* COPY: every feature title and body below needs Curtis's approval */
 const PERSONA_EXTRAS: Record<string, { spot: Spot; features: PersonaFeature[] }> = {
   freelancer: {
     spot: FreelancerSpot,
@@ -104,7 +103,7 @@ const PERSONA_EXTRAS: Record<string, { spot: Spot; features: PersonaFeature[] }>
     features: [
       {
         title: "Statement import",
-        body: "Upload the bank or M-Pesa statements you already have, CSV or PDF, and they come in sorted.",
+        body: "Upload the bank or mobile money statements you already have, such as M-Pesa, as CSV or PDF, and they come in sorted.",
         icon: BankIcon,
         href: "/statement-import",
       },
@@ -150,7 +149,7 @@ const PERSONA_EXTRAS: Record<string, { spot: Spot; features: PersonaFeature[] }>
     features: [
       {
         title: "Statement import",
-        body: "A year of M-Pesa statements in one upload, read and sorted as it comes in.",
+        body: "A year of mobile money statements in one upload, read and sorted as it comes in.",
         icon: BankIcon,
         href: "/statement-import",
       },
@@ -262,7 +261,6 @@ function PersonaRows() {
               }
               end={
                 <div className="flex h-full flex-col justify-center">
-                  {/* COPY: needs Curtis's approval */}
                   <p className="font-mono text-xs tracking-wide text-ink-subtle uppercase">What helps</p>
                   <ul className="mt-4 grid gap-px border border-line bg-line">
                     {extras.features.map((feature) => (

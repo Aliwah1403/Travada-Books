@@ -16,7 +16,7 @@ import { Callout, Connector, IsoSlab, IsoStep, UiLines, UiPill } from "~/compone
 // ≥ 505px (see frame.tsx), so text renders at ≥ 12.6px.
 
 const LABEL =
-  "A flow diagram: a bank PDF, a bank CSV and an M-Pesa statement feed into Travada Books, which turns them into categorised transaction rows"
+  "A flow diagram: a bank PDF, a bank CSV and a mobile money statement feed into Travada Books, which turns them into categorised transaction rows"
 
 const FONT = 14
 
@@ -30,7 +30,7 @@ const SH = 44
 const ST = 5
 const SR = 5
 const SSTEP = 72
-const SOURCES = ["Bank PDF", "Bank CSV", "M-Pesa statement"]
+const SOURCES = ["Bank PDF", "Bank CSV", "Mobile money"]
 
 // Travada block, centred level with the middle source.
 const HW = 64
@@ -223,7 +223,7 @@ export function StatementFlow({
       legend={[
         { label: "Bank PDF" },
         { label: "Bank CSV" },
-        { label: "M-Pesa statement" },
+        { label: "Mobile money" },
         { label: "Travada Books", brand: true },
         { label: "Categorised" },
       ]}

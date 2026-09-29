@@ -36,7 +36,7 @@ export const PERSONAS: Persona[] = [
     title: "The small business owner",
     body: "running the books in a notebook, and knowing — quietly, without saying it out loud — that the notebook is not going to survive growth.",
     detail:
-      "The notebook works, until it doesn't — a page gets skipped, a receipt goes missing, and there's no way to see the whole picture at once. Upload the statements you already have, bank or M-Pesa, and they come in sorted, with a dashboard that shows what the notebook never could.",
+      "The notebook works, until it doesn't — a page gets skipped, a receipt goes missing, and there's no way to see the whole picture at once. Upload the statements you already have, bank or mobile money, and they come in sorted, with a dashboard that shows what the notebook never could.",
     linkHref: "/statement-import",
     linkLabel: "See statement import",
   },
@@ -52,9 +52,9 @@ export const PERSONAS: Persona[] = [
   {
     id: "mpesa-backlog",
     title: "Anyone at all",
-    body: "with a year of M-Pesa statements they have been meaning to sort out properly since January.",
+    body: "with a year of mobile money statements they have been meaning to sort out properly since January.",
     detail:
-      "It's been on the list all year: sit down, go through the M-Pesa statements, work out what was actually for the business. Upload the statement instead. Travada Books reads it, works out what came in and what went out, and sorts it — the backlog you've been meaning to get to, gone in one upload.",
+      "It's been on the list all year: sit down, go through the mobile money statements, work out what was actually for the business. Upload the statement instead. Travada Books reads it, works out what came in and what went out, and sorts it — the backlog you've been meaning to get to, gone in one upload.",
     linkHref: "/statement-import",
     linkLabel: "See statement import",
   },

@@ -39,7 +39,6 @@ export function Problem() {
         <h2 className="mt-6 text-3xl font-medium tracking-tight text-balance md:text-4xl">
           You didn&rsquo;t start a business to do paperwork.
         </h2>
-        {/* COPY: new line — needs Curtis's approval */}
         <p className="mt-6 max-w-2xl text-lg text-pretty text-ink-muted">
           Retyping last month&rsquo;s invoice. Chasing a client who&rsquo;s two weeks late. Sorting a
           statement line by line. None of it is the work, so Travada Books does it for you.
@@ -69,7 +68,6 @@ export function WhatIsTravada() {
       <div className="grid gap-6 md:grid-cols-2 md:items-end md:gap-12">
         <div className="flex flex-col gap-4">
           <Eyebrow>What is Travada Books</Eyebrow>
-          {/* COPY: new heading + lede — needs Curtis's approval */}
           <h2 className="text-3xl font-medium tracking-tight text-balance md:text-4xl">
             One set of books behind everything you do.
           </h2>
@@ -144,7 +142,7 @@ const ROWS: Row[] = [
     icon: BankIcon,
     title: "Statements arrive messy. They leave organised.",
     description:
-      "Upload a bank or M-Pesa statement as CSV or PDF, review the records, and categorise the books without rebuilding a spreadsheet.",
+      "Upload a bank or mobile money statement as CSV or PDF, review the records, and categorise the books without rebuilding a spreadsheet.",
     href: "/statement-import",
     linkLabel: "See statement import",
     visual: <StatementFlow labelsFrom="xl" />,

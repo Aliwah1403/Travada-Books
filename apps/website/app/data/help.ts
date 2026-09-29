@@ -1,21 +1,19 @@
 // Help centre information architecture for /guides (routes/guides._index.tsx).
 //
-// Categories and the full planned article list live here. An article counts
-// as written when content/guides/<slug>.mdx exists (and isn't a draft) —
-// that is derived from the MDX frontmatter at build time by
-// buildHelpCentre(), never flagged by hand. Everything else shows as
-// "Coming soon": visible, searchable, never linked.
+// Categories, and the order and search keywords of every guide. Only guides
+// that exist (content/guides/<slug>.mdx, not a draft) are shown — there are
+// no "Coming soon" placeholders. A guide's title and summary always come
+// from its MDX frontmatter; an entry here only sets its position, keywords
+// and whether it's popular. A guide missing from this list still appears,
+// at the end of the category its frontmatter names.
 //
 // Voice rules (WEBSITE-PLAN.md §5): no M-Pesa in invoicing, quotes or
-// portal titles/summaries/keywords; nothing on the roadmap (eTIMS
+// customers titles/summaries/keywords; nothing on the roadmap (eTIMS
 // invoicing, collecting payments by M-Pesa) gets a how-to here.
-//
-// COPY: needs Curtis's approval (category descriptions, planned titles and summaries)
 
 import {
   BankIcon,
   DashboardSquare01Icon,
-  Download01Icon,
   Globe02Icon,
   InboxIcon,
   Invoice01Icon,
@@ -39,7 +37,6 @@ export const HELP_CATEGORY_IDS = [
   "inbox",
   "dashboard",
   "settings",
-  "data",
   "kenya",
 ] as const
 
@@ -88,8 +85,8 @@ export const HELP_CATEGORIES: HelpCategory[] = [
   },
   {
     id: "customers",
-    title: "Customers & portal",
-    description: "Customer details, statements and a shared portal link.",
+    title: "Customers",
+    description: "Customer details and statements of account.",
     icon: User02Icon,
   },
   {
@@ -101,7 +98,7 @@ export const HELP_CATEGORIES: HelpCategory[] = [
   {
     id: "transactions",
     title: "Transactions & statement import",
-    description: "Bring in bank and M-Pesa statements, then categorise them.",
+    description: "Bring in bank and mobile money statements, then categorise them.",
     icon: BankIcon,
   },
   {
@@ -118,15 +115,9 @@ export const HELP_CATEGORIES: HelpCategory[] = [
   },
   {
     id: "settings",
-    title: "Settings & team",
-    description: "Invite teammates, choose notifications, secure your account.",
+    title: "Account & team",
+    description: "Invite your team, choose notifications, and export or delete your data.",
     icon: Settings02Icon,
-  },
-  {
-    id: "data",
-    title: "Your data",
-    description: "Export everything, or delete an organisation or account.",
-    icon: Download01Icon,
   },
   {
     id: "kenya",
@@ -137,389 +128,110 @@ export const HELP_CATEGORIES: HelpCategory[] = [
   },
 ]
 
-export type PlannedArticle = {
+export type GuideEntry = {
   slug: string
-  title: string
-  summary: string
+  /** Fallback only — the guide's frontmatter category wins. */
   category: HelpCategoryId
   /** Extra words people might search for. */
   keywords?: string[]
-  /** Listed under "Popular articles" once written. */
+  /** Listed under "Popular articles". */
   popular?: boolean
 }
 
 // Array order is the order within each category.
-export const HELP_ARTICLES: PlannedArticle[] = [
+export const HELP_ARTICLES: GuideEntry[] = [
   // Getting started
-  {
-    slug: "quick-start",
-    title: "Quick start: set up and send your first invoice",
-    summary: "Create your account, set up your business and get your first invoice out.",
-    category: "getting-started",
-    keywords: ["sign up", "signup", "onboarding", "new account", "begin", "setup", "first invoice"],
-    popular: true,
-  },
-  {
-    slug: "tour-of-travada-books",
-    title: "A tour of Travada Books",
-    summary: "What each part of the sidebar does and where to find things.",
-    category: "getting-started",
-    keywords: ["overview", "navigation", "sidebar", "introduction"],
-  },
-  {
-    slug: "set-up-your-business-profile",
-    title: "Set up your business profile",
-    summary: "Your business name, logo, tax number, address and base currency.",
-    category: "getting-started",
-    keywords: ["logo", "kra pin", "tax id", "vat number", "address", "currency", "organisation", "company"],
-  },
-
+  { slug: "quick-start", category: "getting-started", keywords: ["sign up", "signup", "onboarding", "new account", "begin", "setup", "first invoice"], popular: true },
+  { slug: "set-up-your-business", category: "getting-started", keywords: ["business profile", "company details", "logo", "address", "tax number", "currency", "settings"] },
   // Invoicing
-  {
-    slug: "create-and-send-an-invoice",
-    title: "Create and send an invoice",
-    summary: "Add a customer and line items, then email it, share a link or download the PDF.",
-    category: "invoicing",
-    keywords: ["new invoice", "bill", "billing", "email invoice", "whatsapp", "pdf", "link", "line items", "tax", "vat", "discount"],
-    popular: true,
-  },
-  {
-    slug: "set-up-a-recurring-invoice",
-    title: "Set up a recurring invoice",
-    summary: "Bill a retainer or subscription on a schedule and let it send itself.",
-    category: "invoicing",
-    keywords: ["repeat", "repeating", "monthly", "weekly", "retainer", "subscription", "schedule", "automatic"],
-    popular: true,
-  },
-  {
-    slug: "schedule-an-invoice",
-    title: "Schedule an invoice to send later",
-    summary: "Pick a date and time, and the invoice goes out on its own.",
-    category: "invoicing",
-    keywords: ["schedule send", "later", "future date", "timed"],
-  },
-  {
-    slug: "send-payment-reminders",
-    title: "Send payment reminders",
-    summary: "Turn on automatic reminders after the due date, or send one yourself.",
-    category: "invoicing",
-    keywords: ["reminder", "overdue", "late", "follow up", "chase", "auto reminders"],
-  },
-  {
-    slug: "invoice-settings",
-    title: "Customise your invoice settings",
-    summary: "Logo, numbering, payment terms, columns and the default note on every invoice.",
-    category: "invoicing",
-    keywords: ["template", "numbering", "prefix", "payment terms", "due date", "date format", "columns", "default note", "payment details"],
-  },
-  {
-    slug: "add-custom-fields",
-    title: "Add custom fields to invoices and quotes",
-    summary: "Show extra details such as a PO number or project name on your documents.",
-    category: "invoicing",
-    keywords: ["custom field", "po number", "purchase order", "project", "reference", "extra fields"],
-  },
-  {
-    slug: "invoice-statuses",
-    title: "What each invoice status means",
-    summary: "Draft, Scheduled, Sent, Part-paid, Paid, Overdue and Canceled explained.",
-    category: "invoicing",
-    keywords: ["status", "draft", "scheduled", "sent", "part-paid", "partially paid", "paid", "overdue", "canceled"],
-  },
-
+  { slug: "create-and-send-an-invoice", category: "invoicing", keywords: ["new invoice", "bill", "send", "email", "schedule", "draft", "pdf"], popular: true },
+  { slug: "set-up-a-recurring-invoice", category: "invoicing", keywords: ["recurring", "repeat", "monthly", "retainer", "subscription", "automatic"], popular: true },
+  { slug: "reminders-and-overdue-invoices", category: "invoicing", keywords: ["reminder", "overdue", "late", "chase", "follow up", "unpaid"] },
+  { slug: "invoice-settings-and-custom-fields", category: "invoicing", keywords: ["settings", "template", "numbering", "tax", "vat", "discount", "custom field", "defaults", "attach pdf"] },
+  { slug: "track-invoice-status", category: "invoicing", keywords: ["status", "draft", "sent", "paid", "part-paid", "overdue", "activity", "delivered", "link"] },
   // Quotes
-  {
-    slug: "create-and-send-a-quote",
-    title: "Create and send a quote",
-    summary: "Price up the work, set a valid-until date and share it with your customer.",
-    category: "quotes",
-    keywords: ["quotation", "estimate", "proposal", "new quote", "valid until"],
-  },
-  {
-    slug: "accepting-and-declining-quotes",
-    title: "How customers accept or decline a quote",
-    summary: "What your customer sees on the quote link, and how you're told.",
-    category: "quotes",
-    keywords: ["accept", "decline", "approve", "reject", "expired", "quote link"],
-  },
-  {
-    slug: "quote-to-invoice",
-    title: "Turn an accepted quote into an invoice",
-    summary: "An accepted quote becomes an invoice without retyping the work.",
-    category: "quotes",
-    keywords: ["convert", "conversion", "accepted quote", "invoice from quote"],
-  },
-
-  // Customers & portal
-  {
-    slug: "add-a-customer",
-    title: "Add and edit customers",
-    summary: "Save a customer's details once and reuse them on every document.",
-    category: "customers",
-    keywords: ["new customer", "client", "contact", "billing email", "edit customer"],
-  },
-  {
-    slug: "send-a-customer-statement",
-    title: "Send a customer statement",
-    summary: "Show a customer every invoice in a date range, with what's paid and what's owed.",
-    category: "customers",
-    keywords: ["statement of account", "balance", "owed", "outstanding", "date range"],
-  },
-  {
-    slug: "share-a-customer-portal",
-    title: "Share a customer portal link",
-    summary: "Give a customer one link to all their invoices, quotes and statements.",
-    category: "customers",
-    keywords: ["portal", "customer link", "self service", "all invoices", "share"],
-  },
-
+  { slug: "create-and-send-a-quote", category: "quotes", keywords: ["quote", "quotation", "estimate", "proposal", "valid until", "send"] },
+  { slug: "quote-responses-and-invoices", category: "quotes", keywords: ["accept", "decline", "accepted", "declined", "convert", "quote to invoice", "draft invoice"] },
+  // Customers
+  { slug: "add-and-manage-customers", category: "customers", keywords: ["customer", "client", "contact", "add customer", "edit customer", "delete customer"] },
+  { slug: "send-a-customer-statement", category: "customers", keywords: ["statement", "statement of account", "balance", "ledger", "owed"] },
   // Payments
-  {
-    slug: "record-a-payment",
-    title: "Record a payment (full or part)",
-    summary: "Log money received against an invoice, and the balance and status update for you.",
-    category: "payments",
-    keywords: ["payment", "paid", "mark as paid", "partial payment", "part payment", "part-paid", "deposit", "installment", "balance due"],
-    popular: true,
-  },
-  {
-    slug: "handle-an-overpayment",
-    title: "Handle an overpayment",
-    summary: "What happens when a customer pays more than the balance due.",
-    category: "payments",
-    keywords: ["overpaid", "overpayment", "too much", "refund", "credit"],
-  },
-  {
-    slug: "delete-a-payment",
-    title: "Correct or delete a payment",
-    summary: "Remove a payment recorded by mistake and put the balance back.",
-    category: "payments",
-    keywords: ["undo payment", "wrong payment", "mistake", "remove payment"],
-  },
-
-  // Transactions & statement import
-  {
-    slug: "import-a-bank-or-mpesa-statement",
-    title: "Import a bank or M-Pesa statement",
-    summary: "Upload a PDF or CSV statement and let Travada Books read the transactions for you.",
-    category: "transactions",
-    keywords: ["import", "upload", "csv", "pdf", "bank statement", "mpesa statement", "safaricom", "column mapping"],
-    popular: true,
-  },
-  {
-    slug: "add-a-transaction",
-    title: "Add a transaction by hand",
-    summary: "Record cash income or an expense that isn't on a statement.",
-    category: "transactions",
-    keywords: ["new transaction", "manual", "cash", "expense", "income"],
-  },
-  {
-    slug: "categorise-transactions",
-    title: "Categorise transactions",
-    summary: "Sort money in and out into categories, one at a time or in bulk.",
-    category: "transactions",
-    keywords: ["category", "categories", "categorize", "bulk edit", "sort", "tag", "expense categories"],
-  },
-  {
-    slug: "attach-a-receipt",
-    title: "Attach a receipt to a transaction",
-    summary: "Keep the proof beside the transaction it belongs to.",
-    category: "transactions",
-    keywords: ["receipt", "attachment", "proof", "upload receipt", "invoice attachment"],
-  },
-  {
-    slug: "export-transactions",
-    title: "Export transactions",
-    summary: "Download your transactions for your accountant or your own records.",
-    category: "transactions",
-    keywords: ["export", "download", "csv", "spreadsheet", "excel", "accountant"],
-  },
-
+  { slug: "record-a-payment", category: "payments", keywords: ["payment", "paid", "part payment", "partial", "deposit", "balance", "mark as paid", "overpayment"], popular: true },
+  // Transactions
+  { slug: "import-a-bank-or-mpesa-statement", category: "transactions", keywords: ["import", "upload", "bank statement", "mobile money", "mpesa", "csv", "pdf"], popular: true },
+  { slug: "categorise-transactions", category: "transactions", keywords: ["category", "categories", "categorise", "categorize", "bulk", "analyzing", "sort"] },
+  { slug: "add-transactions-and-attach-receipts", category: "transactions", keywords: ["add transaction", "manual", "expense", "receipt", "attachment", "document"] },
+  { slug: "export-transactions", category: "transactions", keywords: ["export", "download", "csv", "excel", "accountant", "spreadsheet"] },
   // Inbox & Vault
-  {
-    slug: "connect-gmail-or-outlook",
-    title: "Connect Gmail or Outlook to your Inbox",
-    summary: "Pull receipts and supplier invoices in from the mailbox you already use.",
-    category: "inbox",
-    keywords: ["gmail", "google", "outlook", "microsoft", "email", "mailbox", "sync", "integration", "receipts"],
-    popular: true,
-  },
-  {
-    slug: "forward-receipts-to-your-inbox",
-    title: "Forward receipts to your inbox address",
-    summary: "Every organisation gets its own address. Forward receipts to it from anywhere.",
-    category: "inbox",
-    keywords: ["forward", "inbox email", "email address", "receipts", "send receipts"],
-  },
-  {
-    slug: "confirm-suggested-matches",
-    title: "Review and confirm suggested matches",
-    summary: "Check the receipt Travada Books paired with a transaction, then confirm or decline it.",
-    category: "inbox",
-    keywords: ["match", "matching", "suggested match", "confirm", "decline", "reconcile"],
-  },
-  {
-    slug: "block-a-sender",
-    title: "Block a sender or domain",
-    summary: "Stop newsletters and noise from landing in your Inbox.",
-    category: "inbox",
-    keywords: ["block", "blocklist", "spam", "sender", "domain", "unwanted"],
-  },
-  {
-    slug: "store-files-in-the-vault",
-    title: "Store and share files in the Vault",
-    summary: "Keep contracts and documents in folders, and share a file by link.",
-    category: "inbox",
-    keywords: ["vault", "files", "documents", "folders", "storage", "share link", "upload"],
-  },
-
+  { slug: "connect-gmail-or-outlook", category: "inbox", keywords: ["gmail", "outlook", "email", "connect", "inbox", "receipts", "google", "microsoft"], popular: true },
+  { slug: "forward-receipts-to-your-inbox", category: "inbox", keywords: ["forward", "forwarding address", "email receipts", "inbox address"] },
+  { slug: "match-receipts-to-transactions", category: "inbox", keywords: ["match", "matching", "suggested match", "receipt", "reconcile"] },
+  { slug: "store-files-in-the-vault", category: "inbox", keywords: ["vault", "files", "documents", "folders", "upload", "share", "storage"] },
   // Dashboard
-  {
-    slug: "customise-your-dashboard",
-    title: "Customise your dashboard",
-    summary: "Choose and arrange the widgets you want to see first.",
-    category: "dashboard",
-    keywords: ["widgets", "layout", "overview", "customize", "arrange"],
-  },
-  {
-    slug: "understanding-your-metrics",
-    title: "Understanding your metrics",
-    summary: "How revenue, cash flow, burn rate and profit are worked out.",
-    category: "dashboard",
-    keywords: ["metrics", "revenue", "cash flow", "burn rate", "profit", "loss", "cash cushion", "charts", "reports", "opening balance"],
-  },
-
-  // Settings & team
-  {
-    slug: "invite-a-teammate",
-    title: "Invite a teammate",
-    summary: "Send an invite so a colleague or your accountant can work in your books.",
-    category: "settings",
-    keywords: ["invite", "team", "member", "colleague", "accountant", "add user"],
-  },
-  {
-    slug: "manage-team-roles",
-    title: "Change a member's role or remove them",
-    summary: "Owners and members, and how to take someone off your team.",
-    category: "settings",
-    keywords: ["role", "owner", "member", "permissions", "remove member"],
-  },
-  {
-    slug: "notification-settings",
-    title: "Choose which notifications you get",
-    summary: "Turn alerts on or off for invoices, quotes, your team and the Inbox.",
-    category: "settings",
-    keywords: ["notifications", "alerts", "emails", "in-app"],
-  },
-  {
-    slug: "account-security",
-    title: "Change your password and connected accounts",
-    summary: "Update your password and manage how you sign in.",
-    category: "settings",
-    keywords: ["password", "security", "login", "sign in", "google sign in", "profile"],
-  },
-
-  // Your data
-  {
-    slug: "export-all-your-data",
-    title: "Export all your data",
-    summary: "Download everything in your organisation, whenever you want it.",
-    category: "data",
-    keywords: ["export", "download", "backup", "data", "archive"],
-  },
-  {
-    slug: "delete-your-organisation",
-    title: "Delete your organisation",
-    summary: "What gets deleted, and how to keep a copy of your data first.",
-    category: "data",
-    keywords: ["delete", "remove", "close", "organisation", "organization", "business"],
-  },
-  {
-    slug: "delete-your-account",
-    title: "Delete your account",
-    summary: "Close your personal account and what happens to your organisations.",
-    category: "data",
-    keywords: ["delete account", "close account", "remove account", "leave"],
-  },
-
-  // Kenya business guides — long-form SEO articles, all written
+  { slug: "your-dashboard-and-metrics", category: "dashboard", keywords: ["dashboard", "metrics", "revenue", "profit", "expenses", "cash flow", "widgets", "burn", "runway"] },
+  // Account & team
+  { slug: "invite-your-team", category: "settings", keywords: ["team", "invite", "member", "role", "admin", "staff", "remove member"] },
+  { slug: "notification-settings", category: "settings", keywords: ["notifications", "email notifications", "alerts", "preferences"] },
+  { slug: "export-or-delete-your-data", category: "settings", keywords: ["export", "download all data", "delete organisation", "delete account", "close account", "backup"] },
+  // Kenya business guides
   {
     slug: "etims-for-small-businesses-kenya",
-    title: "What Kenyan small businesses should know about eTIMS",
-    summary: "A plain-language overview of eTIMS and who KRA says should use it.",
     category: "kenya",
     keywords: ["etims", "kra", "tax invoice", "tax", "compliance"],
   },
   {
     slug: "how-to-organise-mpesa-statements-for-bookkeeping",
-    title: "How to organise M-Pesa statements for bookkeeping",
-    summary: "Download, clean, categorise and reconcile M-Pesa transactions.",
     category: "kenya",
     keywords: ["mpesa", "statement", "bookkeeping", "reconcile", "safaricom"],
   },
   {
     slug: "recurring-invoices-for-small-businesses-kenya",
-    title: "Recurring invoices for Kenyan small businesses",
-    summary: "When to use recurring invoices and what to include on them.",
     category: "kenya",
     keywords: ["recurring", "retainer", "subscription", "invoice"],
   },
 ]
 
-export type HelpArticle = PlannedArticle & {
-  written: boolean
-  /** Minutes, from the MDX frontmatter (written articles only). */
+export type HelpArticle = GuideEntry & {
+  title: string
+  summary: string
+  /** Minutes, from the MDX frontmatter. */
   readingTime?: number
-  /** Frontmatter tag (written articles only). */
+  /** Frontmatter tag. */
   tag?: string
 }
 
 export type HelpCategoryWithArticles = HelpCategory & {
   articles: HelpArticle[]
-  writtenCount: number
-  soonCount: number
 }
 
 /**
- * Merges the planned list with the guides that actually exist. A written
- * article takes its title and summary from its MDX frontmatter (the source
- * of truth once it exists); a guide with no planned entry is appended to
- * the category its frontmatter names, so nothing written is ever hidden.
+ * The help centre as it stands: every published guide, ordered by
+ * HELP_ARTICLES, grouped into categories. Title and summary come from each
+ * guide's frontmatter. Entries without a guide are skipped, guides without
+ * an entry go last in their category, and empty categories are dropped.
  */
 export function buildHelpCentre(guides: FrontmatterEntry[]): HelpCategoryWithArticles[] {
-  const bySlug = new Map(guides.map((guide) => [guide.slug, guide]))
-  const planned = new Set(HELP_ARTICLES.map((article) => article.slug))
+  const order = new Map(HELP_ARTICLES.map((entry, index) => [entry.slug, index]))
+  const entries = new Map(HELP_ARTICLES.map((entry) => [entry.slug, entry]))
 
-  const articles: HelpArticle[] = HELP_ARTICLES.map((article) => {
-    const guide = bySlug.get(article.slug)
-    if (!guide) return { ...article, written: false }
-    return {
-      ...article,
-      title: guide.frontmatter.title,
-      summary: guide.frontmatter.summary,
-      category: guide.frontmatter.category ?? article.category,
-      written: true,
-      readingTime: guide.frontmatter.readingTime,
-      tag: guide.frontmatter.tag,
-    }
-  })
-
-  for (const guide of guides) {
-    if (planned.has(guide.slug) || !guide.frontmatter.category) continue
-    articles.push({
-      slug: guide.slug,
-      title: guide.frontmatter.title,
-      summary: guide.frontmatter.summary,
-      category: guide.frontmatter.category,
-      written: true,
-      readingTime: guide.frontmatter.readingTime,
-      tag: guide.frontmatter.tag,
+  const articles: HelpArticle[] = guides
+    .map((guide) => {
+      const entry = entries.get(guide.slug)
+      return {
+        slug: guide.slug,
+        category: guide.frontmatter.category ?? entry?.category ?? "getting-started",
+        keywords: entry?.keywords,
+        popular: entry?.popular,
+        title: guide.frontmatter.title,
+        summary: guide.frontmatter.summary,
+        readingTime: guide.frontmatter.readingTime,
+        tag: guide.frontmatter.tag,
+      }
     })
-  }
+    .sort((a, b) => (order.get(a.slug) ?? Infinity) - (order.get(b.slug) ?? Infinity))
 
-  return HELP_CATEGORIES.map((category) => {
-    const inCategory = articles.filter((article) => article.category === category.id)
-    const writtenCount = inCategory.filter((article) => article.written).length
-    return { ...category, articles: inCategory, writtenCount, soonCount: inCategory.length - writtenCount }
-  })
+  return HELP_CATEGORIES.map((category) => ({
+    ...category,
+    articles: articles.filter((article) => article.category === category.id),
+  })).filter((category) => category.articles.length > 0)
 }

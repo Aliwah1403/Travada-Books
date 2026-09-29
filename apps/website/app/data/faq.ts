@@ -28,9 +28,9 @@ export const FAQ_ITEMS: FaqItem[] = [
   },
   {
     id: "how-records-get-in",
-    question: "How do my bank and M-Pesa records get in?",
+    question: "How do my bank and mobile money records get in?",
     answer:
-      "Upload the statement your bank or M-Pesa gave you, as a CSV or a PDF. Travada Books reads the columns, including statements that split money in and money out, and categorises the transactions for you.",
+      "Upload the statement your bank or mobile money provider (such as M-Pesa) gave you, as a CSV or a PDF. Travada Books reads the columns, including statements that split money in and money out, and categorises the transactions for you.",
   },
   {
     id: "currencies",
@@ -92,18 +92,18 @@ export const STATEMENT_IMPORT_FAQ_ITEMS: FaqItem[] = [
     id: "which-banks",
     question: "Which banks does this work with?",
     answer:
-      "Any of them. Travada Books doesn't partner with specific banks — it reads whatever CSV or PDF statement your bank or M-Pesa gives you and works out the columns itself, including statements that split money in and money out into separate debit and credit columns.",
+      "Any of them. Travada Books doesn't partner with specific banks — it reads whatever CSV or PDF statement your bank or mobile money provider gives you and works out the columns itself, including statements that split money in and money out into separate debit and credit columns.",
   },
   {
     id: "file-types",
     question: "What file types can I upload?",
-    answer: "CSV or PDF — whatever format your bank or M-Pesa exports.",
+    answer: "CSV or PDF — whatever format your bank or mobile money provider exports.",
   },
   {
     id: "categorisation",
     question: "How accurate is the automatic categorising?",
     answer:
-      "Transactions are categorised automatically as they arrive, matched against your own categories — it recognises things like M-Pesa transfers and common local merchants along the way. You can always recategorise anything that's wrong, individually or in bulk.",
+      "Transactions are categorised automatically as they arrive, matched against your own categories — it recognises things like mobile money transfers, such as M-Pesa, and common local merchants along the way. You can always recategorise anything that's wrong, individually or in bulk.",
   },
   {
     id: "bulk-actions",

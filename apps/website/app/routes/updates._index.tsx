@@ -18,7 +18,6 @@ import type { MdxModule } from "~/lib/content"
 import { formatDate } from "~/lib/date"
 import { pageMeta } from "~/lib/seo"
 import { buildUpdates, isUpdateTagId, updateTagCounts, type UpdateEntry, type UpdateTagId } from "~/lib/updates"
-import { CONTACT_EMAIL } from "~/data/site"
 import { ogImage } from "~/lib/og"
 
 // Full modules, not the `?frontmatter` variant: the changelog renders each
@@ -86,7 +85,6 @@ export default function UpdatesIndex() {
   return (
     <>
       <Section size="lg">
-        {/* COPY: needs Curtis's approval */}
         <SectionHeading
           as="h1"
           eyebrow={<Eyebrow icon={UPDATES.icon}>Changelog</Eyebrow>}
@@ -94,7 +92,7 @@ export default function UpdatesIndex() {
           lede="Product updates and company news, newest first. Each one says what changed and where to find it."
         />
         <div className="mt-8">
-          <LearnMore to={`mailto:${CONTACT_EMAIL}`}>Tell us what to build next</LearnMore>
+          <LearnMore to="/contact?topic=feature">Tell us what to build next</LearnMore>
         </div>
 
         {TAGS.length > 1 ? (
@@ -121,7 +119,6 @@ export default function UpdatesIndex() {
             ))}
           </div>
         ) : (
-          // COPY: needs Curtis's approval
           <EntryListEmpty title="No updates yet." body="When something ships, it's written up here." />
         )}
 

@@ -12,7 +12,7 @@ export const OG_PAGES = {
   quotes: { eyebrow: "Quotes", title: "A yes that turns into an invoice." },
   "customer-portal": { eyebrow: "Customer portal", title: "One link for everything you've sent them." },
   payments: { eyebrow: "Payments", title: "Paid in parts. Tracked in full." },
-  integrations: { eyebrow: "Integrations", title: "Your tools should bring the paperwork with them." },
+  integrations: { eyebrow: "Integrations", title: "Connect the tools your business runs on." },
   pricing: { eyebrow: "Pricing", title: "Simple pricing, on the way." },
   "who-its-for": { eyebrow: "Who it's for", title: "Built for the person doing everything." },
   about: { eyebrow: "About", title: "We were our own first customer." },

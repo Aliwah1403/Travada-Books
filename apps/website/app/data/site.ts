@@ -18,7 +18,7 @@ export type NavLink = {
 
 export const FEATURES_NAV: NavLink[] = [
   { label: "Invoicing", href: "/invoicing", description: "Create, schedule and follow up" },
-  { label: "Statement import", href: "/statement-import", description: "Bring bank and M-Pesa records in" },
+  { label: "Statement import", href: "/statement-import", description: "Bring bank and mobile money records in" },
   { label: "Inbox", href: "/inbox", description: "Collect and match receipts" },
   // /customer-portal is hidden until the portal ships (2026-09-29): the page
   // still builds but is noindex and unlinked. Add it back here when it's live.

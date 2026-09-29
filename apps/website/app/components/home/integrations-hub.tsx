@@ -56,7 +56,7 @@ const TOOLS: Tool[] = [
   { label: "Gmail", name: "Gmail", icon: iconOf("gmail"), status: statusOf("gmail") },
   { label: "Outlook", name: "Outlook", icon: iconOf("outlook"), status: statusOf("outlook") },
   { label: "Bank", name: "Bank statements, PDF or CSV", icon: BankIcon, status: "available", glyph: true },
-  { label: "M-Pesa", name: "M-Pesa statements, PDF or CSV", icon: MpesaIcon, status: "available", iconSize: 30 },
+  { label: "Mobile money", name: "Mobile money statements such as M-Pesa, PDF or CSV", icon: MpesaIcon, status: "available", iconSize: 30 },
   { label: "Stripe", name: "Stripe", icon: iconOf("stripe"), status: statusOf("stripe") },
   { label: "WhatsApp", name: "WhatsApp", icon: iconOf("whatsapp"), status: statusOf("whatsapp") },
 ]
@@ -66,9 +66,8 @@ type Action = { label: string; icon: Icon; status: IntegrationStatus }
 // Live rows first; the two roadmap rows follow their integration's status.
 // Keep the statement-import row away from the invoice row (voice rule 4).
 const ACTIONS: Action[] = [
-  /* COPY: needs Curtis's approval */
   { label: "Pull receipts from your inbox", icon: Mail01Icon, status: "available" },
-  { label: "Import bank and M-Pesa statements", icon: FileSpreadsheetIcon, status: "available" },
+  { label: "Import bank and mobile money statements", icon: FileSpreadsheetIcon, status: "available" },
   { label: "Match receipts to transactions", icon: Link01Icon, status: "available" },
   { label: "Categorise every transaction", icon: Tag01Icon, status: "available" },
   { label: "Send invoices on WhatsApp", icon: Sent02Icon, status: statusOf("whatsapp") },
@@ -275,7 +274,6 @@ function Diagram() {
 
       {/* Left — your tools */}
       <div className="contents">
-        {/* COPY: needs Curtis's approval */}
         <ColumnHeading
           title="Your tools"
           subtitle="Connect what you already use"
@@ -302,7 +300,7 @@ function Diagram() {
                 <span aria-hidden="true" className={cn("flex h-6 items-center", soon && "opacity-50 grayscale")}>
                   <ToolIcon size={iconSize ?? 24} className={glyph ? "size-6 text-brand" : undefined} />
                 </span>
-                <span aria-hidden="true" className={cn("text-xs", soon ? "text-ink-subtle" : "text-ink-muted")}>
+                <span aria-hidden="true" className={cn("text-center text-xs leading-tight", soon ? "text-ink-subtle" : "text-ink-muted")}>
                   {label}
                 </span>
                 {soon ? <SoonTag className="absolute -top-2.5 -right-2" /> : null}
@@ -316,7 +314,6 @@ function Diagram() {
 
       {/* Centre — the hub */}
       <div className="contents">
-        {/* COPY: needs Curtis's approval */}
         <ColumnHeading
           title="Travada Books"
           subtitle="Your books, in one place"
@@ -333,7 +330,6 @@ function Diagram() {
 
       {/* Right — what happens next */}
       <div className="contents">
-        {/* COPY: needs Curtis's approval */}
         <ColumnHeading
           title="What happens next"
           subtitle="Handled for you"
@@ -373,12 +369,11 @@ function Diagram() {
 export function IntegrationsHub() {
   return (
     <Section size="lg" id={INTEGRATIONS_HUB_ID} className="scroll-mt-16">
-      {/* COPY: needs Curtis's approval */}
       <SectionHeading
         align="center"
         eyebrow={<Eyebrow>Integrations</Eyebrow>}
         title="Works with the tools you already use."
-        lede="Connect Gmail or Outlook and upload your bank and M-Pesa statements. Travada Books pulls in the receipts, matches them and categorises the transactions, so the records stay in one place."
+        lede="Connect Gmail or Outlook and upload your bank and mobile money statements, such as M-Pesa. Travada Books pulls in the receipts, matches them and categorises the transactions, so the records stay in one place."
       />
 
       <Diagram />

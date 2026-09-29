@@ -19,7 +19,7 @@ import { Section } from "~/components/site/section"
 /* -------------------------------------------------------------------------- */
 
 const LOCAL_FACTS: { title: string; body: string; icon: Icon }[] = [
-  { title: "Mobile money and bank statements", body: "Import M-Pesa and bank statements in whatever layout they arrive.", icon: BankIcon },
+  { title: "Mobile money and bank statements", body: "Import bank and mobile money statements, such as M-Pesa, in whatever layout they arrive.", icon: BankIcon },
   {
     title: "Your currency at the centre",
     body: "Run the books in your own currency while invoicing clients in theirs.",

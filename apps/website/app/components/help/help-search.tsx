@@ -1,5 +1,5 @@
 import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent } from "react"
-import { useNavigate } from "react-router"
+import { Link, useNavigate } from "react-router"
 
 import { ArrowRight01Icon, Cancel01Icon, Search01Icon } from "@travada-books/ui/icons"
 import { cn } from "@travada-books/ui/lib/utils"
@@ -9,34 +9,19 @@ import { buildSearchIndex, searchArticles } from "~/lib/help-search"
 
 const MAX_RESULTS = 8
 
-// "Soon" marker for planned articles — in search results and category lists.
-export function SoonPill({ className }: { className?: string }) {
-  return (
-    <span
-      className={cn(
-        "inline-flex shrink-0 items-center rounded-full border border-line bg-canvas px-2 py-0.5 font-mono text-xs tracking-wide text-ink-subtle uppercase",
-        className,
-      )}
-    >
-      Soon
-    </span>
-  )
-}
-
 type HelpSearchProps = {
   articles: HelpArticle[]
   /** Category id → display title, for the result eyebrow and for matching. */
   categoryTitles: Record<string, string>
   /** Chips under the field that fill the search. */
   popularSearches: string[]
-  contactEmail: string
 }
 
 // Accessible combobox (input + listbox, aria-activedescendant). Everything
 // keyboard-driven is instant — no transitions on the highlight, the list
 // or its scrolling (CLAUDE.md "What never gets animated"). Without JS the
 // field simply does nothing; the categories below stay fully browsable.
-export function HelpSearch({ articles, categoryTitles, popularSearches, contactEmail }: HelpSearchProps) {
+export function HelpSearch({ articles, categoryTitles, popularSearches }: HelpSearchProps) {
   const navigate = useNavigate()
   const inputRef = useRef<HTMLInputElement>(null)
   const listRef = useRef<HTMLUListElement>(null)
@@ -81,7 +66,7 @@ export function HelpSearch({ articles, categoryTitles, popularSearches, contactE
   }
 
   function openArticle(article: HelpArticle | undefined) {
-    if (!article?.written) return
+    if (!article) return
     navigate(`/guides/${article.slug}`)
   }
 
@@ -133,7 +118,6 @@ export function HelpSearch({ articles, categoryTitles, popularSearches, contactE
             spellCheck={false}
             inputMode="search"
             enterKeyHint="search"
-            // COPY: needs Curtis's approval
             placeholder="Search for help, like “recurring invoice”"
             value={query}
             onChange={(event) => updateQuery(event.target.value)}
@@ -184,13 +168,11 @@ export function HelpSearch({ articles, categoryTitles, popularSearches, contactE
                   id={optionId(index)}
                   role="option"
                   aria-selected={isActive}
-                  aria-disabled={!article.written || undefined}
                   data-index={index}
                   onMouseMove={() => setActive(index)}
                   onClick={() => openArticle(article)}
                   className={cn(
-                    "flex items-start gap-4 border-b border-line px-4 py-3 last:border-b-0 md:px-5",
-                    article.written ? "cursor-pointer" : "cursor-default",
+                    "flex cursor-pointer items-start gap-4 border-b border-line px-4 py-3 last:border-b-0 md:px-5",
                     isActive && "bg-canvas",
                   )}
                 >
@@ -198,19 +180,15 @@ export function HelpSearch({ articles, categoryTitles, popularSearches, contactE
                     <p className="font-mono text-xs tracking-wide text-ink-subtle uppercase">
                       {categoryTitles[article.category]}
                     </p>
-                    <p className={cn("mt-1 text-base font-medium", article.written ? "text-ink" : "text-ink-muted")}>
+                    <p className="mt-1 text-base font-medium text-ink">
                       {article.title}
                     </p>
                     <p className="mt-0.5 truncate text-sm text-ink-muted">{article.summary}</p>
                   </div>
-                  {article.written ? (
-                    <ArrowRight01Icon
-                      aria-hidden="true"
-                      className={cn("mt-6 size-4 shrink-0", isActive ? "text-ink" : "text-ink-subtle")}
-                    />
-                  ) : (
-                    <SoonPill className="mt-5" />
-                  )}
+                  <ArrowRight01Icon
+                    aria-hidden="true"
+                    className={cn("mt-6 size-4 shrink-0", isActive ? "text-ink" : "text-ink-subtle")}
+                  />
                 </li>
               )
             })}
@@ -225,17 +203,16 @@ export function HelpSearch({ articles, categoryTitles, popularSearches, contactE
           ) : null}
 
           {showEmpty ? (
-            // COPY: needs Curtis's approval
             <div className="px-5 py-6">
               <p className="text-base font-medium text-ink">No articles match &ldquo;{trimmed}&rdquo;.</p>
               <p className="mt-1 text-sm text-pretty text-ink-muted">
-                Try another word, or email{" "}
-                <a
-                  href={`mailto:${contactEmail}`}
+                Try another word, or{" "}
+                <Link
+                  to="/contact"
                   className="text-brand underline decoration-brand/30 underline-offset-4 transition-colors active:opacity-80 fine-hover:text-brand-line"
                 >
-                  {contactEmail}
-                </a>{" "}
+                  send us a message
+                </Link>{" "}
                 and a person will help.
               </p>
             </div>

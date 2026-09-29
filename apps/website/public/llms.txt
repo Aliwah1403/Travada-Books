@@ -2,7 +2,7 @@
 
 > Travada Books is invoicing and bookkeeping software for freelancers, consultants, agencies, and small businesses worldwide. It is built in Nairobi, Kenya, and handles mobile money, multi-currency billing and bank statements in any layout.
 
-Travada Books helps business owners automate recurring invoices, schedule invoice delivery, send overdue reminders, convert accepted quotes into invoices, import bank and M-Pesa statements from CSV or PDF, categorise transactions, match receipts from Gmail or Outlook, and keep documents in a searchable vault.
+Travada Books helps business owners automate recurring invoices, schedule invoice delivery, send overdue reminders, convert accepted quotes into invoices, import bank and mobile money statements (such as M-Pesa) from CSV or PDF, categorise transactions, match receipts from Gmail or Outlook, and keep documents in a searchable vault.
 
 ## Core pages
 
@@ -21,7 +21,7 @@ Travada Books helps business owners automate recurring invoices, schedule invoic
 - Market: worldwide (built in Kenya; strong fit for East Africa and mobile-money businesses)
 - Base currency: each organisation sets its own
 - Invoice currencies: any
-- Statement sources include banks and mobile money (M-Pesa)
+- Statement sources include banks and mobile money providers, such as M-Pesa
 - Import formats: CSV and PDF
 - Connected email providers: Gmail and Outlook
 - Planned integrations: M-Pesa, Stripe, and WhatsApp

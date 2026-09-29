@@ -127,7 +127,7 @@ export function ToolMarquee({ className }: { className?: string }) {
   return (
     <div ref={ref} className={cn("relative perspective-[800px]", className)}>
       <p className="sr-only">
-        Works with Gmail and Outlook, bank and M-Pesa statements as PDF or CSV. Stripe, WhatsApp and M-Pesa
+        Works with Gmail and Outlook, and bank and mobile money statements (such as M-Pesa) as PDF or CSV. Stripe, WhatsApp and M-Pesa
         payments are coming soon.
       </p>
       <div

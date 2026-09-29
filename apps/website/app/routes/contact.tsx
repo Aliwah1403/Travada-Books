@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react"
+import { useEffect, useRef, useState, useSyncExternalStore, type FormEvent, type ReactNode } from "react"
 import { Link } from "react-router"
 
 import { Button } from "@travada-books/ui/components/button"
@@ -45,7 +45,6 @@ export function meta() {
 
 type Option = { value: string; label: string }
 
-// COPY: needs Curtis's approval (all three option lists).
 const TOPICS: Option[] = [
   { value: "help", label: "Help using Travada Books" },
   { value: "bug", label: "Report a problem" },
@@ -78,23 +77,38 @@ const URGENCY: Option[] = [
 
 const INPUT = "bg-panel text-sm md:text-sm"
 
+// The URL doesn't change while the form is open, so nothing to subscribe to.
+function noopSubscribe() {
+  return () => {}
+}
+
+function readTopicFromUrl(): string | null {
+  const requested = new URLSearchParams(window.location.search).get("topic")
+  return TOPICS.some((option) => option.value === requested) ? requested : null
+}
+
 function SelectField({
   id,
   label,
   placeholder,
   options,
   error,
+  value,
+  onValueChange,
 }: {
   id: string
   label: string
   placeholder: string
   options: Option[]
   error?: string
+  /** Pass both to control the select (null = nothing chosen). */
+  value?: string | null
+  onValueChange?: (value: string | null) => void
 }) {
   return (
     <Field>
       <FieldLabel htmlFor={id}>{label}</FieldLabel>
-      <Select name={id} items={options}>
+      <Select name={id} items={options} value={value} onValueChange={onValueChange}>
         <SelectTrigger
           id={id}
           className={cn(INPUT, "w-full")}
@@ -182,6 +196,13 @@ function ContactForm() {
   const [files, setFiles] = useState<File[]>([])
   // Bumped on reset so the uncontrolled Base UI selects remount empty.
   const [formKey, setFormKey] = useState(0)
+  // Links can preselect a topic, e.g. /contact?topic=feature from "Request
+  // an integration". The page is prerendered, so the URL is read through
+  // useSyncExternalStore (null on the server and during hydration). The
+  // visitor's own choice wins once made; `undefined` = not chosen yet.
+  const topicFromUrl = useSyncExternalStore(noopSubscribe, readTopicFromUrl, () => null)
+  const [chosenTopic, setChosenTopic] = useState<string | null | undefined>(undefined)
+  const topic = chosenTopic === undefined ? topicFromUrl : chosenTopic
 
   function addFiles(list: FileList | null) {
     if (!list) return
@@ -239,6 +260,7 @@ function ContactForm() {
     setFiles([])
     setErrors({})
     setStatus({ state: "idle" })
+    setChosenTopic(null)
     setFormKey((k) => k + 1)
   }
 
@@ -293,7 +315,15 @@ function ContactForm() {
         </Field>
 
         <div className="grid gap-5 sm:grid-cols-2">
-          <SelectField id="topic" label="What's it about?" placeholder="Choose a topic" options={TOPICS} error={errors.topic} />
+          <SelectField
+            id="topic"
+            label="What's it about?"
+            placeholder="Choose a topic"
+            options={TOPICS}
+            error={errors.topic}
+            value={topic}
+            onValueChange={setChosenTopic}
+          />
           <SelectField id="area" label="Part of the product" placeholder="Choose an area" options={AREAS} error={errors.area} />
         </div>
 
@@ -430,7 +460,6 @@ export default function Contact() {
           <div className="flex flex-col">
             <Eyebrow icon={Mail01Icon}>Contact</Eyebrow>
             <h1 className="mt-6 text-4xl font-medium tracking-tight text-balance md:text-5xl">How can we help?</h1>
-            {/* COPY: needs Curtis's approval (lede + the three details). */}
             <p className="mt-5 max-w-md text-lg text-pretty text-ink-muted">
               Questions, problems or ideas. Send us a message and someone on the team will reply by email.
             </p>

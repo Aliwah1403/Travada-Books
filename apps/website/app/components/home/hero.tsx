@@ -95,7 +95,7 @@ const SOURCES: Source[] = [
   { name: "Gmail", detail: "Connect", icon: GmailIcon },
   { name: "Outlook", detail: "Connect", icon: OutlookIcon },
   { name: "Bank statements", detail: "PDF or CSV", icon: BankIcon },
-  { name: "M-Pesa statements", detail: "PDF or CSV", icon: FileSpreadsheetIcon },
+  { name: "Mobile money statements", detail: "PDF or CSV", icon: FileSpreadsheetIcon },
 ]
 
 export function WorksWith() {

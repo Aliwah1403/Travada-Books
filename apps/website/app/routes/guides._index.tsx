@@ -5,13 +5,12 @@ import { cn } from "@travada-books/ui/lib/utils"
 
 import { UPDATES } from "~/components/content/collections"
 import { EntryList } from "~/components/content/entry-list"
-import { HelpSearch, SoonPill } from "~/components/help/help-search"
+import { HelpSearch } from "~/components/help/help-search"
 import { ClosingCta } from "~/components/home/closing"
 import { LearnMore } from "~/components/home/shared"
 import { Eyebrow } from "~/components/site/eyebrow"
 import { Section } from "~/components/site/section"
 import { buildHelpCentre, type HelpArticle, type HelpCategoryWithArticles } from "~/data/help"
-import { CONTACT_EMAIL } from "~/data/site"
 import { buildFrontmatterCollection } from "~/lib/content"
 import { pageMeta } from "~/lib/seo"
 import { ogImage } from "~/lib/og"
@@ -31,10 +30,9 @@ const updateModules = import.meta.glob<Record<string, unknown>>("../../content/u
 const CATEGORIES = buildHelpCentre(buildFrontmatterCollection(guideModules, "guides"))
 const ARTICLES = CATEGORIES.flatMap((category) => category.articles)
 const CATEGORY_TITLES = Object.fromEntries(CATEGORIES.map((category) => [category.id, category.title]))
-const POPULAR = ARTICLES.filter((article) => article.popular && article.written)
+const POPULAR = ARTICLES.filter((article) => article.popular)
 const LATEST_UPDATES = buildFrontmatterCollection(updateModules, "updates").slice(0, 3)
 
-// COPY: needs Curtis's approval
 const POPULAR_SEARCHES = ["Recurring invoice", "Import statement", "Record payment", "Gmail"]
 
 const META = "font-mono text-xs tracking-wide text-ink-subtle uppercase"
@@ -52,11 +50,8 @@ export function meta() {
   })
 }
 
-function countLabel({ writtenCount, soonCount }: HelpCategoryWithArticles) {
-  const parts: string[] = []
-  if (writtenCount > 0) parts.push(`${writtenCount} ${writtenCount === 1 ? "article" : "articles"}`)
-  if (soonCount > 0) parts.push(`${soonCount} coming soon`)
-  return parts.join(" · ")
+function countLabel({ articles }: HelpCategoryWithArticles) {
+  return `${articles.length} ${articles.length === 1 ? "article" : "articles"}`
 }
 
 function IconBox({ category, className }: { category: HelpCategoryWithArticles; className?: string }) {
@@ -80,7 +75,6 @@ function Hero() {
     <Section innerClassName="py-14 md:py-20">
       <div className="mx-auto flex max-w-3xl flex-col items-center text-center">
         <Eyebrow icon={Doc01Icon}>Help centre</Eyebrow>
-        {/* COPY: needs Curtis's approval */}
         <h1 className="mt-5 text-5xl font-medium tracking-tight text-balance md:text-6xl">How can we help?</h1>
         <p className="mt-5 max-w-2xl text-lg text-pretty text-ink-muted">
           Step-by-step help with every part of Travada Books, plus longer guides on keeping business records.
@@ -90,7 +84,6 @@ function Hero() {
             articles={ARTICLES}
             categoryTitles={CATEGORY_TITLES}
             popularSearches={POPULAR_SEARCHES}
-            contactEmail={CONTACT_EMAIL}
           />
         </div>
       </div>
@@ -125,8 +118,8 @@ function CategoryCards() {
           </li>
         ))}
         <li className="flex">
-          <a
-            href={`mailto:${CONTACT_EMAIL}`}
+          <Link
+            to="/contact"
             className={cn("flex w-full gap-4 bg-panel p-5 sm:flex-col sm:gap-0 sm:p-6", PRESSABLE)}
           >
             <span
@@ -136,16 +129,15 @@ function CategoryCards() {
               <Mail01Icon className="size-5" />
             </span>
             <span className="flex min-w-0 flex-1 flex-col">
-              {/* COPY: needs Curtis's approval */}
               <span className="text-lg font-medium text-ink sm:mt-6">Ask a person</span>
               <span className="mt-1.5 text-sm text-pretty text-ink-muted">
-                Can&rsquo;t find it here? Email us and someone from the team will reply.
+                Can&rsquo;t find it here? Send us a message and someone from the team will reply.
               </span>
               <span className="mt-auto flex items-center gap-1 pt-4 text-sm font-medium text-brand sm:pt-6">
-                {CONTACT_EMAIL} <ArrowRight01Icon className="size-4" aria-hidden="true" />
+                Contact support <ArrowRight01Icon className="size-4" aria-hidden="true" />
               </span>
             </span>
-          </a>
+          </Link>
         </li>
       </ul>
     </Section>
@@ -195,18 +187,6 @@ function PopularArticles() {
 /* -------------------------------------------------------------------------- */
 
 function ArticleRow({ article, longform }: { article: HelpArticle; longform?: boolean }) {
-  if (!article.written) {
-    return (
-      <li className="flex items-start gap-4 bg-panel px-5 py-4 md:px-6">
-        <div className="min-w-0 flex-1">
-          <p className="text-base font-medium text-ink-muted">{article.title}</p>
-          <p className="mt-1 text-sm text-pretty text-ink-subtle">{article.summary}</p>
-        </div>
-        <SoonPill className="mt-0.5" />
-      </li>
-    )
-  }
-
   return (
     <li className="flex">
       <Link
@@ -275,11 +255,11 @@ function AllCategories() {
   return (
     <>
       <Section size="lg">
-        {/* COPY: needs Curtis's approval */}
         <div className="flex max-w-2xl flex-col gap-4">
           <h2 className="text-3xl font-medium tracking-tight text-balance md:text-4xl">All help articles</h2>
           <p className="text-lg text-pretty text-ink-muted">
-            Articles marked Soon are being written. Ask us in the meantime and we&rsquo;ll walk you through it.
+            Every guide, grouped by topic. If yours isn&rsquo;t here, send us a message and we&rsquo;ll walk you
+            through it.
           </p>
         </div>
         <div className="mt-12 flex flex-col gap-12 md:mt-16 md:gap-16">
@@ -330,18 +310,17 @@ function ContactBand() {
           <span aria-hidden="true" className="flex size-10 shrink-0 items-center justify-center border border-line bg-panel">
             <Mail01Icon className="size-5 text-brand-line" />
           </span>
-          {/* COPY: needs Curtis's approval */}
           <div className="flex flex-col gap-1.5">
             <h2 className="text-2xl font-medium tracking-tight text-balance">
               Can&rsquo;t find what you&rsquo;re looking for?
             </h2>
             <p className="max-w-xl text-base text-pretty text-ink-muted">
-              Email us with your question. A person reads every message and will reply.
+              Send us your question. A person reads every message and will reply.
             </p>
           </div>
         </div>
-        <LearnMore to={`mailto:${CONTACT_EMAIL}`} className="shrink-0 pl-14 md:pl-0">
-          {CONTACT_EMAIL}
+        <LearnMore to="/contact" className="shrink-0 pl-14 md:pl-0">
+          Contact support
         </LearnMore>
       </div>
     </Section>

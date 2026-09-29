@@ -7,7 +7,6 @@ export type SearchableArticle = {
   title: string
   summary: string
   keywords?: string[]
-  written: boolean
 }
 
 export type SearchDoc<T extends SearchableArticle> = {
@@ -83,8 +82,8 @@ const WEIGHTS = { title: 10, keywords: 6, category: 4, summary: 3 } as const
 
 /**
  * Every query token must match somewhere in an article. Score is the sum,
- * per token, of the best field match × that field's weight; written
- * articles win ties over coming-soon ones, then the original order stands.
+ * per token, of the best field match × that field's weight; ties keep the
+ * original order.
  */
 export function searchArticles<T extends SearchableArticle>(index: SearchDoc<T>[], query: string): T[] {
   const tokens = queryTokens(query)
@@ -101,7 +100,6 @@ export function searchArticles<T extends SearchableArticle>(index: SearchDoc<T>[
       if (best === 0) return
       score += best
     }
-    if (doc.article.written) score += 1
     scored.push({ article: doc.article, score, order })
   })
 

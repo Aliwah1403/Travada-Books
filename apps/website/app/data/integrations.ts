@@ -46,7 +46,6 @@ export const INTEGRATIONS: Integration[] = [
   // Statement imports are uploads, not connections, but they're live and
   // they belong in the catalogue. The home hub (home/integrations-hub.tsx)
   // looks entries up by id, so adding these doesn't change it.
-  // COPY: both descriptions need Curtis's approval.
   {
     id: "bank-statements",
     name: "Bank statements",
@@ -58,9 +57,9 @@ export const INTEGRATIONS: Integration[] = [
   },
   {
     id: "mpesa-statements",
-    name: "M-Pesa statements",
+    name: "Mobile money statements",
     category: "Imports",
-    description: "Upload your M-Pesa statement, PDF or CSV, and every transaction comes in sorted.",
+    description: "Upload a mobile money statement, such as M-Pesa, as PDF or CSV, and every transaction comes in sorted.",
     status: "available",
     Icon: MpesaIcon,
   },

@@ -21,7 +21,6 @@ import {
   type Integration,
   type IntegrationCategory,
 } from "~/data/integrations"
-import { CONTACT_EMAIL } from "~/data/site"
 import { pageMeta } from "~/lib/seo"
 import { ogImage } from "~/lib/og"
 
@@ -29,7 +28,7 @@ import { ogImage } from "~/lib/og"
 export function meta() {
   return pageMeta({
     title: "Integrations — Travada Books",
-    description: "Connect Travada Books to Gmail and Outlook today, and see upcoming M-Pesa, Stripe and WhatsApp integrations.",
+    description: "Connect Travada Books to the tools your business already uses: email, bank and mobile money statements, payments, messaging and more.",
     path: "/integrations",
     image: ogImage("integrations"),
   })
@@ -37,7 +36,6 @@ export function meta() {
 
 const REQUEST_ID = "request"
 
-/* COPY: needs Curtis's approval */
 const CATEGORY_BLURB: Record<IntegrationCategory, string> = {
   Email: "Receipts and supplier invoices, pulled in from the inbox you already use.",
   Imports: "The statements you already get, uploaded and sorted for you.",
@@ -53,18 +51,16 @@ function Hero() {
       <ToolMarquee />
       <div className="mx-auto mt-6 flex max-w-3xl flex-col items-center text-center md:mt-8">
         <h1 className="text-5xl font-medium tracking-tight text-balance md:text-6xl">
-          Your tools should bring the paperwork with them.
+          Connect the tools your business runs on.
         </h1>
-        {/* COPY: needs Curtis's approval */}
         <p className="mt-5 max-w-2xl text-lg text-pretty text-ink-muted">
-          Connect the inbox you already use and upload the statements you already get. Payments and messaging are
-          next, and clearly marked until they&rsquo;re ready.
+          Link Travada Books to the tools your business already uses: email, bank and mobile money statements,
+          payments, messaging and more.
         </p>
         <div className="mt-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-4">
           <AppLink to="signup" location="integrations" className={cn(buttonVariants({ size: "lg" }), "text-sm", ARROW_NUDGE)}>
             Start free <ArrowRight01Icon aria-hidden="true" />
           </AppLink>
-          {/* COPY: needs Curtis's approval */}
           <LearnMore to={`#${REQUEST_ID}`}>Request an integration</LearnMore>
         </div>
         <p className="mt-5 flex items-center gap-2 text-sm text-ink-subtle">
@@ -131,7 +127,6 @@ function RequestCard() {
         >
           <PlusSignIcon className="size-5" />
         </span>
-        {/* COPY: needs Curtis's approval */}
         <span className="mt-8 text-lg font-medium text-ink">Missing one?</span>
         <span className="mt-1.5 flex items-center gap-1 text-sm font-medium text-brand">
           Request an integration <ArrowRight01Icon className="size-4" aria-hidden="true" />
@@ -144,11 +139,10 @@ function RequestCard() {
 function Catalogue() {
   return (
     <Section size="lg">
-      {/* COPY: needs Curtis's approval */}
       <SectionHeading
         eyebrow={<Eyebrow>Catalogue</Eyebrow>}
         title="What Travada Books works with."
-        lede="Everything marked Live works today. Everything else is on the roadmap, and says so."
+        lede="Everything marked Live works today. The rest is coming soon."
       />
 
       <div className="mt-12 flex flex-col gap-12 md:mt-16 md:gap-16">
@@ -183,7 +177,6 @@ function RequestRow() {
           <span aria-hidden="true" className="flex size-10 shrink-0 items-center justify-center border border-line bg-panel">
             <Mail01Icon className="size-5 text-brand-line" />
           </span>
-          {/* COPY: needs Curtis's approval */}
           <div className="flex flex-col gap-1.5">
             <h2 className="text-2xl font-medium tracking-tight text-balance">Missing a tool you use?</h2>
             <p className="max-w-xl text-base text-pretty text-ink-muted">
@@ -192,7 +185,7 @@ function RequestRow() {
             </p>
           </div>
         </div>
-        <LearnMore to={`mailto:${CONTACT_EMAIL}?subject=Integration%20request`} className="shrink-0 pl-14 md:pl-0">
+        <LearnMore to="/contact?topic=feature" className="shrink-0 pl-14 md:pl-0">
           Request an integration
         </LearnMore>
       </div>

@@ -23,7 +23,7 @@ export function meta() {
     ...pageMeta({
       title: "Statement import — Travada Books",
       description:
-        "Upload a bank or M-Pesa statement — CSV or PDF, from any bank — and Travada Books reads the columns, splits debit and credit, and sorts every transaction.",
+        "Upload a bank or mobile money statement, such as M-Pesa — CSV or PDF, from any provider — and Travada Books reads the columns, splits debit and credit, and sorts every transaction.",
       path: "/statement-import",
       image: "/og/statement-import.png",
     }),
@@ -34,7 +34,7 @@ export function meta() {
 const CONTENT: FeaturePageContent = {
   eyebrow: { label: "Statement import", icon: BankIcon },
   title: "A year of records, sorted in one upload.",
-  lede: "Bring in your bank statement or your M-Pesa records — a CSV, or a PDF, whatever you've got. It reads the file, works out the columns itself, and sorts every transaction so you don't have to.",
+  lede: "Bring in your bank statements or mobile money statements such as M-Pesa — a CSV, or a PDF, whatever you've got. It reads the file, works out the columns itself, and sorts every transaction so you don't have to.",
   heroLayout: "split-shot",
   visual: <StatementImportHeroMockup />,
   rows: [
@@ -42,14 +42,14 @@ const CONTENT: FeaturePageContent = {
       label: "Import",
       icon: Upload01Icon,
       title: "Any file, any bank",
-      body: "Upload your bank statement or your M-Pesa records — a CSV, or a PDF, whatever your bank gave you. Travada Books works out which column is the date, which is the amount, and which is money in and money out — including statements that split debit and credit into two separate columns, because plenty of them do.",
+      body: "Upload your bank statement or a mobile money statement such as M-Pesa — a CSV, or a PDF, whatever your provider gave you. Travada Books works out which column is the date, which is the amount, and which is money in and money out — including statements that split debit and credit into two separate columns, because plenty of them do.",
       visual: <ColumnMappingMockup />,
     },
     {
       label: "Categories",
       icon: Tag01Icon,
       title: "They sort themselves",
-      body: "Transactions are categorised automatically as they come in, against your own categories — it recognises things like M-Pesa transfers and common local merchants along the way. Anything it gets wrong, you fix once and move on.",
+      body: "Transactions are categorised automatically as they come in, against your own categories — it recognises things like mobile money transfers, such as M-Pesa, and common local merchants along the way. Anything it gets wrong, you fix once and move on.",
       visual: <AutoCategorizeMockup />,
     },
     {
@@ -63,7 +63,7 @@ const CONTENT: FeaturePageContent = {
   details: [
     {
       title: "CSV or PDF",
-      body: "Whatever format your bank or M-Pesa exports. No partner bank needed.",
+      body: "Whatever format your bank or mobile money provider exports. No partner bank needed.",
       icon: FileSpreadsheetIcon,
     },
     {

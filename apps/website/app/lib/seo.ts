@@ -127,7 +127,7 @@ export function softwareApplicationJsonLd(plans: PricingPlan[]): MetaDescriptor 
         "Scheduled invoice sending",
         "Automatic overdue reminders",
         "Quote-to-invoice conversion",
-        "Bank and M-Pesa statement import",
+        "Bank and mobile money statement import, such as M-Pesa",
         "Automatic transaction categorisation",
         "Gmail and Outlook receipt matching",
         "Multi-currency invoicing",
