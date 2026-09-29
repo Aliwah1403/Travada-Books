@@ -14,6 +14,7 @@ import { buildHelpCentre, type HelpArticle, type HelpCategoryWithArticles } from
 import { CONTACT_EMAIL } from "~/data/site"
 import { buildFrontmatterCollection } from "~/lib/content"
 import { pageMeta } from "~/lib/seo"
+import { ogImage } from "~/lib/og"
 
 const guideModules = import.meta.glob<Record<string, unknown>>("../../content/guides/*.mdx", {
   eager: true,
@@ -47,6 +48,7 @@ export function meta() {
     description:
       "Step-by-step help for Travada Books: set up your business, send invoices and quotes, import statements, record payments and manage your team. Plus longer guides on keeping business records.",
     path: "/guides",
+    image: ogImage("guides"),
   })
 }
 

@@ -23,6 +23,7 @@ import {
 } from "~/data/integrations"
 import { CONTACT_EMAIL } from "~/data/site"
 import { pageMeta } from "~/lib/seo"
+import { ogImage } from "~/lib/og"
 
 // eslint-disable-next-line react-refresh/only-export-components -- route module convention: meta + default component
 export function meta() {
@@ -30,6 +31,7 @@ export function meta() {
     title: "Integrations — Travada Books",
     description: "Connect Travada Books to Gmail and Outlook today, and see upcoming M-Pesa, Stripe and WhatsApp integrations.",
     path: "/integrations",
+    image: ogImage("integrations"),
   })
 }
 

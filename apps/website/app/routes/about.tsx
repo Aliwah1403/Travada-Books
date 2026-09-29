@@ -19,6 +19,7 @@ import { Section } from "~/components/site/section"
 import { SectionHeading } from "~/components/site/section-heading"
 import { CONTACT_EMAIL } from "~/data/site"
 import { organizationJsonLd, pageMeta } from "~/lib/seo"
+import { ogImage } from "~/lib/og"
 
 // eslint-disable-next-line react-refresh/only-export-components -- route module convention: meta + default component
 export function meta() {
@@ -28,7 +29,7 @@ export function meta() {
       description:
         "Travada Books is invoicing and bookkeeping software built by Travada Systems in Nairobi. We were our own first customer, and we build it for small businesses and freelancers everywhere.",
       path: "/about",
-      image: "/og/about.png",
+      image: ogImage("about"),
     }),
     organizationJsonLd(),
   ]

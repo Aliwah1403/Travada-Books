@@ -26,6 +26,7 @@ import { captureEvent } from "~/lib/analytics"
 import { pageMeta } from "~/lib/seo"
 import { submitSupportRequest } from "~/lib/support"
 import { ARROW_NUDGE } from "~/components/home/shared"
+import { ogImage } from "~/lib/og"
 
 // eslint-disable-next-line react-refresh/only-export-components -- route module convention: meta + default component
 export function meta() {
@@ -34,6 +35,7 @@ export function meta() {
     description:
       "Get help with Travada Books. Send the team a question, report a problem or suggest a feature, and we'll reply by email.",
     path: "/contact",
+    image: ogImage("contact"),
   })
 }
 

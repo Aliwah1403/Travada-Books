@@ -2,6 +2,8 @@ import fs from "node:fs"
 import path from "node:path"
 import type { Config } from "@react-router/dev/config"
 
+import { OG_PAGES } from "./app/data/og-pages"
+
 const CONTENT_DIR = path.resolve(__dirname, "content")
 
 /**
@@ -34,10 +36,16 @@ function slugsFor(collection: "updates" | "guides"): string[] {
 export default {
   ssr: false,
   async prerender({ getStaticPaths }) {
+    const updates = slugsFor("updates")
+    const guides = slugsFor("guides")
     return [
       ...getStaticPaths(),
-      ...slugsFor("updates").map((slug) => `/updates/${slug}`),
-      ...slugsFor("guides").map((slug) => `/guides/${slug}`),
+      ...updates.map((slug) => `/updates/${slug}`),
+      ...guides.map((slug) => `/guides/${slug}`),
+      // Generated share cards (routes/og.auto.$.tsx).
+      ...Object.keys(OG_PAGES).map((key) => `/og/auto/${key}.png`),
+      ...updates.map((slug) => `/og/auto/updates/${slug}.png`),
+      ...guides.map((slug) => `/og/auto/guides/${slug}.png`),
     ]
   },
 } satisfies Config

@@ -4,6 +4,7 @@ import { LEGAL } from "~/components/content/collections"
 import { LegalDraftNotice } from "~/components/content/legal-draft-notice"
 import { mdxComponents } from "~/components/mdx-components"
 import { formatDate } from "~/lib/date"
+import { ogImage } from "~/lib/og"
 import { pageMeta } from "~/lib/seo"
 
 // eslint-disable-next-line react-refresh/only-export-components -- route module convention: meta + default component
@@ -12,6 +13,7 @@ export function meta() {
     title: `${frontmatter.title} — Travada Books`,
     description: frontmatter.summary,
     path: "/legal/privacy",
+    image: ogImage("legal-privacy"),
     noindex: frontmatter.placeholder,
   })
 }

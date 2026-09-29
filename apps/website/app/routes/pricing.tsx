@@ -10,6 +10,7 @@ import { SectionHeading } from "~/components/site/section-heading"
 import { PRICING_FAQ_ITEMS, PRICING_PLANS, PRICING_PUBLISHED, type PricingPlan } from "~/data/pricing"
 import { faqPageJsonLd, organizationJsonLd, pageMeta, softwareApplicationJsonLd } from "~/lib/seo"
 import { ARROW_NUDGE } from "~/components/home/shared"
+import { ogImage } from "~/lib/og"
 
 // Dummy page (WEBSITE-PLAN.md §6 "/pricing"): every value comes from
 // data/pricing.ts. PRICING_PUBLISHED still drives noindex here, and the
@@ -22,7 +23,7 @@ export function meta() {
       description:
         "Pricing for Travada Books is still being decided. Sign up free today — nothing changes until it's announced.",
       path: "/pricing",
-      image: "/og/pricing.png",
+      image: ogImage("pricing"),
       noindex: !PRICING_PUBLISHED,
     }),
     organizationJsonLd(),

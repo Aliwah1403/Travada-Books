@@ -10,6 +10,7 @@ import { readingMinutesBySlug, type MdxModule } from "~/lib/content"
 import { formatDate } from "~/lib/date"
 import { articleJsonLd, pageMeta } from "~/lib/seo"
 import { buildUpdates, findUpdate } from "~/lib/updates"
+import { ogImage } from "~/lib/og"
 
 import type { Route } from "./+types/updates.$slug"
 
@@ -39,7 +40,7 @@ export function meta({ params }: Route.MetaArgs) {
     })
   }
   const { frontmatter } = entry
-  const image = frontmatter.image ?? "/og/default.png"
+  const image = frontmatter.image ?? ogImage(`updates/${entry.slug}`)
   return [
     ...pageMeta({
       title: `${frontmatter.title} — Travada Books`,

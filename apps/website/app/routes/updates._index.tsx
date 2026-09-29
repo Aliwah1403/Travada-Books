@@ -19,6 +19,7 @@ import { formatDate } from "~/lib/date"
 import { pageMeta } from "~/lib/seo"
 import { buildUpdates, isUpdateTagId, updateTagCounts, type UpdateEntry, type UpdateTagId } from "~/lib/updates"
 import { CONTACT_EMAIL } from "~/data/site"
+import { ogImage } from "~/lib/og"
 
 // Full modules, not the `?frontmatter` variant: the changelog renders each
 // entry's MDX body inline. Only the updates folder is bundled here.
@@ -33,6 +34,7 @@ export function meta() {
     title: "Changelog — Travada Books",
     description: "What's new in Travada Books: product updates and company news, newest first.",
     path: "/updates",
+    image: ogImage("updates"),
   })
 }
 

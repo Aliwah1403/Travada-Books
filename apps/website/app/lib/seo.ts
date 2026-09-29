@@ -4,7 +4,7 @@ import { PRICING_PUBLISHED, type PricingPlan } from "~/data/pricing"
 import type { FaqItem } from "~/data/faq"
 import { CONTACT_EMAIL, SITE_NAME, SITE_URL } from "~/data/site"
 
-const DEFAULT_OG_IMAGE = "/og/default.png"
+const DEFAULT_OG_IMAGE = "/og/auto/default.png"
 const ORG_LOGO_PATH = "/web-app-manifest-512x512.png"
 
 // Root canonicalises to "https://travadabooks.com/" (trailing slash); every
@@ -22,7 +22,7 @@ type PageMetaOptions = {
   description: string
   /** Route path, e.g. "/invoicing" — "/" for home. */
   path: string
-  /** Absolute or site-relative OG image path. Defaults to /og/default.png. */
+  /** Absolute or site-relative OG image path. Defaults to the generated default card. */
   image?: string
   noindex?: boolean
   type?: "website" | "article"

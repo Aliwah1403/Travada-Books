@@ -19,6 +19,7 @@ export default [
   route("updates/:slug", "routes/updates.$slug.tsx"),
   route("guides", "routes/guides._index.tsx"),
   route("guides/:slug", "routes/guides.$slug.tsx"),
+  route("og/auto/*", "routes/og.auto.$.tsx"),
   route("sitemap.xml", "routes/sitemap[.]xml.tsx"),
   route("robots.txt", "routes/robots[.]txt.tsx"),
   route("*", "routes/not-found.tsx"),
