@@ -16,6 +16,7 @@ import { PortalPhoneMockup } from "~/components/feature/mockups/customer-portal/
 import { PortalSharingMockup } from "~/components/feature/mockups/customer-portal/portal-sharing"
 import { CUSTOMER_PORTAL_FAQ_ITEMS } from "~/data/faq"
 import { faqPageJsonLd, pageMeta } from "~/lib/seo"
+import { ogImage } from "~/lib/og"
 
 // ⚠️ No "M-Pesa" anywhere on this page, meta included — the portal is
 // invoicing content (WEBSITE-PLAN.md §5 rule 4).
@@ -28,7 +29,10 @@ export function meta() {
       description:
         "Give each customer one private link to every invoice, quote and statement you've sent them, with what they owe at the top. No login needed.",
       path: "/customer-portal",
-      image: "/og/default.png",
+      image: ogImage("customer-portal"),
+      // Hidden until the portal ships (2026-09-29): unlinked, out of the
+      // sitemap and kept out of search. See FEATURES_NAV in data/site.ts.
+      noindex: true,
     }),
     faqPageJsonLd(CUSTOMER_PORTAL_FAQ_ITEMS),
   ]

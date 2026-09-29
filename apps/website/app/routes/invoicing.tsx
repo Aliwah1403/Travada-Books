@@ -35,29 +35,23 @@ export function meta() {
   ]
 }
 
-// Stand-in until the real screenshots are captured: a dashboard screenshot,
-// with an alt that describes what it actually shows. When a real shot lands,
-// replace `src`, `width`/`height` and `alt` with the shot `caption` asks for.
-// ⚠️ The stand-in shows "Mpesa/Bank Deposit" in an expense card — accepted
-// temporarily; the real invoicing shots must not show M-Pesa anywhere.
-const STAND_IN = {
-  src: "/shots/dummy-dashboard.webp",
-  width: 2000,
-  height: 1103,
-  alt: "The Travada Books dashboard, with revenue, cash flow, spending and payment score cards",
-}
-
 // Full-app screenshot; the hero cuts it into sidebar + main-content layers,
 // so the real capture must keep the app's standard layout (sidebar ≈ 295 of
 // 2000px). Update `sidebar` if the capture's width changes.
 const HERO_SHOT: FeatureShot = {
-  ...STAND_IN,
+  src: "/shots/invoicing-hero.webp",
+  width: 2000,
+  height: 1104,
+  alt: "The Travada Books invoices list: open, overdue and collected totals above a table of invoices in Draft, Sent, Part-paid and Paid status, in AED and KES, with bi-weekly and yearly recurring invoices",
   sidebar: 295 / 2000,
   caption: "Invoices list — 8 rows, mixed statuses (Scheduled, Sent, Part-paid, Overdue, Paid), recurring marker visible, stat cards above",
 }
 
 const QUOTES_SHOT: FeatureShot = {
-  ...STAND_IN,
+  src: "/shots/invoicing-quote-accepted.webp",
+  width: 1120,
+  height: 1091,
+  alt: "An accepted quote in Travada Books, with a banner saying invoice INV-012 was created from it and a link to view the invoice",
   caption: "Quote accepted → draft invoice created (quote detail with Accepted status and the linked draft invoice)",
 }
 

@@ -18,7 +18,6 @@ const CORE_STATIC_PATHS = [
   "/statement-import",
   "/inbox",
   "/quotes",
-  "/customer-portal",
   "/payments",
   "/integrations",
   "/who-its-for",

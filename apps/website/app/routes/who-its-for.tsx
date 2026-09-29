@@ -32,6 +32,7 @@ import { Section } from "~/components/site/section"
 import { Split } from "~/components/site/split"
 import { PERSONAS } from "~/data/personas"
 import { pageMeta } from "~/lib/seo"
+import { ogImage } from "~/lib/og"
 
 // eslint-disable-next-line react-refresh/only-export-components -- route module convention: meta + default component
 export function meta() {
@@ -40,7 +41,7 @@ export function meta() {
     description:
       "Freelancers, retainer consultants, small business owners, agencies — if invoicing or bookkeeping is eating your week, Travada Books is for you.",
     path: "/who-its-for",
-    image: "/og/who-its-for.png",
+    image: ogImage("who-its-for"),
   })
 }
 
@@ -65,7 +66,7 @@ const PERSONA_EXTRAS: Record<string, { spot: Spot; features: PersonaFeature[] }>
         title: "Customer portal",
         body: "One link with every invoice you've sent a client, and what's still owed at the top.",
         icon: Globe02Icon,
-        href: "/customer-portal",
+        href: "/invoicing",
       },
       {
         title: "Part payments",
@@ -134,7 +135,7 @@ const PERSONA_EXTRAS: Record<string, { spot: Spot; features: PersonaFeature[] }>
         title: "Customer portal",
         body: "Every quote, invoice and statement for a client, behind one link.",
         icon: Globe02Icon,
-        href: "/customer-portal",
+        href: "/invoicing",
       },
       {
         title: "Any currency",

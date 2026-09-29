@@ -20,9 +20,9 @@ export const FEATURES_NAV: NavLink[] = [
   { label: "Invoicing", href: "/invoicing", description: "Create, schedule and follow up" },
   { label: "Statement import", href: "/statement-import", description: "Bring bank and M-Pesa records in" },
   { label: "Inbox", href: "/inbox", description: "Collect and match receipts" },
-  // /quotes, /customer-portal and /payments land in B3 (WEBSITE-REDO-PLAN.md §4).
+  // /customer-portal is hidden until the portal ships (2026-09-29): the page
+  // still builds but is noindex and unlinked. Add it back here when it's live.
   { label: "Quotes", href: "/quotes", description: "Send quotes customers accept online" },
-  { label: "Customer portal", href: "/customer-portal", description: "One link for every invoice and statement" },
   { label: "Payments", href: "/payments", description: "Record full and partial payments" },
 ]
 

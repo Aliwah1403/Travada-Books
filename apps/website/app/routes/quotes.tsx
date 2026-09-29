@@ -13,9 +13,11 @@ import {
 import { FeaturePage, type FeaturePageContent } from "~/components/feature/feature-page"
 import { AcceptedFragments } from "~/components/feature/mockups/quotes/accepted-fragments"
 import { DeclinedQuoteMockup } from "~/components/feature/mockups/quotes/declined-quote"
+import { QuoteToDraftMockup } from "~/components/feature/mockups/quotes/quote-to-draft"
 import { PublicQuoteMockup } from "~/components/feature/mockups/quotes/public-quote"
 import { QUOTES_FAQ_ITEMS } from "~/data/faq"
 import { faqPageJsonLd, pageMeta } from "~/lib/seo"
+import { ogImage } from "~/lib/og"
 
 // ⚠️ No "M-Pesa" anywhere on this page, meta included — quotes are
 // invoicing content (WEBSITE-PLAN.md §5 rule 4).
@@ -28,22 +30,10 @@ export function meta() {
       description:
         "Send a quote as a link. Your customer accepts or declines it without an account, and an accepted quote becomes a draft invoice on its own.",
       path: "/quotes",
-      image: "/og/default.png",
+      image: ogImage("quotes"),
     }),
     faqPageJsonLd(QUOTES_FAQ_ITEMS),
   ]
-}
-
-// Stand-in until the real screenshots are captured (same pattern as
-// /invoicing). When one lands, replace `src`, `width`/`height` and `alt`
-// with the shot `caption` asks for.
-// ⚠️ The stand-in shows "Mpesa/Bank Deposit" in an expense card — accepted
-// temporarily; the real quotes shots must not show M-Pesa anywhere.
-const STAND_IN = {
-  src: "/shots/dummy-dashboard.webp",
-  width: 2000,
-  height: 1103,
-  alt: "The Travada Books dashboard, with revenue, cash flow, spending and payment score cards",
 }
 
 const CONTENT: FeaturePageContent = {
@@ -59,7 +49,10 @@ const CONTENT: FeaturePageContent = {
       title: "Built like an invoice",
       body: "Add your line items, tax and discount, and a valid-until date, on the same layout as your invoices. Send it by email, or copy the link and share it wherever you talk to the customer.",
       shot: {
-        ...STAND_IN,
+        src: "/shots/quotes-editor.webp",
+        width: 851,
+        height: 1028,
+        alt: "The Travada Books quote editor: customer, quote number, currency, issue and valid-until dates, a line item, a 10% discount and 5% VAT",
         caption: "Quote editor — customer, two or three line items, tax and discount, valid-until date, total in KES",
       },
     },
@@ -75,10 +68,7 @@ const CONTENT: FeaturePageContent = {
       icon: Invoice01Icon,
       title: "Accepted means invoiced",
       body: "When a quote is accepted, Travada Books drafts the invoice with the same line items and emails you to say so. Check it, send it. You retype nothing.",
-      shot: {
-        ...STAND_IN,
-        caption: "Draft invoice created from an accepted quote — same line items as the quote, Draft status, ready to check and send",
-      },
+      visual: <QuoteToDraftMockup />,
     },
     {
       label: "Revise",

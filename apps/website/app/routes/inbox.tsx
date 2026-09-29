@@ -11,6 +11,7 @@ import {
 import { FeaturePage, type FeaturePageContent } from "~/components/feature/feature-page"
 import { InboxListMockup } from "~/components/feature/mockups/inbox/inbox-list"
 import { ReceiptMatchFragments } from "~/components/feature/mockups/inbox/receipt-match-fragments"
+import { ConnectInboxesMockup } from "~/components/feature/mockups/inbox/connect-inboxes"
 import { SuggestedMatchMockup } from "~/components/feature/mockups/inbox/suggested-match"
 import { INBOX_FAQ_ITEMS } from "~/data/faq"
 import { faqPageJsonLd, pageMeta } from "~/lib/seo"
@@ -29,16 +30,6 @@ export function meta() {
   ]
 }
 
-// Stand-in until the real screenshot is captured (same pattern as
-// /invoicing). When it lands, replace `src`, `width`/`height` and `alt`
-// with the shot `caption` asks for.
-const STAND_IN = {
-  src: "/shots/dummy-dashboard.webp",
-  width: 2000,
-  height: 1103,
-  alt: "The Travada Books dashboard, with revenue, cash flow, spending and payment score cards",
-}
-
 const CONTENT: FeaturePageContent = {
   eyebrow: { label: "Inbox", icon: InboxIcon },
   title: "Your receipts find you.",
@@ -51,10 +42,7 @@ const CONTENT: FeaturePageContent = {
       icon: Mail01Icon,
       title: "Connect Gmail or Outlook",
       body: "Connect the inbox you already use. Access is read-only — Travada Books can't send mail as you, and the only thing it pulls in is PDF attachments. Disconnect it whenever you like.",
-      shot: {
-        ...STAND_IN,
-        caption: "Settings → Integrations — Gmail and Outlook cards with their Connect buttons, one Gmail account connected (read-only)",
-      },
+      visual: <ConnectInboxesMockup />,
     },
     {
       label: "Capture",

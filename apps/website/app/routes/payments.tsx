@@ -11,10 +11,12 @@ import {
 
 import { FeaturePage, type FeaturePageContent } from "~/components/feature/feature-page"
 import { LinkedTransactionsMockup } from "~/components/feature/mockups/payments/linked-transactions"
+import { PaymentsRecordedMockup } from "~/components/feature/mockups/payments/payments-recorded"
 import { RecordPaymentHeroMockup } from "~/components/feature/mockups/payments/record-payment-hero"
 import { StatementLedgerMockup } from "~/components/feature/mockups/payments/statement-ledger"
 import { PAYMENTS_FAQ_ITEMS } from "~/data/faq"
 import { faqPageJsonLd, pageMeta } from "~/lib/seo"
+import { ogImage } from "~/lib/og"
 
 // This page is about recording money that has already arrived. M-Pesa may
 // appear only as a payment method you record (the FAQ), never as a way to
@@ -29,20 +31,10 @@ export function meta() {
       description:
         "Record full and part payments against an invoice. Balances, statuses and statements update themselves, and every payment lands in your books.",
       path: "/payments",
-      image: "/og/default.png",
+      image: ogImage("payments"),
     }),
     faqPageJsonLd(PAYMENTS_FAQ_ITEMS),
   ]
-}
-
-// Stand-in until the real screenshots are captured (same pattern as
-// /invoicing). When one lands, replace `src`, `width`/`height` and `alt`
-// with the shot `caption` asks for.
-const STAND_IN = {
-  src: "/shots/dummy-dashboard.webp",
-  width: 2000,
-  height: 1103,
-  alt: "The Travada Books dashboard, with revenue, cash flow, spending and payment score cards",
 }
 
 const CONTENT: FeaturePageContent = {
@@ -57,10 +49,7 @@ const CONTENT: FeaturePageContent = {
       icon: Wallet01Icon,
       title: "Record what arrived",
       body: "Enter the amount, the date and how it was paid, with a reference if you have one. Record the whole balance in one go, or part of it whenever money comes in.",
-      shot: {
-        ...STAND_IN,
-        caption: "Invoice detail — Record payment button, the Payments section with two payments (amount, date, method, reference, recorded by)",
-      },
+      visual: <PaymentsRecordedMockup />,
     },
     {
       label: "Status",
@@ -68,7 +57,10 @@ const CONTENT: FeaturePageContent = {
       title: "The status sorts itself out",
       body: "Pay part of an invoice and it shows as part-paid, with the balance left to pay. Pay the rest and it's marked paid. Delete a payment recorded by mistake and the status corrects itself.",
       shot: {
-        ...STAND_IN,
+        src: "/shots/payments-status.webp",
+        width: 1076,
+        height: 628,
+        alt: "The Travada Books invoices list with Draft, Sent, Part-paid and Paid invoices; part-paid rows show what's been paid and the balance due, such as AED 150.00 of 300.00 due",
         caption: "Invoices list — Part-paid and Paid badges side by side, the part-paid row showing its balance due",
       },
     },

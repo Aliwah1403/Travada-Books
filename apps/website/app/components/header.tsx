@@ -22,7 +22,6 @@ import {
   ArrowRight01Icon,
   BankIcon,
   FileEditIcon,
-  Globe02Icon,
   InboxIcon,
   Invoice01Icon,
   Menu01Icon,
@@ -42,7 +41,6 @@ const FEATURE_ICONS: Record<string, Icon> = {
   "/statement-import": BankIcon,
   "/inbox": InboxIcon,
   "/quotes": FileEditIcon,
-  "/customer-portal": Globe02Icon,
   "/payments": Wallet01Icon,
 }
 

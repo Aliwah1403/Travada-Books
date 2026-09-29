@@ -9,7 +9,9 @@ import {
   ReceiptTextIcon,
 } from "@travada-books/ui/icons"
 
-import { FeaturePage, type FeaturePageContent, type FeatureShot } from "~/components/feature/feature-page"
+import { FeaturePage, type FeaturePageContent } from "~/components/feature/feature-page"
+import { StatementImportHeroMockup } from "~/components/feature/mockups/statement-import/import-hero"
+import { AutoCategorizeMockup } from "~/components/feature/mockups/statement-import/auto-categorize"
 import { BulkActionsMockup } from "~/components/feature/mockups/statement-import/bulk-actions"
 import { ColumnMappingMockup } from "~/components/feature/mockups/statement-import/column-mapping"
 import { STATEMENT_IMPORT_FAQ_ITEMS } from "~/data/faq"
@@ -29,31 +31,12 @@ export function meta() {
   ]
 }
 
-// Stand-in until the real screenshots are captured (same pattern as
-// /invoicing): a dashboard screenshot with an alt that says what it
-// actually shows. When a real shot lands, replace `src`, `width`/`height`
-// and `alt` with the shot `caption` asks for.
-const STAND_IN = {
-  src: "/shots/dummy-dashboard.webp",
-  width: 2000,
-  height: 1103,
-  alt: "The Travada Books dashboard, with revenue, cash flow, spending and payment score cards",
-}
-
-// Full-app screenshot; the hero shows it large and lets it run off the
-// right edge, so the left two thirds (sidebar + table start) must carry it.
-const HERO_SHOT: FeatureShot = {
-  ...STAND_IN,
-  caption:
-    "Transactions — an imported bank statement, every row categorised (Date, Description, Category with colour dots, Amount), sidebar visible on the left",
-}
-
 const CONTENT: FeaturePageContent = {
   eyebrow: { label: "Statement import", icon: BankIcon },
   title: "A year of records, sorted in one upload.",
   lede: "Bring in your bank statement or your M-Pesa records — a CSV, or a PDF, whatever you've got. It reads the file, works out the columns itself, and sorts every transaction so you don't have to.",
   heroLayout: "split-shot",
-  shot: HERO_SHOT,
+  visual: <StatementImportHeroMockup />,
   rows: [
     {
       label: "Import",
@@ -67,11 +50,7 @@ const CONTENT: FeaturePageContent = {
       icon: Tag01Icon,
       title: "They sort themselves",
       body: "Transactions are categorised automatically as they come in, against your own categories — it recognises things like M-Pesa transfers and common local merchants along the way. Anything it gets wrong, you fix once and move on.",
-      shot: {
-        ...STAND_IN,
-        caption:
-          "Transactions list — categories applied automatically as an import lands (colour dots, a couple of rows still showing 'Analyzing')",
-      },
+      visual: <AutoCategorizeMockup />,
     },
     {
       label: "Bulk actions",
