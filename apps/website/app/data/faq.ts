@@ -152,7 +152,6 @@ export const INBOX_FAQ_ITEMS: FaqItem[] = [
 
 // ⚠️ No "M-Pesa" in this list — quotes sit beside invoicing
 // (WEBSITE-PLAN.md §5 rule 4). This FAQ set renders only on /quotes.
-// COPY: new — needs Curtis's approval.
 export const QUOTES_FAQ_ITEMS: FaqItem[] = [
   {
     id: "quote-no-account",
@@ -221,7 +220,6 @@ export const CUSTOMER_PORTAL_FAQ_ITEMS: FaqItem[] = [
 
 // M-Pesa may appear here only as a payment method you record, never as a
 // way to collect money (WEBSITE-PLAN.md §5 rule 4). Renders only on /payments.
-// COPY: new — needs Curtis's approval.
 export const PAYMENTS_FAQ_ITEMS: FaqItem[] = [
   {
     id: "payments-partial",

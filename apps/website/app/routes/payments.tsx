@@ -22,7 +22,6 @@ import { ogImage } from "~/lib/og"
 // appear only as a payment method you record (the FAQ), never as a way to
 // collect or pay — that's the "Coming soon" roadmap item (WEBSITE-PLAN.md
 // §5 rule 4). Keep it out of the meta description, hero and illustration.
-// COPY: everything on this page is new — needs Curtis's approval.
 // eslint-disable-next-line react-refresh/only-export-components -- route module convention: meta + default component
 export function meta() {
   return [

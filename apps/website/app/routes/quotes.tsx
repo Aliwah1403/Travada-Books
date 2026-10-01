@@ -21,7 +21,6 @@ import { ogImage } from "~/lib/og"
 
 // ⚠️ No "M-Pesa" anywhere on this page, meta included — quotes are
 // invoicing content (WEBSITE-PLAN.md §5 rule 4).
-// COPY: everything on this page is new — needs Curtis's approval.
 // eslint-disable-next-line react-refresh/only-export-components -- route module convention: meta + default component
 export function meta() {
   return [

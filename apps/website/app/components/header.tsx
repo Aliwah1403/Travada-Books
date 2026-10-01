@@ -25,8 +25,6 @@ import {
   InboxIcon,
   Invoice01Icon,
   Menu01Icon,
-  MoneyExchange01Icon,
-  TaxesIcon,
   Wallet01Icon,
   type Icon,
 } from "@travada-books/ui/icons"
@@ -34,7 +32,7 @@ import { cn } from "@travada-books/ui/lib/utils"
 
 import { AppLink } from "~/components/app-link"
 import { FRAME_GUTTER, FRAME_WIDTH } from "~/components/site/layout"
-import { COMING_SOON_NAV, FEATURES_NAV, RESOURCES_NAV, SITE_NAME, type NavLink } from "~/data/site"
+import { FEATURES_NAV, RESOURCES_NAV, SITE_NAME, type NavLink } from "~/data/site"
 
 const FEATURE_ICONS: Record<string, Icon> = {
   "/invoicing": Invoice01Icon,
@@ -44,7 +42,6 @@ const FEATURE_ICONS: Record<string, Icon> = {
   "/payments": Wallet01Icon,
 }
 
-const COMING_SOON_ICONS: Icon[] = [TaxesIcon, MoneyExchange01Icon]
 
 const TOP_LINKS: NavLink[] = [
   { label: "Who it's for", href: "/who-its-for" },
@@ -84,7 +81,7 @@ function MenuLabel({ children }: { children: ReactNode }) {
 
 function ProductMenu() {
   return (
-    <div className="grid grid-cols-[1fr_15rem]">
+    <div>
       <div className="p-3 pt-4">
         <MenuLabel>Product</MenuLabel>
         <ul className="grid grid-cols-2 gap-1">
@@ -100,20 +97,6 @@ function ProductMenu() {
                   <span className="text-xs/relaxed text-ink-muted">{item.description}</span>
                 </span>
               </NavigationMenuLink>
-            </li>
-          ))}
-        </ul>
-      </div>
-      <div className="border-l border-line bg-canvas p-3 pt-4">
-        <MenuLabel>Coming soon</MenuLabel>
-        <ul className="flex flex-col gap-1">
-          {COMING_SOON_NAV.map((item, index) => (
-            <li key={item.label} className="flex items-start gap-3 p-3">
-              <IconTile icon={COMING_SOON_ICONS[index] ?? ArrowRight01Icon} muted />
-              <span className="flex flex-col gap-0.5">
-                <span className="text-sm font-medium text-ink-muted">{item.label}</span>
-                <span className="text-xs/relaxed text-ink-subtle">{item.description}</span>
-              </span>
             </li>
           ))}
         </ul>
@@ -161,7 +144,7 @@ function DesktopNav() {
       <NavigationMenuList className="gap-0.5">
         <NavigationMenuItem>
           <NavigationMenuTrigger className={TOP_ITEM}>Product</NavigationMenuTrigger>
-          <NavigationMenuContent className="w-[min(48rem,calc(100vw-3rem))] p-0 duration-100">
+          <NavigationMenuContent className="w-[min(34rem,calc(100vw-3rem))] p-0 duration-100">
             <ProductMenu />
           </NavigationMenuContent>
         </NavigationMenuItem>
@@ -233,13 +216,6 @@ function MobileNav() {
           <MobileGroup title="Product">
             {FEATURES_NAV.map((item) => (
               <MobileLink key={item.href} item={item} onNavigate={close} />
-            ))}
-          </MobileGroup>
-          <MobileGroup title="Coming soon">
-            {COMING_SOON_NAV.map((item) => (
-              <span key={item.label} className="px-2 py-2 text-base text-ink-subtle">
-                {item.label}
-              </span>
             ))}
           </MobileGroup>
           <MobileGroup title="Explore">

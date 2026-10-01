@@ -7,6 +7,10 @@ export const APP_URL = "https://books.travadasys.com"
 
 export const CONTACT_EMAIL = "info@travadabooks.com"
 
+// Support mailbox — also where the /contact form delivers
+// (supabase/functions/submit-support-request).
+export const SUPPORT_EMAIL = "support@travadabooks.com"
+
 export const LOGIN_URL = `${APP_URL}/login`
 export const SIGNUP_URL = `${APP_URL}/signup`
 
@@ -24,12 +28,6 @@ export const FEATURES_NAV: NavLink[] = [
   // still builds but is noindex and unlinked. Add it back here when it's live.
   { label: "Quotes", href: "/quotes", description: "Send quotes customers accept online" },
   { label: "Payments", href: "/payments", description: "Record full and partial payments" },
-]
-
-// Roadmap — always labelled "Coming soon", never linked (WEBSITE-PLAN.md §5).
-export const COMING_SOON_NAV: { label: string; description: string }[] = [
-  { label: "eTIMS-ready invoicing", description: "Invoices that meet KRA eTIMS requirements" },
-  { label: "Pay invoices by M-Pesa", description: "Let customers pay straight from the invoice" },
 ]
 
 export const HEADER_NAV: NavLink[] = [
