@@ -21,6 +21,7 @@ import { TickIcon, Delete01Icon, PlusSignIcon } from "@travada-books/ui/icons";
 import { useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { LOGO_ACCEPT, prepareLogoFile } from "@/lib/logo-upload";
+import { PAYMENTS_ENABLED } from "@/lib/features";
 import { toast } from "sonner";
 import { Button } from "@travada-books/ui/components/button";
 import {
@@ -84,12 +85,7 @@ const connectedIntegrations = [
   { id: "stripe", label: "Stripe", description: "Cards & bank transfers" },
 ];
 
-const templates = [
-  { id: "classic", label: "Classic" },
-  { id: "modern", label: "Modern" },
-  { id: "minimal", label: "Minimal" },
-  { id: "bold", label: "Bold" },
-];
+const templates = [{ id: "classic", label: "Classic" }];
 
 function TemplateThumbnail({ id }: { id: string }) {
   if (id === "classic") {
@@ -108,60 +104,6 @@ function TemplateThumbnail({ id }: { id: string }) {
           <div className='h-1 w-8 rounded bg-muted-foreground/20' />
           <div className='h-1 w-6 rounded bg-muted-foreground/15' />
           <div className='h-1.5 w-10 rounded bg-muted-foreground/30' />
-        </div>
-      </div>
-    );
-  }
-  if (id === "modern") {
-    return (
-      <div className='flex h-full flex-col gap-1 p-1.5'>
-        <div className='h-4 w-full rounded-sm bg-muted-foreground/20 flex items-center px-1.5'>
-          <div className='h-1.5 w-6 rounded bg-muted-foreground/40' />
-        </div>
-        <div className='flex flex-col gap-0.5 mt-0.5'>
-          <div className='h-1 w-12 rounded bg-muted-foreground/20' />
-          <div className='h-1 w-8 rounded bg-muted-foreground/15' />
-        </div>
-        <div className='mt-auto flex flex-col gap-0.5 items-end'>
-          <div className='h-1 w-8 rounded bg-muted-foreground/20' />
-          <div className='h-1.5 w-10 rounded bg-primary/40' />
-        </div>
-      </div>
-    );
-  }
-  if (id === "minimal") {
-    return (
-      <div className='flex h-full flex-col gap-1 p-1.5'>
-        <div className='h-1.5 w-8 rounded bg-muted-foreground/30' />
-        <div className='h-px w-full bg-muted-foreground/15' />
-        <div className='flex flex-col gap-0.5'>
-          <div className='h-1 w-10 rounded bg-muted-foreground/15' />
-          <div className='h-1 w-7 rounded bg-muted-foreground/10' />
-        </div>
-        <div className='mt-auto flex flex-col gap-0.5 items-end'>
-          <div className='h-px w-full bg-muted-foreground/15' />
-          <div className='h-1.5 w-10 rounded bg-muted-foreground/25' />
-        </div>
-      </div>
-    );
-  }
-  if (id === "bold") {
-    return (
-      <div className='flex h-full flex-col gap-1 p-1.5'>
-        <div className='flex items-start justify-between'>
-          <div className='h-4 w-5 rounded-sm bg-foreground/30' />
-          <div className='flex flex-col items-end gap-0.5'>
-            <div className='h-1.5 w-8 rounded bg-foreground/20' />
-            <div className='h-1 w-5 rounded bg-muted-foreground/15' />
-          </div>
-        </div>
-        <div className='mt-0.5 h-px w-full bg-muted-foreground/15' />
-        <div className='flex flex-col gap-0.5'>
-          <div className='h-1 w-10 rounded bg-muted-foreground/20' />
-          <div className='h-1 w-7 rounded bg-muted-foreground/15' />
-        </div>
-        <div className='mt-auto flex flex-col gap-0.5 items-end'>
-          <div className='h-1.5 w-10 rounded bg-foreground/25' />
         </div>
       </div>
     );
@@ -594,78 +536,82 @@ export function InvoiceSettingsSheet({
             </div>
           </div>
 
-          <Separator />
+          {PAYMENTS_ENABLED && (
+            <>
+              <Separator />
 
-          {/* Accept payment */}
-          <div className='flex flex-col gap-3'>
-            <div className='flex items-start justify-between gap-3'>
-              <div className='flex flex-col gap-1'>
-                <p className='text-xs font-medium'>Accept Payments</p>
-                <p className='text-[11px] text-muted-foreground'>
-                  Adds a Pay Invoice button to the customer's invoice link.
-                </p>
-              </div>
-              <SettingsSwitch
-                id='accept-payments'
-                checked={settings.acceptPaymentsEnabled}
-                onCheckedChange={(v) => {
-                  onSettingsChange({
-                    ...settings,
-                    acceptPaymentsEnabled: v,
-                    selectedPaymentIntegration:
-                      v ? settings.selectedPaymentIntegration : null,
-                  });
-                }}
-              />
-            </div>
-
-            {settings.acceptPaymentsEnabled && (
-              <div className='flex flex-col gap-1.5'>
-                {connectedIntegrations.length === 0 ?
-                  <p className='text-[11px] text-muted-foreground rounded-md border border-dashed p-3 text-center'>
-                    No payment integrations set up yet. Go to Settings →
-                    Integrations to connect one.
-                  </p>
-                : <div className='flex flex-col gap-1.5'>
+              {/* Accept payment */}
+              <div className='flex flex-col gap-3'>
+                <div className='flex items-start justify-between gap-3'>
+                  <div className='flex flex-col gap-1'>
+                    <p className='text-xs font-medium'>Accept Payments</p>
                     <p className='text-[11px] text-muted-foreground'>
-                      Select payment method
+                      Adds a Pay Invoice button to the customer's invoice link.
                     </p>
-                    {connectedIntegrations.map((integration) => (
-                      <button
-                        key={integration.id}
-                        type='button'
-                        onClick={() =>
-                          update("selectedPaymentIntegration", integration.id)
-                        }
-                        className={cn(
-                          "flex items-center justify-between rounded-md border px-3 py-2 text-left transition-colors",
-                          (
-                            settings.selectedPaymentIntegration ===
-                              integration.id
-                          ) ?
-                            "border-primary bg-primary/5"
-                          : "border-border hover:border-muted-foreground/40",
-                        )}
-                      >
-                        <div>
-                          <p className='text-xs font-medium'>
-                            {integration.label}
-                          </p>
-                          <p className='text-[11px] text-muted-foreground'>
-                            {integration.description}
-                          </p>
-                        </div>
-                        {settings.selectedPaymentIntegration ===
-                          integration.id && (
-                          <TickIcon className='size-4 stroke-primary shrink-0' />
-                        )}
-                      </button>
-                    ))}
                   </div>
-                }
+                  <SettingsSwitch
+                    id='accept-payments'
+                    checked={settings.acceptPaymentsEnabled}
+                    onCheckedChange={(v) => {
+                      onSettingsChange({
+                        ...settings,
+                        acceptPaymentsEnabled: v,
+                        selectedPaymentIntegration:
+                          v ? settings.selectedPaymentIntegration : null,
+                      });
+                    }}
+                  />
+                </div>
+
+                {settings.acceptPaymentsEnabled && (
+                  <div className='flex flex-col gap-1.5'>
+                    {connectedIntegrations.length === 0 ?
+                      <p className='text-[11px] text-muted-foreground rounded-md border border-dashed p-3 text-center'>
+                        No payment integrations set up yet. Go to Settings →
+                        Integrations to connect one.
+                      </p>
+                    : <div className='flex flex-col gap-1.5'>
+                        <p className='text-[11px] text-muted-foreground'>
+                          Select payment method
+                        </p>
+                        {connectedIntegrations.map((integration) => (
+                          <button
+                            key={integration.id}
+                            type='button'
+                            onClick={() =>
+                              update("selectedPaymentIntegration", integration.id)
+                            }
+                            className={cn(
+                              "flex items-center justify-between rounded-md border px-3 py-2 text-left transition-colors",
+                              (
+                                settings.selectedPaymentIntegration ===
+                                  integration.id
+                              ) ?
+                                "border-primary bg-primary/5"
+                              : "border-border hover:border-muted-foreground/40",
+                            )}
+                          >
+                            <div>
+                              <p className='text-xs font-medium'>
+                                {integration.label}
+                              </p>
+                              <p className='text-[11px] text-muted-foreground'>
+                                {integration.description}
+                              </p>
+                            </div>
+                            {settings.selectedPaymentIntegration ===
+                              integration.id && (
+                              <TickIcon className='size-4 stroke-primary shrink-0' />
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                    }
+                  </div>
+                )}
               </div>
-            )}
-          </div>
+            </>
+          )}
 
           <Separator />
 

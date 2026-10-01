@@ -13,6 +13,7 @@ import { type QuoteStatus } from "./quote-status-badge";
 import { toast } from "sonner";
 import { deleteQuote } from "@/lib/queries/quotes";
 import { useAuth } from "@/contexts/auth-context";
+import { isQuoteEditable } from "./quote-utils";
 
 type QuoteActionsProps = {
   quoteId: string;
@@ -50,7 +51,7 @@ export function QuoteActions({ quoteId, quoteToken, status }: QuoteActionsProps)
         <DropdownMenuItem onClick={() => navigate(`/quotes/${quoteId}`)}>
           View
         </DropdownMenuItem>
-        {(status === "draft" || status === "sent") && (
+        {isQuoteEditable(status) && (
           <DropdownMenuItem onClick={() => navigate(`/quotes/${quoteId}/edit`)}>
             Edit
           </DropdownMenuItem>

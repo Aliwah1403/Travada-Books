@@ -45,10 +45,11 @@ import {
   type QuoteSettings,
 } from "@/components/quotes/quote-settings";
 import { type LineItem, QuotePreview } from "@/components/quotes/quote-preview";
-import { computeQuoteTotals } from "@/components/quotes/quote-utils";
+import { computeQuoteTotals, isQuoteEditable } from "@/components/quotes/quote-utils";
 import { deriveVatRate, toRateColumns } from "@/lib/document-totals";
 import { CustomFieldsEditor, type CustomField } from "@/components/invoices/custom-fields";
 import { normalizeCustomFields, parseCustomFields } from "@/lib/custom-fields";
+import { resolveDocumentLogo } from "@/lib/document-snapshots";
 
 export function EditQuotePage() {
   const { id } = useParams<{ id: string }>();
@@ -89,7 +90,7 @@ export function EditQuotePage() {
     queryFn: () => getOrgInvoiceTemplate(orgId!),
     enabled: !!orgId,
   });
-  const logoUrl = invoiceTemplate?.logoUrl ?? null;
+  const logoUrl = resolveDocumentLogo(invoiceTemplate?.logoUrl, org);
 
   const { data: quoteTemplate } = useQuery({
     queryKey: ["quote-template", orgId],
@@ -297,8 +298,8 @@ export function EditQuotePage() {
     );
   }
 
-  // Accepted quotes are permanently locked (invoice was created)
-  if (quote.status === "accepted") {
+  // Only drafts and declined quotes can be edited (see isQuoteEditable)
+  if (!isQuoteEditable(quote.status)) {
     navigate(`/quotes/${id}`);
     return null;
   }

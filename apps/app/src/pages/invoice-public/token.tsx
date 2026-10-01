@@ -12,6 +12,7 @@ import { InvoicePreview } from "@/components/invoice-templates"
 import { InvoicePdf, buildInvoiceDocumentData } from "@travada-books/pdf"
 import { downloadPdf } from "@/lib/pdf-download"
 import { formatCurrency } from "@/lib/format"
+import { PAYMENTS_ENABLED } from "@/lib/features"
 import LogoGreen from "@/assets/Logo-Green.svg"
 import LogoLime from "@/assets/Logo-Lime.svg"
 import { toast } from "sonner"
@@ -111,8 +112,8 @@ export function PublicInvoicePage() {
     setIsDownloading(true)
     try {
       await downloadPdf(
-        <InvoicePdf data={documentData} invoiceTemplate={invoice.invoice_template} />,
-        invoice.invoice_number ?? "Invoice",
+        <InvoicePdf data={documentData} />,
+        invoice?.invoice_number ?? "Invoice",
       )
     } catch {
       toast.error("Failed to generate PDF")
@@ -138,7 +139,7 @@ export function PublicInvoicePage() {
             <Download01Icon size={13} />
             <span className="hidden sm:inline">{isDownloading ? "Generating…" : "Download PDF"}</span>
           </Button>
-          {invoice.accept_payments && (
+          {PAYMENTS_ENABLED && invoice.accept_payments && invoice.status !== "canceled" && (
             <Button className="gap-1.5">
               <Wallet01Icon size={13} />
               <span className="hidden sm:inline">Pay Invoice</span>
@@ -147,10 +148,16 @@ export function PublicInvoicePage() {
         </div>
       </div>
 
+      {invoice.status === "canceled" && (
+        <div className="border-b bg-muted/60 px-4 py-2.5 text-center text-xs font-medium text-muted-foreground sm:px-6">
+          This invoice has been canceled.
+        </div>
+      )}
+
       {/* Invoice */}
       <div className="flex justify-center px-3 py-6 sm:px-4 sm:py-10">
         <div className="w-full max-w-2xl">
-          <InvoicePreview data={documentData} invoiceTemplate={invoice.invoice_template} />
+          <InvoicePreview data={documentData} />
 
           {/* An invoice states what was billed and does not change once issued —
               the payment breakdown (dates, methods, per-payment rows) belongs on
@@ -158,7 +165,7 @@ export function PublicInvoicePage() {
               The one exception is a bare balance line when the customer can pay
               from this page: without it someone who has already part-paid sees
               the full total next to a Pay button and may pay twice. */}
-          {invoice.accept_payments && invoice.amount_paid > 0 && (
+          {PAYMENTS_ENABLED && invoice.accept_payments && invoice.amount_paid > 0 && (
             <div className="mt-4 rounded-lg border bg-background px-5 py-4 text-xs">
               <div className="flex items-center justify-between">
                 <span className="font-medium">

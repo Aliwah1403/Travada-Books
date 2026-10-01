@@ -40,6 +40,20 @@ function statementPaidAmount(inv: StatementLedgerInvoice): number {
   return inv.status === "paid" ? (inv.total ?? 0) : 0;
 }
 
+// A single real payment record, dated at when it was actually received —
+// used instead of the per-invoice amount_paid fallback once a statement has
+// a payments_snapshot (see BuildStatementLedgerOpts.payments below).
+// Snake_case to match StatementLedgerInvoice and the JSONB shape stored on
+// statements.payments_snapshot, so callers can pass the column straight
+// through with no field renaming.
+export type StatementLedgerPayment = {
+  invoice_id: string | null;
+  invoice_number: string | null;
+  amount: number;
+  paid_at: string;
+  currency?: string | null;
+};
+
 type LedgerEvent = {
   date: string;
   description: string;
@@ -51,14 +65,83 @@ type LedgerEvent = {
 export interface BuildStatementLedgerOpts {
   /** The statement's closing date (statement.date_to) — used to date an
    * unsettled partial payment's credit line, matching detail.tsx's original
-   * behaviour of "Payments received to date" with no per-payment date. */
+   * behaviour of "Payments received to date" with no per-payment date. Only
+   * consulted on the legacy path (see `payments` below). */
   dateTo: string;
   /** Applied to every raw date (ISO date or timestamp) before it lands on
    * the returned entry. */
   formatDate: (value: string) => string;
+  /** Balance carried in from before the statement period (statements.
+   * opening_balance). Only meaningful when `payments` is also provided —
+   * the legacy path (no `payments`) always starts at 0, matching every
+   * statement generated before opening balances existed. */
+  openingBalance?: number;
+  /** Real payment records for the statement's customer, dated at their
+   * actual paid_at (statements.payments_snapshot). When provided (even as an
+   * empty array), the ledger is built from real payment dates and
+   * `openingBalance` instead of the legacy per-invoice amount_paid fallback:
+   * debits come from `snapshot`, credits come from `payments`. Omit (or pass
+   * null/undefined) for a legacy statement with no payments_snapshot — the
+   * ledger then behaves exactly as it did before this option existed. */
+  payments?: StatementLedgerPayment[] | null;
 }
 
 export function buildStatementLedger(
+  snapshot: StatementLedgerInvoice[],
+  opts: BuildStatementLedgerOpts,
+): LedgerEntry[] {
+  return opts.payments != null
+    ? buildFromPayments(snapshot, opts.payments, opts)
+    : buildFromAmountPaid(snapshot, opts);
+}
+
+// ─── New path: real payment dates + a carried-in opening balance ──────────
+
+function buildFromPayments(
+  snapshot: StatementLedgerInvoice[],
+  payments: StatementLedgerPayment[],
+  opts: BuildStatementLedgerOpts,
+): LedgerEntry[] {
+  const events: LedgerEvent[] = [];
+
+  for (const inv of snapshot) {
+    if (!inv.total) continue;
+    events.push({
+      date: inv.issue_date ?? "",
+      description: "Invoice issued",
+      invoiceNumber: inv.invoice_number ?? null,
+      debit: inv.total,
+      credit: 0,
+    });
+  }
+
+  for (const p of payments) {
+    if (!p.amount) continue;
+    events.push({
+      date: p.paid_at,
+      description: "Payment received",
+      invoiceNumber: p.invoice_number ?? null,
+      debit: 0,
+      credit: p.amount,
+    });
+  }
+
+  events.sort((a, b) => a.date.localeCompare(b.date));
+
+  const entries: LedgerEntry[] = [];
+  let balance = opts.openingBalance ?? 0;
+
+  for (const ev of events) {
+    balance += ev.debit - ev.credit;
+    entries.push({ ...ev, date: opts.formatDate(ev.date), balance });
+  }
+
+  return entries;
+}
+
+// ─── Legacy path: per-invoice amount_paid fallback, unchanged ─────────────
+
+function buildFromAmountPaid(
   snapshot: StatementLedgerInvoice[],
   opts: BuildStatementLedgerOpts,
 ): LedgerEntry[] {

@@ -552,13 +552,25 @@ export async function deleteTransactionCategory(id: string, orgId: string): Prom
     throw new Error(`This category is used by ${count} transaction${count === 1 ? "" : "s"} and cannot be deleted.`)
   }
 
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("transaction_categories")
     .delete()
     .eq("id", id)
     .eq("org_id", orgId)
+    .select("id")
 
-  if (error) throw error
+  if (error) {
+    if (error.code === "23503") {
+      throw new Error("This category is still referenced by other records and cannot be deleted.")
+    }
+    throw error
+  }
+
+  // RLS blocks deletes on system categories without raising an error — it just
+  // filters the row out, so 0 rows come back instead of a Postgres error.
+  if (!data || data.length === 0) {
+    throw new Error("You don't have permission to delete this category.")
+  }
 }
 
 export async function bulkSetCategories(

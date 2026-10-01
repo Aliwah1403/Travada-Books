@@ -15,11 +15,19 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@travada-books/ui/components/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@travada-books/ui/components/alert-dialog";
 import { cn } from "@travada-books/ui/lib/utils";
-import { getStatement } from "@/lib/queries/statements";
+import { getStatement, deleteStatement } from "@/lib/queries/statements";
 import { useAuth } from "@/contexts/auth-context";
 import { useFormatDate } from "@/hooks/use-format-date";
 import { supabase } from "@/lib/supabase";
@@ -52,6 +60,8 @@ export function StatementDetailPage() {
   const [hasSent, setHasSent] = useState(false);
   const [isRetryingEmail, setIsRetryingEmail] = useState(false);
   const [isPdfDownloading, setIsPdfDownloading] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const {
     data: statement,
@@ -125,8 +135,13 @@ export function StatementDetailPage() {
       const from = (statement.from_details ?? {}) as Record<string, string | null>;
       const customer = (statement.customer_details ?? {}) as Record<string, string | null>;
       const snap = statement.snapshot_data ?? [];
-      const cur = snap[0]?.currency ?? "KES";
-      const ledger = buildStatementLedger(snap, { dateTo: statement.date_to, formatDate });
+      const cur = snap[0]?.currency ?? statement.payments_snapshot?.[0]?.currency ?? "KES";
+      const ledger = buildStatementLedger(snap, {
+        dateTo: statement.date_to,
+        formatDate,
+        openingBalance: statement.opening_balance,
+        payments: statement.payments_snapshot,
+      });
       const data = buildStatementDocumentData({
         currency: cur,
         from,
@@ -137,6 +152,7 @@ export function StatementDetailPage() {
         entries: ledger,
         notes: statement.notes ?? null,
         publicUrl: statement.token ? `${window.location.origin}/s/${statement.token}` : null,
+        openingBalance: statement.opening_balance,
       });
       await downloadPdf(
         <StatementPdf data={data} />,
@@ -146,6 +162,20 @@ export function StatementDetailPage() {
       toast.error("Failed to generate PDF");
     } finally {
       setIsPdfDownloading(false);
+    }
+  }
+
+  async function handleDelete() {
+    if (!statement || !orgId || isDeleting) return;
+    setIsDeleting(true);
+    try {
+      await deleteStatement(statement.id, orgId);
+      queryClient.invalidateQueries({ queryKey: ["customer-statements", statement.customer_id] });
+      toast.success("Statement deleted");
+      navigate(`/customers/${statement.customer_id}`);
+    } catch {
+      toast.error("Failed to delete statement", { description: "Please try again." });
+      setIsDeleting(false);
     }
   }
 
@@ -175,11 +205,17 @@ export function StatementDetailPage() {
     string | null
   > | null;
   const snapshot = statement.snapshot_data ?? [];
-  const currency = snapshot[0]?.currency ?? "KES";
-  const entries = buildStatementLedger(snapshot, { dateTo: statement.date_to, formatDate });
+  const currency = snapshot[0]?.currency ?? statement.payments_snapshot?.[0]?.currency ?? "KES";
+  const openingBalance = statement.opening_balance ?? 0;
+  const entries = buildStatementLedger(snapshot, {
+    dateTo: statement.date_to,
+    formatDate,
+    openingBalance,
+    payments: statement.payments_snapshot,
+  });
   const totalDebits = entries.reduce((s, e) => s + e.debit, 0);
   const totalCredits = entries.reduce((s, e) => s + e.credit, 0);
-  const closingBalance = totalDebits - totalCredits;
+  const closingBalance = openingBalance + totalDebits - totalCredits;
   const periodLabel = `${formatDate(statement.date_from)} – ${formatDate(statement.date_to)}`;
 
   return (
@@ -231,8 +267,10 @@ export function StatementDetailPage() {
               <MoreHorizontalIcon size={13} />
             </DropdownMenuTrigger>
             <DropdownMenuContent align='end'>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem className='text-destructive focus:text-destructive'>
+              <DropdownMenuItem
+                className='text-destructive focus:text-destructive'
+                onClick={() => setDeleteOpen(true)}
+              >
                 <Delete01Icon size={13} />
                 Delete
               </DropdownMenuItem>
@@ -351,7 +389,7 @@ export function StatementDetailPage() {
                   <td className='py-2.5 text-right text-muted-foreground'>—</td>
                   <td className='py-2.5 text-right text-muted-foreground'>—</td>
                   <td className='py-2.5 text-right font-medium'>
-                    {fmt(0, currency)}
+                    {fmt(openingBalance, currency)}
                   </td>
                 </tr>
 
@@ -466,6 +504,28 @@ export function StatementDetailPage() {
           </div>
         </div>
       </div>
+
+      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <AlertDialogContent size='sm'>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete statement?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This statement for <strong>{periodLabel}</strong> will be
+              permanently deleted. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <Button
+              variant='destructive'
+              disabled={isDeleting}
+              onClick={handleDelete}
+            >
+              {isDeleting ? "Deleting…" : "Delete"}
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

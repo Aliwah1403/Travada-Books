@@ -238,6 +238,9 @@ export function CustomerPortalPage() {
     }
   }, [isNotFound, summary])
 
+  // Canceled invoices fit neither tab (listing them under Outstanding would
+  // tell the customer they owe it), so the portal leaves them out; their
+  // direct /i/:token link still opens with a canceled banner.
   const outstandingInvoices = useMemo(
     () => invoices.filter((inv) => OWING_STATUSES.has(inv.status)),
     [invoices],
@@ -532,7 +535,11 @@ function InvoiceRow({
   const isOverdue = invoice.status === "overdue"
   const total = invoice.total ?? 0
   const balance = total - invoice.amount_paid
-  const amount = filter === "outstanding" ? balance : total
+  // Canceled invoices never owe money, regardless of their stored total.
+  const amount =
+    invoice.status === "canceled" ? 0
+    : filter === "outstanding" ? balance
+    : total
 
   function handleDownload() {
     toast.promise(downloadInvoicePdf(invoice.token), {

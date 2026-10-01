@@ -51,11 +51,16 @@ export type Invoice = {
   email_error: string | null
   email_status_at: string | null
   invoice_template: string
+  date_format: string | null
+  show_tax_column: boolean | null
+  show_qty_column: boolean | null
   invoice_recurring_id: string | null
   recurring_sequence: number | null
   exchange_rate: number | null
   converted_amount: number | null
   base_currency: string | null
+  skip_auto_reminder: boolean
+  last_reminder_sent_at: string | null
   quotes: { quote_number: string | null } | null
   invoice_recurring: {
     id: string
@@ -97,6 +102,9 @@ export type InvoiceInput = {
   accept_payments?: boolean
   include_pdf?: boolean
   invoice_template?: string
+  date_format?: string | null
+  show_tax_column?: boolean | null
+  show_qty_column?: boolean | null
   from_details?: Record<string, unknown> | null
   customer_details?: Record<string, unknown> | null
   exchange_rate?: number | null
@@ -124,8 +132,11 @@ export type CustomerInvoiceSummary = {
 
 // Statuses that represent an invoice the customer has actually received.
 // draft/scheduled have never been sent, canceled was withdrawn — none of them
-// are money billed, so they stay out of every monetary figure below.
-const ISSUED_STATUSES = new Set(["unpaid", "partially_paid", "overdue", "paid"])
+// are money billed, so they stay out of every monetary figure below. Also
+// used by generate-statement-sheet.tsx as the "eligible for a statement"
+// filter — the definitions are the same thing (money actually billed to the
+// customer).
+export const ISSUED_STATUSES = new Set(["unpaid", "partially_paid", "overdue", "paid"])
 
 // Statuses that still owe money.
 const OWING_STATUSES = new Set(["unpaid", "partially_paid", "overdue"])
@@ -178,11 +189,11 @@ export function summariseCustomerInvoices(
 }
 
 const INVOICE_SELECT =
-  "id, created_at, updated_at, org_id, user_id, customer_id, customer_name, token, invoice_number, status, issue_date, due_date, currency, line_items, subtotal, tax_amount, discount, vat_rate, discount_percent, total, amount_paid, customer_details, from_details, custom_fields, note, internal_note, payment_details, recurring, delivery_type, scheduled_at, send_template_id, sent_at, sent_via, paid_at, viewed_at, quote_id, accept_payments, include_pdf, email_status, email_error, email_status_at, invoice_template, invoice_recurring_id, recurring_sequence, exchange_rate, converted_amount, base_currency, quotes(quote_number), invoice_recurring(id, status, frequency, next_scheduled_at, end_type, end_after_count, current_count), customers(logo_url)"
+  "id, created_at, updated_at, org_id, user_id, customer_id, customer_name, token, invoice_number, status, issue_date, due_date, currency, line_items, subtotal, tax_amount, discount, vat_rate, discount_percent, total, amount_paid, customer_details, from_details, custom_fields, note, internal_note, payment_details, recurring, delivery_type, scheduled_at, send_template_id, sent_at, sent_via, paid_at, viewed_at, quote_id, accept_payments, include_pdf, email_status, email_error, email_status_at, invoice_template, date_format, show_tax_column, show_qty_column, invoice_recurring_id, recurring_sequence, exchange_rate, converted_amount, base_currency, skip_auto_reminder, last_reminder_sent_at, quotes(quote_number), invoice_recurring(id, status, frequency, next_scheduled_at, end_type, end_after_count, current_count), customers(logo_url)"
 
 // Excludes owner identifiers and private fields for unauthenticated token lookups
 const INVOICE_PUBLIC_SELECT =
-  "id, token, invoice_number, status, issue_date, due_date, currency, line_items, subtotal, tax_amount, discount, total, amount_paid, customer_details, from_details, custom_fields, note, payment_details, customer_name, accept_payments"
+  "id, token, invoice_number, status, issue_date, due_date, currency, line_items, subtotal, tax_amount, discount, total, amount_paid, customer_details, from_details, custom_fields, note, payment_details, customer_name, accept_payments, date_format, show_tax_column, show_qty_column"
 
 export type PublicInvoice = {
   id: string
@@ -205,6 +216,9 @@ export type PublicInvoice = {
   payment_details: string | null
   customer_name: string
   accept_payments: boolean
+  date_format: string | null
+  show_tax_column: boolean | null
+  show_qty_column: boolean | null
 }
 
 // total is nullable (drafts may not have a computed total yet); amount_paid
@@ -213,6 +227,17 @@ export type PublicInvoice = {
 // sync trigger.
 export function invoiceBalance(inv: { total: number | null; amount_paid: number }): number {
   return (inv.total ?? 0) - (inv.amount_paid ?? 0)
+}
+
+// Status to restore a canceled invoice to on "Reopen invoice" — mirrors the
+// same rules sync_invoice_payment_state() uses for an active invoice: overdue
+// if already past due (plain string compare against "YYYY-MM-DD local
+// today", matching mark-overdue's worker task), else unpaid — or
+// partially_paid if money was already recorded before it was canceled.
+export function reopenInvoiceStatus(inv: { due_date: string | null; amount_paid: number }): string {
+  const today = new Date().toLocaleDateString("en-CA")
+  if (inv.due_date && inv.due_date < today) return "overdue"
+  return (inv.amount_paid ?? 0) > 0 ? "partially_paid" : "unpaid"
 }
 
 export type InvoiceFilters = {
@@ -290,7 +315,7 @@ export async function createInvoice(input: InvoiceInput): Promise<Invoice> {
   return data
 }
 
-export async function updateInvoice(id: string, orgId: string, patch: Partial<InvoiceInput> & { internal_note?: string; status?: string; paid_at?: string | null; sent_at?: string | null; sent_via?: string | null; from_details?: Record<string, unknown> | null; customer_details?: Record<string, unknown> | null }): Promise<Invoice> {
+export async function updateInvoice(id: string, orgId: string, patch: Partial<InvoiceInput> & { internal_note?: string; status?: string; paid_at?: string | null; sent_at?: string | null; sent_via?: string | null; from_details?: Record<string, unknown> | null; customer_details?: Record<string, unknown> | null; skip_auto_reminder?: boolean }): Promise<Invoice> {
   const { data, error } = await supabase
     .from("invoices")
     .update({ ...patch, updated_at: new Date().toISOString() })

@@ -8,73 +8,12 @@ import { Button } from "@travada-books/ui/components/button";
 import { Separator } from "@travada-books/ui/components/separator";
 import { cn } from "@travada-books/ui/lib/utils";
 import { useTheme } from "@/components/theme-provider";
-import {
-  getStatementByToken,
-  statementPaidAmount,
-  type StatementInvoiceRow,
-} from "@/lib/queries/statements";
-import { StatementPdf, buildStatementDocumentData } from "@travada-books/pdf";
+import { getStatementByToken } from "@/lib/queries/statements";
+import { StatementPdf, buildStatementDocumentData, buildStatementLedger } from "@travada-books/pdf";
 import { downloadPdf } from "@/lib/pdf-download";
 import LogoGreen from "@/assets/Logo-Green.svg";
 import LogoLime from "@/assets/Logo-Lime.svg";
 import { toast } from "sonner";
-
-type LedgerEntry = {
-  date: string;
-  description: string;
-  invoiceNumber: string | null;
-  debit: number;
-  credit: number;
-  balance: number;
-  currency: string;
-};
-
-function buildLedger(invoices: StatementInvoiceRow[], dateTo: string): {
-  entries: LedgerEntry[];
-  currency: string;
-} {
-  const currency = invoices[0]?.currency ?? "KES";
-  const raw: Omit<LedgerEntry, "balance">[] = [];
-
-  for (const inv of invoices) {
-    const issueDate = inv.issue_date ?? "";
-    raw.push({
-      date: issueDate,
-      description: "Invoice issued",
-      invoiceNumber: inv.invoice_number,
-      debit: inv.total ?? 0,
-      credit: 0,
-      currency,
-    });
-    // Credit what was actually received, not the invoice total — a part-paid
-    // invoice would otherwise show its full amount as still outstanding.
-    const paid = statementPaidAmount(inv);
-    if (paid > 0) {
-      // Partially paid invoices have no paid_at (set only on full payment) and
-      // the snapshot carries no per-payment dates, so the credit is dated at
-      // the statement's closing date instead of a fabricated one.
-      const settled = Boolean(inv.paid_at) && paid >= (inv.total ?? 0);
-      raw.push({
-        date: settled ? inv.paid_at!.slice(0, 10) : dateTo,
-        description: settled ? "Payment received" : "Payments received to date",
-        invoiceNumber: inv.invoice_number,
-        debit: 0,
-        credit: paid,
-        currency,
-      });
-    }
-  }
-
-  raw.sort((a, b) => a.date.localeCompare(b.date));
-
-  let running = 0;
-  const entries: LedgerEntry[] = raw.map((r) => {
-    running = running + r.debit - r.credit;
-    return { ...r, balance: running };
-  });
-
-  return { entries, currency };
-}
 
 function fmt(n: number, currency: string) {
   return `${currency} ${n.toLocaleString("en-KE", { minimumFractionDigits: 2 })}`;
@@ -146,19 +85,28 @@ export function PublicStatementPage() {
   const customerName = customer.name ?? "Customer";
   const customerEmail = customer.billing_email ?? customer.email ?? null;
 
-  const { entries, currency } = buildLedger(
-    statement.snapshot_data,
-    statement.date_to,
-  );
-  const totalDebits = entries.reduce((s, e) => s + e.debit, 0);
-  const totalCredits = entries.reduce((s, e) => s + e.credit, 0);
-  const closingBalance = totalDebits - totalCredits;
-
   function safeFormatDate(value: string | null | undefined): string {
     if (!value) return "—"
     const d = parseISO(value)
     return isValid(d) ? format(d, "dd/MM/yyyy") : "—"
   }
+
+  const currency =
+    statement.snapshot_data[0]?.currency ?? statement.payments_snapshot?.[0]?.currency ?? "KES";
+  const openingBalance = statement.opening_balance ?? 0;
+  // Shared with the owner-facing detail page (@travada-books/pdf) — same
+  // opening-balance/real-payment-date ledger logic, just with this page's own
+  // dd/MM/yyyy formatter (see ledger.ts's BuildStatementLedgerOpts doc) so
+  // legacy statements keep rendering byte-for-byte the same.
+  const entries = buildStatementLedger(statement.snapshot_data, {
+    dateTo: statement.date_to,
+    formatDate: safeFormatDate,
+    openingBalance,
+    payments: statement.payments_snapshot,
+  });
+  const totalDebits = entries.reduce((s, e) => s + e.debit, 0);
+  const totalCredits = entries.reduce((s, e) => s + e.credit, 0);
+  const closingBalance = openingBalance + totalDebits - totalCredits;
 
   async function copyLink() {
     try {
@@ -204,6 +152,7 @@ export function PublicStatementPage() {
         dateTo: safeFormatDate(statement.date_to),
         entries,
         notes: statement.notes,
+        openingBalance,
       });
       await downloadPdf(
         <StatementPdf data={data} />,
@@ -393,13 +342,13 @@ export function PublicStatementPage() {
                     <td className='py-2.5 text-right text-muted-foreground'>—</td>
                     <td className='py-2.5 text-right text-muted-foreground'>—</td>
                     <td className='py-2.5 text-right font-medium'>
-                      {fmt(0, currency)}
+                      {fmt(openingBalance, currency)}
                     </td>
                   </tr>
                   {entries.map((entry, i) => (
                     <tr key={i} className='border-b border-dashed'>
                       <td className='py-2.5 text-muted-foreground'>
-                        {safeFormatDate(entry.date)}
+                        {entry.date}
                       </td>
                       <td className='py-2.5'>{entry.description}</td>
                       <td className='py-2.5 font-mono text-muted-foreground'>

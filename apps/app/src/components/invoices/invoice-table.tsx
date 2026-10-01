@@ -30,6 +30,9 @@ export type Invoice = {
   number: string;
   status: InvoiceStatus;
   dueDate: string | null;
+  /** Raw ISO due date (unformatted) — needed for reopen's overdue/unpaid
+   * decision, which does a plain string compare against today. */
+  dueDateRaw: string | null;
   customer: string;
   customerLogoUrl: string | null;
   amount: number;

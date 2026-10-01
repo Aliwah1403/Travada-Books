@@ -8,6 +8,13 @@ import * as XLSX from "xlsx";
 import JSZip from "jszip";
 import { format as formatDate, parseISO } from "date-fns";
 import { TransactionsExportedEmail } from "../emails/transactions-exported";
+import {
+  COLUMN_HEADERS,
+  TRANSACTION_EXPORT_SELECT,
+  buildRow,
+  sanitizeFolderName,
+  type TransactionExportRow,
+} from "../lib/transaction-export-format";
 
 function getSupabase() {
   return createClient(
@@ -19,101 +26,7 @@ function getSupabase() {
 
 const FROM_EMAIL = "noreply@mail.travadasys.com";
 
-const PAYMENT_MODE_LABELS: Record<string, string> = {
-  mpesa: "M-Pesa",
-  bank_transfer: "Bank Transfer",
-  cash: "Cash",
-  cheque: "Cheque",
-  card: "Card",
-  other: "Other",
-};
-
-const TAX_TYPE_LABELS: Record<string, string> = {
-  vat: "VAT",
-  wht: "WHT",
-  other: "Other",
-};
-
-function escapeCell(value: string | number | null | undefined): string | number {
-  if (typeof value !== "string") return value ?? "";
-  // Prefix with a single quote if the value could be interpreted as a spreadsheet formula
-  return /^[=+\-@\t\r]/.test(value) ? `'${value}` : value;
-}
-
-const COLUMN_HEADERS = [
-  "Date",
-  "Name",
-  "Counterparty",
-  "Type",
-  "Amount",
-  "Currency",
-  "Formatted Amount",
-  "Category",
-  "Status",
-  "Payment Mode",
-  "Reference Number",
-  "Tax Amount",
-  "Tax Rate (%)",
-  "Tax Type",
-  "Recurring",
-  "Note",
-  "Attachments",
-];
-
-function sanitizeFolderName(name: string): string {
-  return name.replace(/[/\\:*?"<>|]/g, "-").trim().slice(0, 50);
-}
-
-function buildRow(tx: TransactionRow): (string | number)[] {
-  const formattedAmount = new Intl.NumberFormat("en-KE", {
-    style: "currency",
-    currency: tx.currency ?? "KES",
-    minimumFractionDigits: 2,
-  }).format(tx.amount ?? 0);
-
-  const raw: (string | number)[] = [
-    tx.date ?? "",
-    tx.name ?? "",
-    tx.counterparty_name ?? "",
-    tx.type === "income" ? "Income" : "Expense",
-    tx.amount ?? "",
-    tx.currency ?? "",
-    formattedAmount,
-    (tx.transaction_categories as { name?: string } | null)?.name ?? "",
-    tx.status ? tx.status.charAt(0).toUpperCase() + tx.status.slice(1) : "",
-    PAYMENT_MODE_LABELS[tx.payment_mode ?? ""] ?? tx.payment_mode ?? "",
-    tx.reference_number ?? "",
-    tx.tax_amount ?? "",
-    tx.tax_rate ?? "",
-    TAX_TYPE_LABELS[tx.tax_type ?? ""] ?? tx.tax_type ?? "",
-    tx.recurring ? "Yes" : "No",
-    tx.note ?? "",
-    tx.transaction_attachments?.length
-      ? `${tx.transaction_attachments.length} file${tx.transaction_attachments.length !== 1 ? "s" : ""}`
-      : "None",
-  ];
-  return raw.map(escapeCell);
-}
-
-type TransactionRow = {
-  id: string;
-  date: string | null;
-  name: string | null;
-  counterparty_name: string | null;
-  type: string | null;
-  amount: number | null;
-  currency: string | null;
-  status: string | null;
-  payment_mode: string | null;
-  reference_number: string | null;
-  tax_amount: number | null;
-  tax_rate: number | null;
-  tax_type: string | null;
-  recurring: boolean | null;
-  note: string | null;
-  transaction_categories: { name: string } | null;
-  transaction_attachments: { file_path: string; file_name: string }[];
-};
+type TransactionRow = TransactionExportRow;
 
 export const exportTransactionsTask = task({
   id: "export-transactions",
@@ -135,14 +48,7 @@ export const exportTransactionsTask = task({
 
       const { data: transactions, error: fetchError } = await supabase
         .from("transactions")
-        .select(`
-          id, date, name, counterparty_name, type, amount, currency,
-          status, payment_mode, reference_number,
-          tax_amount, tax_rate, tax_type,
-          recurring, note,
-          transaction_categories(name),
-          transaction_attachments(file_path, file_name)
-        `)
+        .select(TRANSACTION_EXPORT_SELECT)
         .eq("org_id", orgId)
         .in("id", transactionIds)
         .order("date", { ascending: false });

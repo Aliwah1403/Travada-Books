@@ -20,6 +20,10 @@ export interface InvoiceDocumentDataRow {
   total: number | null;
   note: string | null;
   payment_details: string | null;
+  date_format?: string | null;
+  show_tax_column?: boolean | null;
+  show_qty_column?: boolean | null;
+  status?: string | null;
 }
 
 export interface BuildInvoiceDocumentDataOpts {
@@ -52,5 +56,9 @@ export function buildInvoiceDocumentData(
     paymentDetails: invoice.payment_details,
     customFields: opts.customFields ?? null,
     publicUrl: opts.publicUrl ?? null,
+    dateFormat: invoice.date_format ?? null,
+    showTaxColumn: invoice.show_tax_column ?? null,
+    showQtyColumn: invoice.show_qty_column ?? null,
+    status: invoice.status ?? null,
   };
 }

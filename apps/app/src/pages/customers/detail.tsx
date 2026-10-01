@@ -762,6 +762,7 @@ export function CustomerDetailPage() {
                 convertedAmount: inv.converted_amount ?? null,
                 baseCurrency: inv.base_currency ?? null,
                 dueDate: inv.due_date ? formatDate(inv.due_date) : null,
+                dueDateRaw: inv.due_date ?? null,
                 issueDate: inv.issue_date ? formatDate(inv.issue_date) : null,
                 recurring: (inv.recurring === "recurring"
                   ? "monthly"

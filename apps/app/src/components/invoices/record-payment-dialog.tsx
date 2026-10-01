@@ -31,6 +31,7 @@ import { DatePicker } from "@/components/shared/date-picker";
 import { useAuth } from "@/contexts/auth-context";
 import { createInvoicePayment, type InvoicePaymentInput } from "@/lib/queries/payments";
 import { useInvalidateAfterPaymentChange } from "@/hooks/use-invalidate-payment-queries";
+import { notifyInvoicePaid } from "@/lib/notify-invoice-paid";
 import { formatCurrency } from "@/lib/format";
 
 const PAYMENT_METHODS: { value: string; label: string }[] = [
@@ -160,7 +161,9 @@ function RecordPaymentForm({
       loading: "Recording payment…",
       success: () => {
         invalidateAfterPaymentChange(invoiceId);
-        onRecorded?.(parsedAmount >= balanceDue);
+        const paidInFull = parsedAmount >= balanceDue;
+        if (paidInFull) notifyInvoicePaid(invoiceId);
+        onRecorded?.(paidInFull);
         onOpenChange(false);
         setSubmitting(false);
         return "Payment recorded";

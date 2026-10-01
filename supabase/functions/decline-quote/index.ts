@@ -22,11 +22,35 @@ Deno.serve(async (req) => {
 
     const { data: quote, error: fetchError } = await db
       .from("quotes")
-      .select("id, org_id, quote_number, total, currency, from_details, customer_details, status")
+      .select("id, org_id, quote_number, total, currency, valid_until, from_details, customer_details, status")
       .eq("token", token)
       .single()
 
     if (fetchError || !quote) return new Response(JSON.stringify({ error: "Quote not found" }), { status: 404, headers: corsHeaders })
+
+    // Resolve an owner's timezone before mutating anything, to catch quotes
+    // whose valid_until has passed but that the nightly quote-expire worker
+    // hasn't flipped to "expired" yet.
+    if (quote.status === "sent" && quote.valid_until) {
+      const { data: ownerMember } = await db
+        .from("organization_members")
+        .select("users(timezone)")
+        .eq("org_id", quote.org_id)
+        .eq("role", "owner")
+        .eq("status", "active")
+        .order("created_at", { ascending: true })
+        .limit(1)
+        .maybeSingle()
+      type OwnerTz = { timezone: string | null } | null
+      const ownerTz = (ownerMember?.users as unknown as OwnerTz)?.timezone ?? "UTC"
+      const ownerLocalToday = new Date().toLocaleDateString("en-CA", { timeZone: ownerTz })
+
+      if (quote.valid_until < ownerLocalToday) {
+        // Leave the status flip to the quote-expire worker so it also sends
+        // the "quote expired" notification.
+        return new Response(JSON.stringify({ error: "Quote has expired", status: "expired" }), { status: 409, headers: corsHeaders })
+      }
+    }
 
     const { data: updatedRows, error: updateError } = await db
       .from("quotes")

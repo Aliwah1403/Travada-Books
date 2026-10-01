@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate, useParams } from "react-router";
 import { useQuery } from "@tanstack/react-query";
-import { format } from "date-fns";
+import { format, parseISO } from "date-fns";
 import {
   Copy01Icon,
   Download01Icon,
@@ -19,6 +19,7 @@ import { InvoicePreview } from "@/components/invoice-templates";
 import { InvoicePdf, buildQuoteDocumentData } from "@travada-books/pdf";
 import { downloadPdf } from "@/lib/pdf-download";
 import { parseCustomFields } from "@/lib/custom-fields";
+import { isPastValidUntil } from "@/lib/quote-validity";
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
 import LogoGreen from "@/assets/Logo-Green.svg";
@@ -91,9 +92,7 @@ export function PublicQuotePage() {
 
   // Only sent quotes are actionable
   const isExpired =
-    quote.status === "sent" &&
-    quote.valid_until != null &&
-    new Date(quote.valid_until) < new Date();
+    quote.status === "sent" && isPastValidUntil(quote.valid_until);
   const isTerminal =
     quote.status === "accepted" ||
     quote.status === "declined" ||
@@ -137,7 +136,7 @@ export function PublicQuotePage() {
     try {
       await downloadPdf(
         <InvoicePdf data={documentData} />,
-        quote.quote_number ?? "Quote",
+        quote?.quote_number ?? "Quote",
       );
     } catch {
       toast.error("Failed to generate PDF");
@@ -172,7 +171,10 @@ export function PublicQuotePage() {
       });
       navigate(`/q/${token}/confirmed?action=accepted`);
     } catch (err) {
-      toast.error("Failed to accept quote. Please try again.");
+      // Only surface the server's wording for the expiry case — other errors
+      // can carry internal detail a customer shouldn't see.
+      const expired = err instanceof Error && err.message === "Quote has expired";
+      toast.error(expired ? "This quote has expired." : "Failed to accept quote. Please try again.");
       setIsSubmitting(false);
     }
   }
@@ -187,7 +189,10 @@ export function PublicQuotePage() {
       });
       navigate(`/q/${token}/confirmed?action=declined`);
     } catch (err) {
-      toast.error("Failed to decline quote. Please try again.");
+      // Only surface the server's wording for the expiry case — other errors
+      // can carry internal detail a customer shouldn't see.
+      const expired = err instanceof Error && err.message === "Quote has expired";
+      toast.error(expired ? "This quote has expired." : "Failed to decline quote. Please try again.");
       setIsSubmitting(false);
     }
   }
@@ -234,7 +239,7 @@ export function PublicQuotePage() {
           {isExpired && (
             <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-700 dark:border-amber-900/40 dark:bg-amber-900/20 dark:text-amber-400">
               This quote expired on{" "}
-              {format(new Date(quote.valid_until!), "dd/MM/yyyy")}.
+              {format(parseISO(quote.valid_until!), "dd/MM/yyyy")}.
             </div>
           )}
 

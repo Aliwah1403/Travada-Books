@@ -51,9 +51,9 @@ export function OrgDataExportedEmail({
       </Text>
       <Text style={{ margin: "0 0 16px", fontSize: 14, color: colors.body, lineHeight: "1.6", fontFamily: font }}>
         Your full data export is ready — every customer, invoice, quote, statement, transaction, and file in your
-        organisation, bundled into {partCount > 1 ? `${partCount} ZIP files` : "a ZIP file"}. Click the button
+        organisation (including a PDF for every sent invoice, quote, and statement), bundled into{" "}
+        {partCount > 1 ? `${partCount} ZIP files` : "a ZIP file"}. Click the button
         {partCount > 1 ? "s" : ""} above to download.
-        {" "}Invoice, quote, and statement PDFs are not included — they can be regenerated from the exported data.
       </Text>
       <Text style={{ margin: 0, fontSize: 13, color: colors.muted, fontFamily: font }}>
         {partCount > 1 ? "These download links expire" : "This download link expires"} in {expiresInDays} day{expiresInDays === 1 ? "" : "s"}.

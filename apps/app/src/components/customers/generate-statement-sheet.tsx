@@ -31,8 +31,9 @@ import {
 import { Switch } from "@travada-books/ui/components/switch";
 import { DatePicker } from "@/components/shared/date-picker";
 import { Spinner } from "@/components/shared/spinner";
-import { listCustomerInvoices } from "@/lib/queries/invoices";
-import { createStatement } from "@/lib/queries/statements";
+import { listCustomerInvoices, ISSUED_STATUSES, type Invoice } from "@/lib/queries/invoices";
+import { createStatement, type StatementPaymentRow } from "@/lib/queries/statements";
+import { listPaymentsForInvoices, type InvoicePayment } from "@/lib/queries/payments";
 import { useAuth } from "@/contexts/auth-context";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
@@ -108,13 +109,67 @@ export function GenerateStatementSheet({
       const to = new Date(data.dateTo);
       to.setHours(23, 59, 59, 999);
 
-      const invoicesInRange = allInvoices.filter((inv) => {
-        const d =
-          inv.issue_date ? new Date(inv.issue_date) : new Date(inv.created_at);
-        return d >= from && d <= to;
+      // Calendar-date strings (yyyy-MM-dd) in the user's local zone, so
+      // invoice issue_date (a bare date, no time/zone of its own) and
+      // payment paid_at (a timestamp) compare on the same footing. String
+      // comparison is chronological for this format.
+      const dateFromStr = format(from, "yyyy-MM-dd");
+      const dateToStr = format(to, "yyyy-MM-dd");
+
+      function invoiceCalendarDate(inv: Invoice): string {
+        return inv.issue_date ?? format(new Date(inv.created_at), "yyyy-MM-dd");
+      }
+
+      function paymentCalendarDate(p: InvoicePayment): string {
+        return format(new Date(p.paid_at), "yyyy-MM-dd");
+      }
+
+      // Eligible = actually billed to the customer — drafts, scheduled sends,
+      // and canceled invoices were never money owed, so they never belong on
+      // a statement of account.
+      const eligibleInvoices = allInvoices.filter((inv) => ISSUED_STATUSES.has(inv.status));
+
+      const invoicesBeforePeriod = eligibleInvoices.filter(
+        (inv) => invoiceCalendarDate(inv) < dateFromStr,
+      );
+      const invoicesInPeriod = eligibleInvoices.filter((inv) => {
+        const d = invoiceCalendarDate(inv);
+        return d >= dateFromStr && d <= dateToStr;
       });
 
-      const snapshot = invoicesInRange.map((inv) => ({
+      // Payments on ANY eligible invoice of this customer — including ones
+      // issued before the period — since a pre-period invoice can still be
+      // paid inside (or before) the statement window.
+      const allPayments =
+        eligibleInvoices.length > 0
+          ? await listPaymentsForInvoices(eligibleInvoices.map((inv) => inv.id), orgId)
+          : [];
+
+      const paymentsBeforePeriod = allPayments.filter(
+        (p) => paymentCalendarDate(p) < dateFromStr,
+      );
+      // Payments after date_to are excluded entirely — they belong on a
+      // future statement, not this one.
+      const paymentsInPeriod = allPayments.filter((p) => {
+        const d = paymentCalendarDate(p);
+        return d >= dateFromStr && d <= dateToStr;
+      });
+
+      const openingBalance =
+        invoicesBeforePeriod.reduce((sum, inv) => sum + (inv.total ?? 0), 0) -
+        paymentsBeforePeriod.reduce((sum, p) => sum + p.amount, 0);
+
+      const invoiceNumberById = new Map(eligibleInvoices.map((inv) => [inv.id, inv.invoice_number]));
+
+      const paymentsSnapshot: StatementPaymentRow[] = paymentsInPeriod.map((p) => ({
+        invoice_id: p.invoice_id,
+        invoice_number: invoiceNumberById.get(p.invoice_id) ?? null,
+        amount: p.amount,
+        paid_at: p.paid_at,
+        currency: p.currency,
+      }));
+
+      const snapshot = invoicesInPeriod.map((inv) => ({
         id: inv.id,
         invoice_number: inv.invoice_number,
         status: inv.status,
@@ -142,13 +197,15 @@ export function GenerateStatementSheet({
       const statement = await createStatement({
         org_id: orgId,
         customer_id: customerId,
-        date_from: format(from, "yyyy-MM-dd"),
-        date_to: format(to, "yyyy-MM-dd"),
+        date_from: dateFromStr,
+        date_to: dateToStr,
         notes: data.notes || null,
         snapshot_data: snapshot,
         from_details: fromDetails,
         customer_details: customerDetails,
         include_pdf: includePdf,
+        opening_balance: openingBalance,
+        payments_snapshot: paymentsSnapshot,
       });
 
       setGeneratedLink(`${window.location.origin}/s/${statement.token}`);
@@ -371,8 +428,9 @@ export function GenerateStatementSheet({
 
               <div className='rounded-lg border bg-muted/40 p-4 text-xs text-muted-foreground leading-relaxed'>
                 A unique shareable link will be generated. The statement
-                captures a snapshot of all invoices in the selected period — you
-                can resend the link at any time.
+                captures a snapshot of sent invoices issued in the selected
+                period, an opening balance carried from before it, and
+                payments received — you can resend the link at any time.
               </div>
             </div>
 

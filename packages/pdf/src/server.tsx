@@ -55,11 +55,20 @@ export async function resolveLogoDataUrl(url: string): Promise<string | null> {
   }
 }
 
+// A resolver with the same shape as resolveLogoDataUrl above — callers that
+// render many documents in one batch (e.g. the worker's org data export) can
+// pass a memoizing wrapper so a given logo URL is only fetched/decoded once
+// for the whole batch instead of once per document.
+export type LogoResolver = (url: string) => Promise<string | null>;
+
 // Resolves a participant's logo for server rendering, always overwriting
 // `logo_url` with either a safe data URL or null — never the original
 // (possibly unreachable or WebP) URL. See resolveLogoDataUrl's comment.
-async function resolveParticipantLogo(participant: Participant): Promise<Participant> {
-  const logoDataUrl = participant.logo_url ? await resolveLogoDataUrl(participant.logo_url) : null;
+async function resolveParticipantLogo(
+  participant: Participant,
+  resolveLogo: LogoResolver = resolveLogoDataUrl,
+): Promise<Participant> {
+  const logoDataUrl = participant.logo_url ? await resolveLogo(participant.logo_url) : null;
   return { ...participant, logo_url: logoDataUrl };
 }
 
@@ -96,13 +105,14 @@ export interface InvoicePdfRow extends InvoiceDocumentDataRow {
 
 export interface RenderInvoicePdfOpts {
   publicUrl?: string | null;
+  resolveLogo?: LogoResolver;
 }
 
 export async function renderInvoicePdf(
   row: InvoicePdfRow,
   opts: RenderInvoicePdfOpts = {},
 ): Promise<Buffer> {
-  const from = await resolveParticipantLogo(participantFromSnapshot(row.from_details));
+  const from = await resolveParticipantLogo(participantFromSnapshot(row.from_details), opts.resolveLogo);
   const customer = participantFromSnapshot(row.customer_details, row.customer_name);
 
   const data = buildInvoiceDocumentData(row, {
@@ -124,13 +134,14 @@ export interface QuotePdfRow extends QuoteDocumentDataRow {
 
 export interface RenderQuotePdfOpts {
   publicUrl?: string | null;
+  resolveLogo?: LogoResolver;
 }
 
 export async function renderQuotePdf(
   row: QuotePdfRow,
   opts: RenderQuotePdfOpts = {},
 ): Promise<Buffer> {
-  const from = await resolveParticipantLogo(participantFromSnapshot(row.from_details));
+  const from = await resolveParticipantLogo(participantFromSnapshot(row.from_details), opts.resolveLogo);
   const customer = participantFromSnapshot(row.customer_details, row.customer_name);
 
   const data = buildQuoteDocumentData(row, {
@@ -152,17 +163,19 @@ export interface StatementPdfRow {
   dateTo: string;
   entries: LedgerEntry[];
   notes: string | null;
+  openingBalance: number;
 }
 
 export interface RenderStatementPdfOpts {
   publicUrl?: string | null;
+  resolveLogo?: LogoResolver;
 }
 
 export async function renderStatementPdf(
   row: StatementPdfRow,
   opts: RenderStatementPdfOpts = {},
 ): Promise<Buffer> {
-  const from = await resolveParticipantLogo(participantFromSnapshot(row.from_details));
+  const from = await resolveParticipantLogo(participantFromSnapshot(row.from_details), opts.resolveLogo);
   const customer = participantFromSnapshot(row.customer_details);
 
   const data = buildStatementDocumentData({
@@ -175,6 +188,7 @@ export async function renderStatementPdf(
     entries: row.entries,
     notes: row.notes,
     publicUrl: opts.publicUrl ?? null,
+    openingBalance: row.openingBalance,
   });
 
   return renderToBuffer(<StatementPdf data={data} />);

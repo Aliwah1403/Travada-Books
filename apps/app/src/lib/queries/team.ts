@@ -143,3 +143,14 @@ export async function revokeInvitation(invitationId: string): Promise<void> {
   })
   if (error) throw new Error(error.message)
 }
+
+export type SoleOwnerOrg = { id: string; name: string }
+
+// Orgs where the current user is the only active owner but the org still has
+// other active members — deleting the account would leave the org ownerless,
+// so the delete-account flow must be blocked until ownership is transferred.
+export async function getSoleOwnerSharedOrgs(): Promise<SoleOwnerOrg[]> {
+  const { data, error } = await supabase.rpc("get_sole_owner_shared_orgs")
+  if (error) throw new Error(error.message)
+  return data ?? []
+}

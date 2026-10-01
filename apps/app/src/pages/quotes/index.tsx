@@ -29,6 +29,7 @@ import { listCustomers } from "@/lib/queries/customers";
 import { parseQuoteFilters } from "@/lib/queries/ai";
 import { useAuth } from "@/contexts/auth-context";
 import { useFormatDate } from "@/hooks/use-format-date";
+import { isPastValidUntil } from "@/lib/quote-validity";
 
 const PAGE_SIZE = 50;
 
@@ -161,7 +162,7 @@ function translateFilters(state: FiltersState, search?: string): QuoteFilters {
 type DbQuote = Awaited<ReturnType<typeof listQuotes>>["data"][number];
 
 function resolveStatus(status: string, validUntil: string | null): Quote["status"] {
-  if (status === "sent" && validUntil && new Date(validUntil) < new Date()) {
+  if (status === "sent" && isPastValidUntil(validUntil)) {
     return "expired";
   }
   return status as Quote["status"];

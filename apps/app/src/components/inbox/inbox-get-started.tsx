@@ -1,3 +1,4 @@
+import { Link } from "react-router"
 import { toast } from "sonner"
 import { InboxIcon, Copy01Icon } from "@travada-books/ui/icons"
 
@@ -29,9 +30,12 @@ export function InboxGetStarted({ inboxEmail }: { inboxEmail: string | null }) {
           <Copy01Icon size={13} className="text-muted-foreground" />
         </button>
       )}
-      <p className="text-[11px] text-muted-foreground opacity-60">
-        Connect Gmail / Outlook — coming soon
-      </p>
+      <Link
+        to="/settings/integrations"
+        className="text-[11px] text-muted-foreground underline-offset-2 transition-colors fine-hover:text-foreground fine-hover:underline"
+      >
+        Connect Gmail / Outlook
+      </Link>
     </div>
   )
 }

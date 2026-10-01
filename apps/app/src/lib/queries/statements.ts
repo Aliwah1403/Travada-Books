@@ -24,6 +24,20 @@ export function statementPaidAmount(inv: StatementInvoiceRow): number {
   return inv.status === "paid" ? (inv.total ?? 0) : 0
 }
 
+// A real payment received against one of the customer's eligible invoices,
+// snapshotted at statement-generation time — dated at its actual paid_at so
+// the ledger can show a credit on the day it was really received instead of
+// a single lump "payments received to date" line. Snake_case to match the
+// shared ledger builder's StatementLedgerPayment (@travada-books/pdf) — the
+// column is passed straight through with no field renaming.
+export type StatementPaymentRow = {
+  invoice_id: string | null
+  invoice_number: string | null
+  amount: number
+  paid_at: string
+  currency?: string | null
+}
+
 export type Statement = {
   id: string
   created_at: string
@@ -37,6 +51,15 @@ export type Statement = {
   from_details: Record<string, unknown> | null
   customer_details: Record<string, unknown> | null
   include_pdf: boolean
+  // Balance carried in from before date_from. 0 for every statement
+  // generated before this existed (column default).
+  opening_balance: number
+  // Real payments within the statement period (see StatementPaymentRow).
+  // NULL on any statement generated before this existed — that's the
+  // "legacy statement" marker buildStatementLedger switches on to keep old
+  // statements byte-for-byte unchanged; a new statement always writes an
+  // array, possibly empty.
+  payments_snapshot: StatementPaymentRow[] | null
   // Only populated on owner-facing reads (getStatement/createStatement/
   // listCustomerStatements) — never selected for the public token RPC, so
   // these stay undefined on anything a customer can reach.
@@ -55,12 +78,14 @@ export type StatementInput = {
   from_details: Record<string, unknown> | null
   customer_details: Record<string, unknown> | null
   include_pdf?: boolean
+  opening_balance: number
+  payments_snapshot: StatementPaymentRow[]
 }
 
 // Never used for the public token RPC (get_statement_by_token) — it doesn't
-// expose these columns, and a customer viewing their own statement has no
-// business seeing our email delivery diagnostics.
-const STATEMENT_SELECT = "id, created_at, org_id, customer_id, token, date_from, date_to, notes, snapshot_data, from_details, customer_details, include_pdf"
+// filter columns (SELECT * under the hood), so opening_balance and
+// payments_snapshot are already included there once selected here too.
+const STATEMENT_SELECT = "id, created_at, org_id, customer_id, token, date_from, date_to, notes, snapshot_data, from_details, customer_details, include_pdf, opening_balance, payments_snapshot"
 
 const STATEMENT_DETAIL_SELECT = `${STATEMENT_SELECT}, email_status, email_error, email_status_at`
 
@@ -107,4 +132,32 @@ export async function listCustomerStatements(customerId: string, orgId: string):
 
   if (error) throw error
   return data ?? []
+}
+
+// Statements has no FK from `documents`, so a generated PDF (Vault row +
+// storage object) would otherwise be orphaned by a statement delete. Cleanup
+// is best-effort and happens after the statement row is gone — matching
+// deleteDocument()'s pattern in queries/vault.ts — since losing the parent
+// statement is the meaningful failure, not a stray file.
+export async function deleteStatement(id: string, orgId: string): Promise<void> {
+  const { data: statement } = await supabase
+    .from("statements")
+    .select("file_path")
+    .eq("id", id)
+    .eq("org_id", orgId)
+    .maybeSingle()
+
+  const { error } = await supabase
+    .from("statements")
+    .delete()
+    .eq("id", id)
+    .eq("org_id", orgId)
+
+  if (error) throw error
+
+  const filePath = (statement as { file_path?: string | null } | null)?.file_path
+  if (filePath) {
+    await supabase.from("documents").delete().eq("file_path", filePath)
+    await supabase.storage.from("vault").remove([filePath])
+  }
 }

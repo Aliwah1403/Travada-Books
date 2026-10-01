@@ -16,6 +16,7 @@ import {
 } from "@travada-books/ui/icons";
 import { Button } from "@travada-books/ui/components/button";
 import { Separator } from "@travada-books/ui/components/separator";
+import { Switch } from "@travada-books/ui/components/switch";
 import { Textarea } from "@travada-books/ui/components/textarea";
 import {
   DropdownMenu,
@@ -49,6 +50,7 @@ import {
   createInvoice,
   getNextInvoiceNumber,
   invoiceBalance,
+  reopenInvoiceStatus,
   type Invoice,
 } from "@/lib/queries/invoices";
 import {
@@ -64,10 +66,12 @@ import {
 } from "@/lib/queries/invoice-recurring";
 import { getCustomer } from "@/lib/queries/customers";
 import { getOrgInvoiceTemplate } from "@/lib/queries/invoice-templates";
+import { parseDateOnly } from "@/lib/format-date";
 import { listTeamMembers } from "@/lib/queries/team";
 import { useAuth } from "@/contexts/auth-context";
 import { useInvalidateAfterPaymentChange } from "@/hooks/use-invalidate-payment-queries";
 import { supabase } from "@/lib/supabase";
+import { notifyInvoicePaid } from "@/lib/notify-invoice-paid";
 import { Spinner } from "@/components/shared/spinner";
 import { EmailDeliveryNotice } from "@/components/shared/email-delivery-notice";
 import { InvoicePreview } from "@/components/invoice-templates";
@@ -75,6 +79,11 @@ import { InvoicePdf, buildInvoiceDocumentData } from "@travada-books/pdf";
 import { downloadPdf, urlToDataUrl } from "@/lib/pdf-download";
 import { formatCurrency } from "@/lib/format";
 import { parseCustomFields } from "@/lib/custom-fields";
+import {
+  resolveDocumentLogo,
+  buildFromDetailsSnapshot,
+  buildCustomerDetailsSnapshot,
+} from "@/lib/document-snapshots";
 import { toast } from "sonner";
 
 const PAYMENT_METHOD_LABELS: Record<string, string> = {
@@ -222,6 +231,7 @@ export function InvoiceDetailPage() {
   const [internalNote, setInternalNote] = useState("");
   const internalNoteDirtyRef = useRef(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [cancelInvoiceOpen, setCancelInvoiceOpen] = useState(false);
   const [isPdfDownloading, setIsPdfDownloading] = useState(false);
   const [recordPaymentOpen, setRecordPaymentOpen] = useState(false);
   const [sendDialogOpen, setSendDialogOpen] = useState(false);
@@ -322,6 +332,27 @@ export function InvoiceDetailPage() {
     },
   });
 
+  // Separate from updateMutation: toggling the reminder switch should feel
+  // instant (optimistic) and never show a success toast — only an error one.
+  const skipReminderMutation = useMutation({
+    mutationFn: (skip: boolean) => updateInvoice(id!, orgId!, { skip_auto_reminder: skip }),
+    onMutate: async (skip: boolean) => {
+      await queryClient.cancelQueries({ queryKey: ["invoice", id] });
+      const previous = queryClient.getQueryData<Invoice>(["invoice", id]);
+      queryClient.setQueryData<Invoice>(["invoice", id], (old) =>
+        old ? { ...old, skip_auto_reminder: skip } : old,
+      );
+      return { previous };
+    },
+    onError: (_err, _skip, context) => {
+      if (context?.previous) queryClient.setQueryData(["invoice", id], context.previous);
+      toast.error("Failed to update reminder setting", { description: "Please try again." });
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["invoice", id] });
+    },
+  });
+
   const deleteMutation = useMutation({
     mutationFn: () => deleteInvoice(id!, orgId!),
     onSuccess: () => {
@@ -348,10 +379,7 @@ export function InvoiceDetailPage() {
   }
 
   async function handleDuplicate() {
-    const nextNumber = await getNextInvoiceNumber(
-      orgId!,
-      invoice!.customer_id!,
-    );
+    const nextNumber = await getNextInvoiceNumber(orgId!);
     return createInvoice({
       org_id: orgId!,
       user_id: user!.id,
@@ -381,35 +409,9 @@ export function InvoiceDetailPage() {
   }
 
   const fromDetails =
-    org ?
-      {
-        name: org.name,
-        logo_url: invoiceTemplate?.logoUrl ?? org.logo_url ?? null,
-        address_line1: org.address_line1 ?? null,
-        address_line2: org.address_line2 ?? null,
-        city: org.city ?? null,
-        zip: org.zip ?? null,
-        country_code: org.country_code ?? null,
-        phone: org.phone ?? null,
-        email: org.email ?? null,
-        tax_id: org.tax_id ?? null,
-      }
-    : null;
+    org ? buildFromDetailsSnapshot(org, resolveDocumentLogo(invoiceTemplate?.logoUrl, org)) : null;
 
-  const customerDetails =
-    customer ?
-      {
-        name: customer.name,
-        email: customer.email ?? null,
-        billing_email: customer.billing_email ?? null,
-        phone: customer.phone ?? null,
-        address_line1: customer.address_line1 ?? null,
-        address_line2: customer.address_line2 ?? null,
-        city: customer.city ?? null,
-        zip: customer.zip ?? null,
-        country: customer.country ?? null,
-      }
-    : null;
+  const customerDetails = customer ? buildCustomerDetailsSnapshot(customer) : null;
 
   function handleSaveNote() {
     updateMutation.mutate({
@@ -531,18 +533,7 @@ export function InvoiceDetailPage() {
             ...(!invoice.customer_details && customerDetails ? { customer_details: customerDetails } : {}),
           }).catch(() => {});
         }
-        supabase.functions
-          .invoke("notify-invoice-paid", { body: { invoiceId: id } })
-          .then((res) => {
-            if (res.error) {
-              console.error("notify-invoice-paid failed:", res.error);
-              toast.warning("Invoice marked as paid, but the notification email failed to send.");
-            }
-          })
-          .catch((err) => {
-            console.error("notify-invoice-paid failed:", err);
-            toast.warning("Invoice marked as paid, but the notification email failed to send.");
-          });
+        notifyInvoicePaid(id!);
       }),
       {
         loading: "Marking as paid…",
@@ -585,10 +576,7 @@ export function InvoiceDetailPage() {
         ...(override?.publicUrl !== undefined && { publicUrl: override.publicUrl }),
       };
       await downloadPdf(
-        <InvoicePdf
-          data={pdfData}
-          invoiceTemplate={invoice.invoice_template}
-        />,
+        <InvoicePdf data={pdfData} />,
         invoice.invoice_number ?? "Invoice",
       );
       return true;
@@ -634,6 +622,25 @@ export function InvoiceDetailPage() {
   const isRecurring = invoice.recurring !== "one_time";
   const status = invoice.status as InvoiceStatus;
   const isOverpaid = invoice.amount_paid > (invoice.total ?? 0);
+
+  // Auto-reminder row: only relevant once the org has reminders on and the
+  // invoice can still receive one (statuses invoice-reminders.ts targets).
+  const reminderDaysAfterDue = invoiceTemplate?.reminderDaysAfterDue ?? null;
+  const showAutoReminderRow =
+    reminderDaysAfterDue != null &&
+    (status === "unpaid" || status === "overdue" || status === "partially_paid");
+  let reminderHelperText = "";
+  if (showAutoReminderRow) {
+    if (invoice.last_reminder_sent_at) {
+      reminderHelperText = `Sent ${formatDate(invoice.last_reminder_sent_at)}`;
+    } else if (!invoice.skip_auto_reminder) {
+      const reminderDate = invoice.due_date ? parseDateOnly(invoice.due_date) : null;
+      if (reminderDate) reminderDate.setDate(reminderDate.getDate() + reminderDaysAfterDue);
+      reminderHelperText = reminderDate ? `Goes out ${formatDate(reminderDate)}` : "";
+    } else {
+      reminderHelperText = "Off for this invoice";
+    }
+  }
 
   const documentData = buildInvoiceDocumentData(invoice, {
     from: fromDetails ?? {},
@@ -788,6 +795,46 @@ export function InvoiceDetailPage() {
                   Send reminder
                 </DropdownMenuItem>
               )}
+              {(status === "unpaid" || status === "overdue" || status === "scheduled") && (
+                <DropdownMenuItem
+                  className='text-destructive focus:text-destructive'
+                  disabled={invoice.amount_paid > 0}
+                  title={
+                    invoice.amount_paid > 0 ?
+                      "Remove recorded payments first"
+                    : undefined
+                  }
+                  onClick={() => setCancelInvoiceOpen(true)}
+                >
+                  <Cancel01Icon size={13} />
+                  Cancel invoice
+                </DropdownMenuItem>
+              )}
+              {status === "canceled" && (
+                <DropdownMenuItem
+                  onClick={() => {
+                    toast.promise(
+                      updateInvoice(id!, orgId!, {
+                        status: reopenInvoiceStatus({
+                          due_date: invoice.due_date,
+                          amount_paid: invoice.amount_paid,
+                        }),
+                      }).then(() => {
+                        queryClient.invalidateQueries({ queryKey: ["invoice", id] });
+                        queryClient.invalidateQueries({ queryKey: ["invoices", orgId] });
+                      }),
+                      {
+                        loading: "Reopening invoice…",
+                        success: "Invoice reopened",
+                        error: "Failed to reopen invoice",
+                      },
+                    );
+                  }}
+                >
+                  <Sent02Icon size={13} />
+                  Reopen invoice
+                </DropdownMenuItem>
+              )}
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 className='text-destructive focus:text-destructive'
@@ -801,6 +848,41 @@ export function InvoiceDetailPage() {
           </DropdownMenu>
         </div>
       </div>
+
+      <AlertDialog open={cancelInvoiceOpen} onOpenChange={setCancelInvoiceOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Cancel invoice {invoice.invoice_number ?? ""}?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              The customer's link will show it as canceled. No email is sent.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep invoice</AlertDialogCancel>
+            <Button
+              variant='destructive'
+              onClick={() => {
+                setCancelInvoiceOpen(false);
+                toast.promise(
+                  updateInvoice(id!, orgId!, { status: "canceled" }).then(() => {
+                    queryClient.invalidateQueries({ queryKey: ["invoice", id] });
+                    queryClient.invalidateQueries({ queryKey: ["invoices", orgId] });
+                  }),
+                  {
+                    loading: "Canceling invoice…",
+                    success: "Invoice canceled",
+                    error: "Failed to cancel invoice",
+                  },
+                );
+              }}
+            >
+              Cancel invoice
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <AlertDialogContent>
@@ -936,6 +1018,22 @@ export function InvoiceDetailPage() {
                     label='Scheduled for'
                     value={formatDateTime(invoice.scheduled_at)}
                   />
+                </>
+              )}
+              {showAutoReminderRow && (
+                <>
+                  <Separator />
+                  <div className='flex items-center justify-between py-3 text-xs'>
+                    <div className='flex flex-col gap-0.5'>
+                      <span className='text-muted-foreground'>Automatic reminder</span>
+                      <span className='text-[11px] text-muted-foreground'>{reminderHelperText}</span>
+                    </div>
+                    <Switch
+                      checked={!invoice.skip_auto_reminder}
+                      onCheckedChange={(checked) => skipReminderMutation.mutate(!checked)}
+                      disabled={!!invoice.last_reminder_sent_at}
+                    />
+                  </div>
                 </>
               )}
             </div>

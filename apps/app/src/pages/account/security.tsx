@@ -3,7 +3,7 @@ import * as Sentry from "@sentry/react";
 import { useNavigate } from "react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import type { UserIdentity } from "@supabase/supabase-js";
+import { FunctionsHttpError, type UserIdentity } from "@supabase/supabase-js";
 import { Button } from "@travada-books/ui/components/button";
 import { Input } from "@travada-books/ui/components/input";
 import { Label } from "@travada-books/ui/components/label";
@@ -26,6 +26,7 @@ import {
 } from "@travada-books/ui/components/dropdown-menu";
 import { useAuth } from "@/contexts/auth-context";
 import { supabase } from "@/lib/supabase";
+import { getSoleOwnerSharedOrgs, type SoleOwnerOrg } from "@/lib/queries/team";
 
 const GoogleIcon = () => (
   <svg className='size-4 shrink-0' viewBox='0 0 24 24' aria-hidden='true'>
@@ -49,7 +50,7 @@ const GoogleIcon = () => (
 );
 
 export function SecurityPage() {
-  const { user } = useAuth();
+  const { user, switchOrg } = useAuth();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [currentPassword, setCurrentPassword] = useState("");
@@ -126,6 +127,30 @@ export function SecurityPage() {
   });
 
   const [deleteConfirm, setDeleteConfirm] = useState("");
+  // Set only when the delete-account call itself comes back 409 sole_owner —
+  // a race where someone was demoted/left between the dialog opening and
+  // submit. Shown with the same copy as the useQuery check below.
+  const [raceBlockedOrgs, setRaceBlockedOrgs] = useState<SoleOwnerOrg[] | null>(null);
+
+  const soleOwnerOrgsQuery = useQuery({
+    queryKey: ["sole-owner-shared-orgs", user?.id],
+    queryFn: getSoleOwnerSharedOrgs,
+    enabled: !!user,
+  });
+
+  const blockedOrgs = raceBlockedOrgs ?? soleOwnerOrgsQuery.data ?? [];
+  const isSoleOwnerBlocked = blockedOrgs.length > 0;
+
+  const switchOrgMutation = useMutation({
+    mutationFn: (orgId: string) => switchOrg(orgId),
+    onSuccess: () => {
+      navigate("/settings/team");
+    },
+    onError: (err) => {
+      Sentry.captureException(err);
+      toast.error("Failed to switch organisation. Please try again.");
+    },
+  });
 
   const deleteAccountMutation = useMutation({
     mutationFn: async () => {
@@ -135,7 +160,16 @@ export function SecurityPage() {
       const res = await supabase.functions.invoke("delete-account", {
         headers: { Authorization: `Bearer ${session?.access_token}` },
       });
-      if (res.error) throw new Error(res.error.message);
+      if (res.error) {
+        if (res.error instanceof FunctionsHttpError && res.error.context?.status === 409) {
+          const body = await res.error.context.json().catch(() => null);
+          if (body?.error === "sole_owner") {
+            setRaceBlockedOrgs(body.orgs ?? []);
+            throw new Error("sole_owner");
+          }
+        }
+        throw new Error(res.error.message);
+      }
       const body = res.data as { error?: string; emailTo?: string; exporting?: boolean };
       if (body?.error) throw new Error(body.error);
       return body;
@@ -150,6 +184,12 @@ export function SecurityPage() {
       navigate("/login");
     },
     onError: (err) => {
+      if (err instanceof Error && err.message === "sole_owner") {
+        toast.error(
+          "You're the only owner of one or more organisations you share with others. Make another member an owner there first.",
+        );
+        return;
+      }
       Sentry.captureException(err);
       toast.error("Failed to delete account. Please try again.");
     },
@@ -287,15 +327,21 @@ export function SecurityPage() {
           <p className='text-xs text-muted-foreground mt-0.5'>
             Permanently delete your account. Organisations where you are the
             only member are deleted too — each is fully exported (every record
-            plus files; PDFs not included) and emailed to your address first,
-            with a link valid for 30 days. Organisations with other members
-            will not be affected.
+            and file, including a PDF for every sent invoice, quote, and
+            statement) and emailed to your address first, with a link valid
+            for 30 days. Organisations with other members will not be
+            affected.
           </p>
         </div>
 
         <AlertDialog
           onOpenChange={(open) => {
-            if (!open) setDeleteConfirm("");
+            if (!open) {
+              setDeleteConfirm("");
+            } else {
+              setRaceBlockedOrgs(null);
+              soleOwnerOrgsQuery.refetch();
+            }
           }}
         >
           <AlertDialogTrigger asChild>
@@ -315,23 +361,54 @@ export function SecurityPage() {
                 intact. This action cannot be undone.
               </AlertDialogDescription>
             </AlertDialogHeader>
-            <div className='flex flex-col gap-1.5 mt-2'>
-              <Label htmlFor='delete-confirm'>
-                Type <span className='font-semibold'>DELETE</span> to confirm
-              </Label>
-              <Input
-                id='delete-confirm'
-                value={deleteConfirm}
-                onChange={(e) => setDeleteConfirm(e.target.value)}
-                placeholder='DELETE'
-              />
-            </div>
+
+            {isSoleOwnerBlocked ?
+              <div className='flex flex-col gap-3 rounded-lg border border-destructive/30 bg-destructive/5 p-3'>
+                <p className='text-xs text-foreground'>
+                  You're the only owner of{" "}
+                  {blockedOrgs.map((o) => o.name).join(", ")}. Make another
+                  member an owner there, then come back to delete your
+                  account.
+                </p>
+                <div className='flex flex-col gap-2'>
+                  {blockedOrgs.map((o) => (
+                    <Button
+                      key={o.id}
+                      variant='outline'
+                      size='sm'
+                      className='w-fit'
+                      disabled={switchOrgMutation.isPending}
+                      onClick={() => switchOrgMutation.mutate(o.id)}
+                    >
+                      {switchOrgMutation.isPending &&
+                      switchOrgMutation.variables === o.id ?
+                        "Switching…"
+                      : `Go to ${o.name} → Team`}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            : <div className='flex flex-col gap-1.5 mt-2'>
+                <Label htmlFor='delete-confirm'>
+                  Type <span className='font-semibold'>DELETE</span> to confirm
+                </Label>
+                <Input
+                  id='delete-confirm'
+                  value={deleteConfirm}
+                  onChange={(e) => setDeleteConfirm(e.target.value)}
+                  placeholder='DELETE'
+                />
+              </div>
+            }
+
             <AlertDialogFooter>
               <AlertDialogCancel>Cancel</AlertDialogCancel>
               <AlertDialogAction
                 className='bg-destructive text-white hover:bg-destructive/90'
                 disabled={
-                  deleteConfirm !== "DELETE" || deleteAccountMutation.isPending
+                  isSoleOwnerBlocked ||
+                  deleteConfirm !== "DELETE" ||
+                  deleteAccountMutation.isPending
                 }
                 onClick={(e) => {
                   e.preventDefault();

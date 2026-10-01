@@ -465,9 +465,9 @@ export function GeneralSettingsPage() {
               <h2 className='text-sm font-semibold'>Export all data</h2>
               <p className='text-xs text-muted-foreground mt-0.5'>
                 Bundles every customer, invoice, quote, statement, transaction, and file in
-                your organisation into a ZIP and emails you a download link that stays valid
-                for 7 days. Invoice, quote, and statement PDFs aren't included — they can be
-                regenerated from the exported data.
+                your organisation — including a PDF for every sent invoice, quote, and
+                statement — into a ZIP and emails you a download link that stays valid for 7
+                days.
               </p>
             </div>
 

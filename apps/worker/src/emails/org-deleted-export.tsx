@@ -66,10 +66,9 @@ export function OrgDeletedExportEmail({ orgs, expiresInDays }: OrgDeletedExportE
 
       <Text style={{ margin: "0 0 16px", fontSize: 14, color: colors.body, lineHeight: "1.6", fontFamily: font }}>
         {single ?
-          `${orgs[0].orgName} and all its data have been permanently deleted. Before deleting, we bundled every customer, invoice, quote, statement, transaction, and file into a ZIP for you.`
-        : "These organisations and all their data have been permanently deleted. Before deleting each one, we bundled every customer, invoice, quote, statement, transaction, and file into a ZIP for you."
-        }{" "}
-        Invoice, quote, and statement PDFs are not included — they can be regenerated from the exported data.
+          `${orgs[0].orgName} and all its data have been permanently deleted. Before deleting, we bundled every customer, invoice, quote, statement, transaction, and file — including a PDF for every sent invoice, quote, and statement — into a ZIP for you.`
+        : "These organisations and all their data have been permanently deleted. Before deleting each one, we bundled every customer, invoice, quote, statement, transaction, and file — including a PDF for every sent invoice, quote, and statement — into a ZIP for you."
+        }
       </Text>
       <Text style={{ margin: 0, fontSize: 13, color: colors.muted, fontFamily: font }}>
         {orgs.length > 1 ? "These download links expire" : "This download link expires"} in {expiresInDays} day

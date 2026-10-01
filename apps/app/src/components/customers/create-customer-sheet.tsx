@@ -109,7 +109,8 @@ export function CreateCustomerSheet({
   defaultName = "",
   onCreated,
 }: CreateCustomerSheetProps) {
-  const { orgId } = useAuth();
+  const { orgId, org } = useAuth();
+  const defaultCurrency = org?.base_currency ?? "KES";
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
@@ -127,15 +128,35 @@ export function CreateCustomerSheet({
       state: "",
       zip: "",
       country: "",
-      currency: "KES",
+      currency: defaultCurrency,
       mainContact: "",
       note: "",
     },
   });
 
   useEffect(() => {
-    if (open) form.reset({ name: defaultName });
-  }, [open, defaultName, form]);
+    if (open) {
+      form.reset({
+        name: defaultName,
+        email: "",
+        billToEmail: "",
+        phone: "",
+        industry: "",
+        businessType: "",
+        website: "",
+        vatNumber: "",
+        addressLine1: "",
+        addressLine2: "",
+        city: "",
+        state: "",
+        zip: "",
+        country: "",
+        currency: defaultCurrency,
+        mainContact: "",
+        note: "",
+      });
+    }
+  }, [open, defaultName, defaultCurrency, form]);
 
   function handleOpenChange(next: boolean) {
     if (!next) form.reset();

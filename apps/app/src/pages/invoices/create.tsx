@@ -47,6 +47,11 @@ import {
   DropdownMenuTrigger,
 } from "@travada-books/ui/components/dropdown-menu";
 import { createInvoice, getNextInvoiceNumber } from "@/lib/queries/invoices";
+import {
+  resolveDocumentLogo,
+  buildFromDetailsSnapshot,
+  buildCustomerDetailsSnapshot,
+} from "@/lib/document-snapshots";
 import { computeDocumentTotals, toRateColumns } from "@/lib/document-totals";
 import { lookupRate } from "@/lib/queries/exchange-rates";
 import { getCustomer } from "@/lib/queries/customers";
@@ -212,9 +217,11 @@ function InvoicePreview({
           <tr className="border-b text-muted-foreground">
             <th className="w-1/2 pb-2 text-left font-medium">Description</th>
             {showQtyColumn && (
-              <th className="whitespace-nowrap pb-2 pl-4 text-right font-medium">Qty</th>
+              <>
+                <th className="whitespace-nowrap pb-2 pl-4 text-right font-medium">Qty</th>
+                <th className="whitespace-nowrap pb-2 pl-4 text-right font-medium">Rate</th>
+              </>
             )}
-            <th className="whitespace-nowrap pb-2 pl-4 text-right font-medium">Rate</th>
             {showTaxColumn && (
               <th className="whitespace-nowrap pb-2 pl-4 text-right font-medium">Tax</th>
             )}
@@ -228,9 +235,11 @@ function InvoicePreview({
               <tr key={item.id} className="border-b border-dashed">
                 <td className="py-2 break-words">{item.description || "—"}</td>
                 {showQtyColumn && (
-                  <td className="whitespace-nowrap py-2 pl-4 text-right">{item.qty || "0"}</td>
+                  <>
+                    <td className="whitespace-nowrap py-2 pl-4 text-right">{item.qty || "0"}</td>
+                    <td className="whitespace-nowrap py-2 pl-4 text-right">{item.rate || "0.00"}</td>
+                  </>
                 )}
-                <td className="whitespace-nowrap py-2 pl-4 text-right">{item.rate || "0.00"}</td>
                 {showTaxColumn && (
                   <td className="whitespace-nowrap py-2 pl-4 text-right">{item.tax || "0"}%</td>
                 )}
@@ -505,6 +514,9 @@ export function CreateInvoicePage() {
       accept_payments: invoiceSettings.acceptPaymentsEnabled,
       include_pdf: invoiceSettings.includePdf,
       invoice_template: invoiceSettings.invoiceTemplate,
+      date_format: invoiceSettings.dateFormat,
+      show_tax_column: invoiceSettings.showTaxColumn,
+      show_qty_column: invoiceSettings.showQtyColumn,
       custom_fields: normalizeCustomFields(customFields),
       ...(isSend && { sent_at: new Date().toISOString(), sent_via: "email" }),
       ...(isSend && {
@@ -513,31 +525,10 @@ export function CreateInvoicePage() {
         base_currency: org?.base_currency ?? null,
       }),
       ...((isSend || isSchedule) && org && {
-        from_details: {
-          name: org.name,
-          logo_url: invoiceSettings.logoUrl ?? null,
-          address_line1: org.address_line1 ?? null,
-          address_line2: org.address_line2 ?? null,
-          city: org.city ?? null,
-          zip: org.zip ?? null,
-          country_code: org.country_code ?? null,
-          phone: org.phone ?? null,
-          email: org.email ?? null,
-          tax_id: org.tax_id ?? null,
-        },
+        from_details: buildFromDetailsSnapshot(org, resolveDocumentLogo(invoiceSettings.logoUrl, org)),
       }),
       ...((isSend || isSchedule) && selectedCustomer && {
-        customer_details: {
-          name: selectedCustomer.name,
-          email: selectedCustomer.email ?? null,
-          billing_email: selectedCustomer.billing_email ?? null,
-          phone: selectedCustomer.phone ?? null,
-          address_line1: selectedCustomer.address_line1 ?? null,
-          address_line2: selectedCustomer.address_line2 ?? null,
-          city: selectedCustomer.city ?? null,
-          zip: selectedCustomer.zip ?? null,
-          country: selectedCustomer.country ?? null,
-        },
+        customer_details: buildCustomerDetailsSnapshot(selectedCustomer),
       }),
     };
   }
@@ -592,6 +583,9 @@ export function CreateInvoicePage() {
             accept_payments: invoice.accept_payments,
             include_pdf: invoice.include_pdf,
             invoice_template: invoice.invoice_template,
+            date_format: invoice.date_format,
+            show_tax_column: invoice.show_tax_column,
+            show_qty_column: invoice.show_qty_column,
             from_details: invoice.from_details ?? null,
             customer_details: invoice.customer_details ?? null,
             custom_fields: invoice.custom_fields ?? [],
@@ -962,7 +956,7 @@ export function CreateInvoicePage() {
             showQtyColumn={invoiceSettings.showQtyColumn}
             customer={selectedCustomer}
             org={org}
-            logoUrl={invoiceSettings.logoUrl}
+            logoUrl={resolveDocumentLogo(invoiceSettings.logoUrl, org)}
             customFields={customFields}
           />
         </div>

@@ -24,6 +24,9 @@ type RecurringSeries = {
   accept_payments: boolean;
   include_pdf: boolean;
   invoice_template: string;
+  date_format: string | null;
+  show_tax_column: boolean | null;
+  show_qty_column: boolean | null;
   from_details: unknown;
   customer_details: unknown;
   source_issue_date: string;
@@ -107,7 +110,7 @@ export const recurringInvoiceGenerator = schedules.task({
       .select(
         "id, org_id, user_id, customer_id, customer_name, currency, line_items, custom_fields, " +
         "subtotal, tax_amount, discount, total, payment_details, note, accept_payments, include_pdf, " +
-        "invoice_template, from_details, customer_details, source_issue_date, source_due_date, " +
+        "invoice_template, date_format, show_tax_column, show_qty_column, from_details, customer_details, source_issue_date, source_due_date, " +
         "frequency, end_type, end_on_date, end_after_count, status, current_count, failure_count, " +
         "next_scheduled_at"
       )
@@ -246,6 +249,9 @@ export const recurringInvoiceGenerator = schedules.task({
             accept_payments: series.accept_payments,
             include_pdf: series.include_pdf,
             invoice_template: series.invoice_template,
+            date_format: series.date_format,
+            show_tax_column: series.show_tax_column,
+            show_qty_column: series.show_qty_column,
             from_details: series.from_details,
             customer_details: series.customer_details,
             status: "unpaid",

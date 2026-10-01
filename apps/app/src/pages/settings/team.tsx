@@ -879,9 +879,10 @@ export function TeamSettingsPage() {
               <h2 className='text-sm font-semibold text-destructive'>Delete organisation</h2>
               <p className='text-xs text-muted-foreground mt-0.5'>
                 Permanently delete this organisation and all its data — invoices, quotes, and
-                customers. Before deletion, a full export (every record plus files; PDFs not
-                included) is emailed to {user?.email ?? "your email"} with a link valid for 30
-                days. All members will lose access immediately. This cannot be undone.
+                customers. Before deletion, a full export (every record and file, including a
+                PDF for every sent invoice, quote, and statement) is emailed to{" "}
+                {user?.email ?? "your email"} with a link valid for 30 days. All members will
+                lose access immediately. This cannot be undone.
               </p>
             </div>
 
@@ -896,11 +897,11 @@ export function TeamSettingsPage() {
                   <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
                   <AlertDialogDescription>
                     This will permanently delete <strong>{org?.name}</strong> and all its invoices,
-                    quotes, and customer data. Before deletion, a full export (every record plus
-                    files; PDFs not included) will be emailed to{" "}
-                    <strong>{user?.email ?? "your email"}</strong>, with a download link valid for
-                    30 days. All members will lose access immediately. This action cannot be
-                    undone.
+                    quotes, and customer data. Before deletion, a full export (every record and
+                    file, including a PDF for every sent invoice, quote, and statement) will be
+                    emailed to <strong>{user?.email ?? "your email"}</strong>, with a download
+                    link valid for 30 days. All members will lose access immediately. This action
+                    cannot be undone.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <div className='flex flex-col gap-1.5 mt-2'>

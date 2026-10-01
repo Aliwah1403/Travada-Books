@@ -1,6 +1,9 @@
-import { format } from "date-fns"
 import { Separator } from "@travada-books/ui/components/separator"
-import type { ClassicDocumentData } from "@travada-books/pdf"
+import {
+  resolveDateFnsPattern,
+  formatServerDate,
+  type ClassicDocumentData,
+} from "@travada-books/pdf"
 import { normalizeCustomFields } from "@/lib/custom-fields"
 import { CustomFieldsPreview } from "@/components/invoices/custom-fields"
 
@@ -9,13 +12,6 @@ export type { ClassicDocumentData, Participant } from "@travada-books/pdf"
 function fmt(n: number | null | undefined) {
   if (n == null || Number.isNaN(n)) return "0.00"
   return n.toLocaleString("en-KE", { minimumFractionDigits: 2 })
-}
-
-function formatDate(d: string | null | undefined) {
-  if (!d) return "—"
-  const parsed = new Date(d)
-  if (!Number.isFinite(parsed.getTime())) return "—"
-  return format(parsed, "dd/MM/yyyy")
 }
 
 export function ClassicPreview({ data }: { data: ClassicDocumentData }) {
@@ -37,7 +33,19 @@ export function ClassicPreview({ data }: { data: ClassicDocumentData }) {
     note,
     paymentDetails,
     customFields,
+    dateFormat,
+    showTaxColumn,
+    showQtyColumn,
+    status,
   } = data
+
+  const datePattern = resolveDateFnsPattern(dateFormat)
+  const formatDate = (d: string | null | undefined) => formatServerDate(d, datePattern)
+  // NULL (quotes, and invoices saved before this setting existed) must
+  // render exactly as this preview always has: Qty and Tax both shown —
+  // see ClassicDocumentData.showTaxColumn/showQtyColumn.
+  const showQty = showQtyColumn ?? true
+  const showTax = showTaxColumn ?? true
 
   const displaySubtotal = subtotal ?? lineItems.reduce((s, i) => s + i.quantity * i.price, 0)
   const displayTax = taxAmount ?? lineItems.reduce((s, i) => s + i.quantity * i.price * (i.tax_rate / 100), 0)
@@ -78,6 +86,11 @@ export function ClassicPreview({ data }: { data: ClassicDocumentData }) {
         <div className="text-right">
           <p className="text-2xl font-bold text-foreground">{label}</p>
           <p className="text-xs text-muted-foreground">{number ?? "—"}</p>
+          {status === "canceled" && (
+            <p className="mt-1 text-[10px] font-bold uppercase tracking-wide text-destructive">
+              Canceled
+            </p>
+          )}
         </div>
       </div>
 
@@ -126,9 +139,9 @@ export function ClassicPreview({ data }: { data: ClassicDocumentData }) {
           <thead>
             <tr className="border-b text-muted-foreground">
               <th className="pb-3 text-left font-medium">Description</th>
-              <th className="pb-3 text-right font-medium">Qty</th>
-              <th className="pb-3 text-right font-medium">Rate</th>
-              <th className="pb-3 text-right font-medium">Tax</th>
+              {showQty && <th className="pb-3 text-right font-medium">Qty</th>}
+              {showQty && <th className="pb-3 text-right font-medium">Rate</th>}
+              {showTax && <th className="pb-3 text-right font-medium">Tax</th>}
               <th className="pb-3 text-right font-medium">Amount</th>
             </tr>
           </thead>
@@ -136,9 +149,9 @@ export function ClassicPreview({ data }: { data: ClassicDocumentData }) {
             {lineItems.map((item, i) => (
               <tr key={i} className="border-b border-dashed">
                 <td className="py-3">{item.description}</td>
-                <td className="py-3 text-right">{item.quantity}</td>
-                <td className="py-3 text-right">{currency} {fmt(item.price)}</td>
-                <td className="py-3 text-right">{item.tax_rate}%</td>
+                {showQty && <td className="py-3 text-right">{item.quantity}</td>}
+                {showQty && <td className="py-3 text-right">{currency} {fmt(item.price)}</td>}
+                {showTax && <td className="py-3 text-right">{item.tax_rate}%</td>}
                 <td className="py-3 text-right font-medium">
                   {currency} {fmt(item.quantity * item.price * (1 + item.tax_rate / 100))}
                 </td>

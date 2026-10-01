@@ -39,6 +39,8 @@ type StatementRow = {
   customer_details: Record<string, string> | null
   include_pdf: boolean
   file_path: string | null
+  opening_balance: number | null
+  payments_snapshot: unknown
 }
 
 async function sendStatementEmail(params: {
@@ -53,9 +55,21 @@ async function sendStatementEmail(params: {
 
   const invoices = (Array.isArray(statement.snapshot_data) ? statement.snapshot_data : []) as Array<{ total?: number; status?: string; currency?: string }>
   const totalDebits = invoices.reduce((s, inv) => s + (inv.total ?? 0), 0)
-  const totalCredits = invoices.filter((inv) => inv.status === "paid").reduce((s, inv) => s + (inv.total ?? 0), 0)
-  const totalOwing = totalDebits - totalCredits
-  const currency = invoices[0]?.currency ?? "USD"
+  const openingBalance = statement.opening_balance ?? 0
+
+  // payments_snapshot is null for statements generated before opening
+  // balances existed — keep the legacy status==='paid' approximation for
+  // those so old statements' emails don't change. New statements have real
+  // payment records, so total up what was actually received.
+  const paymentsSnapshot = Array.isArray(statement.payments_snapshot)
+    ? (statement.payments_snapshot as Array<{ amount?: number }>)
+    : null
+  const totalCredits =
+    paymentsSnapshot != null
+      ? paymentsSnapshot.reduce((s, p) => s + (p.amount ?? 0), 0)
+      : invoices.filter((inv) => inv.status === "paid").reduce((s, inv) => s + (inv.total ?? 0), 0)
+  const totalOwing = openingBalance + totalDebits - totalCredits
+  const currency = invoices[0]?.currency ?? (paymentsSnapshot?.[0] as { currency?: string } | undefined)?.currency ?? "USD"
 
   const publicUrl = `${APP_URL}/s/${statement.token}`
   const html = await render(
@@ -132,7 +146,7 @@ Deno.serve(async (req) => {
 
     const { data: statement, error } = await db
       .from("statements")
-      .select("id, org_id, token, date_from, date_to, snapshot_data, from_details, customer_details, include_pdf, file_path")
+      .select("id, org_id, token, date_from, date_to, snapshot_data, from_details, customer_details, include_pdf, file_path, opening_balance, payments_snapshot")
       .eq("id", statementId)
       .single()
 

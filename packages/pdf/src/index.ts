@@ -46,6 +46,7 @@ export {
   resolveDateFnsPattern,
   type BuildStatementLedgerOpts,
   type StatementLedgerInvoice,
+  type StatementLedgerPayment,
 } from "./ledger";
 
 // pdfx primitives — re-exported in case app code wants to compose custom

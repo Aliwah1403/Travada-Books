@@ -34,12 +34,7 @@ const VALIDITY_OPTIONS = [
   { value: "90", label: "90 days" },
 ];
 
-const templates = [
-  { id: "classic", label: "Classic" },
-  { id: "modern", label: "Modern" },
-  { id: "minimal", label: "Minimal" },
-  { id: "bold", label: "Bold" },
-];
+const templates = [{ id: "classic", label: "Classic" }];
 
 function TemplateThumbnail({ id }: { id: string }) {
   if (id === "classic") {
@@ -58,60 +53,6 @@ function TemplateThumbnail({ id }: { id: string }) {
           <div className='h-1 w-8 rounded bg-muted-foreground/20' />
           <div className='h-1 w-6 rounded bg-muted-foreground/15' />
           <div className='h-1.5 w-10 rounded bg-muted-foreground/30' />
-        </div>
-      </div>
-    );
-  }
-  if (id === "modern") {
-    return (
-      <div className='flex h-full flex-col gap-1 p-1.5'>
-        <div className='flex h-4 w-full items-center rounded-sm bg-muted-foreground/20 px-1.5'>
-          <div className='h-1.5 w-6 rounded bg-muted-foreground/40' />
-        </div>
-        <div className='mt-0.5 flex flex-col gap-0.5'>
-          <div className='h-1 w-12 rounded bg-muted-foreground/20' />
-          <div className='h-1 w-8 rounded bg-muted-foreground/15' />
-        </div>
-        <div className='mt-auto flex flex-col items-end gap-0.5'>
-          <div className='h-1 w-8 rounded bg-muted-foreground/20' />
-          <div className='h-1.5 w-10 rounded bg-primary/40' />
-        </div>
-      </div>
-    );
-  }
-  if (id === "minimal") {
-    return (
-      <div className='flex h-full flex-col gap-1 p-1.5'>
-        <div className='h-1.5 w-8 rounded bg-muted-foreground/30' />
-        <div className='h-px w-full bg-muted-foreground/15' />
-        <div className='flex flex-col gap-0.5'>
-          <div className='h-1 w-10 rounded bg-muted-foreground/15' />
-          <div className='h-1 w-7 rounded bg-muted-foreground/10' />
-        </div>
-        <div className='mt-auto flex flex-col items-end gap-0.5'>
-          <div className='h-px w-full bg-muted-foreground/15' />
-          <div className='h-1.5 w-10 rounded bg-muted-foreground/25' />
-        </div>
-      </div>
-    );
-  }
-  if (id === "bold") {
-    return (
-      <div className='flex h-full flex-col gap-1 p-1.5'>
-        <div className='flex items-start justify-between'>
-          <div className='h-4 w-5 rounded-sm bg-foreground/30' />
-          <div className='flex flex-col items-end gap-0.5'>
-            <div className='h-1.5 w-8 rounded bg-foreground/20' />
-            <div className='h-1 w-5 rounded bg-muted-foreground/15' />
-          </div>
-        </div>
-        <div className='mt-0.5 h-px w-full bg-muted-foreground/15' />
-        <div className='flex flex-col gap-0.5'>
-          <div className='h-1 w-10 rounded bg-muted-foreground/20' />
-          <div className='h-1 w-7 rounded bg-muted-foreground/15' />
-        </div>
-        <div className='mt-auto flex flex-col items-end gap-0.5'>
-          <div className='h-1.5 w-10 rounded bg-foreground/25' />
         </div>
       </div>
     );

@@ -1,6 +1,6 @@
 import { Document, Page, StyleSheet, View } from "@react-pdf/renderer";
 import type { Style } from "@react-pdf/types";
-import { format, parseISO, isValid } from "date-fns";
+import { resolveDateFnsPattern, formatServerDate } from "../ledger";
 import { PdfxThemeProvider, usePdfxTheme } from "../theme-context";
 import { PageHeader } from "../components/page-header/pdfx-page-header";
 import { PdfImage } from "../components/pdf-image/pdfx-pdf-image";
@@ -31,15 +31,17 @@ function fmtAmt(n: number | null | undefined, currency: string, locale?: string)
   }
 }
 
-function safeFormat(value: string | null | undefined): string {
-  if (!value) return "—";
-  const d = parseISO(value);
-  return isValid(d) ? format(d, "dd/MM/yyyy") : value;
-}
-
 function InvoicePdfContent({ data }: { data: ClassicDocumentData }) {
   const theme = usePdfxTheme();
   const { from, customer, currency } = data;
+  const datePattern = resolveDateFnsPattern(data.dateFormat);
+  const safeFormat = (value: string | null | undefined) =>
+    formatServerDate(value, datePattern);
+  // NULL (quotes, and invoices saved before this setting existed) must
+  // render exactly as this template always has: Qty shown, no Tax column —
+  // see ClassicDocumentData.showTaxColumn/showQtyColumn.
+  const showQty = data.showQtyColumn ?? true;
+  const showTax = data.showTaxColumn ?? false;
 
   const styles = StyleSheet.create({
     page: {
@@ -161,6 +163,21 @@ function InvoicePdfContent({ data }: { data: ClassicDocumentData }) {
           />
         )}
 
+        {data.status === "canceled" && (
+          <Text
+            style={{
+              fontSize: 10,
+              fontWeight: "bold" as const,
+              color: theme.colors.destructive,
+              letterSpacing: 1,
+              marginBottom: 8,
+            }}
+            noMargin
+          >
+            CANCELED
+          </Text>
+        )}
+
         <View style={styles.metaRow}>
           <View style={styles.metaCol}>
             <Text style={styles.metaLabel} noMargin>
@@ -245,8 +262,9 @@ function InvoicePdfContent({ data }: { data: ClassicDocumentData }) {
           <TableHeader>
             <TableRow header>
               <TableCell>Description</TableCell>
-              <TableCell align="center">Qty</TableCell>
-              <TableCell align="right">Unit Price</TableCell>
+              {showQty && <TableCell align="center">Qty</TableCell>}
+              {showQty && <TableCell align="right">Unit Price</TableCell>}
+              {showTax && <TableCell align="right">Tax</TableCell>}
               <TableCell align="right">Amount</TableCell>
             </TableRow>
           </TableHeader>
@@ -255,8 +273,9 @@ function InvoicePdfContent({ data }: { data: ClassicDocumentData }) {
               // biome-ignore lint/suspicious/noArrayIndexKey: line items have no stable id
               <TableRow key={i}>
                 <TableCell>{item.description}</TableCell>
-                <TableCell align="center">{String(item.quantity)}</TableCell>
-                <TableCell align="right">{fmtAmt(item.price, currency)}</TableCell>
+                {showQty && <TableCell align="center">{String(item.quantity)}</TableCell>}
+                {showQty && <TableCell align="right">{fmtAmt(item.price, currency)}</TableCell>}
+                {showTax && <TableCell align="right">{item.tax_rate}%</TableCell>}
                 <TableCell align="right">
                   {fmtAmt(item.quantity * item.price, currency)}
                 </TableCell>

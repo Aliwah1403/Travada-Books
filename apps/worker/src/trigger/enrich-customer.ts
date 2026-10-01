@@ -132,6 +132,10 @@ const PERSONAL_EMAIL_DOMAINS = new Set([
   "msn.com",
 ]);
 
+function hasValue(v: unknown): boolean {
+  return typeof v === "string" ? v.trim().length > 0 : v != null;
+}
+
 function extractDomain(source: string): string | null {
   let s = source.trim();
   if (s.startsWith("https://")) s = s.slice(8);
@@ -204,9 +208,15 @@ export const enrichCustomerTask = task({
     const { customerId, orgId } = payload;
 
     // 1. Fetch customer
+    // NB: this must stay a single string literal (not built via `+`
+    // concatenation) — supabase-js parses the select() argument at the type
+    // level to infer `customer`'s shape, and concatenation widens it to
+    // plain `string`, which breaks that inference (GenericStringError).
     const { data: customer, error: fetchError } = await supabase
       .from("customers")
-      .select("id, name, email, website, country, country_code, city, state, address_line1, vat_number")
+      .select(
+        "id, name, email, website, country, country_code, city, state, zip, address_line1, vat_number, logo_url, industry, description, company_type, founded_year, estimated_revenue, funding_stage, total_funding, headquarters_location, linkedin_url, twitter_url, instagram_url, facebook_url, ceo_name, finance_contact, finance_contact_email, primary_language, fiscal_year_end"
+      )
       .eq("id", customerId)
       .eq("org_id", orgId)
       .single();
@@ -289,29 +299,72 @@ export const enrichCustomerTask = task({
         finance_contact_email: extracted.financeContactEmail?.trim()?.toLowerCase() || null,
         primary_language: extracted.primaryLanguage?.trim() || null,
         fiscal_year_end: extracted.fiscalYearEnd?.trim() || null,
-        vat_number: extracted.vatNumber?.trim()?.toUpperCase() || customer.vat_number || null,
+        vat_number: extracted.vatNumber?.trim()?.toUpperCase() || null,
       };
 
-      // 6. Derive logo via logo.dev
+      // 6. Never overwrite a value the user already typed, and never write
+      // null over an existing value. Non-address fields are considered
+      // independently; the address fields are treated as one group so we
+      // never mix a stored address with a freshly-discovered one.
+      const updatePayload: Record<string, unknown> = {};
+
+      const nonAddressFields: Array<{ key: keyof typeof verified; existing: unknown }> = [
+        { key: "description", existing: customer.description },
+        { key: "industry", existing: customer.industry },
+        { key: "company_type", existing: customer.company_type },
+        { key: "founded_year", existing: customer.founded_year },
+        { key: "estimated_revenue", existing: customer.estimated_revenue },
+        { key: "funding_stage", existing: customer.funding_stage },
+        { key: "total_funding", existing: customer.total_funding },
+        { key: "headquarters_location", existing: customer.headquarters_location },
+        { key: "linkedin_url", existing: customer.linkedin_url },
+        { key: "twitter_url", existing: customer.twitter_url },
+        { key: "instagram_url", existing: customer.instagram_url },
+        { key: "facebook_url", existing: customer.facebook_url },
+        { key: "ceo_name", existing: customer.ceo_name },
+        { key: "finance_contact", existing: customer.finance_contact },
+        { key: "finance_contact_email", existing: customer.finance_contact_email },
+        { key: "primary_language", existing: customer.primary_language },
+        { key: "fiscal_year_end", existing: customer.fiscal_year_end },
+        { key: "vat_number", existing: customer.vat_number },
+      ];
+
+      for (const { key, existing } of nonAddressFields) {
+        const value = verified[key];
+        if (value != null && !hasValue(existing)) {
+          updatePayload[key] = value;
+        }
+      }
+
+      const addressFields = ["address_line1", "city", "state", "zip", "country"] as const;
+      const hasExistingAddress = addressFields.some((f) => hasValue(customer[f]));
+      if (!hasExistingAddress) {
+        for (const f of addressFields) {
+          const value = verified[f];
+          if (value != null) updatePayload[f] = value;
+        }
+      }
+
+      // 7. Derive logo via logo.dev — only when the customer has none yet
       const logoToken = process.env.LOGO_DEV_TOKEN;
       const logo_url = domain && logoToken
         ? `https://img.logo.dev/${domain}?token=${logoToken}&size=128&retina=true`
         : null;
+      if (logo_url && !hasValue(customer.logo_url)) {
+        updatePayload.logo_url = logo_url;
+      }
 
-      // 7. Save (backfill website from discovered domain if not set)
-      const website_update = !customer.website && domain
-        ? { website: `https://${domain}` }
-        : {};
+      // 8. Backfill website from discovered domain if not set
+      if (!customer.website && domain) {
+        updatePayload.website = `https://${domain}`;
+      }
+
+      updatePayload.enrichment_status = "done";
+      updatePayload.enriched_at = new Date().toISOString();
 
       await supabase
         .from("customers")
-        .update({
-          ...verified,
-          ...website_update,
-          ...(logo_url ? { logo_url } : {}),
-          enrichment_status: "done",
-          enriched_at: new Date().toISOString(),
-        })
+        .update(updatePayload)
         .eq("id", customerId);
 
       logger.log("Enrichment saved", { customerId });

@@ -17,6 +17,7 @@ import { CurrencySelect } from "@travada-books/ui/components/currency-select";
 import { Spokes } from "@travada-books/ui/components/spokes";
 import { CustomerCombobox, type SelectedCustomer } from "@/components/invoices/customer-combobox";
 import { RecurringDialog, type RecurringFrequency } from "@/components/invoices/recurring-dialog";
+import { createInvoiceRecurring, addFrequency, type InvoiceRecurringFrequency } from "@/lib/queries/invoice-recurring";
 import { ScheduleDialog } from "@/components/invoices/schedule-dialog";
 import {
   InvoiceSettingsSheet,
@@ -47,10 +48,17 @@ import {
   DropdownMenuTrigger,
 } from "@travada-books/ui/components/dropdown-menu";
 import { getInvoice, updateInvoice } from "@/lib/queries/invoices";
+import { getCustomer } from "@/lib/queries/customers";
 import { computeDocumentTotals, deriveVatRate, toRateColumns } from "@/lib/document-totals";
 import { lookupRate } from "@/lib/queries/exchange-rates";
 import { getOrgInvoiceTemplate, upsertOrgInvoiceTemplate } from "@/lib/queries/invoice-templates";
+import {
+  resolveDocumentLogo,
+  buildFromDetailsSnapshot,
+  buildCustomerDetailsSnapshot,
+} from "@/lib/document-snapshots";
 import { useAuth, type UserOrg } from "@/contexts/auth-context";
+import { supabase } from "@/lib/supabase";
 import { Spinner } from "@/components/shared/spinner";
 import { toast } from "sonner";
 
@@ -207,9 +215,11 @@ function InvoicePreview({
           <tr className="border-b text-muted-foreground">
             <th className="w-1/2 pb-2 text-left font-medium">Description</th>
             {showQtyColumn && (
-              <th className="whitespace-nowrap pb-2 pl-4 text-right font-medium">Qty</th>
+              <>
+                <th className="whitespace-nowrap pb-2 pl-4 text-right font-medium">Qty</th>
+                <th className="whitespace-nowrap pb-2 pl-4 text-right font-medium">Rate</th>
+              </>
             )}
-            <th className="whitespace-nowrap pb-2 pl-4 text-right font-medium">Rate</th>
             {showTaxColumn && (
               <th className="whitespace-nowrap pb-2 pl-4 text-right font-medium">Tax</th>
             )}
@@ -223,9 +233,11 @@ function InvoicePreview({
               <tr key={item.id} className="border-b border-dashed">
                 <td className="py-2 break-words">{item.description || "—"}</td>
                 {showQtyColumn && (
-                  <td className="whitespace-nowrap py-2 pl-4 text-right">{item.qty || "0"}</td>
+                  <>
+                    <td className="whitespace-nowrap py-2 pl-4 text-right">{item.qty || "0"}</td>
+                    <td className="whitespace-nowrap py-2 pl-4 text-right">{item.rate || "0.00"}</td>
+                  </>
                 )}
-                <td className="whitespace-nowrap py-2 pl-4 text-right">{item.rate || "0.00"}</td>
                 {showTaxColumn && (
                   <td className="whitespace-nowrap py-2 pl-4 text-right">{item.tax || "0"}%</td>
                 )}
@@ -299,7 +311,7 @@ export function EditInvoicePage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { org, orgId } = useAuth();
+  const { org, orgId, user } = useAuth();
 
   const [initialized, setInitialized] = useState(false);
   const mergedSavedTemplateRef = useRef(false);
@@ -330,6 +342,15 @@ export function EditInvoicePage() {
     queryKey: ["invoice", id],
     queryFn: () => getInvoice(id!),
     enabled: !!id,
+  });
+
+  // Full customer record for the customer_details snapshot at send time —
+  // selectedCustomer only carries name/id until the user re-touches the
+  // combobox (see initializer below), so it can't be trusted alone.
+  const { data: fetchedCustomer } = useQuery({
+    queryKey: ["customer", invoice?.customer_id],
+    queryFn: () => getCustomer(invoice!.customer_id!, orgId!),
+    enabled: !!invoice?.customer_id && !!orgId,
   });
 
   const { data: savedTemplate } = useQuery({
@@ -435,13 +456,11 @@ export function EditInvoicePage() {
   const updateMutation = useMutation({
     mutationFn: ({ patch }: { patch: Parameters<typeof updateInvoice>[2] }) =>
       updateInvoice(id!, orgId!, patch),
-    onSuccess: (updated, { patch }) => {
+    onSuccess: (updated) => {
       queryClient.invalidateQueries({ queryKey: ["invoices"] });
       queryClient.invalidateQueries({ queryKey: ["invoice", id] });
-      if (patch.status === "unpaid") trackEvent(LogEvents.InvoiceSent, {
-        invoice_amount: updated.total,
-        recipient_email: selectedCustomer?.billing_email || selectedCustomer?.email,
-      });
+      // trackEvent(InvoiceSent) fires from handleSubmit after this resolves,
+      // not here — avoids double-firing for the "send" action.
       toast.success("Invoice updated");
       navigate(`/invoices/${updated.id}`);
     },
@@ -501,11 +520,20 @@ export function EditInvoicePage() {
       }
     }
 
+    // Prefer the fully-fetched customer record over selectedCustomer when the
+    // customer hasn't changed — selectedCustomer only carries name/id from
+    // the initializer below until the user re-touches the combobox, so it
+    // can't be trusted alone for the snapshot (see fetchedCustomer above).
+    const snapshotCustomerSource =
+      fetchedCustomer && fetchedCustomer.id === selectedCustomer!.id
+        ? fetchedCustomer
+        : selectedCustomer!;
+
     return {
       customer_id: selectedCustomer!.id,
       customer_name: selectedCustomer!.name,
       invoice_number: invoiceNumber,
-      status: isSend ? "unpaid" : "draft",
+      status: isSend ? "unpaid" : isSchedule ? "scheduled" : "draft",
       currency,
       issue_date: issueDate ? format(issueDate, "yyyy-MM-dd") : null,
       due_date: dueDate ? format(dueDate, "yyyy-MM-dd") : null,
@@ -524,6 +552,9 @@ export function EditInvoicePage() {
       accept_payments: invoiceSettings.acceptPaymentsEnabled,
       include_pdf: invoiceSettings.includePdf,
       invoice_template: invoiceSettings.invoiceTemplate,
+      date_format: invoiceSettings.dateFormat,
+      show_tax_column: invoiceSettings.showTaxColumn,
+      show_qty_column: invoiceSettings.showQtyColumn,
       custom_fields: normalizeCustomFields(customFields),
       ...(isSend && { sent_at: new Date().toISOString(), sent_via: "email" }),
       ...(isSend && {
@@ -531,11 +562,17 @@ export function EditInvoicePage() {
         converted_amount: convertedAmount,
         base_currency: org?.base_currency ?? null,
       }),
+      ...((isSend || isSchedule) && org && {
+        from_details: buildFromDetailsSnapshot(org, resolveDocumentLogo(invoiceSettings.logoUrl, org)),
+      }),
+      ...((isSend || isSchedule) && {
+        customer_details: buildCustomerDetailsSnapshot(snapshotCustomerSource),
+      }),
     };
   }
 
   async function handleSubmit(action: "draft" | "send" | "schedule", scheduleDate?: Date) {
-    if (!selectedCustomer) return;
+    if (!selectedCustomer || !orgId || !user) return;
     let patch;
     try {
       patch = await buildPatch(action, scheduleDate);
@@ -545,7 +582,90 @@ export function EditInvoicePage() {
       }
       return;
     }
-    updateMutation.mutate({ patch });
+
+    let updated;
+    try {
+      updated = await updateMutation.mutateAsync({ patch });
+    } catch {
+      // onError already surfaced the toast/inline error.
+      return;
+    }
+
+    if (action === "send") {
+      trackEvent(LogEvents.InvoiceSent, {
+        invoice_amount: updated.total,
+        recipient_email: selectedCustomer.billing_email || selectedCustomer.email,
+      });
+      supabase.functions
+        .invoke("send-invoice-email", { body: { invoiceId: updated.id } })
+        .then((res) => {
+          if (res.error) throw res.error;
+          if ((res.data as { queued?: boolean } | null)?.queued) {
+            toast.success(`Emailing it to ${selectedCustomer.name} with the PDF attached…`);
+          }
+        })
+        .catch(() => {
+          toast.warning("Invoice updated, but email delivery failed.");
+        });
+    }
+
+    if (action === "schedule" && scheduleDate) {
+      supabase.functions
+        .invoke("trigger-scheduled-send", {
+          body: { invoiceId: updated.id, scheduledAt: scheduleDate.toISOString() },
+        })
+        .catch(() => {
+          toast.warning("Invoice scheduled, but failed to queue the send job. Contact support.");
+        });
+    }
+
+    // Mirrors create.tsx: turning on recurring and sending/scheduling sets up
+    // a series the same way a new invoice would. Only when this invoice isn't
+    // already part of one — never spins up a second series for it.
+    if ((action === "send" || action === "schedule") && recurring !== "one_time" && updated.issue_date && !invoice?.invoice_recurring_id) {
+      try {
+        const freq = recurring as InvoiceRecurringFrequency;
+        const nextDate = addFrequency(updated.issue_date, freq);
+        const series = await createInvoiceRecurring({
+          org_id: orgId,
+          user_id: user.id,
+          customer_id: selectedCustomer.id,
+          customer_name: selectedCustomer.name,
+          currency: updated.currency,
+          line_items: updated.line_items,
+          subtotal: updated.subtotal ?? 0,
+          tax_amount: updated.tax_amount ?? 0,
+          discount: updated.discount ?? 0,
+          total: updated.total ?? 0,
+          payment_details: updated.payment_details ?? "",
+          note: updated.note ?? "",
+          accept_payments: updated.accept_payments,
+          include_pdf: updated.include_pdf,
+          invoice_template: updated.invoice_template,
+          date_format: updated.date_format,
+          show_tax_column: updated.show_tax_column,
+          show_qty_column: updated.show_qty_column,
+          from_details: updated.from_details ?? null,
+          customer_details: updated.customer_details ?? null,
+          custom_fields: updated.custom_fields ?? [],
+          source_issue_date: updated.issue_date,
+          source_due_date: updated.due_date ?? null,
+          frequency: freq,
+          end_type: "never",
+          end_on_date: null,
+          end_after_count: null,
+          status: "active",
+          next_scheduled_at: new Date(nextDate + "T00:00:00Z").toISOString(),
+        });
+        const { error: linkError } = await supabase
+          .from("invoices")
+          .update({ invoice_recurring_id: series.id, recurring_sequence: 1 })
+          .eq("id", updated.id);
+        if (linkError) throw linkError;
+      } catch {
+        toast.warning("Invoice saved, but failed to set up recurring series. Contact support.");
+      }
+    }
   }
 
   const isSubmitting = updateMutation.isPending;
@@ -888,7 +1008,7 @@ export function EditInvoicePage() {
             showQtyColumn={invoiceSettings.showQtyColumn}
             customer={selectedCustomer}
             org={org}
-            logoUrl={invoiceSettings.logoUrl ?? null}
+            logoUrl={resolveDocumentLogo(invoiceSettings.logoUrl, org)}
             customFields={customFields}
           />
         </div>

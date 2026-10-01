@@ -235,17 +235,22 @@ function CategoryRow({
 }: CategoryRowProps) {
   const [deleting, setDeleting] = useState(false);
 
-  async function handleDelete() {
+  function handleDelete() {
     setDeleting(true);
-    try {
-      await deleteTransactionCategory(category.id, orgId);
-      onDeleted();
-      toast.success("Category deleted");
-    } catch (err) {
-      toast.error("Failed to delete category. Please try again.");
-    } finally {
-      setDeleting(false);
-    }
+    toast.promise(deleteTransactionCategory(category.id, orgId), {
+      loading: "Deleting category…",
+      success: () => {
+        onDeleted();
+        setDeleting(false);
+        return "Category deleted";
+      },
+      error: (err) => {
+        setDeleting(false);
+        return err instanceof Error ?
+            err.message
+          : "Failed to delete category. Please try again.";
+      },
+    });
   }
 
   async function handleColorChange(color: string) {

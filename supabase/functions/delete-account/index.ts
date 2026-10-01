@@ -23,6 +23,22 @@ Deno.serve(async (req) => {
   const { data: { user }, error: authError } = await userClient.auth.getUser()
   if (authError || !user) return json({ error: "Unauthorized" }, 401)
 
+  // Block deletion if the user is the sole active owner of any org that
+  // still has other active members — deleting them would leave that org
+  // ownerless. Uses the userClient (not adminClient) so auth.uid() inside
+  // the SECURITY DEFINER function resolves to this user, and reuses the
+  // exact same rule the UI checks before showing the delete dialog.
+  const { data: soleOwnerOrgs, error: soleOwnerError } = await userClient.rpc(
+    "get_sole_owner_shared_orgs",
+  )
+  if (soleOwnerError) {
+    console.error("delete-account: sole-owner check failed:", soleOwnerError.message)
+    return json({ error: "Internal server error" }, 500)
+  }
+  if (soleOwnerOrgs && soleOwnerOrgs.length > 0) {
+    return json({ error: "sole_owner", orgs: soleOwnerOrgs }, 409)
+  }
+
   const adminClient = createClient(
     Deno.env.get("SUPABASE_URL")!,
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,

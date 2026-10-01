@@ -1,14 +1,14 @@
 import { AbortTaskRunError, logger, task, tasks } from "@trigger.dev/sdk";
-import {
-  renderInvoicePdf,
-  renderQuotePdf,
-  renderStatementPdf,
-  type InvoicePdfRow,
-  type QuotePdfRow,
-  type StatementPdfRow,
-} from "@travada-books/pdf/server";
-import { buildStatementLedger, formatServerDate, resolveDateFnsPattern } from "@travada-books/pdf";
 import { supabase } from "../lib/supabase";
+import {
+  loadInvoiceForPdf,
+  loadQuoteForPdf,
+  loadStatementForPdf,
+  renderInvoiceBuffer,
+  renderQuoteBuffer,
+  renderStatementBuffer,
+  sanitizeFilenamePart,
+} from "../lib/document-pdf";
 import type { classifyDocumentTask } from "./classify-document";
 
 // Renders an invoice/quote/statement PDF server-side, stores it in the vault
@@ -20,8 +20,6 @@ import type { classifyDocumentTask } from "./classify-document";
 // customer_details / snapshot_data) — correct for anything that reaches this
 // task, since it's only ever invoked for documents that have already been
 // sent at least once (drafts don't have snapshots and are never emailed).
-
-const APP_URL = process.env.APP_URL ?? "https://books.travadasys.com";
 
 type DocumentKind = "invoice" | "quote" | "statement";
 
@@ -48,13 +46,6 @@ const TABLE_BY_KIND: Record<DocumentKind, "invoices" | "quotes" | "statements"> 
   quote: "quotes",
   statement: "statements",
 };
-
-// Storage paths embed the human-readable number/date range, which can
-// contain characters that don't belong in a storage key (spaces, slashes if
-// someone hand-edited an invoice number, etc).
-function sanitizeFilenamePart(value: string): string {
-  return value.replace(/[^A-Za-z0-9._-]+/g, "-").replace(/-+/g, "-").slice(0, 150) || "document";
-}
 
 async function postSendEmail(
   kind: DocumentKind,
@@ -178,15 +169,7 @@ async function hasExistingVaultDocument(filePath: string): Promise<boolean> {
 }
 
 async function generateInvoicePdf(invoiceId: string, sendEmail: boolean, runId: string) {
-  const { data: invoice, error } = await supabase
-    .from("invoices")
-    .select(
-      "id, org_id, user_id, token, invoice_number, currency, issue_date, due_date, line_items, subtotal, tax_amount, discount, total, note, payment_details, from_details, customer_details, customer_name, custom_fields",
-    )
-    .eq("id", invoiceId)
-    .single();
-
-  if (error || !invoice) throw new Error(`Invoice ${invoiceId} not found: ${error?.message ?? "no data"}`);
+  const invoice = await loadInvoiceForPdf(supabase, invoiceId);
 
   const filenameBase = sanitizeFilenamePart(invoice.invoice_number ?? invoice.id);
   const filePath = `${invoice.org_id}/invoices/${invoice.id}/${filenameBase}.pdf`;
@@ -194,9 +177,7 @@ async function generateInvoicePdf(invoiceId: string, sendEmail: boolean, runId: 
 
   logger.info("Rendering invoice PDF", { invoiceId, filePath });
 
-  const buffer = await renderInvoicePdf(invoice as InvoicePdfRow, {
-    publicUrl: invoice.token ? `${APP_URL}/i/${invoice.token}` : null,
-  });
+  const buffer = await renderInvoiceBuffer(invoice);
 
   const { error: uploadError } = await supabase.storage
     .from("vault")
@@ -232,15 +213,7 @@ async function generateInvoicePdf(invoiceId: string, sendEmail: boolean, runId: 
 }
 
 async function generateQuotePdf(quoteId: string, sendEmail: boolean, runId: string) {
-  const { data: quote, error } = await supabase
-    .from("quotes")
-    .select(
-      "id, org_id, user_id, token, quote_number, currency, issue_date, valid_until, line_items, subtotal, tax_amount, discount, total, note, from_details, customer_details, customer_name, custom_fields",
-    )
-    .eq("id", quoteId)
-    .single();
-
-  if (error || !quote) throw new Error(`Quote ${quoteId} not found: ${error?.message ?? "no data"}`);
+  const quote = await loadQuoteForPdf(supabase, quoteId);
 
   const filenameBase = sanitizeFilenamePart(quote.quote_number ?? quote.id);
   const filePath = `${quote.org_id}/quotes/${quote.id}/${filenameBase}.pdf`;
@@ -248,9 +221,7 @@ async function generateQuotePdf(quoteId: string, sendEmail: boolean, runId: stri
 
   logger.info("Rendering quote PDF", { quoteId, filePath });
 
-  const buffer = await renderQuotePdf(quote as QuotePdfRow, {
-    publicUrl: quote.token ? `${APP_URL}/q/${quote.token}` : null,
-  });
+  const buffer = await renderQuoteBuffer(quote);
 
   const { error: uploadError } = await supabase.storage
     .from("vault")
@@ -286,29 +257,7 @@ async function generateQuotePdf(quoteId: string, sendEmail: boolean, runId: stri
 }
 
 async function generateStatementPdf(statementId: string, sendEmail: boolean, runId: string) {
-  const { data: statement, error } = await supabase
-    .from("statements")
-    .select("id, org_id, token, date_from, date_to, notes, snapshot_data, from_details, customer_details, created_at")
-    .eq("id", statementId)
-    .single();
-
-  if (error || !statement) throw new Error(`Statement ${statementId} not found: ${error?.message ?? "no data"}`);
-
-  // No per-viewer profile in a server render — use the org's default
-  // invoice_templates.date_format (fallback to the same default the app
-  // uses). Statements share invoice_templates rather than having their own.
-  const { data: template } = await supabase
-    .from("invoice_templates")
-    .select("date_format")
-    .eq("org_id", statement.org_id)
-    .eq("is_default", true)
-    .maybeSingle();
-  const pattern = resolveDateFnsPattern((template?.date_format as string | undefined) ?? null);
-  const formatDate = (value: string) => formatServerDate(value, pattern);
-
-  const snapshot = Array.isArray(statement.snapshot_data) ? statement.snapshot_data : [];
-  const entries = buildStatementLedger(snapshot, { dateTo: statement.date_to, formatDate });
-  const currency = (snapshot[0] as { currency?: string } | undefined)?.currency ?? "KES";
+  const statement = await loadStatementForPdf(supabase, statementId);
 
   const filenameBase = sanitizeFilenamePart(`statement-${statement.date_from}-${statement.date_to}`);
   const filePath = `${statement.org_id}/statements/${statement.id}/${filenameBase}.pdf`;
@@ -316,20 +265,7 @@ async function generateStatementPdf(statementId: string, sendEmail: boolean, run
 
   logger.info("Rendering statement PDF", { statementId, filePath });
 
-  const row: StatementPdfRow = {
-    from_details: statement.from_details,
-    customer_details: statement.customer_details,
-    currency,
-    statementDate: formatDate(statement.created_at),
-    dateFrom: formatDate(statement.date_from),
-    dateTo: formatDate(statement.date_to),
-    entries,
-    notes: statement.notes,
-  };
-
-  const buffer = await renderStatementPdf(row, {
-    publicUrl: statement.token ? `${APP_URL}/s/${statement.token}` : null,
-  });
+  const buffer = await renderStatementBuffer(supabase, statement);
 
   const { error: uploadError } = await supabase.storage
     .from("vault")

@@ -69,6 +69,35 @@ export const markOverdue = schedules.task({
       totalUpdated += data?.length ?? 0;
     }
 
+    // Notify business owners about newly-overdue invoices. Non-fatal: never
+    // let this throw — invoices are already marked overdue by this point.
+    try {
+      const notifyRes = await fetch(
+        `${process.env.SUPABASE_URL}/functions/v1/notify-invoice-overdue`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
+            "X-Worker-Secret": process.env.WORKER_SHARED_SECRET!,
+          },
+          body: JSON.stringify({}),
+        }
+      );
+
+      if (!notifyRes.ok) {
+        const body = await notifyRes.text().catch(() => "");
+        logger.warn("Mark overdue: overdue notification failed (non-fatal)", {
+          status: notifyRes.status,
+          body,
+        });
+      }
+    } catch (notifyErr) {
+      logger.warn("Mark overdue: overdue notification threw (non-fatal)", {
+        error: String(notifyErr),
+      });
+    }
+
     logger.log("Mark overdue: complete", { updated: totalUpdated });
     return { updated: totalUpdated };
   },

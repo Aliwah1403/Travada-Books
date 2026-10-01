@@ -49,6 +49,12 @@ import {
   type Quote,
 } from "@/lib/queries/quotes";
 import { getCustomer } from "@/lib/queries/customers";
+import { getOrgInvoiceTemplate } from "@/lib/queries/invoice-templates";
+import {
+  resolveDocumentLogo,
+  buildFromDetailsSnapshot,
+  buildCustomerDetailsSnapshot,
+} from "@/lib/document-snapshots";
 import { supabase } from "@/lib/supabase";
 import type { Invoice } from "@/lib/queries/invoices";
 import { InvoicePdf, buildQuoteDocumentData } from "@travada-books/pdf";
@@ -57,6 +63,7 @@ import { parseCustomFields } from "@/lib/custom-fields";
 import { CustomFieldsPreview } from "@/components/invoices/custom-fields";
 import { EmailDeliveryNotice } from "@/components/shared/email-delivery-notice";
 import { formatCurrency } from "@/lib/format";
+import { isQuoteEditable } from "@/components/quotes/quote-utils";
 
 function DetailRow({ label, value }: { label: string; value: string }) {
   return (
@@ -170,6 +177,15 @@ export function QuoteDetailPage() {
     enabled: !!quote?.customer_id && !!orgId,
   });
 
+  // Quotes have no logo setting of their own — the invoice template's logo
+  // is the shared source (see resolveDocumentLogo in document-snapshots.ts).
+  const { data: invoiceTemplate } = useQuery({
+    queryKey: ["invoice-template", orgId],
+    queryFn: () => getOrgInvoiceTemplate(orgId!),
+    enabled: !!orgId,
+  });
+  const logoUrl = resolveDocumentLogo(invoiceTemplate?.logoUrl, org);
+
   // Fetch linked invoice if accepted
   const { data: linkedInvoice } = useQuery({
     queryKey: ["invoice-by-quote", id],
@@ -200,18 +216,8 @@ export function QuoteDetailPage() {
       await sendQuote(
         quote.id,
         orgId,
-        {
-          name: org.name,
-          logo_url: org.logo_url ?? null,
-          address_line1: org.address_line1 ?? null,
-          address_line2: org.address_line2 ?? null,
-          city: org.city ?? null,
-          country_code: org.country_code ?? null,
-          phone: org.phone ?? null,
-          email: org.email ?? null,
-          tax_id: org.tax_id ?? null,
-        },
-        {
+        buildFromDetailsSnapshot(org, logoUrl),
+        buildCustomerDetailsSnapshot({
           name: customer?.name ?? quote.customer_name ?? "",
           email: customer?.email ?? null,
           billing_email: customer?.billing_email ?? null,
@@ -221,7 +227,7 @@ export function QuoteDetailPage() {
           city: customer?.city ?? null,
           zip: customer?.zip ?? null,
           country: customer?.country ?? null,
-        },
+        }),
         channel,
         quote.sent_at,
       );
@@ -322,7 +328,7 @@ export function QuoteDetailPage() {
     try {
       const from = (quote.from_details ?? {}) as Record<string, string | null>;
       const customerSnap = (quote.customer_details ?? {}) as Record<string, string | null>;
-      const rawLogoUrl = from["logo_url"] ?? org?.logo_url ?? null;
+      const rawLogoUrl = from["logo_url"] ?? logoUrl;
       const logoDataUrl = rawLogoUrl ? await urlToDataUrl(rawLogoUrl).catch(() => null) : null;
       const documentData = buildQuoteDocumentData(quote, {
         from: {
@@ -448,10 +454,7 @@ export function QuoteDetailPage() {
 
   const quoteUrl = `${window.location.origin}/q/${quote.token}`;
   // Accepted and expired are fully terminal. Declined can be revised and resent.
-  const isTerminal =
-    quote.status === "accepted" || quote.status === "expired";
-  const isEditable =
-    quote.status === "draft" || quote.status === "declined";
+  const isEditable = isQuoteEditable(quote.status);
 
   function handleCopyLink() {
     navigator.clipboard.writeText(quoteUrl);
@@ -634,10 +637,10 @@ export function QuoteDetailPage() {
             {/* Letterhead */}
             <div className='flex items-start justify-between'>
               <div>
-                {org?.logo_url ?
+                {logoUrl ?
                   <img
-                    src={org.logo_url}
-                    alt={org.name}
+                    src={logoUrl}
+                    alt={org?.name}
                     className='h-9 w-auto max-w-[140px] object-contain'
                   />
                 : <div className='flex size-9 items-center justify-center rounded-lg bg-foreground text-background text-xs font-bold'>

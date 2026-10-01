@@ -45,6 +45,20 @@ export type ClassicDocumentData = {
   paymentDetails?: string | null;
   publicUrl?: string | null;
   customFields?: CustomField[] | null;
+  // Org/invoice `date_format` setting (e.g. "DD/MM/YYYY") — resolved to a
+  // date-fns pattern via resolveDateFnsPattern (ledger.ts). Quotes have no
+  // such setting and leave this undefined, which resolves to the same
+  // dd/MM/yyyy default as before.
+  dateFormat?: string | null;
+  // Org/invoice `show_tax_column` / `show_qty_column` settings. Quotes and
+  // any invoice row saved before these settings existed leave both
+  // undefined/null, which must render exactly as before this feature: both
+  // columns shown.
+  showTaxColumn?: boolean | null;
+  showQtyColumn?: boolean | null;
+  // Invoice status, used only to show a CANCELED marker near the title.
+  // Quotes never set this — leave it undefined to stay unaffected.
+  status?: string | null;
 };
 
 export type LedgerEntry = {
@@ -66,4 +80,7 @@ export type StatementPdfData = {
   entries: LedgerEntry[];
   notes: string | null;
   publicUrl: string | null;
+  /** Balance carried in from before the statement period. 0 for legacy
+   * statements generated before opening balances existed. */
+  openingBalance: number;
 };

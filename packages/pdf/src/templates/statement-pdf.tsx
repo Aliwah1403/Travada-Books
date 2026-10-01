@@ -35,10 +35,11 @@ function StatementPdfContent({ data }: { data: StatementPdfData }) {
     entries,
     notes,
     publicUrl,
+    openingBalance,
   } = data;
   const totalDebits = entries.reduce((s, e) => s + e.debit, 0);
   const totalCredits = entries.reduce((s, e) => s + e.credit, 0);
-  const closingBalance = totalDebits - totalCredits;
+  const closingBalance = openingBalance + totalDebits - totalCredits;
   const customerEmail = customer.billing_email ?? customer.email;
 
   const styles = StyleSheet.create({
@@ -172,7 +173,7 @@ function StatementPdfContent({ data }: { data: StatementPdfData }) {
               <TableCell>—</TableCell>
               <TableCell align='right'>—</TableCell>
               <TableCell align='right'>—</TableCell>
-              <TableCell align='right'>{fmtAmt(0, currency)}</TableCell>
+              <TableCell align='right'>{fmtAmt(openingBalance, currency)}</TableCell>
             </TableRow>
             {entries.map((entry, i) => (
               // biome-ignore lint/suspicious/noArrayIndexKey: ledger entries have no stable id

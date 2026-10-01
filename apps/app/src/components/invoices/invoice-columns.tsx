@@ -173,6 +173,7 @@ export const invoiceColumns: ColumnDef<Invoice>[] = [
         currency={row.original.currency}
         total={row.original.amount}
         amountPaid={row.original.amountPaid}
+        dueDate={row.original.dueDateRaw}
       />
     ),
   },

@@ -18,6 +18,9 @@ export interface BuildStatementDocumentDataOpts {
   entries: LedgerEntry[];
   notes: string | null;
   publicUrl?: string | null;
+  /** Balance carried in from before the statement period. Defaults to 0 —
+   * every legacy statement (and any caller that hasn't been updated yet). */
+  openingBalance?: number;
 }
 
 export function buildStatementDocumentData(
@@ -33,5 +36,6 @@ export function buildStatementDocumentData(
     entries: opts.entries,
     notes: opts.notes,
     publicUrl: opts.publicUrl ?? null,
+    openingBalance: opts.openingBalance ?? 0,
   };
 }

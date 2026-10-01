@@ -58,6 +58,11 @@ import { toRateColumns } from "@/lib/document-totals";
 import { supabase } from "@/lib/supabase";
 import { CustomFieldsEditor, type CustomField } from "@/components/invoices/custom-fields";
 import { normalizeCustomFields, fieldsFromLabels } from "@/lib/custom-fields";
+import {
+  resolveDocumentLogo,
+  buildFromDetailsSnapshot,
+  buildCustomerDetailsSnapshot,
+} from "@/lib/document-snapshots";
 
 export function CreateQuotePage() {
   const navigate = useNavigate();
@@ -110,7 +115,7 @@ export function CreateQuotePage() {
     queryFn: () => getOrgInvoiceTemplate(orgId!),
     enabled: !!orgId,
   });
-  const logoUrl = invoiceTemplate?.logoUrl ?? null;
+  const logoUrl = resolveDocumentLogo(invoiceTemplate?.logoUrl, org);
 
   const [quoteSettingsOpen, setQuoteSettingsOpen] = useState(false);
   const [quoteSettings, setQuoteSettings] =
@@ -211,32 +216,11 @@ export function CreateQuotePage() {
       ...(isSend && { sent_at: new Date().toISOString(), sent_via: "email" }),
       ...(isSend &&
         org && {
-          from_details: {
-            name: org.name,
-            logo_url: logoUrl,
-            address_line1: org.address_line1 ?? null,
-            address_line2: org.address_line2 ?? null,
-            city: org.city ?? null,
-            zip: org.zip ?? null,
-            country_code: org.country_code ?? null,
-            phone: org.phone ?? null,
-            email: org.email ?? null,
-            tax_id: org.tax_id ?? null,
-          },
+          from_details: buildFromDetailsSnapshot(org, logoUrl),
         }),
       ...(isSend &&
         selectedCustomer && {
-          customer_details: {
-            name: selectedCustomer.name,
-            email: selectedCustomer.email ?? null,
-            billing_email: selectedCustomer.billing_email ?? null,
-            phone: selectedCustomer.phone ?? null,
-            address_line1: selectedCustomer.address_line1 ?? null,
-            address_line2: selectedCustomer.address_line2 ?? null,
-            city: selectedCustomer.city ?? null,
-            zip: selectedCustomer.zip ?? null,
-            country: selectedCustomer.country ?? null,
-          },
+          customer_details: buildCustomerDetailsSnapshot(selectedCustomer),
         }),
     };
   }

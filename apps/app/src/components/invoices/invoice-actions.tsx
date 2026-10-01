@@ -26,12 +26,15 @@ import {
   createInvoice,
   getNextInvoiceNumber,
   deleteInvoice,
+  updateInvoice,
+  reopenInvoiceStatus,
 } from "@/lib/queries/invoices";
 import { createInvoicePayment } from "@/lib/queries/payments";
 import { updateInvoiceRecurringStatus } from "@/lib/queries/invoice-recurring";
 import { useAuth } from "@/contexts/auth-context";
 import { useInvalidateAfterPaymentChange } from "@/hooks/use-invalidate-payment-queries";
 import { supabase } from "@/lib/supabase";
+import { notifyInvoicePaid } from "@/lib/notify-invoice-paid";
 import { toast } from "sonner";
 import { trackEvent, LogEvents } from "@/lib/analytics";
 
@@ -45,6 +48,7 @@ type InvoiceActionsProps = {
   currency?: string;
   total?: number;
   amountPaid?: number;
+  dueDate?: string | null;
 };
 
 export function InvoiceActions({
@@ -57,6 +61,7 @@ export function InvoiceActions({
   currency,
   total,
   amountPaid,
+  dueDate,
 }: InvoiceActionsProps) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -64,12 +69,14 @@ export function InvoiceActions({
   const invalidateAfterPaymentChange = useInvalidateAfterPaymentChange();
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [cancelSeriesOpen, setCancelSeriesOpen] = useState(false);
+  const [cancelInvoiceOpen, setCancelInvoiceOpen] = useState(false);
   const [recordPaymentOpen, setRecordPaymentOpen] = useState(false);
   const balanceDue = (total ?? 0) - (amountPaid ?? 0);
+  const hasRecordedPayments = (amountPaid ?? 0) > 0;
 
   async function handleDuplicate() {
     const invoice = await getInvoice(invoiceId);
-    const nextNumber = await getNextInvoiceNumber(orgId!, invoice.customer_id!);
+    const nextNumber = await getNextInvoiceNumber(orgId!);
     return createInvoice({
       org_id: orgId!,
       user_id: user!.id,
@@ -247,27 +254,7 @@ export function InvoiceActions({
                         });
                         invalidate();
                         invalidateAfterPaymentChange(invoiceId);
-                        supabase.functions
-                          .invoke("notify-invoice-paid", {
-                            body: { invoiceId },
-                          })
-                          .then((res) => {
-                            if (res.error) {
-                              console.error(
-                                "notify-invoice-paid failed:",
-                                res.error,
-                              );
-                              toast.warning(
-                                "Invoice marked as paid, but the notification email failed to send.",
-                              );
-                            }
-                          })
-                          .catch((err) => {
-                            console.error("notify-invoice-paid failed:", err);
-                            toast.warning(
-                              "Invoice marked as paid, but the notification email failed to send.",
-                            );
-                          });
+                        notifyInvoicePaid(invoiceId);
                       }),
                       {
                         loading: "Marking as paid…",
@@ -328,6 +315,43 @@ export function InvoiceActions({
           >
             Copy link
           </DropdownMenuItem>
+          {(status === "unpaid" ||
+            status === "overdue" ||
+            status === "scheduled") && (
+            <DropdownMenuItem
+              className='text-destructive focus:text-destructive'
+              disabled={hasRecordedPayments}
+              title={
+                hasRecordedPayments ?
+                  "Remove recorded payments first"
+                : undefined
+              }
+              onClick={() => setCancelInvoiceOpen(true)}
+            >
+              Cancel invoice
+            </DropdownMenuItem>
+          )}
+          {status === "canceled" && (
+            <DropdownMenuItem
+              onClick={() => {
+                toast.promise(
+                  updateInvoice(invoiceId, orgId!, {
+                    status: reopenInvoiceStatus({
+                      due_date: dueDate ?? null,
+                      amount_paid: amountPaid ?? 0,
+                    }),
+                  }).then(invalidate),
+                  {
+                    loading: "Reopening invoice…",
+                    success: "Invoice reopened",
+                    error: "Failed to reopen invoice",
+                  },
+                );
+              }}
+            >
+              Reopen invoice
+            </DropdownMenuItem>
+          )}
           <DropdownMenuSeparator />
           <DropdownMenuItem
             className='text-destructive focus:text-destructive'
@@ -337,6 +361,40 @@ export function InvoiceActions({
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
+
+      <AlertDialog open={cancelInvoiceOpen} onOpenChange={setCancelInvoiceOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Cancel invoice {invoiceNumber ?? ""}?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              The customer's link will show it as canceled. No email is sent.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep invoice</AlertDialogCancel>
+            <Button
+              variant='destructive'
+              onClick={() => {
+                setCancelInvoiceOpen(false);
+                toast.promise(
+                  updateInvoice(invoiceId, orgId!, { status: "canceled" }).then(
+                    invalidate,
+                  ),
+                  {
+                    loading: "Canceling invoice…",
+                    success: "Invoice canceled",
+                    error: "Failed to cancel invoice",
+                  },
+                );
+              }}
+            >
+              Cancel invoice
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <AlertDialogContent>

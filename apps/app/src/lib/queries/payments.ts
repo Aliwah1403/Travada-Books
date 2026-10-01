@@ -57,6 +57,23 @@ export async function listInvoicePayments(invoiceId: string): Promise<InvoicePay
   return data ?? []
 }
 
+// Every payment on a given set of invoices, org-scoped. Used to build a
+// customer statement's ledger: opening balance and in-period credit rows both
+// need real payment dates, not just an invoice's rolled-up amount_paid — see
+// generate-statement-sheet.tsx.
+export async function listPaymentsForInvoices(invoiceIds: string[], orgId: string): Promise<InvoicePayment[]> {
+  if (invoiceIds.length === 0) return []
+  const { data, error } = await supabase
+    .from("invoice_payments")
+    .select(PAYMENT_SELECT)
+    .in("invoice_id", invoiceIds)
+    .eq("org_id", orgId)
+    .order("paid_at", { ascending: true })
+
+  if (error) throw error
+  return data ?? []
+}
+
 export async function createInvoicePayment(input: InvoicePaymentInput): Promise<InvoicePayment> {
   const { data, error } = await supabase
     .from("invoice_payments")
