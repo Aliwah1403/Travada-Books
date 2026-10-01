@@ -25,7 +25,7 @@ export const colors = {
 const font =
   "ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
 
-const APP_URL = "https://books.travadasys.com";
+const APP_URL = "https://app.travadabooks.com";
 const LOGO_URL =
   "https://res.cloudinary.com/dzycxaapd/image/upload/v1737289263/Travada%20Assets/j1wpxmua29jwj3dfaw6u.svg";
 
@@ -203,7 +203,7 @@ function Footer() {
             </td>
             <td style={{ verticalAlign: "top", width: "50%" }}>
               <Text style={headingStyle}>Company</Text>
-              <Link href='https://travadasys.com' style={linkStyle}>
+              <Link href='https://travadabooks.com' style={linkStyle}>
                 Website
               </Link>
               <Link href={`${APP_URL}/privacy`} style={linkStyle}>

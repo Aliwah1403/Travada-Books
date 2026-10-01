@@ -20,7 +20,7 @@ function getSupabase() {
   );
 }
 
-const FROM_EMAIL = "noreply@mail.travadasys.com";
+const FROM_EMAIL = process.env.FROM_EMAIL ?? "noreply@mail.travadasys.com";
 // Export-on-delete links always get the long window — by the time the owner
 // gets around to downloading, the org is already gone.
 const EXPORT_EXPIRES_IN_DAYS = 30;

@@ -23,7 +23,7 @@ export default function InvoiceOverdueAlertEmail({
   total = 65000,
   amountPaid = null,
   currency = "KES",
-  viewUrl = "https://books.travadasys.com/invoices/demo",
+  viewUrl = "https://app.travadabooks.com/invoices/demo",
 }: Partial<Props>) {
   const font =
     "ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";

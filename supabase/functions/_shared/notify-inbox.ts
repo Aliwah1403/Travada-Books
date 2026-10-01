@@ -2,7 +2,7 @@ import { db } from "./db.ts"
 import { triggerNovu } from "./novu.ts"
 import { shouldSend } from "./notification-prefs.ts"
 
-const APP_URL = Deno.env.get("APP_URL") ?? "https://books.travadasys.com"
+const APP_URL = Deno.env.get("APP_URL") ?? "https://app.travadabooks.com"
 
 export type InboxEvent =
   | "inbox.new"

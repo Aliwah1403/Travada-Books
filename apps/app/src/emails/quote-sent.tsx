@@ -31,7 +31,7 @@ export default function QuoteSentEmail({
   validUntil = "2025-05-31",
   total = 120000,
   currency = "KES",
-  publicUrl = "https://books.travadasys.com/q/demo",
+  publicUrl = "https://app.travadabooks.com/q/demo",
   note = null,
 }: Partial<Props>) {
   const font =

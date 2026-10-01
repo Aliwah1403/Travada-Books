@@ -104,7 +104,7 @@ export default function SubscriptionCancelledEmail({
       >
         Changed your mind?{" "}
         <Link
-          href="https://books.travadasys.com/settings/billing"
+          href="https://app.travadabooks.com/settings/billing"
           style={{ color: colors.muted, textDecorationLine: "underline" }}
         >
           Reactivate your subscription

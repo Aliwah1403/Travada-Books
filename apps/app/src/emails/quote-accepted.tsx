@@ -17,7 +17,7 @@ export default function QuoteAcceptedEmail({
   customerName = "John Doe",
   total = 120000,
   currency = "KES",
-  viewUrl = "https://books.travadasys.com/quotes/demo",
+  viewUrl = "https://app.travadabooks.com/quotes/demo",
 }: Partial<Props>) {
   const font =
     "ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";

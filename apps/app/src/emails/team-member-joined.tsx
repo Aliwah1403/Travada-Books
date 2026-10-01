@@ -15,7 +15,7 @@ export default function TeamMemberJoinedEmail({
   memberEmail = "jane@example.com",
   role = "Accountant",
   orgName = "Acme Ltd",
-  settingsUrl = "https://books.travadasys.com/settings/team",
+  settingsUrl = "https://app.travadabooks.com/settings/team",
 }: Partial<Props>) {
   const font =
     "ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";

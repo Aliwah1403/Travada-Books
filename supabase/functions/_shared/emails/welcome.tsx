@@ -3,7 +3,7 @@ import { Text, Link, Section, Row, Column, Hr } from "../email-components.ts"
 import { EmailLayout, colors } from "../email-layout.tsx"
 
 const font = "ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
-const APP_URL = "https://books.travadasys.com"
+const APP_URL = "https://app.travadabooks.com"
 
 interface Props {
   firstName?: string

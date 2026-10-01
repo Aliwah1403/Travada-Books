@@ -13,7 +13,7 @@ interface Props {
 const font =
   "ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
 
-const APP_URL = "https://books.travadasys.com";
+const APP_URL = "https://app.travadabooks.com";
 
 const TRANSACTIONS_IMG =
   "https://res.cloudinary.com/dzycxaapd/image/upload/v1782981469/transactions-hero_dl5m0n.png";

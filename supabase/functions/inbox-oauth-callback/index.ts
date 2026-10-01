@@ -7,7 +7,7 @@
 // encoded in `state`, which is what actually closes the CSRF hole — nothing
 // security-sensitive happens in this function anymore.
 
-const APP_URL = Deno.env.get("APP_URL") ?? "https://books.travadasys.com"
+const APP_URL = Deno.env.get("APP_URL") ?? "https://app.travadabooks.com"
 
 Deno.serve((req) => {
   const params = new URL(req.url).searchParams

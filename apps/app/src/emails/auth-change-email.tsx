@@ -9,7 +9,7 @@ interface Props {
 
 export default function AuthChangeEmailEmail({
   newEmail = "jane-new@example.com",
-  confirmationUrl = "https://books.travadasys.com",
+  confirmationUrl = "https://app.travadabooks.com",
 }: Partial<Props>) {
   const font =
     "ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";

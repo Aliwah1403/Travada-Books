@@ -3,7 +3,7 @@ export const SITE_URL = "https://travadabooks.com"
 
 // Switch to https://app.travadabooks.com once the app domain move (see
 // WEBSITE-PLAN.md §11) lands.
-export const APP_URL = "https://books.travadasys.com"
+export const APP_URL = "https://app.travadabooks.com"
 
 export const CONTACT_EMAIL = "info@travadabooks.com"
 

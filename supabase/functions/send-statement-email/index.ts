@@ -7,7 +7,7 @@ import { StatementSentEmail } from "../_shared/emails/statement-sent.tsx"
 import { downloadPdfAttachment } from "../_shared/pdf-attachment.ts"
 import { setEmailStatus } from "../_shared/email-status.ts"
 
-const APP_URL = Deno.env.get("APP_URL") ?? "https://books.travadasys.com"
+const APP_URL = Deno.env.get("APP_URL") ?? "https://app.travadabooks.com"
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",

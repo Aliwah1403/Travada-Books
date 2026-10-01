@@ -86,7 +86,7 @@ export default function TrialExpiringEmail({
       </Text>
 
       {/* CTA */}
-      <OutlinedButton href="https://books.travadasys.com/settings/billing">
+      <OutlinedButton href="https://app.travadabooks.com/settings/billing">
         Subscribe Now
       </OutlinedButton>
 
@@ -104,7 +104,7 @@ export default function TrialExpiringEmail({
         If you choose not to subscribe, your account will be locked after your
         trial ends. You can manage your plan anytime from your{" "}
         <Link
-          href="https://books.travadasys.com/settings/billing"
+          href="https://app.travadabooks.com/settings/billing"
           style={{ color: colors.muted, textDecorationLine: "underline" }}
         >
           billing settings

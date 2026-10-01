@@ -119,7 +119,7 @@ export default function TrialStartedEmail({
       </Text>
 
       {/* CTA */}
-      <OutlinedButton href="https://books.travadasys.com">
+      <OutlinedButton href="https://app.travadabooks.com">
         Start Invoicing
       </OutlinedButton>
     </EmailLayout>

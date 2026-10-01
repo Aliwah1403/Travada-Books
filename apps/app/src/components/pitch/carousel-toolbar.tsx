@@ -27,7 +27,7 @@ import {
 
 import { CopyInput } from "./copy-input"
 
-const PITCH_URL = "https://books.travadasys.com/pitch"
+const PITCH_URL = "https://app.travadabooks.com/pitch"
 
 export function CarouselToolbar() {
   const { api, canScrollPrev, canScrollNext, scrollPrev, scrollNext } = useCarousel()

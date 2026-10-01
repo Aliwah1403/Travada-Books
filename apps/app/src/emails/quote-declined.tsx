@@ -19,7 +19,7 @@ export default function QuoteDeclinedEmail({
   total = 120000,
   currency = "KES",
   declineReason = "The budget was revised and we're unable to proceed at this time.",
-  viewUrl = "https://books.travadasys.com/quotes/demo",
+  viewUrl = "https://app.travadabooks.com/quotes/demo",
 }: Partial<Props>) {
   const font =
     "ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";

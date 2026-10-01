@@ -416,7 +416,7 @@ export function PublicStatementPage() {
           <p className='text-center text-[10px] text-muted-foreground'>
             Powered by{" "}
             <a
-              href='https://travadasys.com'
+              href='https://travadabooks.com'
               className='underline underline-offset-2'
               target='_blank'
               rel='noreferrer'

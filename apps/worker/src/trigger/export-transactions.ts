@@ -24,7 +24,7 @@ function getSupabase() {
   );
 }
 
-const FROM_EMAIL = "noreply@mail.travadasys.com";
+const FROM_EMAIL = process.env.FROM_EMAIL ?? "noreply@mail.travadasys.com";
 
 type TransactionRow = TransactionExportRow;
 

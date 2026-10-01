@@ -15,7 +15,7 @@ export default function RecurringPausedEmail({
   frequency = "monthly",
   failureCount = 3,
   reason = "Failed to get next invoice number: duplicate invoice number",
-  viewUrl = "https://books.travadasys.com/invoices",
+  viewUrl = "https://app.travadabooks.com/invoices",
 }: Partial<Props>) {
   const font =
     "ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";

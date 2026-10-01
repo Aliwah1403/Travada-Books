@@ -7,7 +7,7 @@ import { triggerNovu } from "../_shared/novu.ts"
 import { shouldSend } from "../_shared/notification-prefs.ts"
 import { TeamMemberJoinedEmail } from "../_shared/emails/team-member-joined.tsx"
 
-const APP_URL = Deno.env.get("APP_URL") ?? "https://books.travadasys.com"
+const APP_URL = Deno.env.get("APP_URL") ?? "https://app.travadabooks.com"
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",

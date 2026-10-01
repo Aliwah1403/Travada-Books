@@ -30,7 +30,7 @@ export default function InvoiceSentEmail({
   dueDate = "2025-05-31",
   total = 120000,
   currency = "KES",
-  publicUrl = "https://books.travadasys.com/i/demo",
+  publicUrl = "https://app.travadabooks.com/i/demo",
 }: Partial<Props>) {
   const font =
     "ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";

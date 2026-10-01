@@ -5,7 +5,7 @@ import { db } from "../_shared/db.ts"
 import { getCallerOrgId } from "../_shared/auth.ts"
 import { InvoiceReminderEmail } from "../_shared/emails/invoice-reminder.tsx"
 
-const APP_URL = Deno.env.get("APP_URL") ?? "https://books.travadasys.com"
+const APP_URL = Deno.env.get("APP_URL") ?? "https://app.travadabooks.com"
 const WORKER_SHARED_SECRET = Deno.env.get("WORKER_SHARED_SECRET") ?? ""
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
 

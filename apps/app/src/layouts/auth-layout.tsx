@@ -38,7 +38,7 @@ export function AuthLayout() {
           <p className="mt-8 text-xs text-muted-foreground">
             Powered by{" "}
             <a
-              href="https://travadasys.com"
+              href="https://travadabooks.com"
               className="underline underline-offset-4 fine-hover:text-foreground"
               target="_blank"
               rel="noreferrer"

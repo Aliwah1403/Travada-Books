@@ -13,7 +13,7 @@ interface Props {
 const font =
   "ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
 
-const APP_URL = "https://books.travadasys.com";
+const APP_URL = "https://app.travadabooks.com";
 
 const paragraphStyle = {
   margin: "0 0 16px",
@@ -28,7 +28,7 @@ export default function DashboardInboxLaunchEmail({
   dashboardUrl = `${APP_URL}/`,
   inboxUrl = `${APP_URL}/inbox`,
   pitchUrl = `${APP_URL}/pitch`,
-  unsubscribeUrl = "https://books.travadasys.com/unsubscribe",
+  unsubscribeUrl = "https://app.travadabooks.com/unsubscribe",
 }: Partial<Props>) {
   return (
     <EmailLayout

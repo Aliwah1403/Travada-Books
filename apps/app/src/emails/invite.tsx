@@ -13,7 +13,7 @@ export default function InviteEmail({
   invitedEmail = "jane@example.com",
   inviterName = "Curtis Aliwah",
   orgName = "Acme Ltd",
-  acceptUrl = "https://books.travadasys.com/onboarding/invite",
+  acceptUrl = "https://app.travadabooks.com/onboarding/invite",
 }: Partial<Props>) {
   const font =
     "ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";

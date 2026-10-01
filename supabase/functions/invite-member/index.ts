@@ -7,7 +7,7 @@ import { shouldSend } from "../_shared/notification-prefs.ts"
 import { InviteEmail } from "../_shared/emails/invite.tsx"
 import { TeamMemberInvitedEmail } from "../_shared/emails/team-member-invited.tsx"
 
-const APP_URL = Deno.env.get("APP_URL") ?? "https://books.travadasys.com"
+const APP_URL = Deno.env.get("APP_URL") ?? "https://app.travadabooks.com"
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",

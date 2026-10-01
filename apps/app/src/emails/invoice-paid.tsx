@@ -17,7 +17,7 @@ export default function InvoicePaidEmail({
   customerName = "Callfast Services LTD",
   total = 120000,
   currency = "KES",
-  viewUrl = "https://books.travadasys.com/invoices/demo",
+  viewUrl = "https://app.travadabooks.com/invoices/demo",
 }: Partial<Props>) {
   const font =
     "ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";

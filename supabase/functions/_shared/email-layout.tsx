@@ -15,7 +15,7 @@ export { Hr }
 
 const font = "ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
 
-const APP_URL = "https://books.travadasys.com"
+const APP_URL = "https://app.travadabooks.com"
 const LOGO_URL = "https://res.cloudinary.com/dzycxaapd/image/upload/v1737289263/Travada%20Assets/j1wpxmua29jwj3dfaw6u.svg"
 
 export function formatMoney(amount: number | null, currency: string) {
@@ -89,7 +89,7 @@ export function EmailLayout({ preview, orgName, orgLogoUrl, children }: EmailLay
                   </td>
                   <td style={{ verticalAlign: "top", width: "50%" }}>
                     <Text style={{ margin: "0 0 14px", fontSize: 13, fontWeight: 600, color: colors.dark, fontFamily: font }}>Company</Text>
-                    <Link href="https://travadasys.com" style={{ fontSize: 13, color: colors.muted, textDecoration: "none", display: "block", marginBottom: 10, fontFamily: font }}>Website</Link>
+                    <Link href="https://travadabooks.com" style={{ fontSize: 13, color: colors.muted, textDecoration: "none", display: "block", marginBottom: 10, fontFamily: font }}>Website</Link>
                     <Link href={`${APP_URL}/privacy`} style={{ fontSize: 13, color: colors.muted, textDecoration: "none", display: "block", marginBottom: 10, fontFamily: font }}>Privacy policy</Link>
                     <Link href={`${APP_URL}/terms`} style={{ fontSize: 13, color: colors.muted, textDecoration: "none", display: "block", marginBottom: 10, fontFamily: font }}>Terms of service</Link>
                   </td>

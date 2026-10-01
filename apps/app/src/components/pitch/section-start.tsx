@@ -26,7 +26,7 @@ export function SectionStart() {
         </p>
       </div>
 
-      <span className="text-sm text-muted-foreground">books.travadasys.com</span>
+      <span className="text-sm text-muted-foreground">app.travadabooks.com</span>
     </div>
   )
 }

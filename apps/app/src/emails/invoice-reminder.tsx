@@ -36,7 +36,7 @@ export default function InvoiceReminderEmail({
   total = 65000,
   amountPaid = null,
   currency = "KES",
-  publicUrl = "https://books.travadasys.com/i/demo",
+  publicUrl = "https://app.travadabooks.com/i/demo",
 }: Partial<Props>) {
   const font =
     "ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";

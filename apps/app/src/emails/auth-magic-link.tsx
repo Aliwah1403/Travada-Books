@@ -9,7 +9,7 @@ interface Props {
 
 export default function AuthMagicLinkEmail({
   email = "jane@example.com",
-  magicLinkUrl = "https://books.travadasys.com",
+  magicLinkUrl = "https://app.travadabooks.com",
 }: Partial<Props>) {
   const font =
     "ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";

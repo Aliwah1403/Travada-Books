@@ -30,7 +30,7 @@ export default function StatementSentEmail({
   dateTo = "2025-05-31",
   totalOwing = 215000,
   currency = "KES",
-  publicUrl = "https://books.travadasys.com/s/demo",
+  publicUrl = "https://app.travadabooks.com/s/demo",
 }: Partial<Props>) {
   const font =
     "ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";

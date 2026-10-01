@@ -14,7 +14,7 @@ export function SectionBook() {
         Start free. Today.
       </h2>
       <p className="mt-6 max-w-md text-base text-muted-foreground md:text-lg">
-        books.travadasys.com
+        app.travadabooks.com
       </p>
 
       <div className="mt-10 flex flex-wrap items-center justify-center gap-4">

@@ -9,7 +9,7 @@ interface Props {
 
 export default function UpcomingInvoicesEmail({
   count = 3,
-  viewUrl = "https://books.travadasys.com/invoices?recurring=true",
+  viewUrl = "https://app.travadabooks.com/invoices?recurring=true",
 }: Partial<Props>) {
   const font =
     "ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";

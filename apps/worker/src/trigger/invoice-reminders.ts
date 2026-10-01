@@ -5,8 +5,8 @@ import { Resend } from "resend";
 import { supabase } from "../lib/supabase";
 import { InvoiceReminderEmail } from "../emails/invoice-reminder";
 
-const FROM_EMAIL = "noreply@mail.travadasys.com";
-const APP_URL = process.env.APP_URL ?? "https://books.travadasys.com";
+const FROM_EMAIL = process.env.FROM_EMAIL ?? "noreply@mail.travadasys.com";
+const APP_URL = process.env.APP_URL ?? "https://app.travadabooks.com";
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;

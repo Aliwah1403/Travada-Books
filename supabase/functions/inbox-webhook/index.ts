@@ -64,7 +64,7 @@ const MAX_ATTACHMENT_BYTES = 25 * 1024 * 1024 // 25MB
 // Addresses this system sends FROM — if a bounce/auto-reply/loop ever routes
 // one of our own outbound emails back into the inbound webhook, drop it
 // rather than re-ingesting it as an attachment.
-const OWN_SEND_DOMAINS = new Set(["mail.travadasys.com"])
+const OWN_SEND_DOMAINS = new Set(["mail.travadasys.com", "mail.travadabooks.com"])
 const GOOGLE_FORWARDING_CONFIRMATION_SENDER = "forwarding-noreply@google.com"
 
 // ── Helpers ──────────────────────────────────────────────────────────────

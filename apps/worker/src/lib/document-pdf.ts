@@ -18,7 +18,7 @@ import {
 } from "@travada-books/pdf/server";
 import { buildStatementLedger, formatServerDate, resolveDateFnsPattern } from "@travada-books/pdf";
 
-export const APP_URL = process.env.APP_URL ?? "https://books.travadasys.com";
+export const APP_URL = process.env.APP_URL ?? "https://app.travadabooks.com";
 
 export type LogoResolver = (url: string) => Promise<string | null>;
 
