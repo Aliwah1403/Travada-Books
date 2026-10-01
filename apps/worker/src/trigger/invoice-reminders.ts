@@ -5,8 +5,8 @@ import { Resend } from "resend";
 import { supabase } from "../lib/supabase";
 import { InvoiceReminderEmail } from "../emails/invoice-reminder";
 
-const FROM_EMAIL = "noreply@mail.travadasys.com";
-const APP_URL = process.env.APP_URL ?? "https://books.travadasys.com";
+const FROM_EMAIL = process.env.FROM_EMAIL ?? "noreply@mail.travadasys.com";
+const APP_URL = process.env.APP_URL ?? "https://app.travadabooks.com";
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
@@ -69,12 +69,13 @@ export const invoiceReminders = schedules.task({
 
       const { data: invoices, error: invoiceError } = await supabase
         .from("invoices")
-        .select("id, org_id, customer_id, invoice_number, due_date, total, currency, token, from_details, customer_details")
-        .eq("status", "overdue")
+        .select("id, org_id, customer_id, invoice_number, due_date, total, amount_paid, currency, token, from_details, customer_details")
+        .in("status", ["overdue", "partially_paid"])
         .eq("org_id", orgId)
         .gte("due_date", earliestDateStr)
         .lte("due_date", targetDateStr)
-        .is("last_reminder_sent_at", null);
+        .is("last_reminder_sent_at", null)
+        .eq("skip_auto_reminder", false);
 
       if (invoiceError) {
         logger.error("Failed to query invoices for reminders", {
@@ -87,6 +88,15 @@ export const invoiceReminders = schedules.task({
 
       for (const invoice of invoices ?? []) {
         try {
+          // Explicit guard even though both statuses above imply balance > 0
+          // today — once gateway payments (Phase 2) can pay an invoice down
+          // to zero without a status transition landing yet, this keeps a
+          // fully-paid invoice from ever being chased.
+          const balanceDue = (invoice.total ?? 0) - (invoice.amount_paid ?? 0);
+          if (balanceDue <= 0) {
+            continue;
+          }
+
           // Atomically claim this invoice before sending. The .is() condition
           // means only one concurrent worker wins; 0 rows back = already claimed.
           const { data: stamped, error: stampError } = await supabase
@@ -167,6 +177,7 @@ export const invoiceReminders = schedules.task({
               invoiceNumber: invoice.invoice_number,
               dueDate: invoice.due_date,
               total: invoice.total,
+              amountPaid: invoice.amount_paid,
               currency: invoice.currency,
               publicUrl,
             })
@@ -195,6 +206,89 @@ export const invoiceReminders = schedules.task({
             invoiceId: invoice.id,
             error: String(err),
           });
+        }
+      }
+
+      // Heads-up pass: warn the owner 1 day before an auto-reminder goes out,
+      // so they can cancel/edit it in time. Target: invoices due exactly
+      // `days - 1` days ago in org-local time (tomorrow the reminder fires).
+      const headsUpDateStr = new Date(now.getTime() - (days - 1) * MS_PER_DAY)
+        .toLocaleDateString("en-CA", { timeZone: tz });
+
+      const { data: headsUpCandidates, error: headsUpError } = await supabase
+        .from("invoices")
+        .select("id, total, amount_paid")
+        .in("status", ["overdue", "partially_paid"])
+        .eq("org_id", orgId)
+        .eq("due_date", headsUpDateStr)
+        .is("last_reminder_sent_at", null)
+        .is("reminder_heads_up_sent_at", null)
+        .eq("skip_auto_reminder", false);
+
+      if (headsUpError) {
+        logger.error("Failed to query invoices for reminder heads-up", {
+          orgId,
+          days,
+          error: headsUpError.message,
+        });
+      } else if (headsUpCandidates?.length) {
+        const claimedIds: string[] = [];
+
+        for (const candidate of headsUpCandidates) {
+          const balanceDue = (candidate.total ?? 0) - (candidate.amount_paid ?? 0);
+          if (balanceDue <= 0) continue;
+
+          // Atomically claim, same pattern as the reminder claim above.
+          const { data: stamped, error: stampError } = await supabase
+            .from("invoices")
+            .update({ reminder_heads_up_sent_at: new Date().toISOString() })
+            .is("reminder_heads_up_sent_at", null)
+            .eq("id", candidate.id)
+            .select("id");
+
+          if (stampError) {
+            logger.error("Failed to stamp reminder_heads_up_sent_at", {
+              invoiceId: candidate.id,
+              error: stampError.message,
+            });
+            continue;
+          }
+          if (!stamped || stamped.length === 0) continue;
+
+          claimedIds.push(candidate.id);
+        }
+
+        if (claimedIds.length > 0) {
+          // Notify the business about the upcoming reminders. Non-fatal:
+          // never let this throw — the invoices are already claimed.
+          try {
+            const notifyRes = await fetch(
+              `${process.env.SUPABASE_URL}/functions/v1/notify-reminder-upcoming`,
+              {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
+                  "X-Worker-Secret": process.env.WORKER_SHARED_SECRET!,
+                },
+                body: JSON.stringify({ invoiceIds: claimedIds }),
+              }
+            );
+
+            if (!notifyRes.ok) {
+              const body = await notifyRes.text().catch(() => "");
+              logger.warn("Invoice reminders: heads-up notification failed (non-fatal)", {
+                orgId,
+                status: notifyRes.status,
+                body,
+              });
+            }
+          } catch (notifyErr) {
+            logger.warn("Invoice reminders: heads-up notification threw (non-fatal)", {
+              orgId,
+              error: String(notifyErr),
+            });
+          }
         }
       }
     }

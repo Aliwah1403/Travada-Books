@@ -1,13 +1,19 @@
 node_modules
+
+# macOS
+.DS_Store
+
 CLAUDE.md
 .claude
-PLANNED.md
+.codex
+# Turborepo build cache and per-user TUI preferences
+.turbo/
+archive/
 BACKEND.md
 MULTI_ORG.md
 TRANSACTIONS.md
 SETUP.md
 SUPABASE.md
-INBOX.md
 SYSTEMS-BOOKS-INTEGRATION.md
 .env
 .env.local
@@ -18,7 +24,6 @@ supabase/seed_demo_data.sql
 # Local audit notes
 UX-AUDIT.md
 INBOX-PLAN.md
-LAUNCH-PLAN.md
 CONNECTED-ACCOUNTS-PLAN.md
 ETIMS-PLAN.md
 ASSISTANT-PLAN.md
@@ -28,8 +33,29 @@ BOOKLET-COPY.md
 AI-MODEL-MIGRATION.md
 AI-GAP-ANALYSIS.md
 DASHBOARD-PLAN.md
-PARTIAL-PAYMENTS-PLAN.md
 SESSION.md
 MARKETING-PLAN.md
 BILLING-PLAN.md
 PRICING-DISCUSSION.md
+WEBSITE-PLAN.md
+linkedin/
+CUSTOMER-PORTAL-PLAN.md
+ORG-EXPORT-PLAN.md
+DOCUMENT-PDF-PLAN.md
+
+# Agent tooling — per-developer, not shared. `.claude` and `.codex` are above.
+# The ReUI installer writes the same skill into every agent dir it detects.
+.agents/
+.opencode/
+opencode.json
+.cursor/skills/
+.cursor/mcp.json
+.cursor/rules/reui.mdc
+.mcp.json
+WEBSITE-POLISH-PLAN.md
+WEBSITE-REDO-PLAN.md
+ACCOUNTANT-OUTREACH-EXPERIMENT.md
+LINKEDIN-*.md
+LAUNCH-DOMAIN-PLAN.md
+MISTRAL-RATE-LIMIT-PLAN.md
+deploy/

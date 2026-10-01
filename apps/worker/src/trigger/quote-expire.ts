@@ -38,6 +38,7 @@ export const quoteExpire = schedules.task({
     logger.log("Quote expire: starting", { orgs: orgIds.length });
 
     let totalExpired = 0;
+    const expiredIds: string[] = [];
 
     for (const orgId of orgIds) {
       // Resolve the org owner's timezone so expiration uses the org-local calendar date.
@@ -68,6 +69,41 @@ export const quoteExpire = schedules.task({
       }
 
       totalExpired += data?.length ?? 0;
+      if (data?.length) expiredIds.push(...data.map((q: { id: string }) => q.id));
+    }
+
+    // Notify business owners about newly-expired quotes. Non-fatal: never
+    // let this throw — quotes are already marked expired by this point.
+    // Chunk to stay well under any request-size limit for the ids array.
+    const CHUNK_SIZE = 200;
+    for (let i = 0; i < expiredIds.length; i += CHUNK_SIZE) {
+      const chunk = expiredIds.slice(i, i + CHUNK_SIZE);
+      try {
+        const notifyRes = await fetch(
+          `${process.env.SUPABASE_URL}/functions/v1/notify-quote-expired`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
+              "X-Worker-Secret": process.env.WORKER_SHARED_SECRET!,
+            },
+            body: JSON.stringify({ quoteIds: chunk }),
+          }
+        );
+
+        if (!notifyRes.ok) {
+          const body = await notifyRes.text().catch(() => "");
+          logger.warn("Quote expire: expiry notification failed (non-fatal)", {
+            status: notifyRes.status,
+            body,
+          });
+        }
+      } catch (notifyErr) {
+        logger.warn("Quote expire: expiry notification threw (non-fatal)", {
+          error: String(notifyErr),
+        });
+      }
     }
 
     logger.log("Quote expire: complete", { expired: totalExpired });

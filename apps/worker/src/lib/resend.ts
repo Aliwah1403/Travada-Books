@@ -3,7 +3,8 @@ import { Resend } from "resend";
 import { logger } from "@trigger.dev/sdk";
 
 export const resend = new Resend(process.env.RESEND_API_KEY);
-export const FROM_EMAIL = "noreply@mail.travadasys.com";
+// Sender address; set FROM_EMAIL once a new Resend domain is verified.
+export const FROM_EMAIL = process.env.FROM_EMAIL ?? "noreply@mail.travadasys.com";
 
 /** PII hygiene: never log raw emails. */
 export function hashEmail(email: string): string {

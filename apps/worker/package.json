@@ -10,20 +10,25 @@
   "keywords": [],
   "license": "ISC",
   "devDependencies": {
-    "@trigger.dev/build": "4.5.6"
+    "@trigger.dev/build": "4.6.4",
+    "tsx": "^4.20.6"
   },
   "dependencies": {
     "@ai-sdk/google": "^3.0.81",
     "@ai-sdk/mistral": "^3.0.38",
     "@ai-sdk/openai": "^3.0.70",
+    "@googleapis/gmail": "^18.0.0",
     "@react-email/components": "^0.0.22",
     "@react-email/render": "^1.0.0",
+    "@react-pdf/renderer": "^4.5.1",
     "@supabase/supabase-js": "^2.106.2",
-    "@trigger.dev/sdk": "4.5.6",
+    "@travada-books/pdf": "*",
+    "@trigger.dev/sdk": "4.6.4",
     "@types/papaparse": "^5.5.2",
     "ai": "^6.0.202",
     "chrono-node": "^2.9.1",
     "exa-js": "^2.13.0",
+    "google-auth-library": "10.5.0",
     "heic-convert": "^2.1.0",
     "jszip": "^3.10.1",
     "mammoth": "^1.12.0",

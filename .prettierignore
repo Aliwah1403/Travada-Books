@@ -1,0 +1,7 @@
+dist
+build
+.turbo
+.react-router
+coverage
+*.min.js
+package-lock.json

@@ -142,9 +142,9 @@ const CurrencySelect = React.forwardRef<HTMLButtonElement, CurrencySelectProps>(
               )}
             >
               {selected ? (
-                <span className="flex items-center gap-2">
+                <span className="flex min-w-0 items-center gap-2">
                   <span className="text-muted-foreground w-8 shrink-0 text-left">{selected.code}</span>
-                  <span>{selected.name}</span>
+                  <span className="truncate">{selected.name}</span>
                 </span>
               ) : (
                 <span className="text-muted-foreground">{placeholder}</span>

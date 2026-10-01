@@ -1,0 +1,26 @@
+import { type RouteConfig, index, route } from "@react-router/dev/routes"
+
+export default [
+  index("routes/home.tsx"),
+  route("invoicing", "routes/invoicing.tsx"),
+  route("statement-import", "routes/statement-import.tsx"),
+  route("inbox", "routes/inbox.tsx"),
+  route("quotes", "routes/quotes.tsx"),
+  route("customer-portal", "routes/customer-portal.tsx"),
+  route("payments", "routes/payments.tsx"),
+  route("integrations", "routes/integrations.tsx"),
+  route("who-its-for", "routes/who-its-for.tsx"),
+  route("about", "routes/about.tsx"),
+  route("contact", "routes/contact.tsx"),
+  route("pricing", "routes/pricing.tsx"),
+  route("legal/terms", "routes/legal.terms.tsx"),
+  route("legal/privacy", "routes/legal.privacy.tsx"),
+  route("updates", "routes/updates._index.tsx"),
+  route("updates/:slug", "routes/updates.$slug.tsx"),
+  route("guides", "routes/guides._index.tsx"),
+  route("guides/:slug", "routes/guides.$slug.tsx"),
+  route("og/auto/*", "routes/og.auto.$.tsx"),
+  route("sitemap.xml", "routes/sitemap[.]xml.tsx"),
+  route("robots.txt", "routes/robots[.]txt.tsx"),
+  route("*", "routes/not-found.tsx"),
+] satisfies RouteConfig

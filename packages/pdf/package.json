@@ -1,0 +1,33 @@
+{
+  "name": "@travada-books/pdf",
+  "version": "0.0.0",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "lint": "eslint",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@react-pdf/renderer": "^4.5.1",
+    "date-fns": "^4.4.0",
+    "qrcode": "^1.5.4"
+  },
+  "peerDependencies": {
+    "react": "^19.2.4"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.2",
+    "@react-pdf/types": "^2.11.1",
+    "@types/node": "^25.1.0",
+    "@types/qrcode": "^1.5.6",
+    "@types/react": "^19.2.10",
+    "eslint": "^9.39.2",
+    "globals": "^17.2.0",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.54.0"
+  },
+  "exports": {
+    ".": "./src/index.ts",
+    "./server": "./src/server.tsx"
+  }
+}

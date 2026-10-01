@@ -6,7 +6,7 @@ import { triggerNovu } from "../_shared/novu.ts"
 import { shouldSend } from "../_shared/notification-prefs.ts"
 import { QuoteAcceptedEmail } from "../_shared/emails/quote-accepted.tsx"
 
-const APP_URL = Deno.env.get("APP_URL") ?? "https://books.travadasys.com"
+const APP_URL = Deno.env.get("APP_URL") ?? "https://app.travadabooks.com"
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -22,12 +22,35 @@ Deno.serve(async (req) => {
 
     const { data: quote, error: fetchError } = await db
       .from("quotes")
-      .select("id, org_id, user_id, customer_id, customer_name, quote_number, status, currency, issue_date, line_items, subtotal, tax_amount, discount, total, from_details, customer_details, note")
+      .select("id, org_id, user_id, customer_id, customer_name, quote_number, status, currency, issue_date, valid_until, line_items, subtotal, tax_amount, discount, vat_rate, discount_percent, total, from_details, customer_details, note, custom_fields")
       .eq("token", token)
       .single()
 
     if (fetchError || !quote) return new Response(JSON.stringify({ error: "Quote not found" }), { status: 404, headers: corsHeaders })
     if (quote.status !== "sent") return new Response(JSON.stringify({ error: "Quote is not available for acceptance" }), { status: 400, headers: corsHeaders })
+
+    // Resolve the owner (and their timezone) before mutating anything — we
+    // need the org-local "today" to catch quotes whose valid_until has
+    // passed but that the nightly quote-expire worker hasn't flipped to
+    // "expired" yet.
+    const { data: ownerMember } = await db
+      .from("organization_members")
+      .select("users(timezone)")
+      .eq("org_id", quote.org_id)
+      .eq("role", "owner")
+      .eq("status", "active")
+      .order("created_at", { ascending: true })
+      .limit(1)
+      .maybeSingle()
+    type OwnerTz = { timezone: string | null } | null
+    const ownerTz = (ownerMember?.users as unknown as OwnerTz)?.timezone ?? "UTC"
+    const ownerLocalToday = new Date().toLocaleDateString("en-CA", { timeZone: ownerTz })
+
+    if (quote.valid_until && quote.valid_until < ownerLocalToday) {
+      // Leave the status flip to the quote-expire worker so it also sends
+      // the "quote expired" notification.
+      return new Response(JSON.stringify({ error: "Quote has expired", status: "expired" }), { status: 409, headers: corsHeaders })
+    }
 
     const { data: updatedRows, error: updateError } = await db
       .from("quotes")
@@ -42,18 +65,6 @@ Deno.serve(async (req) => {
     const { data: invoiceNumberData } = await db.rpc("next_invoice_number", {
       p_org_id: quote.org_id,
     })
-
-    const { data: ownerMember } = await db
-      .from("organization_members")
-      .select("user_id, users(email, timezone)")
-      .eq("org_id", quote.org_id)
-      .eq("role", "owner")
-      .eq("status", "active")
-      .order("created_at", { ascending: true })
-      .limit(1)
-      .single()
-    type OwnerFields = { email: string; timezone: string | null } | null
-    const ownerTz = (ownerMember?.users as unknown as OwnerFields)?.timezone ?? "UTC"
 
     const { data: org } = await db.from("organizations").select("email").eq("id", quote.org_id).single()
     const businessEmail = org?.email
@@ -87,9 +98,12 @@ Deno.serve(async (req) => {
       due_date: dueDate,
       currency: quote.currency,
       line_items: quote.line_items,
+      custom_fields: quote.custom_fields ?? [],
       subtotal: quote.subtotal,
       tax_amount: quote.tax_amount,
       discount: quote.discount,
+      vat_rate: quote.vat_rate,
+      discount_percent: quote.discount_percent,
       total: quote.total,
       from_details: quote.from_details,
       customer_details: quote.customer_details,
@@ -114,14 +128,28 @@ Deno.serve(async (req) => {
 
     const from = quote.from_details as Record<string, string> | null
     const customer = quote.customer_details as Record<string, string> | null
-    const ownerEmail = (ownerMember?.users as unknown as OwnerFields)?.email
     const viewUrl = newInvoice ? `${APP_URL}/invoices/${newInvoice.id}` : `${APP_URL}/quotes/${quote.id}`
 
-    if (from && businessEmail && ownerMember?.user_id) {
-      const userId = ownerMember.user_id
-      const sendEmail = await shouldSend(userId, quote.org_id, "quote.accepted", "email")
+    const { data: ownerMembers } = await db
+      .from("organization_members")
+      .select("user_id, users(email)")
+      .eq("org_id", quote.org_id)
+      .eq("role", "owner")
+      .eq("status", "active")
 
-      if (sendEmail) {
+    if (from && ownerMembers?.length) {
+      type OwnerEmail = { email: string } | null
+      const ownerPrefs = await Promise.all(
+        ownerMembers.map(async (m) => {
+          const [sendEmail, sendInApp] = await Promise.all([
+            shouldSend(m.user_id, quote.org_id, "quote.accepted", "email"),
+            shouldSend(m.user_id, quote.org_id, "quote.accepted", "in_app"),
+          ])
+          return { userId: m.user_id, email: (m.users as unknown as OwnerEmail)?.email, sendEmail, sendInApp }
+        })
+      )
+
+      if (businessEmail && ownerPrefs.some((p) => p.sendEmail)) {
         const html = await render(
           React.createElement(QuoteAcceptedEmail, {
             orgName: from.name,
@@ -139,19 +167,17 @@ Deno.serve(async (req) => {
           html,
         })
       }
-    }
 
-    if (ownerMember?.user_id) {
-      const userId = ownerMember.user_id
-      const sendInApp = await shouldSend(userId, quote.org_id, "quote.accepted", "in_app")
-      if (sendInApp) {
-        triggerNovu("quote-accepted", { subscriberId: userId, email: ownerEmail }, {
-          quoteNumber: quote.quote_number,
-          customerName: customer?.name ?? "A customer",
-          total: quote.total,
-          currency: quote.currency,
-          viewUrl,
-        }).catch((err) => console.error("accept-quote: novu trigger failed:", err))
+      for (const { userId, email: ownerEmail, sendInApp } of ownerPrefs) {
+        if (sendInApp) {
+          triggerNovu("quote-accepted", { subscriberId: userId, email: ownerEmail }, {
+            quoteNumber: quote.quote_number,
+            customerName: customer?.name ?? "A customer",
+            total: quote.total,
+            currency: quote.currency,
+            viewUrl,
+          }).catch((err) => console.error("accept-quote: novu trigger failed:", err))
+        }
       }
     }
 

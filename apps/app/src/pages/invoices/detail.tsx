@@ -1,0 +1,1228 @@
+import { useState, useEffect, useRef } from "react";
+import { useNavigate, useParams } from "react-router";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useFormatDate } from "@/hooks/use-format-date";
+import {
+  ArrowLeft01Icon,
+  Cancel01Icon,
+  Copy01Icon,
+  Delete01Icon,
+  Download01Icon,
+  FileEditIcon,
+  MoreHorizontalIcon,
+  PencilEdit01Icon,
+  Sent02Icon,
+  Wallet01Icon,
+} from "@travada-books/ui/icons";
+import { Button } from "@travada-books/ui/components/button";
+import { Separator } from "@travada-books/ui/components/separator";
+import { Switch } from "@travada-books/ui/components/switch";
+import { Textarea } from "@travada-books/ui/components/textarea";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@travada-books/ui/components/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@travada-books/ui/components/alert-dialog";
+import {
+  InvoiceStatusBadge,
+  type InvoiceStatus,
+} from "@/components/invoices/invoice-status-badge";
+import { RecordPaymentDialog } from "@/components/invoices/record-payment-dialog";
+import { SendDocumentDialog } from "@/components/send-document-dialog";
+import { sentActivityLabel, type SendChannel } from "@/lib/send-channels";
+import { toWhatsappNumber, buildWhatsappUrl } from "@/lib/whatsapp";
+import { cn } from "@travada-books/ui/lib/utils";
+import {
+  getInvoice,
+  updateInvoice,
+  deleteInvoice,
+  createInvoice,
+  getNextInvoiceNumber,
+  invoiceBalance,
+  reopenInvoiceStatus,
+  type Invoice,
+} from "@/lib/queries/invoices";
+import {
+  listInvoicePayments,
+  createInvoicePayment,
+  deleteInvoicePayment,
+  type InvoicePayment,
+} from "@/lib/queries/payments";
+import { lookupRate } from "@/lib/queries/exchange-rates";
+import {
+  getInvoiceRecurring,
+  updateInvoiceRecurringStatus,
+} from "@/lib/queries/invoice-recurring";
+import { getCustomer } from "@/lib/queries/customers";
+import { getOrgInvoiceTemplate } from "@/lib/queries/invoice-templates";
+import { parseDateOnly } from "@/lib/format-date";
+import { listTeamMembers } from "@/lib/queries/team";
+import { useAuth } from "@/contexts/auth-context";
+import { useInvalidateAfterPaymentChange } from "@/hooks/use-invalidate-payment-queries";
+import { supabase } from "@/lib/supabase";
+import { notifyInvoicePaid } from "@/lib/notify-invoice-paid";
+import { Spinner } from "@/components/shared/spinner";
+import { EmailDeliveryNotice } from "@/components/shared/email-delivery-notice";
+import { InvoicePreview } from "@/components/invoice-templates";
+import { InvoicePdf, buildInvoiceDocumentData } from "@travada-books/pdf";
+import { downloadPdf, urlToDataUrl } from "@/lib/pdf-download";
+import { formatCurrency } from "@/lib/format";
+import { parseCustomFields } from "@/lib/custom-fields";
+import {
+  resolveDocumentLogo,
+  buildFromDetailsSnapshot,
+  buildCustomerDetailsSnapshot,
+} from "@/lib/document-snapshots";
+import { toast } from "sonner";
+
+const PAYMENT_METHOD_LABELS: Record<string, string> = {
+  mpesa: "M-Pesa",
+  bank_transfer: "Bank Transfer",
+  cash: "Cash",
+  card: "Card",
+  cheque: "Cheque",
+  other: "Other",
+};
+
+const RECURRING_LABELS: Record<string, string> = {
+  one_time: "One time",
+  weekly: "Weekly",
+  biweekly: "Every 2 weeks",
+  monthly: "Monthly",
+  quarterly: "Every 3 months",
+  yearly: "Yearly",
+};
+
+
+function DetailRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className='flex items-center justify-between py-3 text-xs'>
+      <span className='text-muted-foreground'>{label}</span>
+      <span className='font-medium'>{value}</span>
+    </div>
+  );
+}
+
+function CollapsibleSection({
+  title,
+  badge,
+  defaultOpen = true,
+  children,
+}: {
+  title: string;
+  badge?: React.ReactNode;
+  defaultOpen?: boolean;
+  children: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div>
+      <button
+        type='button'
+        onClick={() => setOpen((v) => !v)}
+        className='flex w-full items-center justify-between py-3 text-xs font-semibold'
+      >
+        <div className='flex items-center gap-2'>
+          {title}
+          {badge}
+        </div>
+        <span className='text-muted-foreground text-base leading-none'>
+          {open ? "∧" : "∨"}
+        </span>
+      </button>
+      {open && <div className='pb-3'>{children}</div>}
+    </div>
+  );
+}
+
+function ActivityItem({
+  label,
+  date,
+  done,
+  formatActivityDate,
+}: {
+  label: string;
+  date: string | null;
+  done: boolean;
+  formatActivityDate: (v: string | null) => string;
+}) {
+  return (
+    <div className='flex items-center gap-3 py-2.5 text-xs'>
+      <div
+        className={cn(
+          "size-2 shrink-0 rounded-full",
+          done ? "bg-foreground" : "border-2 border-muted-foreground/30",
+        )}
+      />
+      <span className={cn("flex-1", !done && "text-muted-foreground")}>
+        {label}
+      </span>
+      {date && (
+        <span className='text-muted-foreground'>
+          {formatActivityDate(date)}
+        </span>
+      )}
+    </div>
+  );
+}
+
+function PaymentRow({
+  payment,
+  recordedByName,
+  formatDate,
+  currency,
+  onDelete,
+}: {
+  payment: InvoicePayment;
+  recordedByName: string | null;
+  formatDate: (v: string | null) => string;
+  currency: string;
+  onDelete: (payment: InvoicePayment) => void;
+}) {
+  return (
+    <div className='flex items-start justify-between gap-3 py-2.5 text-xs'>
+      <div className='flex flex-col gap-0.5'>
+        <span className='font-medium'>
+          {formatCurrency(payment.amount, currency)}
+        </span>
+        <span className='text-[11px] text-muted-foreground'>
+          {formatDate(payment.paid_at)} · {PAYMENT_METHOD_LABELS[payment.method] ?? payment.method}
+          {payment.reference && ` · ${payment.reference}`}
+        </span>
+        {recordedByName && (
+          <span className='text-[11px] text-muted-foreground'>
+            Recorded by {recordedByName}
+          </span>
+        )}
+      </div>
+      {payment.source !== "gateway" && (
+        <Button
+          variant='ghost'
+          size='icon-sm'
+          className='shrink-0 text-muted-foreground hover:text-destructive'
+          onClick={() => onDelete(payment)}
+          aria-label='Delete payment'
+        >
+          <Delete01Icon size={13} />
+        </Button>
+      )}
+    </div>
+  );
+}
+
+export function InvoiceDetailPage() {
+  const navigate = useNavigate();
+  const { id } = useParams<{ id: string }>();
+  const { orgId, org, user } = useAuth();
+  const { formatDate, formatDateTime, formatActivityDate } = useFormatDate();
+  const queryClient = useQueryClient();
+  const invalidateAfterPaymentChange = useInvalidateAfterPaymentChange();
+  const [internalNote, setInternalNote] = useState("");
+  const internalNoteDirtyRef = useRef(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [cancelInvoiceOpen, setCancelInvoiceOpen] = useState(false);
+  const [isPdfDownloading, setIsPdfDownloading] = useState(false);
+  const [recordPaymentOpen, setRecordPaymentOpen] = useState(false);
+  const [sendDialogOpen, setSendDialogOpen] = useState(false);
+  const [paymentToDelete, setPaymentToDelete] = useState<InvoicePayment | null>(null);
+  const [isRetryingEmail, setIsRetryingEmail] = useState(false);
+
+  const {
+    data: invoice,
+    isLoading,
+    isError,
+  } = useQuery({
+    queryKey: ["invoice", id],
+    queryFn: () => getInvoice(id!),
+    enabled: !!id,
+    // The PDF-attach send flow queues a background render (see
+    // DOCUMENT-PDF-PLAN.md) — poll gently while it's in flight so the
+    // "still sending" notice clears on its own once the callback lands.
+    refetchInterval: (query) => (query.state.data?.email_status === "queued" ? 5000 : false),
+  });
+
+  const { data: customer } = useQuery({
+    queryKey: ["customer", invoice?.customer_id],
+    queryFn: () => getCustomer(invoice!.customer_id!, orgId!),
+    enabled: !!invoice?.customer_id && !!orgId,
+  });
+
+  const { data: recurringSeries } = useQuery({
+    queryKey: ["invoice-recurring", invoice?.invoice_recurring_id],
+    queryFn: () => getInvoiceRecurring(invoice!.invoice_recurring_id!),
+    enabled: !!invoice?.invoice_recurring_id,
+  });
+
+  const { data: invoiceTemplate } = useQuery({
+    queryKey: ["invoice-template", orgId],
+    queryFn: () => getOrgInvoiceTemplate(orgId!),
+    enabled: !!orgId,
+  });
+
+  const showPaymentsSection =
+    !!invoice &&
+    invoice.status !== "draft" &&
+    invoice.status !== "scheduled" &&
+    invoice.status !== "canceled";
+
+  const { data: payments, isLoading: paymentsLoading } = useQuery({
+    queryKey: ["invoice-payments", id],
+    queryFn: () => listInvoicePayments(id!),
+    enabled: !!id && showPaymentsSection,
+  });
+
+  const { data: teamMembers } = useQuery({
+    queryKey: ["team-members", orgId],
+    queryFn: () => listTeamMembers(orgId!),
+    enabled: !!orgId && showPaymentsSection,
+  });
+
+  function recordedByName(userId: string | null): string | null {
+    if (!userId) return null;
+    const member = teamMembers?.find((m) => m.user_id === userId);
+    return member?.full_name ?? member?.email ?? null;
+  }
+
+  const seriesMutation = useMutation({
+    mutationFn: (status: "active" | "paused" | "canceled") =>
+      updateInvoiceRecurringStatus(invoice!.invoice_recurring_id!, orgId!, status),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["invoice-recurring", invoice?.invoice_recurring_id] });
+    },
+    onError: () => toast.error("Failed to update recurring series"),
+  });
+
+  useEffect(() => {
+    if (invoice && !internalNoteDirtyRef.current) setInternalNote(invoice.internal_note ?? "");
+  }, [invoice]);
+
+  const updateMutation = useMutation({
+    mutationFn: ({
+      patch,
+    }: {
+      patch: Parameters<typeof updateInvoice>[2];
+      label: string;
+    }) => updateInvoice(id!, orgId!, patch),
+    onMutate: ({
+      label,
+    }: {
+      patch: Parameters<typeof updateInvoice>[2];
+      label: string;
+    }) => ({ label }),
+    onSuccess: (_, __, context) => {
+      queryClient.invalidateQueries({ queryKey: ["invoice", id] });
+      queryClient.invalidateQueries({ queryKey: ["invoices", orgId] });
+      toast.success(context?.label);
+    },
+    onError: (_, __, context) => {
+      toast.error(`Failed to ${context?.label?.toLowerCase()}`, {
+        description: "Please try again.",
+      });
+    },
+  });
+
+  // Separate from updateMutation: toggling the reminder switch should feel
+  // instant (optimistic) and never show a success toast — only an error one.
+  const skipReminderMutation = useMutation({
+    mutationFn: (skip: boolean) => updateInvoice(id!, orgId!, { skip_auto_reminder: skip }),
+    onMutate: async (skip: boolean) => {
+      await queryClient.cancelQueries({ queryKey: ["invoice", id] });
+      const previous = queryClient.getQueryData<Invoice>(["invoice", id]);
+      queryClient.setQueryData<Invoice>(["invoice", id], (old) =>
+        old ? { ...old, skip_auto_reminder: skip } : old,
+      );
+      return { previous };
+    },
+    onError: (_err, _skip, context) => {
+      if (context?.previous) queryClient.setQueryData(["invoice", id], context.previous);
+      toast.error("Failed to update reminder setting", { description: "Please try again." });
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["invoice", id] });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: () => deleteInvoice(id!, orgId!),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["invoices", orgId] });
+      toast.success("Invoice deleted");
+      navigate("/invoices");
+    },
+    onError: () => {
+      toast.error("Failed to delete invoice", {
+        description: "Please try again.",
+      });
+    },
+  });
+
+  function handleDeletePayment(payment: InvoicePayment) {
+    toast.promise(deleteInvoicePayment(payment.id, orgId!), {
+      loading: "Deleting payment…",
+      success: () => {
+        invalidateAfterPaymentChange(id!);
+        return "Payment deleted";
+      },
+      error: "Failed to delete payment",
+    });
+  }
+
+  async function handleDuplicate() {
+    const nextNumber = await getNextInvoiceNumber(orgId!);
+    return createInvoice({
+      org_id: orgId!,
+      user_id: user!.id,
+      customer_id: invoice!.customer_id!,
+      customer_name: invoice!.customer_name,
+      invoice_number: nextNumber,
+      status: "draft",
+      currency: invoice!.currency,
+      issue_date: null,
+      due_date: null,
+      recurring: "one_time",
+      line_items: invoice!.line_items,
+      subtotal: invoice!.subtotal ?? 0,
+      tax_amount: invoice!.tax_amount ?? 0,
+      discount: invoice!.discount ?? 0,
+      vat_rate: invoice!.vat_rate,
+      discount_percent: invoice!.discount_percent,
+      total: invoice!.total ?? 0,
+      payment_details: invoice!.payment_details ?? "",
+      note: invoice!.note ?? "",
+      delivery_type: "none",
+      scheduled_at: null,
+      send_template_id: null,
+      accept_payments: invoice!.accept_payments,
+      custom_fields: invoice!.custom_fields ?? [],
+    });
+  }
+
+  const fromDetails =
+    org ? buildFromDetailsSnapshot(org, resolveDocumentLogo(invoiceTemplate?.logoUrl, org)) : null;
+
+  const customerDetails = customer ? buildCustomerDetailsSnapshot(customer) : null;
+
+  function handleSaveNote() {
+    updateMutation.mutate({
+      patch: { internal_note: internalNote },
+      label: "Note saved",
+    });
+  }
+
+  // Issues the invoice (draft -> unpaid, sent_at/sent_via, FX snapshot, from/customer
+  // snapshots) regardless of how it's being delivered. Throws on FX lookup or mutation
+  // failure so callers (e.g. SendDocumentDialog) know to stay open — updateMutation's
+  // onError already shows the failure toast, so this never double-toasts on that path.
+  async function issueInvoice(channel: SendChannel): Promise<void> {
+    // The nudge toasts outlive the render that created them — never re-issue an
+    // invoice that has since been sent, or sent_at/sent_via would be overwritten.
+    const latest = queryClient.getQueryData<Invoice>(["invoice", id]) ?? invoice;
+    if (latest?.status !== "draft") return;
+    const invoiceCurrency = invoice!.currency;
+    const baseCurrency = org?.base_currency ?? null;
+    let exchangeRate: number | null = null;
+    let convertedAmount: number | null = null;
+    if (baseCurrency) {
+      try {
+        exchangeRate = await lookupRate(invoiceCurrency, baseCurrency);
+        convertedAmount = exchangeRate != null ? (invoice!.total ?? 0) * exchangeRate : null;
+      } catch {
+        toast.error("Failed to fetch exchange rate", { description: "Please try again." });
+        throw new Error("exchange_rate_lookup_failed");
+      }
+    }
+
+    await updateMutation.mutateAsync({
+      patch: {
+        status: "unpaid",
+        sent_at: new Date().toISOString(),
+        sent_via: channel,
+        exchange_rate: exchangeRate,
+        converted_amount: convertedAmount,
+        base_currency: baseCurrency,
+        ...(fromDetails && { from_details: fromDetails }),
+        ...(customerDetails && { customer_details: customerDetails }),
+      },
+      label: channel === "manual" ? "Invoice marked as sent" : "Invoice sent",
+    });
+
+    if (channel === "email") {
+      dispatchInvoiceEmail()
+        .then(({ queued }) => {
+          if (queued) {
+            toast.success(
+              `Emailing it to ${customerDetails?.name ?? invoice!.customer_name} with the PDF attached…`,
+            );
+          }
+        })
+        .catch((err) => {
+          console.error("send-invoice-email failed:", err);
+          toast.warning("Invoice sent, but email delivery failed. Try resending from the invoice.");
+        });
+    }
+  }
+
+  // Shared by the send flow above and the "Try again" retry on the failed-
+  // delivery notice — invalidates the invoice query either way so
+  // email_status (and the notice/poll driven by it) reflect the outcome.
+  async function dispatchInvoiceEmail(): Promise<{ queued: boolean }> {
+    const res = await supabase.functions.invoke("send-invoice-email", { body: { invoiceId: id } });
+    queryClient.invalidateQueries({ queryKey: ["invoice", id] });
+    if (res.error) throw res.error;
+    return { queued: !!(res.data as { queued?: boolean } | null)?.queued };
+  }
+
+  async function handleRetryEmail() {
+    setIsRetryingEmail(true);
+    try {
+      const { queued } = await dispatchInvoiceEmail();
+      toast.success(
+        queued
+          ? `Emailing it to ${customerDetails?.name ?? invoice!.customer_name} with the PDF attached…`
+          : "Email sent",
+      );
+    } catch (err) {
+      console.error("send-invoice-email retry failed:", err);
+      toast.error("Failed to resend the email", { description: "Please try again." });
+    } finally {
+      setIsRetryingEmail(false);
+    }
+  }
+
+  // Passed to SendDocumentDialog as onSend — issues the invoice, then does the
+  // channel-specific delivery work (PDF download uses the origin/token URL directly
+  // since the refetched invoice with its new status isn't available yet here).
+  async function handleSendViaDialog(channel: SendChannel): Promise<void> {
+    await issueInvoice(channel);
+    if (channel === "pdf") {
+      await handleDownloadPdf({ publicUrl: `${window.location.origin}/i/${invoice!.token}` });
+    }
+  }
+
+  function handleMarkPaid() {
+    if (!invoice) return;
+    const amount = invoiceBalance(invoice);
+    toast.promise(
+      createInvoicePayment({
+        org_id: orgId!,
+        invoice_id: id!,
+        recorded_by: user?.id ?? null,
+        amount,
+        currency: invoice.currency,
+        paid_at: new Date().toISOString(),
+        method: "other",
+      }).then(async () => {
+        invalidateAfterPaymentChange(id!);
+        // Backfill from_details/customer_details if this invoice somehow
+        // reached unpaid/overdue without them — a separate, non-status
+        // write, so it's unaffected by the DB guard on direct paid writes.
+        if (!invoice.from_details || !invoice.customer_details) {
+          await updateInvoice(id!, orgId!, {
+            ...(!invoice.from_details && fromDetails ? { from_details: fromDetails } : {}),
+            ...(!invoice.customer_details && customerDetails ? { customer_details: customerDetails } : {}),
+          }).catch(() => {});
+        }
+        notifyInvoicePaid(id!);
+      }),
+      {
+        loading: "Marking as paid…",
+        success: "Invoice marked as paid",
+        error: "Failed to mark as paid",
+      },
+    );
+  }
+
+  function handleCopyLink() {
+    if (!invoice) return;
+    navigator.clipboard.writeText(
+      `${window.location.origin}/i/${invoice.token}`,
+    );
+    if (invoice.status === "draft") {
+      toast("Link copied", {
+        description: "The link won't open for your customer until the invoice is marked as sent.",
+        action: {
+          label: "Mark as sent",
+          onClick: () => { issueInvoice("link").catch(() => {}) },
+        },
+        duration: 10000,
+      });
+    } else {
+      toast.success("Link copied to clipboard");
+    }
+  }
+
+  // Returns whether generation succeeded so callers (the header button's nudge
+  // toast) know whether to follow up — this never throws.
+  async function handleDownloadPdf(override?: { publicUrl?: string }): Promise<boolean> {
+    if (!invoice) return false;
+    setIsPdfDownloading(true);
+    try {
+      const rawLogoUrl = documentData.from?.logo_url ?? null;
+      const logoDataUrl = rawLogoUrl ? await urlToDataUrl(rawLogoUrl).catch(() => null) : null;
+      const pdfData = {
+        ...documentData,
+        ...(logoDataUrl && { from: { ...documentData.from, logo_url: logoDataUrl } }),
+        ...(override?.publicUrl !== undefined && { publicUrl: override.publicUrl }),
+      };
+      await downloadPdf(
+        <InvoicePdf data={pdfData} />,
+        invoice.invoice_number ?? "Invoice",
+      );
+      return true;
+    } catch {
+      toast.error("Failed to generate PDF");
+      return false;
+    } finally {
+      setIsPdfDownloading(false);
+    }
+  }
+
+  async function handleDownloadPdfClick() {
+    const success = await handleDownloadPdf();
+    if (success && invoice?.status === "draft") {
+      toast("Sending this to your customer?", {
+        description: "Mark the invoice as sent so it's tracked as unpaid and the link works.",
+        action: {
+          label: "Mark as sent",
+          onClick: () => { issueInvoice("pdf").catch(() => {}) },
+        },
+        duration: 10000,
+      });
+    }
+  }
+
+  if (isLoading) {
+    return (
+      <div className='flex h-full flex-col overflow-hidden animate-pulse'>
+        <div className='h-14 border-b' />
+        <div className='flex-1 bg-muted/30' />
+      </div>
+    );
+  }
+
+  if (isError || !invoice) {
+    return (
+      <div className='flex h-full items-center justify-center'>
+        <p className='text-sm text-muted-foreground'>Invoice not found.</p>
+      </div>
+    );
+  }
+
+  const isRecurring = invoice.recurring !== "one_time";
+  const status = invoice.status as InvoiceStatus;
+  const isOverpaid = invoice.amount_paid > (invoice.total ?? 0);
+
+  // Auto-reminder row: only relevant once the org has reminders on and the
+  // invoice can still receive one (statuses invoice-reminders.ts targets).
+  const reminderDaysAfterDue = invoiceTemplate?.reminderDaysAfterDue ?? null;
+  const showAutoReminderRow =
+    reminderDaysAfterDue != null &&
+    (status === "unpaid" || status === "overdue" || status === "partially_paid");
+  let reminderHelperText = "";
+  if (showAutoReminderRow) {
+    if (invoice.last_reminder_sent_at) {
+      reminderHelperText = `Sent ${formatDate(invoice.last_reminder_sent_at)}`;
+    } else if (!invoice.skip_auto_reminder) {
+      const reminderDate = invoice.due_date ? parseDateOnly(invoice.due_date) : null;
+      if (reminderDate) reminderDate.setDate(reminderDate.getDate() + reminderDaysAfterDue);
+      reminderHelperText = reminderDate ? `Goes out ${formatDate(reminderDate)}` : "";
+    } else {
+      reminderHelperText = "Off for this invoice";
+    }
+  }
+
+  const documentData = buildInvoiceDocumentData(invoice, {
+    from: fromDetails ?? {},
+    customer: customerDetails ?? { name: invoice.customer_name },
+    customFields: parseCustomFields(invoice.custom_fields),
+    publicUrl:
+      (
+        invoice.token &&
+        invoice.status !== "draft" &&
+        invoice.status !== "scheduled"
+      ) ?
+        `${window.location.origin}/i/${invoice.token}`
+      : null,
+  });
+
+  const invoicePublicUrl = `${window.location.origin}/i/${invoice.token}`;
+  const snapshotCustomer = invoice.customer_details;
+  const customerEmail =
+    customer?.billing_email ?? customer?.email ?? (snapshotCustomer?.email as string | undefined) ?? null;
+  const customerPhone = customer?.phone ?? (snapshotCustomer?.phone as string | undefined) ?? null;
+  // Local-format numbers (07xx…) need a country; fall back to the org's, which
+  // matches the customer for the vast majority of Kenyan businesses.
+  const whatsappNumber = toWhatsappNumber(customerPhone, customer?.country_code ?? org?.country_code ?? null);
+  const whatsappCustomerName = customer?.name ?? invoice.customer_name;
+  const whatsappMessage =
+    `Hi ${whatsappCustomerName}, here's invoice ${invoice.invoice_number ?? ""} from ${org?.name ?? ""} for ${formatCurrency(invoice.total ?? 0, invoice.currency)}` +
+    (invoice.due_date ? `, due ${formatDate(invoice.due_date)}` : "") +
+    `: ${invoicePublicUrl}`;
+  const whatsappUrl = buildWhatsappUrl(whatsappNumber, whatsappMessage);
+
+  return (
+    <div className='flex h-full flex-col overflow-hidden'>
+      {/* Page header */}
+      <div className='flex shrink-0 items-center justify-between border-b px-6 py-3'>
+        <div className='flex items-center gap-3'>
+          <Button
+            variant='ghost'
+            size='icon-sm'
+            onClick={() => navigate("/invoices")}
+          >
+            <ArrowLeft01Icon size={14} />
+          </Button>
+          <span className='font-mono text-sm font-medium'>
+            {invoice.invoice_number ?? "—"}
+          </span>
+          <InvoiceStatusBadge status={status} />
+        </div>
+        <div className='flex items-center gap-2'>
+          <Button
+            variant='outline'
+            className='gap-1.5'
+            onClick={handleDownloadPdfClick}
+            disabled={isPdfDownloading}
+          >
+            <Download01Icon size={13} />
+            {isPdfDownloading ? "Generating…" : "Download PDF"}
+          </Button>
+          <Button
+            variant='outline'
+            className='gap-1.5'
+            onClick={handleCopyLink}
+          >
+            <Copy01Icon size={13} />
+            Copy link
+          </Button>
+          {status === "draft" && (
+            <Button
+              variant='outline'
+              className='gap-1.5'
+              onClick={() => setSendDialogOpen(true)}
+            >
+              <Sent02Icon size={13} />
+              Send Invoice
+            </Button>
+          )}
+          {(status === "unpaid" || status === "overdue" || status === "partially_paid") && (
+            <Button
+              variant='outline'
+              className='gap-1.5'
+              onClick={() => setRecordPaymentOpen(true)}
+            >
+              <Wallet01Icon size={13} />
+              Record payment
+            </Button>
+          )}
+          {status === "draft" && (
+            <Button
+              variant='outline'
+              onClick={() => navigate(`/invoices/${id}/edit`)}
+            >
+              <PencilEdit01Icon size={13} />
+            </Button>
+          )}
+          <DropdownMenu>
+            <DropdownMenuTrigger render={<Button variant='outline' />}>
+              <MoreHorizontalIcon size={13} />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align='end' className='w-full' sideOffset={10}>
+              <DropdownMenuItem
+                onClick={() => {
+                  toast.promise(handleDuplicate(), {
+                    loading: "Duplicating invoice…",
+                    success: (newInvoice) => {
+                      queryClient.invalidateQueries({
+                        queryKey: ["invoices", orgId],
+                      });
+                      navigate(`/invoices/${newInvoice.id}/edit`);
+                      return "Invoice duplicated";
+                    },
+                    error: "Failed to duplicate invoice",
+                  });
+                }}
+              >
+                <FileEditIcon size={13} />
+                Duplicate
+              </DropdownMenuItem>
+              {status === "scheduled" && (
+                <DropdownMenuItem
+                  onClick={() => {
+                    updateMutation.mutate({
+                      patch: { status: "draft", scheduled_at: null },
+                      label: "Schedule cancelled",
+                    });
+                  }}
+                >
+                  <Cancel01Icon size={13} />
+                  Cancel schedule
+                </DropdownMenuItem>
+              )}
+              {(status === "unpaid" || status === "overdue" || status === "partially_paid") && (
+                <DropdownMenuItem onClick={handleMarkPaid}>
+                  <Sent02Icon size={13} />
+                  Mark as paid
+                </DropdownMenuItem>
+              )}
+              {(status === "unpaid" || status === "overdue" || status === "partially_paid") && (
+                <DropdownMenuItem
+                  onClick={() => {
+                    toast.promise(
+                      supabase.functions
+                        .invoke("send-invoice-reminder", { body: { invoiceId: id } })
+                        .then((res) => { if (res.error) throw res.error; }),
+                      {
+                        loading: "Sending reminder…",
+                        success: "Reminder sent",
+                        error: "Failed to send reminder",
+                      },
+                    );
+                  }}
+                >
+                  <Sent02Icon size={13} />
+                  Send reminder
+                </DropdownMenuItem>
+              )}
+              {(status === "unpaid" || status === "overdue" || status === "scheduled") && (
+                <DropdownMenuItem
+                  className='text-destructive focus:text-destructive'
+                  disabled={invoice.amount_paid > 0}
+                  title={
+                    invoice.amount_paid > 0 ?
+                      "Remove recorded payments first"
+                    : undefined
+                  }
+                  onClick={() => setCancelInvoiceOpen(true)}
+                >
+                  <Cancel01Icon size={13} />
+                  Cancel invoice
+                </DropdownMenuItem>
+              )}
+              {status === "canceled" && (
+                <DropdownMenuItem
+                  onClick={() => {
+                    toast.promise(
+                      updateInvoice(id!, orgId!, {
+                        status: reopenInvoiceStatus({
+                          due_date: invoice.due_date,
+                          amount_paid: invoice.amount_paid,
+                        }),
+                      }).then(() => {
+                        queryClient.invalidateQueries({ queryKey: ["invoice", id] });
+                        queryClient.invalidateQueries({ queryKey: ["invoices", orgId] });
+                      }),
+                      {
+                        loading: "Reopening invoice…",
+                        success: "Invoice reopened",
+                        error: "Failed to reopen invoice",
+                      },
+                    );
+                  }}
+                >
+                  <Sent02Icon size={13} />
+                  Reopen invoice
+                </DropdownMenuItem>
+              )}
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                className='text-destructive focus:text-destructive'
+                onClick={() => setDeleteOpen(true)}
+                disabled={deleteMutation.isPending}
+              >
+                <Delete01Icon size={13} />
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </div>
+
+      <AlertDialog open={cancelInvoiceOpen} onOpenChange={setCancelInvoiceOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Cancel invoice {invoice.invoice_number ?? ""}?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              The customer's link will show it as canceled. No email is sent.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep invoice</AlertDialogCancel>
+            <Button
+              variant='destructive'
+              onClick={() => {
+                setCancelInvoiceOpen(false);
+                toast.promise(
+                  updateInvoice(id!, orgId!, { status: "canceled" }).then(() => {
+                    queryClient.invalidateQueries({ queryKey: ["invoice", id] });
+                    queryClient.invalidateQueries({ queryKey: ["invoices", orgId] });
+                  }),
+                  {
+                    loading: "Canceling invoice…",
+                    success: "Invoice canceled",
+                    error: "Failed to cancel invoice",
+                  },
+                );
+              }}
+            >
+              Cancel invoice
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete invoice?</AlertDialogTitle>
+            <AlertDialogDescription>
+              <strong>{invoice.invoice_number}</strong> will be permanently
+              deleted. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <Button
+              variant='destructive'
+              onClick={() => {
+                setDeleteOpen(false);
+                deleteMutation.mutate();
+              }}
+              disabled={deleteMutation.isPending}
+            >
+              Delete
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={!!paymentToDelete} onOpenChange={(open) => !open && setPaymentToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this payment?</AlertDialogTitle>
+            <AlertDialogDescription>
+              The invoice will return to unpaid/part-paid.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <Button
+              variant='destructive'
+              onClick={() => {
+                if (paymentToDelete) handleDeletePayment(paymentToDelete);
+                setPaymentToDelete(null);
+              }}
+            >
+              Delete
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <RecordPaymentDialog
+        open={recordPaymentOpen}
+        onOpenChange={setRecordPaymentOpen}
+        invoiceId={id!}
+        currency={invoice.currency}
+        balanceDue={invoiceBalance(invoice)}
+      />
+
+      <SendDocumentDialog
+        open={sendDialogOpen}
+        onOpenChange={setSendDialogOpen}
+        kind='invoice'
+        documentNumber={invoice.invoice_number}
+        customerEmail={customerEmail}
+        publicUrl={invoicePublicUrl}
+        whatsappUrl={whatsappUrl}
+        onSend={handleSendViaDialog}
+      />
+
+      {/* Scrollable content */}
+      <div className='flex-1 overflow-y-auto bg-muted/30'>
+        <div className='mx-auto flex max-w-2xl flex-col gap-0 px-4 py-8'>
+          <EmailDeliveryNotice
+            key={`${invoice.email_status ?? "none"}-${invoice.email_status_at ?? "none"}`}
+            status={invoice.email_status}
+            statusAt={invoice.email_status_at}
+            recipient={customerEmail}
+            error={invoice.email_error}
+            onRetry={handleRetryEmail}
+            retrying={isRetryingEmail}
+          />
+
+          <InvoicePreview
+            data={documentData}
+            invoiceTemplate={invoice.invoice_template}
+          />
+
+          {invoice.amount_paid > 0 &&
+            (isOverpaid || status !== "paid") && (
+              <div className='mt-4 flex items-center justify-between rounded-lg border bg-background px-5 py-3 text-xs'>
+                {isOverpaid ?
+                  <span className='font-medium text-amber-600 dark:text-amber-400'>
+                    Overpaid by {formatCurrency(invoice.amount_paid - (invoice.total ?? 0), invoice.currency)}
+                  </span>
+                : <span>
+                    <span className='font-medium'>
+                      {formatCurrency(invoice.amount_paid, invoice.currency)}
+                    </span>{" "}
+                    <span className='text-muted-foreground'>
+                      of {formatCurrency(invoice.total ?? 0, invoice.currency)} paid ·{" "}
+                      {formatCurrency(invoiceBalance(invoice), invoice.currency)} due
+                    </span>
+                  </span>
+                }
+              </div>
+            )}
+
+          {/* Detail sections */}
+          <div className='mt-4 rounded-lg border bg-background divide-y'>
+            <div className='px-5'>
+              <DetailRow
+                label='Due date'
+                value={formatDate(invoice.due_date)}
+              />
+              <Separator />
+              <DetailRow
+                label='Issue date'
+                value={formatDate(invoice.issue_date)}
+              />
+              <Separator />
+              <DetailRow
+                label='Invoice no.'
+                value={invoice.invoice_number ?? "—"}
+              />
+              <Separator />
+              <DetailRow
+                label='Type'
+                value={RECURRING_LABELS[invoice.recurring] ?? invoice.recurring}
+              />
+              {status === "scheduled" && invoice.scheduled_at && (
+                <>
+                  <Separator />
+                  <DetailRow
+                    label='Scheduled for'
+                    value={formatDateTime(invoice.scheduled_at)}
+                  />
+                </>
+              )}
+              {showAutoReminderRow && (
+                <>
+                  <Separator />
+                  <div className='flex items-center justify-between py-3 text-xs'>
+                    <div className='flex flex-col gap-0.5'>
+                      <span className='text-muted-foreground'>Automatic reminder</span>
+                      <span className='text-[11px] text-muted-foreground'>{reminderHelperText}</span>
+                    </div>
+                    <Switch
+                      checked={!invoice.skip_auto_reminder}
+                      onCheckedChange={(checked) => skipReminderMutation.mutate(!checked)}
+                      disabled={!!invoice.last_reminder_sent_at}
+                    />
+                  </div>
+                </>
+              )}
+            </div>
+
+            {showPaymentsSection && (
+              <div className='px-5'>
+                <CollapsibleSection title='Payments'>
+                  {paymentsLoading ?
+                    <div className='flex flex-col gap-2 py-2'>
+                      <div className='h-8 w-full animate-pulse rounded-md bg-muted' />
+                      <div className='h-8 w-full animate-pulse rounded-md bg-muted' />
+                    </div>
+                  : !payments || payments.length === 0 ?
+                    <p className='py-2 text-[11px] text-muted-foreground'>
+                      No payments recorded yet.
+                    </p>
+                  : <div className='flex flex-col divide-y'>
+                      {payments.map((payment) => (
+                        <PaymentRow
+                          key={payment.id}
+                          payment={payment}
+                          recordedByName={recordedByName(payment.recorded_by)}
+                          formatDate={formatDate}
+                          currency={invoice.currency}
+                          onDelete={setPaymentToDelete}
+                        />
+                      ))}
+                    </div>
+                  }
+                </CollapsibleSection>
+              </div>
+            )}
+
+            {isRecurring && recurringSeries && (
+              <div className='px-5'>
+                <CollapsibleSection
+                  title='Recurring Series'
+                  badge={
+                    <span className={cn(
+                      "rounded-full px-2 py-0.5 text-[10px] font-medium",
+                      recurringSeries.status === "active" && "bg-green-500/15 text-green-600 dark:text-green-400",
+                      recurringSeries.status === "paused" && "bg-yellow-500/15 text-yellow-600 dark:text-yellow-400",
+                      recurringSeries.status === "completed" && "bg-muted text-muted-foreground",
+                      recurringSeries.status === "canceled" && "bg-red-500/15 text-red-600 dark:text-red-400",
+                    )}>
+                      {recurringSeries.status.charAt(0).toUpperCase() + recurringSeries.status.slice(1)}
+                    </span>
+                  }
+                >
+                  <div className='flex flex-col gap-0'>
+                    <div className='flex items-center justify-between py-2.5 text-xs'>
+                      <span className='text-muted-foreground'>Frequency</span>
+                      <span className='font-medium'>{RECURRING_LABELS[recurringSeries.frequency]}</span>
+                    </div>
+                    <div className='flex items-center justify-between py-2.5 text-xs'>
+                      <span className='text-muted-foreground'>Invoices sent</span>
+                      <span className='font-medium'>{recurringSeries.current_count}</span>
+                    </div>
+                    {recurringSeries.status === "active" && (
+                      <div className='flex items-center justify-between py-2.5 text-xs'>
+                        <span className='text-muted-foreground'>Next invoice</span>
+                        <span className='font-medium'>
+                          {formatDate(recurringSeries.next_scheduled_at)}
+                        </span>
+                      </div>
+                    )}
+                    <div className='flex items-center justify-between py-2.5 text-xs'>
+                      <span className='text-muted-foreground'>Ends</span>
+                      <span className='font-medium'>
+                        {recurringSeries.end_type === "on_date" && recurringSeries.end_on_date
+                          ? formatDate(recurringSeries.end_on_date)
+                          : recurringSeries.end_type === "after_count" && recurringSeries.end_after_count
+                          ? `After ${recurringSeries.end_after_count} invoices`
+                          : "Never"}
+                      </span>
+                    </div>
+                    {recurringSeries.status !== "canceled" && recurringSeries.status !== "completed" && (
+                      <>
+                        <Separator className='mt-1' />
+                        <div className='flex items-center gap-2 py-3'>
+                          {recurringSeries.status === "active" ? (
+                            <Button
+                              size='sm'
+                              variant='outline'
+                              className='flex-1 text-xs'
+                              onClick={() => toast.promise(seriesMutation.mutateAsync("paused"), {
+                                loading: "Pausing series…",
+                                success: "Series paused",
+                                error: "Failed to pause series",
+                              })}
+                              disabled={seriesMutation.isPending}
+                            >
+                              Pause series
+                            </Button>
+                          ) : (
+                            <Button
+                              size='sm'
+                              variant='outline'
+                              className='flex-1 text-xs'
+                              onClick={() => toast.promise(seriesMutation.mutateAsync("active"), {
+                                loading: "Resuming series…",
+                                success: "Series resumed",
+                                error: "Failed to resume series",
+                              })}
+                              disabled={seriesMutation.isPending}
+                            >
+                              Resume series
+                            </Button>
+                          )}
+                          <Button
+                            size='sm'
+                            variant='ghost'
+                            className='flex-1 text-xs text-destructive hover:text-destructive'
+                            onClick={() => toast.promise(seriesMutation.mutateAsync("canceled"), {
+                              loading: "Canceling series…",
+                              success: "Series canceled",
+                              error: "Failed to cancel series",
+                            })}
+                            disabled={seriesMutation.isPending}
+                          >
+                            Cancel series
+                          </Button>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </CollapsibleSection>
+              </div>
+            )}
+
+            <div className='px-5'>
+              <CollapsibleSection title='Activity'>
+                <div className='flex flex-col'>
+                  <ActivityItem
+                    label='Created'
+                    date={invoice.created_at}
+                    done
+                    formatActivityDate={formatActivityDate}
+                  />
+                  <ActivityItem
+                    label={invoice.sent_at ? sentActivityLabel(invoice.sent_via) : "Sent"}
+                    date={invoice.sent_at}
+                    done={!!invoice.sent_at}
+                    formatActivityDate={formatActivityDate}
+                  />
+                  {invoice.viewed_at && (
+                    <ActivityItem
+                      label='Viewed'
+                      date={invoice.viewed_at}
+                      done
+                      formatActivityDate={formatActivityDate}
+                    />
+                  )}
+                  <ActivityItem
+                    label='Paid'
+                    date={invoice.paid_at}
+                    done={!!invoice.paid_at}
+                    formatActivityDate={formatActivityDate}
+                  />
+                </div>
+              </CollapsibleSection>
+            </div>
+
+            <div className='px-5'>
+              <CollapsibleSection title='Internal note' defaultOpen={false}>
+                <div className='flex flex-col gap-2'>
+                  <Textarea
+                    placeholder='Add a private note about this invoice — not visible to the client.'
+                    value={internalNote}
+                    onChange={(e) => { internalNoteDirtyRef.current = true; setInternalNote(e.target.value); }}
+                    className='text-xs'
+                    rows={3}
+                  />
+                  <Button
+                    size='sm'
+                    variant='outline'
+                    className='self-end gap-1.5'
+                    onClick={handleSaveNote}
+                    disabled={updateMutation.isPending}
+                  >
+                    {updateMutation.isPending && <Spinner size={11} />}
+                    {updateMutation.isPending ? "Saving…" : "Save note"}
+                  </Button>
+                </div>
+              </CollapsibleSection>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

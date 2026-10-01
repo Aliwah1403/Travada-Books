@@ -1,5 +1,6 @@
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { createMistral } from "@ai-sdk/mistral";
+import { logger } from "@trigger.dev/sdk";
 import { generateObject } from "ai";
 import { bankStatementSchema, type BankStatementResult, type BankTransactionRow } from "./schema";
 import { buildPrompt } from "./prompts";
@@ -12,11 +13,12 @@ const google = createGoogleGenerativeAI({ apiKey: process.env.GOOGLE_GENERATIVE_
 type AIProvider = "mistral" | "google";
 type ModelConfig = { provider: AIProvider; model: string };
 
-// Mirrors Midday's extraction-config.ts model chain
+// Mirrors Midday's extraction-config.ts model chain (Gemini models updated
+// past Midday's snapshot — its gemini-3-*-preview models were retired)
 const MODELS = {
   primary: { provider: "mistral" as const, model: "mistral-small-latest" },
-  secondary: { provider: "google" as const, model: "gemini-2.0-flash" },
-  tertiary: { provider: "google" as const, model: "gemini-1.5-pro" },
+  secondary: { provider: "google" as const, model: "gemini-3.8-flash" },
+  tertiary: { provider: "google" as const, model: "gemini-3.1-pro-preview" },
 } satisfies Record<string, ModelConfig>;
 
 const QUALITY_THRESHOLD = 70;
@@ -171,8 +173,9 @@ export async function extractBankStatement(
     const prompt = buildPrompt(orgName, false);
     const data = await extractWithModel(dataUri, prompt, MODELS.primary);
     best = { data, quality: scoreResult(data) };
-  } catch {
+  } catch (err) {
     // Primary failed entirely — fall straight to secondary
+    logger.warn("Primary extraction failed", { model: MODELS.primary.model, error: String(err) });
     const prompt = buildPrompt(orgName, false);
     const data = await extractWithModel(dataUri, prompt, MODELS.secondary);
     best = { data, quality: scoreResult(data) };
@@ -209,8 +212,9 @@ export async function extractBankStatement(
         passesUsed,
       };
     }
-  } catch {
+  } catch (err) {
     // Pass 2 failed — continue to Pass 3
+    logger.warn("Secondary extraction failed", { model: MODELS.secondary.model, error: String(err) });
   }
 
   // Pass 3: Tertiary model (Gemini Pro) with chain-of-thought prompt
@@ -220,8 +224,9 @@ export async function extractBankStatement(
     const data = await extractWithModel(dataUri, prompt, MODELS.tertiary);
     const candidate = { data, quality: scoreResult(data) };
     best = pickBetter(best, candidate);
-  } catch {
+  } catch (err) {
     // All models failed — return best we have
+    logger.warn("Tertiary extraction failed", { model: MODELS.tertiary.model, error: String(err) });
   }
 
   // Pass 4: Balance consistency check (warnings only, no data modification)

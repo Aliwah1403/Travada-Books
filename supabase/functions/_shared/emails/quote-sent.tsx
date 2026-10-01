@@ -15,9 +15,10 @@ interface Props {
   currency: string
   publicUrl: string
   note?: string | null
+  pdfAttached?: boolean
 }
 
-export function QuoteSentEmail({ orgName, orgLogoUrl, orgEmail, customerName, quoteNumber, validUntil, total, currency, publicUrl, note }: Props) {
+export function QuoteSentEmail({ orgName, orgLogoUrl, orgEmail, customerName, quoteNumber, validUntil, total, currency, publicUrl, note, pdfAttached }: Props) {
   const label = quoteNumber ? `Quote ${quoteNumber}` : "Quote"
 
   return (
@@ -54,6 +55,11 @@ export function QuoteSentEmail({ orgName, orgLogoUrl, orgEmail, customerName, qu
       {note && (
         <Text style={{ margin: "0 0 16px", fontSize: 13, color: colors.muted, lineHeight: "1.5", fontStyle: "italic", fontFamily: font }}>
           {note}
+        </Text>
+      )}
+      {pdfAttached && (
+        <Text style={{ margin: "0 0 16px", fontSize: 13, color: colors.muted, lineHeight: "1.5", fontFamily: font }}>
+          The PDF is attached.
         </Text>
       )}
       <Text style={{ margin: 0, fontSize: 13, color: colors.muted, fontFamily: font }}>

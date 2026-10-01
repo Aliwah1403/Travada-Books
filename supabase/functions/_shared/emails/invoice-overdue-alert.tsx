@@ -8,12 +8,20 @@ interface Props {
   invoiceNumber: string | null
   customerName: string
   total: number | null
+  /** Amount already paid toward this invoice. Optional — when omitted (or 0),
+   * behaviour is unchanged and the total is shown as the amount due. When
+   * present and > 0, the balance due (total - amountPaid) becomes the
+   * headline figure instead of the total. */
+  amountPaid?: number | null
   currency: string
   viewUrl: string
 }
 
-export function InvoiceOverdueAlertEmail({ invoiceNumber, customerName, total, currency, viewUrl }: Props) {
+export function InvoiceOverdueAlertEmail({ invoiceNumber, customerName, total, amountPaid, currency, viewUrl }: Props) {
   const label = invoiceNumber ? `Invoice ${invoiceNumber}` : "Invoice"
+  const balanceDue = total != null && amountPaid != null ? total - amountPaid : null
+  const hasPartialPayment = amountPaid != null && amountPaid > 0 && balanceDue != null
+  const displayAmount = hasPartialPayment ? balanceDue : total
 
   return (
     <EmailLayout
@@ -24,8 +32,13 @@ export function InvoiceOverdueAlertEmail({ invoiceNumber, customerName, total, c
         {label}<br />is now overdue
       </Text>
       <Text style={{ margin: "0 0 8px", paddingTop: 10, fontSize: 32, fontWeight: 300, color: colors.dark, textAlign: "center", fontFamily: font, letterSpacing: "-0.02em" }}>
-        {formatMoney(total, currency)}
+        {formatMoney(displayAmount, currency)}
       </Text>
+      {hasPartialPayment && (
+        <Text style={{ margin: "0 0 8px", fontSize: 13, color: colors.muted, textAlign: "center", fontFamily: font }}>
+          {formatMoney(balanceDue, currency)} remaining of {formatMoney(total, currency)}
+        </Text>
+      )}
       <Text style={{ margin: "0 0 40px", fontSize: 13, color: colors.muted, textAlign: "center", fontFamily: font }}>
         {customerName}
       </Text>

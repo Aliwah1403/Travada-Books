@@ -1,0 +1,156 @@
+@import "@travada-books/ui/globals.css";
+
+/* MDX content lives outside app/, so Tailwind needs an explicit source to
+   scan the classes used inside content MDX files. */
+@source "../content/**/*.mdx";
+
+/* ------------------------------------------------------------------ */
+/* Website design tokens (WEBSITE-REDO-PLAN.md §2). Light only — every  */
+/* colour goes through these so a dark theme can be added later.        */
+/* ------------------------------------------------------------------ */
+@theme {
+  --color-canvas: oklch(0.974 0.004 85);
+  --color-panel: oklch(1 0 0);
+  --color-line: oklch(0.91 0.005 85);
+  --color-line-strong: oklch(0.8 0.007 85);
+  --color-ink: oklch(0.2 0.01 80);
+  --color-ink-muted: oklch(0.46 0.01 80);
+  --color-ink-subtle: oklch(0.56 0.008 80);
+  /* The logo's deep teal, #053030 */
+  --color-brand: #053030;
+  --color-brand-soft: oklch(0.95 0.03 180);
+  --color-brand-line: oklch(0.58 0.09 180);
+  --color-dark: oklch(0.19 0.012 190);
+
+  /* Invoice status colours for coded product mockups — the app's real
+     badge colours (apps/app invoice-status-badge.tsx: Tailwind 700 text on
+     100 fill). Every text/soft pair clears 4.5:1. */
+  --color-status-draft: oklch(0.46 0.01 80);
+  --color-status-draft-soft: oklch(0.94 0.004 85);
+  --color-status-scheduled: oklch(0.496 0.265 301.924);
+  --color-status-scheduled-soft: oklch(0.946 0.033 307.174);
+  --color-status-sent: oklch(0.488 0.243 264.376);
+  --color-status-sent-soft: oklch(0.932 0.032 255.585);
+  --color-status-partial: oklch(0.555 0.163 48.998);
+  --color-status-partial-soft: oklch(0.962 0.059 95.617);
+  --color-status-paid: oklch(0.527 0.154 150.069);
+  --color-status-paid-soft: oklch(0.962 0.044 156.743);
+  --color-status-overdue: oklch(0.505 0.213 27.518);
+  --color-status-overdue-soft: oklch(0.936 0.032 17.717);
+}
+
+/* The shared globals.css sets sans = Geist Mono (the app's look). The
+   website reads in Geist; mono stays Geist Mono for small labels. Declared
+   in a later `@theme inline` so the font-sans utility resolves to Geist,
+   and on :root/body so var(--font-sans) consumers pick it up too. */
+@theme inline {
+  --font-sans: "Geist Variable", sans-serif;
+}
+
+:root {
+  --font-sans: "Geist Variable", sans-serif;
+  /* Re-point the shared shadcn tokens so Base UI components (buttons,
+     sheet, navigation menu) sit on the website palette. Primary buttons
+     use the brand teal (changed from near-black 2026-09-26). */
+  --background: var(--color-canvas);
+  --foreground: var(--color-ink);
+  --primary: var(--color-brand);
+  --primary-foreground: var(--color-panel);
+  --popover: var(--color-panel);
+  --popover-foreground: var(--color-ink);
+  --border: var(--color-line);
+  --muted-foreground: var(--color-ink-muted);
+}
+
+body {
+  background-color: var(--color-canvas);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+}
+
+/* Smooth scrolling for in-page anchor links (article TOC, home "See how it
+   works"). The shared reduced-motion rule only shortens animations and
+   transitions, so turn scroll smoothing off here too. */
+html {
+  scroll-behavior: smooth;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}
+
+/* Home integrations hub (components/home/integrations-hub.tsx). Each pulse
+   path has pathLength="100", so the dash pattern is in percent of the path:
+   an 8-unit dash with a gap longer than the path, travelling from just
+   before the start to just past the end, then idling until the next trip.
+   Paused until the diagram is on screen (data-hub-live, set by an
+   IntersectionObserver); removed entirely under reduced motion. */
+@keyframes hub-pulse {
+  0% { stroke-dashoffset: 8; opacity: 0; }
+  10% { opacity: 0.85; }
+  60% { opacity: 0.85; }
+  70% { stroke-dashoffset: -100; opacity: 0; }
+  100% { stroke-dashoffset: -100; opacity: 0; }
+}
+
+.hub-pulse {
+  stroke-dasharray: 8 108;
+  stroke-dashoffset: 8;
+  opacity: 0;
+  animation: hub-pulse var(--hub-dur, 5s) linear var(--hub-delay, 0s) infinite;
+  animation-play-state: paused;
+}
+
+[data-hub-live="true"] .hub-pulse {
+  animation-play-state: running;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hub-pulse {
+    display: none;
+    animation: none;
+  }
+}
+
+/* /integrations hero: tool tiles drifting in rows
+   (components/integrations/tool-marquee.tsx). Constant motion → linear.
+   Paused until the plane is on screen; still under reduced motion. */
+@keyframes tools-marquee {
+  to { transform: translateX(-50%); }
+}
+
+.tools-marquee {
+  animation: tools-marquee 70s linear infinite;
+  animation-play-state: paused;
+}
+
+[data-marquee-live="true"] .tools-marquee {
+  animation-play-state: running;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tools-marquee {
+    animation: none;
+  }
+}
+
+/* One-time staggered entrance for coded product mockups and the home
+   feature-row illustrations (components/feature/mockups/reveal.ts;
+   illustrations step through IsoStep in illustrations/kit.tsx).
+   Progressive enhancement: the prerendered HTML has no data-reveal, so
+   everything is visible before hydration. After hydration, a frame that
+   is still below the fold gets data-reveal="pending" and builds in once
+   when it scrolls into view. Never set under reduced motion. */
+[data-reveal="pending"] [data-reveal-item] {
+  opacity: 0;
+  transform: translateY(4px);
+}
+
+[data-reveal="shown"] [data-reveal-item] {
+  transition:
+    opacity 250ms var(--ease-out),
+    transform 250ms var(--ease-out);
+  transition-delay: calc(var(--reveal-i, 0) * 40ms);
+}

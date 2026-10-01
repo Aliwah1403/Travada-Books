@@ -5,7 +5,7 @@ import { db } from "../_shared/db.ts"
 import { getCallerOrgId } from "../_shared/auth.ts"
 import { InvoiceReminderEmail } from "../_shared/emails/invoice-reminder.tsx"
 
-const APP_URL = Deno.env.get("APP_URL") ?? "https://books.travadasys.com"
+const APP_URL = Deno.env.get("APP_URL") ?? "https://app.travadabooks.com"
 const WORKER_SHARED_SECRET = Deno.env.get("WORKER_SHARED_SECRET") ?? ""
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
 
@@ -46,12 +46,13 @@ Deno.serve(async (req) => {
 
     const { data: invoice, error } = await db
       .from("invoices")
-      .select("id, org_id, customer_id, invoice_number, due_date, total, currency, token, from_details, customer_details")
+      .select("id, org_id, customer_id, invoice_number, status, due_date, total, amount_paid, currency, token, from_details, customer_details")
       .eq("id", invoiceId)
       .single()
 
     if (error || !invoice) return new Response(JSON.stringify({ error: "Invoice not found" }), { status: 404, headers: corsHeaders })
     if (!calledByWorker && invoice.org_id !== orgId) return new Response(JSON.stringify({ error: "Forbidden" }), { status: 403, headers: corsHeaders })
+    if (invoice.status === "canceled") return new Response(JSON.stringify({ error: "Cannot send a reminder for a canceled invoice" }), { status: 422, headers: corsHeaders })
 
     let from = invoice.from_details as Record<string, string> | null
     let customer = invoice.customer_details as Record<string, string> | null
@@ -112,6 +113,7 @@ Deno.serve(async (req) => {
         invoiceNumber: invoice.invoice_number,
         dueDate: invoice.due_date,
         total: invoice.total,
+        amountPaid: invoice.amount_paid,
         currency: invoice.currency,
         daysOverdue,
         publicUrl,

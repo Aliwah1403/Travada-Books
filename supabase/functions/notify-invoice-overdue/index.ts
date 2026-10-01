@@ -6,23 +6,42 @@ import { triggerNovu } from "../_shared/novu.ts"
 import { shouldSend } from "../_shared/notification-prefs.ts"
 import { InvoiceOverdueAlertEmail } from "../_shared/emails/invoice-overdue-alert.tsx"
 
-const APP_URL = Deno.env.get("APP_URL") ?? "https://books.travadasys.com"
+const APP_URL = Deno.env.get("APP_URL") ?? "https://app.travadabooks.com"
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 }
 
+const WORKER_SHARED_SECRET = Deno.env.get("WORKER_SHARED_SECRET") ?? ""
+
+function timingSafeEqual(a: string, b: string): boolean {
+  const enc = new TextEncoder()
+  const aBytes = enc.encode(a)
+  const bBytes = enc.encode(b)
+  if (aBytes.length !== bBytes.length) return false
+  let diff = 0
+  for (let i = 0; i < aBytes.length; i++) diff |= aBytes[i] ^ bBytes[i]
+  return diff === 0
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders })
 
   try {
+    const workerSecret = req.headers.get("X-Worker-Secret") ?? ""
+    const calledByWorker = WORKER_SHARED_SECRET.length > 0 && timingSafeEqual(workerSecret, WORKER_SHARED_SECRET)
+
+    if (!calledByWorker) {
+      return new Response(JSON.stringify({ error: "Forbidden" }), { status: 403, headers: corsHeaders })
+    }
+
     const nowUtc = new Date()
     const todayUtc = nowUtc.toISOString().split("T")[0]
 
     const { data: invoices, error } = await db
       .from("invoices")
-      .select("id, org_id, invoice_number, due_date, total, currency, customer_details, from_details, customer_id, token")
+      .select("id, org_id, invoice_number, due_date, total, amount_paid, currency, customer_details, from_details, customer_id, token")
       .lte("due_date", todayUtc)
       .in("status", ["unpaid", "overdue"])
       .is("overdue_alert_sent_at", null)
@@ -61,7 +80,8 @@ Deno.serve(async (req) => {
         type UserFields = { email: string; timezone: string | null } | null
         const ownerTz = (members[0].users as unknown as UserFields)?.timezone ?? "UTC"
         const todayLocal = nowUtc.toLocaleDateString("en-CA", { timeZone: ownerTz })
-        if (invoice.due_date > todayLocal) continue
+        // Overdue starts the day after the due date, matching mark-overdue.
+        if (invoice.due_date >= todayLocal) continue
 
         const { data: orgData } = await db.from("organizations").select("email").eq("id", invoice.org_id).single()
         if (!orgData?.email) {
@@ -78,6 +98,11 @@ Deno.serve(async (req) => {
           viewUrl,
         }
 
+        // Send the Resend email at most once for the whole org, even though
+        // we iterate per-owner below to gate Novu — the org business email
+        // is a single shared inbox, not one per owner.
+        let emailSent = false
+
         for (const member of members) {
           const email = (member.users as unknown as UserFields)?.email
           if (!email) continue
@@ -85,12 +110,13 @@ Deno.serve(async (req) => {
             shouldSend(member.user_id, invoice.org_id, "invoice.overdue", "email"),
             shouldSend(member.user_id, invoice.org_id, "invoice.overdue", "in_app"),
           ])
-          if (sendEmail && orgData?.email) {
+          if (sendEmail && orgData?.email && !emailSent) {
             const html = await render(
               React.createElement(InvoiceOverdueAlertEmail, {
                 invoiceNumber: invoice.invoice_number,
                 customerName: customerName ?? "your customer",
                 total: invoice.total,
+                amountPaid: invoice.amount_paid,
                 currency: invoice.currency,
                 viewUrl,
               })
@@ -101,6 +127,7 @@ Deno.serve(async (req) => {
               subject: `${label} to ${customerName} is now overdue`,
               html,
             })
+            emailSent = true
           }
           if (sendInApp) {
             triggerNovu("invoice-overdue", { subscriberId: member.user_id, email }, novuPayload)

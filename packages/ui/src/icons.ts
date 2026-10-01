@@ -1,4 +1,6 @@
 import React from "react";
+import { siStripe, siWhatsapp, type SimpleIcon } from "simple-icons";
+import mpesaLogoUrl from "./assets/mpesa-logo.png";
 import {
   HugeiconsIcon,
   type HugeiconsIconProps,
@@ -9,6 +11,7 @@ import {
   ArrowLeft01Icon as ArrowLeft01Svg,
   ArrowRight01Icon as ArrowRight01Svg,
   ArrowDown01Icon as ArrowDown01Svg,
+  Building01Icon as Building01Svg,
   Calendar01Icon as Calendar01Svg,
   ClockCheckIcon as ClockCheckSvg,
   EyeIcon as EyeSvg,
@@ -97,6 +100,9 @@ import {
   MicrosoftIcon as MicrosoftSvg,
   BankIcon as BankSvg,
   AiChat01Icon as AiChat01Svg,
+  Menu01Icon as Menu01Svg,
+  CreditCardIcon as CreditCardSvg,
+  SmartPhone01Icon as SmartPhone01Svg,
 } from "@hugeicons/core-free-icons";
 
 export type IconProps = Omit<HugeiconsIconProps, "icon">;
@@ -116,6 +122,7 @@ export const Alert01Icon = make(Alert01Svg);
 export const ArrowDown01Icon = make(ArrowDown01Svg);
 export const ArrowLeft01Icon = make(ArrowLeft01Svg);
 export const ArrowRight01Icon = make(ArrowRight01Svg);
+export const Building01Icon = make(Building01Svg);
 export const Calendar01Icon = make(Calendar01Svg);
 export const ClockCheckIcon = make(ClockCheckSvg);
 export const Sent02Icon = make(SendSvg);
@@ -204,3 +211,96 @@ export const XIcon = make(NewTwitterSvg);
 export const MicrosoftIcon = make(MicrosoftSvg);
 export const BankIcon = make(BankSvg);
 export const AiChat01Icon = make(AiChat01Svg);
+export const Menu01Icon = make(Menu01Svg);
+export const CreditCardIcon = make(CreditCardSvg);
+export const SmartPhone01Icon = make(SmartPhone01Svg);
+
+// Brand logos (Gmail, Outlook) are fixed multi-color marks, not currentColor
+// glyphs, so they're hand-authored SVGs rather than wrapped Hugeicons.
+export const GmailIcon: Icon = ({ size = 24, ...props }: IconProps) =>
+  React.createElement(
+    "svg",
+    { xmlns: "http://www.w3.org/2000/svg", width: size, height: size, viewBox: "0 0 48 48", ...props },
+    React.createElement("path", { fill: "#4caf50", d: "m45 16.2-5 2.75-5 4.75V40h7a3 3 0 0 0 3-3V16.2z" }),
+    React.createElement("path", { fill: "#1e88e5", d: "m3 16.2 3.614 1.71L13 23.7V40H6a3 3 0 0 1-3-3V16.2z" }),
+    React.createElement("path", {
+      fill: "#e53935",
+      d: "m35 11.2-11 8.25-11-8.25-1 5.8 1 6.7 11 8.25 11-8.25 1-6.7z",
+    }),
+    React.createElement("path", {
+      fill: "#c62828",
+      d: "M3 12.298V16.2l10 7.5V11.2L9.876 8.859A4.298 4.298 0 0 0 3 12.298z",
+    }),
+    React.createElement("path", {
+      fill: "#fbc02d",
+      d: "M45 12.298V16.2l-10 7.5V11.2l3.124-2.341A4.298 4.298 0 0 1 45 12.298z",
+    }),
+  )
+
+// Single-color brand marks from the `simple-icons` registry (WhatsApp, Stripe)
+// — same `fromSimpleIcon` approach as apps/app/src/components/pitch/brand-icons.tsx,
+// ported here so app-facing settings UI doesn't import from the marketing-page-scoped file.
+function fromSimpleIcon(icon: SimpleIcon): Icon {
+  return ({ size = 24, ...props }: IconProps) =>
+    React.createElement(
+      "svg",
+      {
+        role: "img",
+        xmlns: "http://www.w3.org/2000/svg",
+        viewBox: "0 0 24 24",
+        width: size,
+        height: size,
+        fill: `#${icon.hex}`,
+        ...props,
+      },
+      React.createElement("path", { d: icon.path }),
+    )
+}
+
+export const WhatsappIcon: Icon = fromSimpleIcon(siWhatsapp)
+export const StripeIcon: Icon = fromSimpleIcon(siStripe)
+
+// M-Pesa's official mark is a raster wordmark (~2.75:1), not a square glyph, so
+// it renders as an <img>. Inline height/width win over any square sizing classes
+// callers apply to the other brand icons; `size` still scales it proportionally.
+export const MpesaIcon: Icon = ({ size = 24, className }: IconProps) =>
+  React.createElement("img", {
+    src: mpesaLogoUrl,
+    alt: "M-Pesa",
+    className,
+    style: { height: Number(size) * 0.6, width: "auto" },
+  })
+
+export const OutlookIcon: Icon = ({ size = 24, ...props }: IconProps) =>
+  React.createElement(
+    "svg",
+    { xmlns: "http://www.w3.org/2000/svg", width: size, height: size, viewBox: "0 0 48 48", ...props },
+    React.createElement("path", {
+      fill: "#40c4ff",
+      d: "M31.323,8.502L7.075,23.872l-2.085-3.29v-2.835c0-1.032,0.523-1.994,1.389-2.556l14.095-9.146c2.147-1.393,4.914-1.394,7.061-0.001L31.323,8.502z",
+    }),
+    React.createElement("path", {
+      fill: "#1976d2",
+      d: "M27.317,5.911c0.073,0.043,0.145,0.088,0.217,0.135l11,7.136L11.259,30.47l-4.185-6.603l20.017-12.713C28.988,9.95,29.071,7.241,27.317,5.911z",
+    }),
+    React.createElement("path", {
+      fill: "#0d47a1",
+      d: "M22.142,33.771L11.26,30.47l23.136-14.666c1.949-1.235,1.944-4.08-0.009-5.308l-0.104-0.065l0.3,0.186l7.041,4.568c0.866,0.562,1.389,1.524,1.389,2.556v2.744L22.142,33.771z",
+    }),
+    React.createElement("path", {
+      fill: "#29b6f6",
+      d: "M20.886,43h15.523c3.646,0,6.602-2.956,6.602-6.602V17.797c0,1.077-0.554,2.079-1.466,2.652l-23.09,14.498c-1.246,0.782-2.001,2.15-2.001,3.62C16.454,41.016,18.438,43,20.886,43z",
+    }),
+    React.createElement("path", {
+      fill: "#80d8ff",
+      d: "M27.198,42.999H11.589c-3.646,0-6.602-2.956-6.602-6.602V17.783c0,1.076,0.552,2.076,1.461,2.649l23.067,14.543c1.263,0.796,2.029,2.185,2.029,3.678C31.544,41.053,29.598,42.999,27.198,42.999z",
+    }),
+    React.createElement("path", {
+      fill: "#1565c0",
+      d: "M6.453,23h10.094C18.454,23,20,24.546,20,26.453v10.094C20,38.454,18.454,40,16.547,40H6.453C4.546,40,3,38.454,3,36.547V26.453C3,24.546,4.546,23,6.453,23z",
+    }),
+    React.createElement("path", {
+      fill: "#fff",
+      d: "M11.453,36.518c-1.4,0-2.55-0.452-3.449-1.355c-0.899-0.903-1.348-2.082-1.348-3.537c0-1.536,0.456-2.778,1.369-3.726c0.913-0.949,2.107-1.423,3.584-1.423c1.396,0,2.532,0.454,3.408,1.362c0.881,0.908,1.321,2.105,1.321,3.591c0,1.527-0.456,2.758-1.369,3.692C14.061,36.053,12.889,36.518,11.453,36.518z M11.493,34.601c0.763,0,1.378-0.269,1.843-0.806c0.465-0.538,0.698-1.285,0.698-2.243c0-0.998-0.226-1.775-0.677-2.331c-0.452-0.556-1.055-0.833-1.809-0.833c-0.777,0-1.403,0.287-1.877,0.861c-0.474,0.569-0.711,1.323-0.711,2.263c0,0.953,0.237,1.707,0.711,2.263C10.145,34.326,10.752,34.601,11.493,34.601z",
+    }),
+  )

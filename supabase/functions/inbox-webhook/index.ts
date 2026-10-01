@@ -64,7 +64,7 @@ const MAX_ATTACHMENT_BYTES = 25 * 1024 * 1024 // 25MB
 // Addresses this system sends FROM — if a bounce/auto-reply/loop ever routes
 // one of our own outbound emails back into the inbound webhook, drop it
 // rather than re-ingesting it as an attachment.
-const OWN_SEND_DOMAINS = new Set(["mail.travadasys.com"])
+const OWN_SEND_DOMAINS = new Set(["mail.travadasys.com", "mail.travadabooks.com"])
 const GOOGLE_FORWARDING_CONFIRMATION_SENDER = "forwarding-noreply@google.com"
 
 // ── Helpers ──────────────────────────────────────────────────────────────
@@ -280,9 +280,6 @@ Deno.serve(async (req) => {
   }
 
   const createdItemIds: string[] = []
-  // First successfully-created item's display name — used as the inbox.new
-  // notification's documentName fallback when the email has no subject.
-  let firstDocumentName: string | null = null
 
   for (const attachment of allowed) {
     const contentType = attachmentContentType(attachment)
@@ -362,7 +359,21 @@ Deno.serve(async (req) => {
 
       if (inserted) {
         createdItemIds.push(inserted.id)
-        if (!firstDocumentName) firstDocumentName = subject || originalName
+
+        // Per-attachment, not per-email — Novu's inbox-new digest step merges
+        // events within its window, so firing one call per document keeps
+        // steps.digest.eventCount an accurate document count.
+        try {
+          await fanOutInboxNotification("inbox.new", org.id, {
+            documentName: subject || originalName,
+            source: "email",
+          })
+        } catch (err) {
+          console.error(
+            "inbox-webhook: inbox.new notification failed (non-fatal):",
+            err instanceof Error ? err.message : String(err),
+          )
+        }
       }
     } catch (err) {
       console.error("inbox-webhook: attachment processing failed:", err instanceof Error ? err.message : String(err), {
@@ -374,17 +385,6 @@ Deno.serve(async (req) => {
 
   if (createdItemIds.length === 0) {
     return new Response(JSON.stringify({ ok: true, created: 0 }), { headers: jsonHeaders })
-  }
-
-  // One inbox.new notification per email, not per attachment — non-fatal,
-  // never let a Novu hiccup fail an otherwise-successful webhook.
-  try {
-    await fanOutInboxNotification("inbox.new", org.id, {
-      documentName: subject || firstDocumentName || "New document",
-      source: "email",
-    })
-  } catch (err) {
-    console.error("inbox-webhook: inbox.new notification failed (non-fatal):", err instanceof Error ? err.message : String(err))
   }
 
   const triggerSecretKey = Deno.env.get("TRIGGER_SECRET_KEY")

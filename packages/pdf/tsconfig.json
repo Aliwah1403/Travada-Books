@@ -1,0 +1,19 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "jsx": "react-jsx",
+    "skipLibCheck": true,
+    "strict": true,
+    "noEmit": true,
+    "baseUrl": ".",
+    "paths": {
+      "@travada-books/pdf": ["./src/index.ts"],
+      "@travada-books/pdf/server": ["./src/server.tsx"]
+    }
+  },
+  "include": ["."],
+  "exclude": ["node_modules", "dist"]
+}
