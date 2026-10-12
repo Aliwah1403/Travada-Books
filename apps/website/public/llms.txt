@@ -2,15 +2,15 @@
 
 > Travada Books is invoicing and bookkeeping software for freelancers, consultants, agencies, and small businesses worldwide. It is built in Nairobi, Kenya, and handles mobile money, multi-currency billing and bank statements in any layout.
 
-Travada Books helps business owners automate recurring invoices, schedule invoice delivery, send overdue reminders, convert accepted quotes into invoices, import bank and mobile money statements (such as M-Pesa) from CSV or PDF, categorise transactions, match receipts from Gmail or Outlook, and keep documents in a searchable vault.
+Travada Books helps business owners automate recurring invoices, schedule invoice delivery, send overdue reminders, convert accepted quotes into invoices, import bank and mobile money statements (such as M-Pesa) from CSV or PDF, categorise transactions, match receipts from Outlook or forwarded email, and keep documents in a searchable vault.
 
 ## Core pages
 
 - [Homepage](https://travadabooks.com/): Product overview and common questions
 - [Invoicing](https://travadabooks.com/invoicing): Recurring invoices, scheduled sending, reminders, quotes, and multi-currency billing
 - [Statement import](https://travadabooks.com/statement-import): Bank and M-Pesa CSV/PDF import, categorisation, bulk actions, and export
-- [Inbox](https://travadabooks.com/inbox): Gmail and Outlook receipt ingestion, transaction matching, and document storage
-- [Integrations](https://travadabooks.com/integrations): Available Gmail and Outlook connections, plus the M-Pesa, Stripe, and WhatsApp roadmap
+- [Inbox](https://travadabooks.com/inbox): Outlook receipt ingestion, email forwarding from any inbox, transaction matching, and document storage
+- [Integrations](https://travadabooks.com/integrations): Available Outlook connection, plus the M-Pesa, Stripe, and WhatsApp roadmap
 - [Who it is for](https://travadabooks.com/who-its-for): Use cases for freelancers, consultants, agencies, and small businesses
 - [About](https://travadabooks.com/about): The Travada Books story and Nairobi context
 - [Guides](https://travadabooks.com/guides): Practical invoicing and bookkeeping guidance
@@ -23,7 +23,7 @@ Travada Books helps business owners automate recurring invoices, schedule invoic
 - Invoice currencies: any
 - Statement sources include banks and mobile money providers, such as M-Pesa
 - Import formats: CSV and PDF
-- Connected email providers: Gmail and Outlook
+- Connected email providers: Outlook (Gmail and other inboxes can forward receipts to a Travada inbox address)
 - Planned integrations: M-Pesa, Stripe, and WhatsApp
 - Intended users: freelancers, consultants, agencies, and small business owners
 - Availability: web application

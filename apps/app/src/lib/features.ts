@@ -5,3 +5,7 @@
 // invoice settings sheet, the Pay Invoice button + balance line on the public
 // invoice page, and any other UI driven by `accept_payments`.
 export const PAYMENTS_ENABLED = false
+
+// Direct Gmail sync is paused until Google's CASA security assessment is done.
+// Existing connected accounts can still sync/disconnect; no new connections.
+export const GMAIL_CONNECT_ENABLED = false

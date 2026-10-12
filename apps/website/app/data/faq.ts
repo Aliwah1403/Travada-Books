@@ -122,7 +122,7 @@ export const INBOX_FAQ_ITEMS: FaqItem[] = [
   {
     id: "which-providers",
     question: "Which email providers can I connect?",
-    answer: "Gmail and Outlook.",
+    answer: "Outlook. If you use Gmail or another provider, forward your receipts to your Travada inbox address and they land in the same place.",
   },
   {
     id: "what-gets-read",

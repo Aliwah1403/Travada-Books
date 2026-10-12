@@ -19,7 +19,7 @@ import { Callout, Iso, IsoSlab, UiLines } from "~/components/illustrations/kit"
 // ≥ 505px (see frame.tsx), so text renders at ≥ 14.7px.
 
 const LABEL =
-  "An isometric hub: the Travada Books plate in the centre, with spokes to Gmail, Outlook, bank statement and M-Pesa statement tiles, and two empty slots for integrations that are coming soon"
+  "An isometric hub: the Travada Books plate in the centre, with spokes to forwarded email, Outlook, bank statement and M-Pesa statement tiles, and two empty slots for integrations that are coming soon"
 
 const TX = 240
 const TY = 212
@@ -37,11 +37,11 @@ const TR = 8
 const REACH = 160 // flat distance from the hub centre along an axis
 const SOON_REACH = 118 // along the (1, 1) diagonal, i.e. straight down/up the screen
 
-type TileId = "gmail" | "outlook" | "bank" | "mpesa"
+type TileId = "forward" | "outlook" | "bank" | "mpesa"
 type SoonId = "cards" | "chat"
 
 const TILES: { id: TileId; label: string; at: [number, number]; above: boolean }[] = [
-  { id: "gmail", label: "Gmail", at: [-REACH, 0], above: true }, // top left
+  { id: "forward", label: "Forwarded email", at: [-REACH, 0], above: true }, // top left
   { id: "bank", label: "Bank statement", at: [0, -REACH], above: true }, // top right
   { id: "outlook", label: "Outlook", at: [0, REACH], above: false }, // bottom left
   { id: "mpesa", label: "M-Pesa statement", at: [REACH, 0], above: false }, // bottom right
@@ -123,7 +123,7 @@ function Chat() {
 }
 
 const GLYPH: Record<TileId | SoonId, ReactNode> = {
-  gmail: <Envelope />,
+  forward: <Envelope />,
   outlook: <Envelope badge />,
   bank: <Bank />,
   mpesa: <Phone />,
@@ -276,7 +276,7 @@ export function IntegrationHub({
       art={<Art />}
       callouts={<Callouts />}
       legend={[
-        { label: "Gmail" },
+        { label: "Forwarded email" },
         { label: "Outlook" },
         { label: "Bank statement" },
         { label: "M-Pesa statement" },

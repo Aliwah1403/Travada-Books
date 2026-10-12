@@ -22,7 +22,7 @@ export function meta() {
     ...pageMeta({
       title: "Inbox — Travada Books",
       description:
-        "Connect Gmail or Outlook and receipts get pulled in on their own, matched to the transaction they belong to, and kept in your Vault where you can search them later.",
+        "Connect Outlook, or forward receipts from any inbox, and they get pulled in on their own, matched to the transaction they belong to, and kept in your Vault where you can search them later.",
       path: "/inbox",
       image: "/og/inbox.png",
     }),
@@ -33,22 +33,22 @@ export function meta() {
 const CONTENT: FeaturePageContent = {
   eyebrow: { label: "Inbox", icon: InboxIcon },
   title: "Your receipts find you.",
-  lede: "A receipt lands in your inbox in March, and by tax time it's nowhere to be found. Connect Gmail or Outlook and Travada Books pulls it in on its own — no more digging.",
+  lede: "A receipt lands in your inbox in March, and by tax time it's nowhere to be found. Connect Outlook or forward it to your Travada address and Travada Books pulls it in on its own — no more digging.",
   heroLayout: "floating",
   visual: <ReceiptMatchFragments />,
   rows: [
     {
       label: "Connect",
       icon: Mail01Icon,
-      title: "Connect Gmail or Outlook",
-      body: "Connect the inbox you already use. Access is read-only — Travada Books can't send mail as you, and the only thing it pulls in is PDF attachments. Disconnect it whenever you like.",
+      title: "Connect Outlook, or forward from any inbox",
+      body: "Connect your Outlook mailbox with read-only access — Travada Books can't send mail as you, and the only thing it pulls in is PDF attachments. Using Gmail or another provider? Forward receipts to your Travada inbox address instead.",
       visual: <ConnectInboxesMockup />,
     },
     {
       label: "Capture",
       icon: Upload01Icon,
       title: "Receipts, pulled in on their own",
-      body: "PDF receipts and supplier invoices that land in your inbox get picked up automatically — you don't have to forward or upload anything yourself.",
+      body: "PDF receipts and supplier invoices that land in your connected Outlook inbox, or arrive at your Travada inbox address, get picked up automatically — you don't have to upload anything yourself.",
       visual: <InboxListMockup />,
     },
     {

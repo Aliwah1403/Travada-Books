@@ -1,12 +1,12 @@
 import { useEffect, useRef, type CSSProperties, type ReactNode } from "react"
 
-import { GmailIcon, LockPasswordIcon, OutlookIcon, Pdf01Icon, type Icon } from "@travada-books/ui/icons"
+import { LockPasswordIcon, Mail01Icon, OutlookIcon, Pdf01Icon, type Icon } from "@travada-books/ui/icons"
 import { cn } from "@travada-books/ui/lib/utils"
 
 import { MockFrame, Pill } from "~/components/feature/mockups/primitives"
 import { revealStep } from "~/components/feature/mockups/reveal"
 
-// "Connect Gmail or Outlook" row: Gmail → Travada Books ← Outlook, two
+// "Connect Outlook" row: forwarded email → Travada Books ← Outlook, two
 // strokes on each side (one solid, one dotted, offset), on a scatter of
 // dots. Brand-line pulses travel along each stroke toward Travada — the
 // same `hub-pulse` as the home integrations hub (app.css), paused off
@@ -140,7 +140,7 @@ export function ConnectInboxesMockup({ className }: { className?: string }) {
   return (
     <MockFrame
       className={className}
-      label="Illustration of Gmail on the left and Outlook on the right, each connected by two lines to Travada Books in the middle, with receipts flowing along the lines into Travada Books. Below: read-only access, PDF attachments only."
+      label="Illustration of forwarded email on the left and Outlook on the right, each connected by two lines to Travada Books in the middle, with receipts flowing along the lines into Travada Books. Below: read-only access, PDF attachments only."
     >
       <div ref={ref} className="relative mx-auto aspect-[560/240] w-full max-w-xl">
         <svg aria-hidden="true" viewBox={`0 0 ${W} ${H}`} fill="none" className="absolute inset-0 size-full">
@@ -171,7 +171,7 @@ export function ConnectInboxesMockup({ className }: { className?: string }) {
             ))}
           </g>
 
-          {/* Gmail → Travada */}
+          {/* Forwarded email → Travada */}
           <g {...revealStep(2)}>
             <Stroke x1={L1} x2={L2} y={CY - LANE} split={L1 + (L2 - L1) * 0.62} solidFirst gradient="connect-in-left" />
             <Stroke x1={L1} x2={L2} y={CY + LANE} split={L1 + (L2 - L1) * 0.38} solidFirst={false} gradient="connect-in-left" />
@@ -188,8 +188,8 @@ export function ConnectInboxesMockup({ className }: { className?: string }) {
           </g>
         </svg>
 
-        <Tile x={LEFT_X} label="Gmail" step={1}>
-          <BrandIcon icon={GmailIcon} />
+        <Tile x={LEFT_X} label="Forwarded" step={1}>
+          <BrandIcon icon={Mail01Icon} />
         </Tile>
         <Tile x={HUB_X} label="Travada Books" step={3} brand>
           <img src="/logo.svg" alt="" width={40} height={40} className="size-2/5 brightness-0 invert" />

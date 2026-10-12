@@ -1,9 +1,9 @@
-import { Attachment01Icon, CheckmarkCircle01Icon, GmailIcon, Pdf01Icon } from "@travada-books/ui/icons"
+import { Attachment01Icon, CheckmarkCircle01Icon, OutlookIcon, Pdf01Icon } from "@travada-books/ui/icons"
 
 import { CategoryDot, MockFragment, MockFragments, Pill } from "~/components/feature/mockups/primitives"
 
 // Inbox hero: one receipt's trip, in three fragments of real UI.
-// 1. The supplier's email in the connected Gmail inbox, PDF attached.
+// 1. The supplier's email in the connected Outlook inbox, PDF attached.
 // 2. The same receipt as an item in the Travada Inbox list
 //    (apps/app inbox-item-card.tsx), status "Matched" (inbox-status.tsx).
 // 3. The transaction it was matched to, now carrying the attachment
@@ -12,11 +12,11 @@ import { CategoryDot, MockFragment, MockFragments, Pill } from "~/components/fea
 
 export function ReceiptMatchFragments() {
   return (
-    <MockFragments label="Illustration: a receipt from Mtandao Fibre arrives in Gmail as a PDF, appears in the Travada Books inbox marked Matched, and is attached to the matching KES 4,999 transaction on 18 September.">
+    <MockFragments label="Illustration: a receipt from Mtandao Fibre arrives in Outlook as a PDF, appears in the Travada Books inbox marked Matched, and is attached to the matching KES 4,999 transaction on 18 September.">
       <MockFragment step={0} align="start">
         <div className="flex items-center gap-2 border-b border-line px-4 py-2.5 text-xs text-ink-muted">
-          <GmailIcon className="size-4 shrink-0" aria-hidden="true" />
-          <span className="truncate">Gmail · Inbox</span>
+          <OutlookIcon className="size-4 shrink-0" aria-hidden="true" />
+          <span className="truncate">Outlook · Inbox</span>
           <span className="ml-auto shrink-0 tabular-nums">18 Sep, 09:14</span>
         </div>
         <div className="flex flex-col gap-3 px-4 py-3.5">
@@ -40,7 +40,7 @@ export function ReceiptMatchFragments() {
           </div>
           <div className="flex items-center justify-between gap-3">
             <span className="flex items-center gap-1.5 text-xs text-ink-muted">
-              <GmailIcon className="size-3.5 shrink-0" aria-hidden="true" />
+              <OutlookIcon className="size-3.5 shrink-0" aria-hidden="true" />
               18 Sep 2026
             </span>
             <Pill label="Matched" icon={CheckmarkCircle01Icon} className="bg-status-paid-soft text-status-paid" />

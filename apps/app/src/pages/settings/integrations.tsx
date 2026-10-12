@@ -30,6 +30,7 @@ import {
   type InboxAccount,
 } from "@/lib/queries/inbox"
 import { IntegrationIcon } from "@/components/settings/integration-icon"
+import { GMAIL_CONNECT_ENABLED } from "@/lib/features"
 
 function GallerySkeletonCard() {
   return (
@@ -103,6 +104,13 @@ function ConnectedProviderCard({ provider }: { provider: ConnectedProvider }) {
     },
   })
 
+  // Gmail connect is paused: hide the card entirely unless the org already has
+  // a Gmail account to manage. Existing accounts get view/disconnect only.
+  const connectPaused = provider === "gmail" && !GMAIL_CONNECT_ENABLED
+  if (connectPaused && (isLoading || accounts.length === 0)) {
+    return null
+  }
+
   if (isLoading) {
     return <GallerySkeletonCard />
   }
@@ -151,11 +159,11 @@ function ConnectedProviderCard({ provider }: { provider: ConnectedProvider }) {
           <span className="text-xs text-muted-foreground truncate">{statusLabel}</span>
           <Switch
             checked={isConnected}
-            disabled={connecting}
+            disabled={connecting || (connectPaused && !isConnected)}
             onClick={(e) => e.stopPropagation()}
             onCheckedChange={(checked) => {
               if (checked) {
-                handleConnect()
+                if (!connectPaused) handleConnect()
               } else {
                 setConfirmOpen(true)
               }
@@ -242,7 +250,7 @@ export function IntegrationsSettingsPage() {
       <div>
         <h2 className="text-sm font-semibold">Integrations</h2>
         <p className="text-xs text-muted-foreground mt-0.5">
-          Connect payment methods and communication channels — M-Pesa, Stripe, WhatsApp, Gmail,
+          Connect payment methods and communication channels — M-Pesa, Stripe, WhatsApp, Outlook,
           and more.
         </p>
       </div>

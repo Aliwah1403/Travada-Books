@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { useNavigate } from "react-router"
+import { Navigate, useNavigate } from "react-router"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 import { formatDistanceToNow } from "date-fns"
@@ -34,6 +34,7 @@ import {
   type InboxAccount,
 } from "@/lib/queries/inbox"
 import { IntegrationIcon } from "@/components/settings/integration-icon"
+import { GMAIL_CONNECT_ENABLED } from "@/lib/features"
 
 // Mirrors invoice-status-badge.tsx's {label, icon, className} + Badge shape —
 // color-only crossfade (transition-colors), no scale/slide, per CLAUDE.md.
@@ -124,6 +125,11 @@ export function GmailIntegrationPage() {
     })
   }
 
+  // Gmail connect is paused: with no existing account there is nothing to manage.
+  if (!GMAIL_CONNECT_ENABLED && !isLoading && accounts.length === 0) {
+    return <Navigate to="/settings/integrations" replace />
+  }
+
   return (
     <div className="flex flex-col gap-6">
       <Button
@@ -161,9 +167,11 @@ export function GmailIntegrationPage() {
               <p className="text-xs text-muted-foreground">
                 Connect Gmail to start syncing receipts and invoices automatically.
               </p>
-              <Button size="sm" onClick={handleConnect} disabled={connecting}>
-                Connect Gmail
-              </Button>
+              {GMAIL_CONNECT_ENABLED && (
+                <Button size="sm" onClick={handleConnect} disabled={connecting}>
+                  Connect Gmail
+                </Button>
+              )}
             </CardContent>
           </Card>
         : <div className="flex flex-col gap-3">
@@ -192,14 +200,16 @@ export function GmailIntegrationPage() {
                           </Button>
                         </>
                       : <>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={handleConnect}
-                            disabled={connecting}
-                          >
-                            Reconnect
-                          </Button>
+                          {GMAIL_CONNECT_ENABLED && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={handleConnect}
+                              disabled={connecting}
+                            >
+                              Reconnect
+                            </Button>
+                          )}
                           <Button
                             variant="destructive"
                             size="sm"
@@ -216,6 +226,13 @@ export function GmailIntegrationPage() {
                     Last synced {formatDistanceToNow(new Date(account.last_accessed))} ago
                   </p>
 
+                  {account.status === "disconnected" && !GMAIL_CONNECT_ENABLED && (
+                    <p className="text-[11px] text-muted-foreground">
+                      Gmail sync is paused. Remove this account, or forward receipts to your Travada
+                      inbox address instead.
+                    </p>
+                  )}
+
                   {account.status === "disconnected" && account.error_message && (
                     <p className="text-[11px] text-destructive">{account.error_message}</p>
                   )}
@@ -223,14 +240,16 @@ export function GmailIntegrationPage() {
               </Card>
             ))}
 
-            <button
-              type="button"
-              onClick={handleConnect}
-              disabled={connecting}
-              className="self-start text-xs text-muted-foreground underline-offset-4 hover:underline disabled:opacity-60"
-            >
-              + Connect another Gmail account
-            </button>
+            {GMAIL_CONNECT_ENABLED && (
+              <button
+                type="button"
+                onClick={handleConnect}
+                disabled={connecting}
+                className="self-start text-xs text-muted-foreground underline-offset-4 hover:underline disabled:opacity-60"
+              >
+                + Connect another Gmail account
+              </button>
+            )}
           </div>
         }
       </section>

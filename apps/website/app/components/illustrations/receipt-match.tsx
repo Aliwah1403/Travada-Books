@@ -4,7 +4,7 @@ import { revealStep } from "~/components/feature/mockups/reveal"
 import { Callout, Connector, IsoSlab, IsoStep, UiLines, UiPill } from "~/components/illustrations/kit"
 
 // I5 — home Inbox row and /inbox hero (WEBSITE-REDO-PLAN.md §3). An
-// envelope (the connected Gmail or Outlook inbox) sends a receipt card up
+// envelope (the connected Outlook inbox or a forwarded email) sends a receipt card up
 // and over; it hovers above the matching transaction — the highlighted
 // slab — lined up with the slot it drops into (Medusa's modular pieces).
 //
@@ -160,7 +160,7 @@ function Callouts() {
   return (
     <>
       <g {...revealStep(0)}>
-        <Callout x={ex} y={ey} label="Gmail · Outlook" dx={16} dy={-34} run={10} fontSize={FONT} />
+        <Callout x={ex} y={ey} label="Outlook · Forwarded" dx={16} dy={-34} run={10} fontSize={FONT} />
       </g>
       <g {...revealStep(6)}>
         <Callout x={rx} y={ry} label="Receipt" dx={22} dy={-22} run={10} fontSize={FONT} />
@@ -186,7 +186,7 @@ export function ReceiptMatch({
       compactViewBox="54 56 357 291"
       art={<Art />}
       callouts={<Callouts />}
-      legend={[{ label: "Gmail · Outlook" }, { label: "Receipt" }, { label: "Matched", brand: true }]}
+      legend={[{ label: "Outlook · Forwarded" }, { label: "Receipt" }, { label: "Matched", brand: true }]}
       labelsFrom={labelsFrom}
       className={className}
     />

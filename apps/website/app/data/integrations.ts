@@ -1,7 +1,6 @@
 import type { Icon } from "@travada-books/ui/icons"
 import {
   BankIcon,
-  GmailIcon,
   MpesaIcon,
   OutlookIcon,
   StripeIcon,
@@ -27,14 +26,6 @@ export type IntegrationCategory = "Email" | "Imports" | "Payments" | "Messaging"
 export const INTEGRATION_CATEGORIES: IntegrationCategory[] = ["Email", "Imports", "Payments", "Messaging"]
 
 export const INTEGRATIONS: Integration[] = [
-  {
-    id: "gmail",
-    name: "Gmail",
-    category: "Email",
-    description: "Pull PDF receipts and supplier invoices from a connected Gmail mailbox into your Travada Inbox.",
-    status: "available",
-    Icon: GmailIcon,
-  },
   {
     id: "outlook",
     name: "Outlook",

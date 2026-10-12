@@ -63,10 +63,10 @@ const pick = (keys: string[]) => keys.map((k) => byKey.get(k)).filter((t): t is 
 
 // Four different orders so no column lines up across rows.
 const ROWS: { tiles: Tile[]; duration: string; reverse?: boolean }[] = [
-  { tiles: pick(["gmail", "claude", "bank-statements", "dropbox", "stripe", "slack", "pdf", "xero", "outlook", "zapier", "mpesa-statements", "gemini"]), duration: "80s" },
-  { tiles: pick(["chatgpt", "outlook", "google-drive", "csv", "telegram", "mpesa", "quickbooks", "gmail", "make", "whatsapp", "perplexity", "cal"]), duration: "66s", reverse: true },
-  { tiles: pick(["slack", "mpesa-statements", "n8n", "whatsapp", "claude", "gmail", "xero", "csv", "google-drive", "stripe", "chatgpt", "outlook"]), duration: "92s" },
-  { tiles: pick(["zapier", "pdf", "gemini", "bank-statements", "dropbox", "telegram", "outlook", "quickbooks", "whatsapp", "perplexity", "gmail", "make"]), duration: "74s", reverse: true },
+  { tiles: pick(["claude", "bank-statements", "dropbox", "stripe", "slack", "pdf", "xero", "outlook", "zapier", "mpesa-statements", "gemini"]), duration: "80s" },
+  { tiles: pick(["chatgpt", "outlook", "google-drive", "csv", "telegram", "mpesa", "quickbooks", "make", "whatsapp", "perplexity", "cal"]), duration: "66s", reverse: true },
+  { tiles: pick(["slack", "mpesa-statements", "n8n", "whatsapp", "claude", "xero", "csv", "google-drive", "stripe", "chatgpt", "outlook"]), duration: "92s" },
+  { tiles: pick(["zapier", "pdf", "gemini", "bank-statements", "dropbox", "telegram", "outlook", "quickbooks", "whatsapp", "perplexity", "make"]), duration: "74s", reverse: true },
 ]
 
 function ToolTile({ tile }: { tile: Tile }) {
@@ -127,7 +127,7 @@ export function ToolMarquee({ className }: { className?: string }) {
   return (
     <div ref={ref} className={cn("relative perspective-[800px]", className)}>
       <p className="sr-only">
-        Works with Gmail and Outlook, and bank and mobile money statements (such as M-Pesa) as PDF or CSV. Stripe, WhatsApp and M-Pesa
+        Works with Outlook, and bank and mobile money statements (such as M-Pesa) as PDF or CSV. Stripe, WhatsApp and M-Pesa
         payments are coming soon.
       </p>
       <div

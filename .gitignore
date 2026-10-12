@@ -8,7 +8,7 @@ CLAUDE.md
 .codex
 # Turborepo build cache and per-user TUI preferences
 .turbo/
-archive/
+Planning/
 BACKEND.md
 MULTI_ORG.md
 TRANSACTIONS.md
@@ -59,3 +59,4 @@ LINKEDIN-*.md
 LAUNCH-DOMAIN-PLAN.md
 MISTRAL-RATE-LIMIT-PLAN.md
 deploy/
+output/

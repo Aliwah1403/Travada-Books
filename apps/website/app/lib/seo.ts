@@ -129,7 +129,7 @@ export function softwareApplicationJsonLd(plans: PricingPlan[]): MetaDescriptor 
         "Quote-to-invoice conversion",
         "Bank and mobile money statement import, such as M-Pesa",
         "Automatic transaction categorisation",
-        "Gmail and Outlook receipt matching",
+        "Outlook and email-forwarding receipt matching",
         "Multi-currency invoicing",
       ],
       isAccessibleForFree: !PRICING_PUBLISHED,

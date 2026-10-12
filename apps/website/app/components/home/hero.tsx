@@ -6,8 +6,8 @@ import {
   BankIcon,
   CheckmarkCircle01Icon,
   FileSpreadsheetIcon,
-  GmailIcon,
   InboxIcon,
+  Mail01Icon,
   OutlookIcon,
   type Icon,
 } from "@travada-books/ui/icons"
@@ -44,7 +44,7 @@ export function Hero() {
               <Eyebrow variant="pill" icon={InboxIcon} className="gap-2 transition-colors">
                 <span className="font-medium text-ink">New</span>
                 <span aria-hidden="true">·</span>
-                Receipts from Gmail and Outlook
+                Receipts from Outlook and email
                 <ArrowRight01Icon className="size-3.5 text-ink-subtle" aria-hidden="true" />
               </Eyebrow>
             </Link>
@@ -92,7 +92,7 @@ type Source = { name: string; detail: string; icon: Icon }
 // Only what's live today (data/integrations.ts "available" + statement
 // import). Labelled as sources, never as customers.
 const SOURCES: Source[] = [
-  { name: "Gmail", detail: "Connect", icon: GmailIcon },
+  { name: "Email forwarding", detail: "Any inbox", icon: Mail01Icon },
   { name: "Outlook", detail: "Connect", icon: OutlookIcon },
   { name: "Bank statements", detail: "PDF or CSV", icon: BankIcon },
   { name: "Mobile money statements", detail: "PDF or CSV", icon: FileSpreadsheetIcon },

@@ -33,7 +33,7 @@ const CATEGORY_TITLES = Object.fromEntries(CATEGORIES.map((category) => [categor
 const POPULAR = ARTICLES.filter((article) => article.popular)
 const LATEST_UPDATES = buildFrontmatterCollection(updateModules, "updates").slice(0, 3)
 
-const POPULAR_SEARCHES = ["Recurring invoice", "Import statement", "Record payment", "Gmail"]
+const POPULAR_SEARCHES = ["Recurring invoice", "Import statement", "Record payment", "Outlook"]
 
 const META = "font-mono text-xs tracking-wide text-ink-subtle uppercase"
 // Clickable rows and cards: tint + opacity press, never a scale (CLAUDE.md).

@@ -109,7 +109,7 @@ const PERSONA_EXTRAS: Record<string, { spot: Spot; features: PersonaFeature[] }>
       },
       {
         title: "Inbox",
-        body: "Receipts pulled in from Gmail or Outlook and matched to their transactions.",
+        body: "Receipts pulled in from Outlook or forwarded email and matched to their transactions.",
         icon: InboxIcon,
         href: "/inbox",
       },
