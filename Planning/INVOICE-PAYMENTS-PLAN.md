@@ -33,7 +33,7 @@ Paystack supports two ways to pay a business. §7 of the connected-accounts plan
 
 **Recommendation: B (subaccounts), conditional on Paystack's answers to Q1–Q3.** Onboarding friction is the main reason businesses don't turn on online payments, and B removes it completely. If Paystack makes Travada carry chargeback/fraud liability with no controls, or doesn't allow unregistered subaccounts, fall back to A. The rest of this plan is written so the provider layer supports both: the only difference is how a payment is created and which secret verifies the webhook.
 
-Platform cut: launch at **zero** (§7 decision, Midday model), but keep the `transaction_charge` hook so it can be turned on later.
+Platform cut: **none. Decided 2026-10-13: Travada takes no fee on payments** (§7 decision, Midday model; the subscription is the business). Splits are created with a 0% main-account share and `bearer: subaccount`, so Paystack's fee is the only deduction. If a cut is ever wanted, it's one setting (`percentage_charge` or a flat `transaction_charge`). Any percentage works as long as the business bears Paystack's fee; for scale, a flat KES 20 per payment came to about 0.15% of revenue for a typical client.
 
 ## 3. Data model
 
@@ -70,6 +70,25 @@ Unique (`org_id`, `provider`). RLS: members SELECT the safe columns (same revoke
 **Webhook idempotency:** a `payment_webhook_events (event_key pk, provider, received_at)` table, same as `bank_webhook_events`. Paystack doesn't send an event id, so the key is `<event>:<data.reference>`.
 
 ## 4. Flows
+
+Overview (money moves on the dotted arrows only and never passes through Travada):
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant B as Business
+    participant T as Travada
+    participant P as Paystack
+    participant C as Client
+    Note over B,P: One-off setup: business adds payout account, Travada creates a Paystack subaccount
+    B->>C: Sends invoice (email or link)
+    C->>T: Opens invoice, taps Pay
+    T->>P: Starts checkout (amount set server-side)
+    C-->>P: Approves payment: M-Pesa PIN or card (money)
+    P->>T: Webhook: charge.success
+    T->>B: Invoice marked paid + alert
+    P-->>B: Payout T+2, minus Paystack fee (money)
+```
 
 ### 4.1 Connect (settings → Integrations → Paystack)
 
