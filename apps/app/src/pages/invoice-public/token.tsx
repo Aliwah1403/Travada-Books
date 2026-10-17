@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react"
 import { useParams } from "react-router"
-import { useQuery } from "@tanstack/react-query"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { Copy01Icon, Download01Icon, Wallet01Icon } from "@travada-books/ui/icons"
 import { Button } from "@travada-books/ui/components/button"
 import { Spokes } from "@travada-books/ui/components/spokes"
@@ -13,6 +13,8 @@ import { InvoicePdf, buildInvoiceDocumentData } from "@travada-books/pdf"
 import { downloadPdf } from "@/lib/pdf-download"
 import { formatCurrency } from "@/lib/format"
 import { PAYMENTS_ENABLED } from "@/lib/features"
+import { getInvoicePayOptions } from "@/lib/queries/payment-accounts"
+import { PayInvoiceSheet } from "@/components/invoice-public/pay-invoice-sheet"
 import LogoGreen from "@/assets/Logo-Green.svg"
 import LogoLime from "@/assets/Logo-Lime.svg"
 import { toast } from "sonner"
@@ -23,11 +25,35 @@ export function PublicInvoicePage() {
   const { theme } = useTheme()
   const logo = theme === "dark" ? LogoLime : LogoGreen
   const [isDownloading, setIsDownloading] = useState(false)
+  const queryClient = useQueryClient()
+
+  // Paystack's redirect flow returns here with ?reference= (or ?trxref=). Read it
+  // once at mount, open the pay sheet straight into "confirming", then drop the
+  // param so a refresh doesn't replay it.
+  const [redirectReference] = useState<string | null>(() => {
+    const params = new URLSearchParams(window.location.search)
+    return params.get("reference") ?? params.get("trxref")
+  })
+  const [payOpen, setPayOpen] = useState(!!redirectReference)
+
+  useEffect(() => {
+    if (!redirectReference) return
+    const url = new URL(window.location.href)
+    url.searchParams.delete("reference")
+    url.searchParams.delete("trxref")
+    window.history.replaceState(null, "", url.pathname + url.search + url.hash)
+  }, [redirectReference])
 
   const { data: invoice, isLoading, isError } = useQuery({
     queryKey: ["invoice-public", token],
     queryFn: () => getInvoiceByToken(token!),
     enabled: !!token,
+  })
+
+  const { data: payOptions } = useQuery({
+    queryKey: ["invoice-pay-options", token],
+    queryFn: () => getInvoicePayOptions(token!),
+    enabled: !!token && !!invoice && PAYMENTS_ENABLED,
   })
 
   useEffect(() => {
@@ -139,10 +165,11 @@ export function PublicInvoicePage() {
             <Download01Icon size={13} />
             <span className="hidden sm:inline">{isDownloading ? "Generating…" : "Download PDF"}</span>
           </Button>
-          {PAYMENTS_ENABLED && invoice.accept_payments && invoice.status !== "canceled" && (
-            <Button className="gap-1.5">
+          {PAYMENTS_ENABLED && payOptions?.available && (
+            <Button className="gap-1.5" onClick={() => setPayOpen(true)}>
               <Wallet01Icon size={13} />
-              <span className="hidden sm:inline">Pay Invoice</span>
+              <span>Pay</span>
+              <span className="hidden sm:inline">{formatCurrency(payOptions.balance, payOptions.currency)}</span>
             </Button>
           )}
         </div>
@@ -187,6 +214,22 @@ export function PublicInvoicePage() {
           )}
         </div>
       </div>
+
+      {PAYMENTS_ENABLED && (
+        <PayInvoiceSheet
+          open={payOpen}
+          onOpenChange={setPayOpen}
+          token={token!}
+          invoiceNumber={invoice.invoice_number}
+          options={payOptions ?? null}
+          defaultEmail={customerSnap.email ?? customerSnap.billing_email ?? ""}
+          initialReference={redirectReference}
+          onPaid={() => {
+            queryClient.invalidateQueries({ queryKey: ["invoice-public", token] })
+            queryClient.invalidateQueries({ queryKey: ["invoice-pay-options", token] })
+          }}
+        />
+      )}
     </div>
   )
 }

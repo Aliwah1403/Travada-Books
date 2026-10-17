@@ -43,6 +43,7 @@ import { InboxSettingsPage } from "@/pages/settings/inbox"
 import { TeamSettingsPage } from "@/pages/settings/team"
 import { IntegrationsSettingsPage } from "@/pages/settings/integrations"
 import { GmailIntegrationPage } from "@/pages/settings/integrations/gmail"
+import { PaystackIntegrationPage } from "@/pages/settings/integrations/paystack"
 import { OutlookIntegrationPage } from "@/pages/settings/integrations/outlook"
 import { BillingSettingsPage } from "@/pages/settings/billing"
 
@@ -106,6 +107,7 @@ const router = createBrowserRouter([
               { path: "integrations", element: <IntegrationsSettingsPage /> },
               { path: "integrations/gmail", element: <GmailIntegrationPage /> },
               { path: "integrations/outlook", element: <OutlookIntegrationPage /> },
+              { path: "integrations/paystack", element: <PaystackIntegrationPage /> },
               { path: "billing", element: <BillingSettingsPage /> },
               { path: "categories", element: <CategoriesSettingsPage /> },
               { path: "inbox", element: <InboxSettingsPage /> },

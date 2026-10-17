@@ -17,8 +17,10 @@ import { Label } from "@travada-books/ui/components/label";
 import { Separator } from "@travada-books/ui/components/separator";
 import { Input } from "@travada-books/ui/components/input";
 import { Textarea } from "@travada-books/ui/components/textarea";
-import { TickIcon, Delete01Icon, PlusSignIcon } from "@travada-books/ui/icons";
+import { Delete01Icon, PlusSignIcon } from "@travada-books/ui/icons";
 import { useRef, useState } from "react";
+import { Link } from "react-router";
+import { usePaymentAccount } from "@/hooks/use-payment-account";
 import { supabase } from "@/lib/supabase";
 import { LOGO_ACCEPT, prepareLogoFile } from "@/lib/logo-upload";
 import { PAYMENTS_ENABLED } from "@/lib/features";
@@ -79,12 +81,6 @@ const PAYMENT_TERMS_OPTIONS = [
   { value: "60", label: "Net 60" },
 ];
 
-// Mock: integrations the business has configured. Replace with real data when backend is ready.
-const connectedIntegrations = [
-  { id: "mpesa", label: "M-Pesa", description: "Safaricom M-Pesa" },
-  { id: "stripe", label: "Stripe", description: "Cards & bank transfers" },
-];
-
 const templates = [{ id: "classic", label: "Classic" }];
 
 function TemplateThumbnail({ id }: { id: string }) {
@@ -115,18 +111,21 @@ function SettingsSwitch({
   checked,
   onCheckedChange,
   id,
+  disabled,
 }: {
   checked: boolean;
   onCheckedChange: (checked: boolean) => void;
   id: string;
+  disabled?: boolean;
 }) {
   return (
     <SwitchPrimitive.Root
       id={id}
       checked={checked}
       onCheckedChange={onCheckedChange}
+      disabled={disabled}
       className={cn(
-        "relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors",
+        "relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors disabled:cursor-not-allowed disabled:opacity-50",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
         "data-checked:bg-primary bg-input",
       )}
@@ -160,6 +159,9 @@ export function InvoiceSettingsSheet({
 }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
+
+  const { data: paymentAccount, isLoading: paymentAccountLoading } = usePaymentAccount();
+  const paymentsReady = paymentAccount?.status === "active";
 
   function update<K extends keyof InvoiceSettings>(
     key: K,
@@ -546,69 +548,34 @@ export function InvoiceSettingsSheet({
                   <div className='flex flex-col gap-1'>
                     <p className='text-xs font-medium'>Accept Payments</p>
                     <p className='text-[11px] text-muted-foreground'>
-                      Adds a Pay Invoice button to the customer's invoice link.
+                      Adds a Pay button to the invoice link your customer opens.
                     </p>
                   </div>
                   <SettingsSwitch
                     id='accept-payments'
                     checked={settings.acceptPaymentsEnabled}
-                    onCheckedChange={(v) => {
-                      onSettingsChange({
-                        ...settings,
-                        acceptPaymentsEnabled: v,
-                        selectedPaymentIntegration:
-                          v ? settings.selectedPaymentIntegration : null,
-                      });
-                    }}
+                    disabled={!paymentsReady && !settings.acceptPaymentsEnabled}
+                    onCheckedChange={(v) => update("acceptPaymentsEnabled", v)}
                   />
                 </div>
 
-                {settings.acceptPaymentsEnabled && (
-                  <div className='flex flex-col gap-1.5'>
-                    {connectedIntegrations.length === 0 ?
-                      <p className='text-[11px] text-muted-foreground rounded-md border border-dashed p-3 text-center'>
-                        No payment integrations set up yet. Go to Settings →
-                        Integrations to connect one.
-                      </p>
-                    : <div className='flex flex-col gap-1.5'>
-                        <p className='text-[11px] text-muted-foreground'>
-                          Select payment method
-                        </p>
-                        {connectedIntegrations.map((integration) => (
-                          <button
-                            key={integration.id}
-                            type='button'
-                            onClick={() =>
-                              update("selectedPaymentIntegration", integration.id)
-                            }
-                            className={cn(
-                              "flex items-center justify-between rounded-md border px-3 py-2 text-left transition-colors",
-                              (
-                                settings.selectedPaymentIntegration ===
-                                  integration.id
-                              ) ?
-                                "border-primary bg-primary/5"
-                              : "border-border hover:border-muted-foreground/40",
-                            )}
-                          >
-                            <div>
-                              <p className='text-xs font-medium'>
-                                {integration.label}
-                              </p>
-                              <p className='text-[11px] text-muted-foreground'>
-                                {integration.description}
-                              </p>
-                            </div>
-                            {settings.selectedPaymentIntegration ===
-                              integration.id && (
-                              <TickIcon className='size-4 stroke-primary shrink-0' />
-                            )}
-                          </button>
-                        ))}
-                      </div>
-                    }
-                  </div>
-                )}
+                {paymentsReady ?
+                  <p className='text-[11px] text-muted-foreground'>
+                    Customers can pay with M-Pesa via Paystack
+                    {paymentAccount?.cards_enabled ? " or card" : ""}
+                  </p>
+                : !paymentAccountLoading && (
+                    <p className='text-[11px] text-muted-foreground rounded-md border border-dashed p-3 text-center'>
+                      Connect M-Pesa payments in Settings → Integrations first.{" "}
+                      <Link
+                        to='/settings/integrations/paystack'
+                        className='underline underline-offset-2 text-foreground'
+                      >
+                        Set up payments
+                      </Link>
+                    </p>
+                  )
+                }
               </div>
             </>
           )}

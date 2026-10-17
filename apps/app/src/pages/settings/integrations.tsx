@@ -30,7 +30,10 @@ import {
   type InboxAccount,
 } from "@/lib/queries/inbox"
 import { IntegrationIcon } from "@/components/settings/integration-icon"
-import { GMAIL_CONNECT_ENABLED } from "@/lib/features"
+import { DisconnectPaystackDialog } from "@/components/settings/disconnect-paystack-dialog"
+import { usePaymentAccount } from "@/hooks/use-payment-account"
+import { GMAIL_CONNECT_ENABLED, PAYMENTS_ENABLED } from "@/lib/features"
+import type { PaymentAccountStatus } from "@/lib/queries/payment-accounts"
 
 function GallerySkeletonCard() {
   return (
@@ -200,20 +203,78 @@ function ConnectedProviderCard({ provider }: { provider: ConnectedProvider }) {
   )
 }
 
+const PAYSTACK_ROUTE = "/settings/integrations/paystack"
+
+const paymentStatusLabel: Record<PaymentAccountStatus, string> = {
+  active: "",
+  pending_review: "Under review",
+  frozen: "Paused",
+  disabled: "Disconnected",
+}
+
+function PaystackCard() {
+  const navigate = useNavigate()
+  const { orgRole } = useAuth()
+  const { data: account, isLoading } = usePaymentAccount()
+  const [confirmOpen, setConfirmOpen] = useState(false)
+
+  if (isLoading) return <GallerySkeletonCard />
+
+  // Active, pending and frozen all count as connected — the account exists and
+  // is managed from the detail page. Only "disabled" (or no row) reads as off.
+  const isConnected = !!account && account.status !== "disabled"
+  const statusLabel =
+    !account ? "Not connected"
+    : account.status === "active" ? `Paying out to ${account.settlement_label ?? "your account"}`
+    : paymentStatusLabel[account.status]
+
+  return (
+    <>
+      <Card
+        role="button"
+        tabIndex={0}
+        onClick={() => navigate(PAYSTACK_ROUTE)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") navigate(PAYSTACK_ROUTE)
+        }}
+        className="cursor-pointer ring-1 ring-foreground/10 transition-colors fine-hover:ring-foreground/25 active:opacity-90"
+      >
+        <CardHeader>
+          <IntegrationIcon brand="mpesa" icon={MpesaIcon} />
+          <CardTitle className="mt-2">M-Pesa payments</CardTitle>
+          <CardDescription>
+            Let customers pay your invoices with M-Pesa. Powered by Paystack.
+          </CardDescription>
+        </CardHeader>
+        <CardFooter className="justify-between border-t pt-4">
+          <span className="text-xs text-muted-foreground truncate">{statusLabel}</span>
+          <Switch
+            checked={isConnected}
+            // Only owners manage payouts, and a paused (frozen) account can only
+            // be cleared by Travada staff — the server rejects both anyway.
+            disabled={orgRole !== "owner" || account?.status === "frozen"}
+            onClick={(e) => e.stopPropagation()}
+            onCheckedChange={(checked) => {
+              if (checked) navigate(PAYSTACK_ROUTE)
+              else setConfirmOpen(true)
+            }}
+          />
+        </CardFooter>
+      </Card>
+
+      <DisconnectPaystackDialog open={confirmOpen} onOpenChange={setConfirmOpen} />
+    </>
+  )
+}
+
 type ComingSoonProvider = {
-  brand: "mpesa" | "stripe" | "whatsapp"
+  brand: "stripe" | "whatsapp"
   icon: typeof OutlookIcon
   title: string
   description: string
 }
 
 const comingSoonProviders: ComingSoonProvider[] = [
-  {
-    brand: "mpesa",
-    icon: MpesaIcon,
-    title: "M-Pesa",
-    description: "Sync incoming payments automatically and accept M-Pesa STK push on invoices.",
-  },
   {
     brand: "stripe",
     icon: StripeIcon,
@@ -250,14 +311,14 @@ export function IntegrationsSettingsPage() {
       <div>
         <h2 className="text-sm font-semibold">Integrations</h2>
         <p className="text-xs text-muted-foreground mt-0.5">
-          Connect payment methods and communication channels — M-Pesa, Stripe, WhatsApp, Outlook,
-          and more.
+          Connect payment methods and communication channels — M-Pesa, Outlook, WhatsApp, and more.
         </p>
       </div>
 
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
         <ConnectedProviderCard provider="gmail" />
         <ConnectedProviderCard provider="outlook" />
+        {PAYMENTS_ENABLED && <PaystackCard />}
         {comingSoonProviders.map((provider) => (
           <ComingSoonCard key={provider.brand} {...provider} />
         ))}
