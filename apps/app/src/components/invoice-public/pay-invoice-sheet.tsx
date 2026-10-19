@@ -19,6 +19,8 @@ import {
   MpesaIcon,
 } from "@travada-books/ui/icons"
 import { useIsMobile } from "@/hooks/use-mobile"
+import { cn } from "@travada-books/ui/lib/utils"
+import { format, parseISO } from "date-fns"
 import { formatCurrency } from "@/lib/format"
 import { PAYSTACK_MOCK } from "@/lib/features"
 import {
@@ -65,7 +67,11 @@ export function PayInvoiceSheet({
   const [emailError, setEmailError] = useState<string | null>(null)
   const [formError, setFormError] = useState<string | null>(null)
   const [failureMessage, setFailureMessage] = useState<string | null>(null)
-  const [paid, setPaid] = useState<{ amount: number; currency: string } | null>(null)
+  const [paid, setPaid] = useState<{ amount: number; currency: string; remaining: number } | null>(null)
+  // Part-payments (only when the invoice's rules allow them).
+  const [mode, setMode] = useState<"full" | "part">("full")
+  const [partAmount, setPartAmount] = useState("")
+  const [amountError, setAmountError] = useState<string | null>(null)
 
   // Confirming: poll the status function until it resolves or we time out.
   useEffect(() => {
@@ -112,23 +118,79 @@ export function PayInvoiceSheet({
   const currency = options?.currency ?? "KES"
   const amountLabel = formatCurrency(balance, currency)
   const showCards = !!options?.cards
+  const canPayPart = !!options?.partial && options.max_partial != null
+  const minAmount = options?.min_amount ?? balance
+  const maxPartial = options?.max_partial ?? balance
+  // What must stay owing after a part-payment (the smart-remainder rule).
+  const minRemainder = Math.max(balance - maxPartial, 0)
+  const fmt = (n: number) => formatCurrency(n, currency)
+  // The business's online per-payment limit (risk tier). When the full balance is
+  // above it, a part-payment is the only way to pay online.
+  const limit = options?.per_payment_limit ?? Infinity
+  const fullOverLimit = canPayPart && balance > limit
+  const partCeiling = Math.min(maxPartial, limit)
+
+  // Same checks the server runs (invoice-pay-paystack); the server stays the authority.
+  function partAmountError(value: string): string | null {
+    const n = Math.round(Number(value) * 100) / 100
+    if (value.trim() === "" || !Number.isFinite(n) || n <= 0) return "Enter an amount."
+    if (n > balance) return `That's more than the ${fmt(balance)} due.`
+    if (n === balance) return null
+    if (n < minAmount) {
+      return options?.is_deposit ? `The first payment must be at least ${fmt(minAmount)}.` : `The minimum payment is ${fmt(minAmount)}.`
+    }
+    if (n > maxPartial) return `Pay up to ${fmt(maxPartial)} so at least ${fmt(minRemainder)} is left, or pay the full balance.`
+    if (n > limit) return `Online payments to this business are limited to ${fmt(limit)} at a time.`
+    return null
+  }
+
+  // Over-limit invoices open straight on "Part of it", prefilled with the minimum.
+  useEffect(() => {
+    if (open && fullOverLimit && minAmount <= partCeiling && mode === "full" && step === "form") {
+      setMode("part")
+      setPartAmount((prev) => (prev === "" ? String(minAmount) : prev))
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, fullOverLimit])
+
+  const payingPart = canPayPart && mode === "part"
+  const payAmount = payingPart ? Math.round(Number(partAmount) * 100) / 100 : balance
+  const payLabel = payingPart && Number.isFinite(payAmount) && payAmount > 0 ? fmt(payAmount) : amountLabel
 
   async function handlePay() {
     if (!EMAIL_PATTERN.test(email.trim())) {
       setEmailError("Enter a valid email address.")
       return
     }
+    if (payingPart) {
+      const error = partAmountError(partAmount)
+      if (error) {
+        setAmountError(error)
+        return
+      }
+    }
     setEmailError(null)
+    setAmountError(null)
     setFormError(null)
     setStep("starting")
 
     let started
     try {
-      started = await startInvoicePayment(token, email.trim())
+      started = await startInvoicePayment(
+        token,
+        email.trim(),
+        payingPart && payAmount !== balance ? payAmount : undefined,
+      )
     } catch (e) {
       // Paystack rejected the email itself — point at the field, not a retry.
       if (e instanceof PaymentError && e.code === "email") {
         setEmailError(e.message)
+        setStep("form")
+        return
+      }
+      // The server didn't accept the amount (rules changed, or a payment landed meanwhile).
+      if (e instanceof PaymentError && e.code === "amount") {
+        setAmountError(e.message)
         setStep("form")
         return
       }
@@ -142,7 +204,11 @@ export function PayInvoiceSheet({
     }
 
     setReference(started.reference)
-    setPaid({ amount: started.amount, currency: started.currency })
+    setPaid({
+      amount: started.amount,
+      currency: started.currency,
+      remaining: Math.max(Math.round((balance - started.amount) * 100) / 100, 0),
+    })
 
     // Mock mode skips the Paystack popup; checkInvoicePayment simulates the PIN wait.
     if (PAYSTACK_MOCK) {
@@ -176,6 +242,9 @@ export function PayInvoiceSheet({
       setStep("form")
       setReference(null)
       setFailureMessage(null)
+      setMode("full")
+      setPartAmount("")
+      setAmountError(null)
     }
   }
 
@@ -199,6 +268,95 @@ export function PayInvoiceSheet({
                 <p className="text-[11px] text-muted-foreground">Amount due</p>
                 <p className="mt-0.5 text-3xl font-semibold tracking-tight">{amountLabel}</p>
               </div>
+
+              {canPayPart && (
+                <div className="flex flex-col gap-1.5">
+                  <p className="text-xs">How much</p>
+                  <div role="radiogroup" aria-label="How much to pay" className="grid grid-cols-2 gap-2">
+                    {(
+                      [
+                        {
+                          value: "full",
+                          label: "Full balance",
+                          detail: fullOverLimit ? `Over the ${fmt(limit)} online limit` : amountLabel,
+                        },
+                        {
+                          value: "part",
+                          label: "Part of it",
+                          detail: `${options?.is_deposit ? "Deposit" : "Min"} ${fmt(minAmount)}`,
+                        },
+                      ] as const
+                    ).map((opt) => (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        role="radio"
+                        aria-checked={mode === opt.value}
+                        disabled={busy || (opt.value === "full" && fullOverLimit)}
+                        onClick={() => {
+                          setMode(opt.value)
+                          setAmountError(null)
+                          if (opt.value === "part" && partAmount === "") setPartAmount(String(minAmount))
+                        }}
+                        className={cn(
+                          "flex flex-col items-start gap-0.5 rounded-md border px-3 py-2.5 text-left transition-[border-color,box-shadow] active:opacity-80 disabled:cursor-not-allowed disabled:opacity-50",
+                          mode === opt.value ? "border-primary ring-1 ring-primary" : "fine-hover:border-muted-foreground/40",
+                        )}
+                      >
+                        <span className="text-sm">{opt.label}</span>
+                        <span className="text-[11px] text-muted-foreground">{opt.detail}</span>
+                      </button>
+                    ))}
+                  </div>
+
+                  {mode === "part" && (
+                    <div className="mt-1 flex flex-col gap-1.5">
+                      <Label htmlFor="pay-amount" className="text-xs">
+                        Amount ({currency})
+                      </Label>
+                      <Input
+                        id="pay-amount"
+                        type="number"
+                        inputMode="decimal"
+                        min={minAmount}
+                        max={fullOverLimit ? partCeiling : balance}
+                        step="any"
+                        value={partAmount}
+                        onChange={(e) => {
+                          setPartAmount(e.target.value)
+                          setAmountError(null)
+                        }}
+                        onBlur={() => partAmount !== "" && setAmountError(partAmountError(partAmount))}
+                        disabled={busy}
+                        aria-invalid={!!amountError}
+                        className={amountError ? "border-destructive text-xs" : "text-xs"}
+                      />
+                      {amountError ?
+                        <p className="text-[11px] text-destructive">{amountError}</p>
+                      : <p className="text-[11px] text-muted-foreground">
+                          {fmt(minAmount)} to {fmt(partCeiling)}
+                          {fullOverLimit ? "." : ", or the full balance."}
+                        </p>
+                      }
+                    </div>
+                  )}
+
+                  {(options?.partial_deadline || options?.payments_left != null) && (
+                    <p className="text-[11px] text-muted-foreground">
+                      {[
+                        options?.partial_deadline ?
+                          `Balance to be cleared by ${format(parseISO(options.partial_deadline), "d MMM yyyy")}.`
+                        : null,
+                        options?.payments_left != null ?
+                          `${options.payments_left} ${options.payments_left === 1 ? "payment" : "payments"} left on this invoice.`
+                        : null,
+                      ]
+                        .filter(Boolean)
+                        .join(" ")}
+                    </p>
+                  )}
+                </div>
+              )}
 
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="pay-email" className="text-xs">
@@ -241,7 +399,7 @@ export function PayInvoiceSheet({
 
             <SheetFooter>
               <Button onClick={handlePay} disabled={busy} className="w-full">
-                {busy ? "Starting…" : `Pay ${amountLabel}`}
+                {busy ? "Starting…" : `Pay ${payLabel}`}
               </Button>
               <p className="text-center text-[11px] text-muted-foreground">
                 Payments are processed securely by Paystack.
@@ -269,6 +427,9 @@ export function PayInvoiceSheet({
                   <span className="mb-1 block text-base font-semibold text-foreground">
                     {formatCurrency(paid.amount, paid.currency)}
                   </span>
+                )}
+                {paid && paid.remaining > 0 && (
+                  <span className="mb-1 block">{formatCurrency(paid.remaining, paid.currency)} is still due on this invoice.</span>
                 )}
                 {email ? `A receipt is on its way to ${email}.` : "A receipt is on its way to your email."}
               </>

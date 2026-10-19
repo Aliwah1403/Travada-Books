@@ -169,7 +169,10 @@ export function PublicInvoicePage() {
             <Button className="gap-1.5" onClick={() => setPayOpen(true)}>
               <Wallet01Icon size={13} />
               <span>Pay</span>
-              <span className="hidden sm:inline">{formatCurrency(payOptions.balance, payOptions.currency)}</span>
+              {/* With part-payments allowed the amount is chosen in the sheet. */}
+              {!payOptions.partial && (
+                <span className="hidden sm:inline">{formatCurrency(payOptions.balance, payOptions.currency)}</span>
+              )}
             </Button>
           )}
         </div>

@@ -59,6 +59,7 @@ import {
 } from "@/lib/document-snapshots";
 import { useAuth, type UserOrg } from "@/contexts/auth-context";
 import { supabase } from "@/lib/supabase";
+import { normalizePartialRules } from "@/lib/partial-payments";
 import { Spinner } from "@/components/shared/spinner";
 import { toast } from "sonner";
 
@@ -426,6 +427,7 @@ export function EditInvoicePage() {
     setInvoiceSettings((prev) => ({
       ...prev,
       acceptPaymentsEnabled: invoice.accept_payments ?? false,
+      partialPayments: normalizePartialRules(invoice.partial_payments, { ...prev.partialPayments, enabled: false }),
       includePdf: invoice.include_pdf ?? true,
     }));
 
@@ -440,9 +442,14 @@ export function EditInvoicePage() {
       ...prev,
       ...savedTemplate,
       acceptPaymentsEnabled: invoice?.accept_payments ?? prev.acceptPaymentsEnabled,
+      // The invoice's own rules win; without any, keep the template's numbers but off.
+      partialPayments: normalizePartialRules(invoice?.partial_payments, {
+        ...savedTemplate.partialPayments,
+        enabled: false,
+      }),
       includePdf: invoice?.include_pdf ?? prev.includePdf,
     }));
-  }, [savedTemplate, initialized, invoice?.accept_payments, invoice?.include_pdf]);
+  }, [savedTemplate, initialized, invoice?.accept_payments, invoice?.partial_payments, invoice?.include_pdf]);
 
   const [issueDateChangedByUser, setIssueDateChangedByUser] = useState(false);
 
@@ -550,6 +557,7 @@ export function EditInvoicePage() {
       scheduled_at: isSchedule && scheduleDate ? scheduleDate.toISOString() : null,
       send_template_id: null,
       accept_payments: invoiceSettings.acceptPaymentsEnabled,
+      partial_payments: invoiceSettings.partialPayments,
       include_pdf: invoiceSettings.includePdf,
       invoice_template: invoiceSettings.invoiceTemplate,
       date_format: invoiceSettings.dateFormat,
@@ -640,6 +648,7 @@ export function EditInvoicePage() {
           payment_details: updated.payment_details ?? "",
           note: updated.note ?? "",
           accept_payments: updated.accept_payments,
+          partial_payments: updated.partial_payments,
           include_pdf: updated.include_pdf,
           invoice_template: updated.invoice_template,
           date_format: updated.date_format,

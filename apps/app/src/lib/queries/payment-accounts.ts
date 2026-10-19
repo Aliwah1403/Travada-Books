@@ -61,6 +61,14 @@ export interface InvoicePayOptions {
   balance: number
   currency: string
   business_name: string
+  // Part-payment bounds from invoice_partial_bounds. When `partial` is false
+  // only the full balance can be paid.
+  partial: boolean
+  min_amount: number
+  max_partial: number | null
+  is_deposit: boolean
+  partial_deadline: string | null
+  payments_left: number | null
 }
 
 export interface StartedPayment {
@@ -297,16 +305,36 @@ export async function getInvoicePayOptions(token: string): Promise<InvoicePayOpt
       balance,
       currency: invoice.currency,
       business_name: from.name ?? "this business",
+      // Mock mode has no rules engine: full balance only.
+      partial: false,
+      min_amount: balance,
+      max_partial: null,
+      is_deposit: false,
+      partial_deadline: null,
+      payments_left: null,
     }
   }
 
   const { data, error } = await supabase.rpc("get_invoice_pay_options", { p_token: token })
   if (error) throw error
-  const row = Array.isArray(data) ? data[0] : data
-  return (row as InvoicePayOptions | undefined) ?? null
+  const row = (Array.isArray(data) ? data[0] : data) as InvoicePayOptions | undefined
+  if (!row) return null
+  // numeric columns can arrive as strings from PostgREST.
+  return {
+    ...row,
+    per_payment_limit: Number(row.per_payment_limit),
+    balance: Number(row.balance),
+    min_amount: Number(row.min_amount),
+    max_partial: row.max_partial == null ? null : Number(row.max_partial),
+  }
 }
 
-export async function startInvoicePayment(token: string, email: string): Promise<StartedPayment> {
+// `amount` is omitted for a full-balance payment; the server bounds any value sent.
+export async function startInvoicePayment(
+  token: string,
+  email: string,
+  amount?: number,
+): Promise<StartedPayment> {
   if (PAYSTACK_MOCK) {
     await mockDelay()
     const options = await getInvoicePayOptions(token)
@@ -316,12 +344,16 @@ export async function startInvoicePayment(token: string, email: string): Promise
       accessCode: "mock_access_code",
       authorizationUrl: "https://checkout.paystack.com/mock",
       reference,
-      amount: options?.balance ?? 0,
+      amount: amount ?? options?.balance ?? 0,
       currency: options?.currency ?? "KES",
       channels: options?.cards ? ["mobile_money", "card"] : ["mobile_money"],
     }
   }
-  return invokeFn<StartedPayment>("invoice-pay-paystack", { token, email })
+  return invokeFn<StartedPayment>("invoice-pay-paystack", {
+    token,
+    email,
+    ...(amount !== undefined ? { amount } : {}),
+  })
 }
 
 export async function checkInvoicePayment(token: string, reference: string): Promise<PaymentCheck> {

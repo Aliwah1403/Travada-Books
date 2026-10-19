@@ -15,6 +15,8 @@ export type NotificationPrefRow = {
 const DEFAULTS: { notification_type: string; channel: NotificationChannel; enabled: boolean }[] = [
   { notification_type: "invoice.paid",             channel: "in_app", enabled: true  },
   { notification_type: "invoice.paid",             channel: "email",  enabled: true  },
+  { notification_type: "invoice.payment_received", channel: "in_app", enabled: true  },
+  { notification_type: "invoice.payment_received", channel: "email",  enabled: true  },
   { notification_type: "invoice.overdue",          channel: "in_app", enabled: true  },
   { notification_type: "invoice.overdue",          channel: "email",  enabled: true  },
   { notification_type: "invoice.reminder_upcoming",channel: "in_app", enabled: true  },

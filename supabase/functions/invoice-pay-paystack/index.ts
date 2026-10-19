@@ -12,10 +12,13 @@ import { effectiveLimits, sha256Hex } from "../_shared/payment-risk.ts"
 
 // Public, token-authorised endpoint behind the Pay button on /i/:token
 // (verify_jwt = false — payers aren't signed in). The ONLY inputs are the
-// invoice token and the payer's email: the amount is always computed here from
-// the invoice row, never taken from the client.
+// invoice token, the payer's email and, when the invoice allows part-payments,
+// the amount they chose. The balance is always computed here from the invoice
+// row; a client amount is only accepted inside the bounds
+// invoice_partial_bounds returns (via get_invoice_pay_options), never trusted.
 //
 // Flow: rate-limit (hashed IP + per invoice) -> load invoice -> guards ->
+// amount (full balance, or a part-payment inside the invoice's rules) ->
 // load active payment account -> limits -> channel decisions (card testing,
 // self-payment, cards hold) -> reuse an open attempt or create one ->
 // Paystack /transaction/initialize -> return access code.
@@ -53,7 +56,7 @@ Deno.serve(async (req) => {
   try {
     if (!isPaystackConfigured()) return json({ error: NOT_CONFIGURED_MESSAGE }, 503)
 
-    let body: { token?: unknown; email?: unknown }
+    let body: { token?: unknown; email?: unknown; amount?: unknown }
     try {
       body = await req.json()
     } catch {
@@ -98,6 +101,41 @@ Deno.serve(async (req) => {
     const balance = round2(Number(invoice.total ?? 0) - Number(invoice.amount_paid ?? 0))
     if (!(balance > 0)) return unavailable()
 
+    // Amount: the full balance unless the payer chose a part-payment, which
+    // must sit inside the invoice's rules. Same function the public page reads.
+    let amount = balance
+    if (body.amount !== undefined && body.amount !== null) {
+      const requested = typeof body.amount === "number" ? round2(body.amount) : NaN
+      if (!Number.isFinite(requested) || requested <= 0) {
+        return json({ error: "Enter a valid amount.", code: "amount" }, 400)
+      }
+      if (requested !== balance) {
+        const { data: optionRows, error: optionsError } = await db.rpc("get_invoice_pay_options", { p_token: token })
+        if (optionsError) throw optionsError
+        const bounds = (Array.isArray(optionRows) ? optionRows[0] : optionRows) as
+          | { partial: boolean; min_amount: number | string; max_partial: number | string | null }
+          | undefined
+        const min = Number(bounds?.min_amount)
+        const maxPartial = bounds?.max_partial == null ? NaN : Number(bounds.max_partial)
+        if (!bounds?.partial) {
+          return json({ error: "This invoice has to be paid in full.", code: "amount" }, 400)
+        }
+        if (requested > balance) {
+          return json({ error: "That's more than the balance due.", code: "amount" }, 400)
+        }
+        if (requested < min) {
+          return json({ error: "That's below the minimum payment for this invoice.", code: "amount" }, 400)
+        }
+        if (!(requested <= maxPartial)) {
+          return json(
+            { error: "That would leave too little outstanding. Pay a smaller part or the full balance.", code: "amount" },
+            400,
+          )
+        }
+      }
+      amount = requested
+    }
+
     // Per-invoice rate limit: attempts created in the last hour.
     const { count: invoiceAttempts, error: invoiceAttemptsError } = await db
       .from("payment_attempts")
@@ -131,9 +169,9 @@ Deno.serve(async (req) => {
       .gte("created_at", weekAgo)
     if (weekError) throw weekError
     const weekTotal = (weekRows ?? []).reduce((sum, r) => sum + Number(r.amount), 0)
-    if (balance > limits.perPayment || weekTotal + balance > limits.weekly) {
+    if (amount > limits.perPayment || weekTotal + amount > limits.weekly) {
       console.warn(
-        `invoice-pay-paystack: LIMIT hit for org ${invoice.org_id} invoice ${invoice.id}: balance ${balance}, ` +
+        `invoice-pay-paystack: LIMIT hit for org ${invoice.org_id} invoice ${invoice.id}: amount ${amount}, ` +
           `perPayment ${limits.perPayment}, weekTotal ${weekTotal}, weekly ${limits.weekly}`,
       )
       return json(
@@ -191,7 +229,7 @@ Deno.serve(async (req) => {
         accessCode: a.accessCode,
         authorizationUrl: a.authorizationUrl,
         reference: a.reference,
-        amount: balance,
+        amount,
         currency: invoice.currency,
         channels,
       })
@@ -206,7 +244,7 @@ Deno.serve(async (req) => {
       .select("reference, access_code, authorization_url")
       .eq("invoice_id", invoice.id)
       .eq("status", "initialized")
-      .eq("amount", balance)
+      .eq("amount", amount)
       .eq("payer_email", email)
       .not("access_code", "is", null)
       .gte("created_at", reuseSince)
@@ -224,7 +262,7 @@ Deno.serve(async (req) => {
       org_id: invoice.org_id,
       invoice_id: invoice.id,
       payment_account_id: account.id,
-      amount: balance,
+      amount,
       currency: invoice.currency,
       status: "initialized",
       payer_email: email,
@@ -237,7 +275,7 @@ Deno.serve(async (req) => {
     try {
       init = await initializeTransaction({
         email,
-        amountSubunit: toSubunit(balance),
+        amountSubunit: toSubunit(amount),
         currency: invoice.currency,
         reference,
         callbackUrl,

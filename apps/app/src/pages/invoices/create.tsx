@@ -512,6 +512,7 @@ export function CreateInvoicePage() {
       scheduled_at: isSchedule && scheduleDate ? scheduleDate.toISOString() : null,
       send_template_id: null, // template picker coming in a later stage
       accept_payments: invoiceSettings.acceptPaymentsEnabled,
+      partial_payments: invoiceSettings.partialPayments,
       include_pdf: invoiceSettings.includePdf,
       invoice_template: invoiceSettings.invoiceTemplate,
       date_format: invoiceSettings.dateFormat,
@@ -581,6 +582,7 @@ export function CreateInvoicePage() {
             payment_details: invoice.payment_details ?? "",
             note: invoice.note ?? "",
             accept_payments: invoice.accept_payments,
+            partial_payments: invoice.partial_payments,
             include_pdf: invoice.include_pdf,
             invoice_template: invoice.invoice_template,
             date_format: invoice.date_format,

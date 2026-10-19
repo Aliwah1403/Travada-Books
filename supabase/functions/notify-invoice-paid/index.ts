@@ -6,6 +6,7 @@ import { getCallerOrgId } from "../_shared/auth.ts"
 import { triggerNovu } from "../_shared/novu.ts"
 import { shouldSend } from "../_shared/notification-prefs.ts"
 import { InvoicePaidEmail } from "../_shared/emails/invoice-paid.tsx"
+import { formatMoney } from "../_shared/email-layout.tsx"
 
 const APP_URL = Deno.env.get("APP_URL") ?? "https://app.travadabooks.com"
 
@@ -96,6 +97,8 @@ Deno.serve(async (req) => {
       customerName,
       total: invoice.total,
       currency: invoice.currency,
+      // Display string for the in-app message, e.g. "KES 100,000.00".
+      totalFormatted: formatMoney(invoice.total, invoice.currency),
       viewUrl,
     }
 

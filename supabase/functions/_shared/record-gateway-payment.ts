@@ -33,23 +33,23 @@ export type RecordResult =
   | { outcome: "mismatch" }
   | { outcome: "unknown_reference" }
 
-async function notifyInvoicePaid(invoiceId: string) {
+// Business notifications: notify-invoice-paid when the payment settles the
+// invoice, notify-invoice-payment-received for a part-payment. Non-fatal — the
+// payment is already recorded.
+async function notifyBusiness(fn: "notify-invoice-paid" | "notify-invoice-payment-received", body: Record<string, string>) {
   try {
-    const res = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/notify-invoice-paid`, {
+    const res = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/${fn}`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
         "X-Worker-Secret": WORKER_SHARED_SECRET,
       },
-      body: JSON.stringify({ invoiceId }),
+      body: JSON.stringify(body),
     })
-    if (!res.ok) {
-      console.warn(`record-gateway-payment: notify-invoice-paid returned ${res.status} for invoice ${invoiceId}`)
-    }
+    if (!res.ok) console.warn(`record-gateway-payment: ${fn} returned ${res.status}`, body)
   } catch (err) {
-    // Non-fatal: the payment is already recorded.
-    console.warn("record-gateway-payment: notify-invoice-paid threw:", err)
+    console.warn(`record-gateway-payment: ${fn} threw:`, err)
   }
 }
 
@@ -171,7 +171,8 @@ export async function recordGatewayPayment(reference: string, tx: PaystackTransa
   await sendPaymentReceipt(reference, attempt.payer_email, attempt.invoice_id, paidAt, channelToMethod(channel))
 
   const { data: invoice } = await db.from("invoices").select("status").eq("id", attempt.invoice_id).maybeSingle()
-  if (invoice?.status === "paid") await notifyInvoicePaid(attempt.invoice_id)
+  if (invoice?.status === "paid") await notifyBusiness("notify-invoice-paid", { invoiceId: attempt.invoice_id })
+  else if (invoice?.status === "partially_paid") await notifyBusiness("notify-invoice-payment-received", { reference })
 
   return { outcome: "recorded" }
 }
