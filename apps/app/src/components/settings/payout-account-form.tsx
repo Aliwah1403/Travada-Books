@@ -275,7 +275,7 @@ export function PayoutAccountForm({
       {serverError && <p className="text-xs text-destructive">{serverError}</p>}
 
       <div className="flex items-center gap-2">
-        <Button type="submit" size="sm" disabled={isPending}>
+        <Button type="submit" size="sm" disabled={isPending || !confirmed}>
           {isPending ? "Working…" : submitLabel}
         </Button>
         {secondaryAction}

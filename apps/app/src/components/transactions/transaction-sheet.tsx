@@ -237,8 +237,17 @@ export function TransactionSheet({
 
   const selectedCategory =
     categories.find((c: TransactionCategory) => c.id === categoryId) ?? null;
-  const selectedInvoice =
-    openInvoices.find((inv) => inv.id === invoiceId) ?? null;
+  // The picker only lists open invoices, but an existing transaction can be
+  // linked to one that is now paid (e.g. paid online): show that link too.
+  const selectedInvoice: Pick<OpenInvoice, "id" | "invoice_number" | "customer_name"> | null =
+    openInvoices.find((inv) => inv.id === invoiceId) ??
+    (transaction?.linkedInvoiceId && transaction.linkedInvoiceId === invoiceId ?
+      {
+        id: transaction.linkedInvoiceId,
+        invoice_number: transaction.linkedInvoiceNumber,
+        customer_name: transaction.counterpartyName,
+      }
+    : null);
 
   useEffect(() => {
     if (!open) return;

@@ -57,7 +57,14 @@ async function notifyBusiness(fn: "notify-invoice-paid" | "notify-invoice-paymen
 // receipt). Sent as the business with Reply-To set to them, once per payment:
 // it only runs after the insert that owns this reference succeeded, and the
 // Resend idempotency key covers retries. Best-effort — never fails the payment.
-async function sendPaymentReceipt(reference: string, payerEmail: string | null, invoiceId: string, paidAt: string, method: string) {
+async function sendPaymentReceipt(
+  reference: string,
+  displayReference: string,
+  payerEmail: string | null,
+  invoiceId: string,
+  paidAt: string,
+  method: string,
+) {
   if (!payerEmail) return
   try {
     const { data: invoice, error } = await db
@@ -86,7 +93,7 @@ async function sendPaymentReceipt(reference: string, payerEmail: string | null, 
         currency: invoice.currency,
         paidAt,
         methodLabel: METHOD_LABELS[method] ?? METHOD_LABELS.other,
-        reference,
+        reference: displayReference,
         balanceDue,
         publicUrl: `${APP_URL}/i/${invoice.token}`,
       }),
@@ -138,6 +145,11 @@ export async function recordGatewayPayment(reference: string, tx: PaystackTransa
 
   const paidAt = tx.paid_at && !Number.isNaN(Date.parse(tx.paid_at)) ? tx.paid_at : new Date().toISOString()
   const channel = tx.channel ?? null
+  // The reference people recognise: the M-Pesa code for mobile money, else ours.
+  // gateway_reference always keeps ours (idempotency + Paystack lookups); the
+  // sync_payment_transaction trigger copies `reference` onto the transaction.
+  const receipt = typeof tx.receipt_number === "string" ? tx.receipt_number.trim().slice(0, 64) : ""
+  const displayReference = receipt || reference
 
   const { error: insertError } = await db.from("invoice_payments").insert({
     org_id: attempt.org_id,
@@ -148,8 +160,8 @@ export async function recordGatewayPayment(reference: string, tx: PaystackTransa
     method: channelToMethod(channel),
     source: "gateway",
     gateway_reference: reference,
-    reference,
-    note: "Paid online via Paystack",
+    reference: displayReference,
+    note: receipt ? `Paid online via Paystack (${reference})` : "Paid online via Paystack",
   })
 
   let inserted = true
@@ -168,7 +180,7 @@ export async function recordGatewayPayment(reference: string, tx: PaystackTransa
 
   if (!inserted) return { outcome: "already_recorded" }
 
-  await sendPaymentReceipt(reference, attempt.payer_email, attempt.invoice_id, paidAt, channelToMethod(channel))
+  await sendPaymentReceipt(reference, displayReference, attempt.payer_email, attempt.invoice_id, paidAt, channelToMethod(channel))
 
   const { data: invoice } = await db.from("invoices").select("status").eq("id", attempt.invoice_id).maybeSingle()
   if (invoice?.status === "paid") await notifyBusiness("notify-invoice-paid", { invoiceId: attempt.invoice_id })

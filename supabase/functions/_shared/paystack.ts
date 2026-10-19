@@ -317,6 +317,9 @@ export interface PaystackTransaction {
   paid_at: string | null
   gateway_response?: string | null
   message?: string | null
+  // Mobile money: the provider's own receipt (the M-Pesa confirmation code in
+  // live mode; a placeholder like "10101" in test mode).
+  receipt_number?: string | null
 }
 
 export function verifyTransaction(reference: string): Promise<PaystackTransaction> {
