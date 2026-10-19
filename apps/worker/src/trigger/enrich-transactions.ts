@@ -2,6 +2,7 @@ import { task, logger, tasks } from "@trigger.dev/sdk";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { generateObject, embedMany } from "ai";
 import { z } from "zod";
+import { cleanTransactionDescription } from "../lib/clean-transaction-description";
 import { supabase } from "../lib/supabase";
 
 const google = createGoogleGenerativeAI({
@@ -52,51 +53,74 @@ const CONFIDENCE = {
   MERCHANT_MIN: 0.6,
 } as const;
 
-const enrichmentSchema = z.object({
-  merchant: z
-    .string()
-    .nullable()
-    .describe("Clean, properly capitalized merchant or business name. No reference numbers, dates, or amounts."),
-  counterparty: z
-    .string()
-    .nullable()
-    .describe("The other party (person name or business) if different from merchant — e.g. person name in M-Pesa transfer. Null otherwise."),
-  category: z
-    .string()
-    .nullable()
-    .describe("Category name from the provided list. Null if confidence < 0.7 or no good match."),
-  merchantConfidence: z
-    .number()
-    .min(0)
-    .max(1)
-    .describe("Confidence in merchant name (0=unknown, 1=certain)"),
-  categoryConfidence: z
-    .number()
-    .min(0)
-    .max(1)
-    .describe("Confidence in category assignment (0=unknown, 1=certain)"),
-});
+// Category is an enum of the org's own category names (Midday constrains it the
+// same way) so near-misses like "Grocery" vs "Groceries" can't silently drop.
+function buildEnrichmentSchema(categoryNames: string[]) {
+  const category =
+    categoryNames.length > 0
+      ? z.enum(categoryNames as [string, ...string[]]).nullable()
+      : z.null();
 
-type EnrichmentResult = z.infer<typeof enrichmentSchema>;
+  return z.object({
+    merchant: z
+      .string()
+      .nullable()
+      .describe("Clean, properly capitalized merchant or business name. No card numbers, reference numbers, dates, amounts, or location codes."),
+    counterparty: z
+      .string()
+      .nullable()
+      .describe("Who the money went to or came from. For card/POS purchases and merchant payments this is the merchant. For transfers it is the person or business on the other side. Null if unknowable."),
+    category: category.describe("Category name from the provided list. Null if confidence < 0.7 or no good match."),
+    merchantConfidence: z
+      .number()
+      .min(0)
+      .max(1)
+      .describe("Confidence in merchant name (0=unknown, 1=certain)"),
+    categoryConfidence: z
+      .number()
+      .min(0)
+      .max(1)
+      .describe("Confidence in category assignment (0=unknown, 1=certain)"),
+  });
+}
+
+type EnrichmentResult = z.infer<ReturnType<typeof buildEnrichmentSchema>>;
 
 const BATCH_SIZE = 50;
 
 // ─── Prompt builder ───────────────────────────────────────────────────────────
 
 function buildPrompt(
-  batch: { name: string; counterparty_name: string | null; amount: number; currency: string; type: string }[],
+  batch: {
+    name: string;
+    original_name: string | null;
+    counterparty_name: string | null;
+    category_id: string | null;
+    amount: number;
+    currency: string;
+    type: string;
+  }[],
   categories: string[],
 ): string {
   const txList = batch
     .map((tx, i) => {
-      const parts: string[] = [`${i + 1}. Description: "${tx.name}"`];
+      // Input hierarchy mirrors Midday: existing counterparty, then the cleaned
+      // line, then the raw bank line for context.
+      const raw = tx.original_name ?? tx.name;
+      const cleaned = cleanTransactionDescription(raw);
+      const parts: string[] = [];
       if (tx.counterparty_name) parts.push(`Counterparty: ${tx.counterparty_name}`);
+      if (cleaned && cleaned !== raw) parts.push(`Cleaned: "${cleaned}"`);
+      parts.push(`Raw: "${raw}"`);
       parts.push(`${tx.amount} ${tx.currency} (${tx.type})`);
-      return parts.join(" | ");
+      return `${i + 1}. ${parts.join(" | ")}`;
     })
     .join("\n");
 
-  const categorySection = categories.length
+  const needsCategories = batch.some((tx) => !tx.category_id);
+  const categorySection = !needsCategories
+    ? "\nAll transactions are already categorized — return null for all category fields."
+    : categories.length
     ? `\nAVAILABLE CATEGORIES (return exact name from this list, or null):\n${categories.join(", ")}`
     : "\nNo categories configured — return null for all category fields.";
 
@@ -104,9 +128,18 @@ function buildPrompt(
 
 For each transaction, return:
 1. "merchant" — Clean business name, properly capitalized, no reference numbers (e.g. "Talabat.com", "Safaricom PLC", "M-Pesa Transfer")
-2. "counterparty" — The other party if different from merchant (e.g. person name in M-Pesa transfer). Null if same as merchant.
+2. "counterparty" — Who the money went to or came from. For card/POS purchases and merchant payments, this is the merchant itself. For transfers, the person or business on the other side.
 3. "category" — Best matching category. Null if confidence < 0.7.
 4. "merchantConfidence" / "categoryConfidence" — Your confidence score 0–1.
+
+INPUT: each transaction may have "Counterparty" (already known — trust it), "Cleaned" (the bank line with card numbers, dates, amounts and codes already stripped — usually the best source for the merchant) and "Raw" (the original bank line, for context).
+
+CLEANING RULES (apply to every transaction, including formats not shown below):
+- Ignore card numbers, POS/purchase prefixes, location codes (DUBAI:AE, :AE), store/terminal/authorization numbers, value dates, transaction dates and amounts
+- Keep legal suffixes printed on the statement (LLC, FZE, FZCO, LTD, PLC) but don't invent ones that aren't there
+- Drop trailing single-letter branch codes (e.g. "SUPERMARKET LLC B" → "Supermarket LLC")
+- Use Title Case for ALL-CAPS names, but keep brand casing (talabat.com → "Talabat.com", DU → "DU")
+- A clean merchant name extracted this way is a strong match — score it ≥ 0.8 even if you don't recognise the business
 
 REGIONAL PATTERNS:
 M-Pesa transfers:
@@ -114,13 +147,15 @@ M-Pesa transfers:
 - "Customer Payment to Small Business to 254720***218 - JOHN KAMAU" → merchant: "M-Pesa Payment", counterparty: "John Kamau", confidence: 0.95
 - "Funds received from 254704***069 - ALICE WANJIRU" → merchant: "M-Pesa Received", counterparty: "Alice Wanjiru", confidence: 0.95
 - "Customer Transfer of Funds Charge" → merchant: "M-Pesa Transaction Fee", counterparty: null, confidence: 0.98
-- "Business Payment from 859551 - MALI. via API" → merchant: "Mali", counterparty: null, confidence: 0.85
-- "Merchant Payment to 5464614 - FASTMART SUPERMARKET" → merchant: "Fastmart Supermarket", counterparty: null, confidence: 0.90
+- "Business Payment from 859551 - MALI. via API" → merchant: "Mali", counterparty: "Mali", confidence: 0.85
+- "Merchant Payment to 5464614 - FASTMART SUPERMARKET" → merchant: "Fastmart Supermarket", counterparty: "Fastmart Supermarket", confidence: 0.90
 
 UAE card transactions:
-- "CARD NO.443913XXXXXX4326 talabat.com DUBAI:AE 782004 35.24,AED" → merchant: "Talabat.com", counterparty: null, confidence: 0.95
-- "CARD NO.443913XXXXXX4326 TALIA PLUS MINI MART FZE Dubai:AE 919395" → merchant: "Talia Plus Mini Mart FZE", counterparty: null, confidence: 0.92
-- "CARD NO.443913XXXXXX4326 DU Apple Pay 800188:AE" → merchant: "DU Telecom", counterparty: null, confidence: 0.90
+- "CARD NO.443913XXXXXX4326 talabat.com DUBAI:AE 782004 35.24,AED" → merchant: "Talabat.com", counterparty: "Talabat.com", confidence: 0.95
+- "CARD NO.443913XXXXXX4326 TALIA PLUS MINI MART FZE Dubai:AE 919395" → merchant: "Talia Plus Mini Mart FZE", counterparty: "Talia Plus Mini Mart FZE", confidence: 0.92
+- "CARD NO.443913XXXXXX4326 DU Apple Pay 800188:AE" → merchant: "DU Telecom", counterparty: "DU Telecom", confidence: 0.90
+- "POS-PURCHASE CARD NO. 4439-1XXX-XXXX-5480 KADOOLI SUPERMARKET LLC B DUBAI:AE 21.50,AED 943422 09-08-2026 VALUE DATE:09-08-2026" → merchant: "Kadooli Supermarket LLC", counterparty: "Kadooli Supermarket LLC", confidence: 0.90
+- "POS-PURCHASE CARD NO. 4439-1XXX-XXXX-5480 CARREFOUR MOE DUBAI:AE 112.75,AED 512893 03-08-2026 VALUE DATE:04-08-2026" → merchant: "Carrefour", counterparty: "Carrefour", confidence: 0.95
 
 Reversals/refunds:
 - "REV RMA 202606080006B98111608748362 Payment timeout" → merchant: "Payment Reversal", counterparty: null, confidence: 0.90
@@ -177,7 +212,7 @@ export const enrichTransactionsTask = task({
     // Fetch transactions to enrich
     const { data: transactions, error: txError } = await supabase
       .from("transactions")
-      .select("id, name, counterparty_name, amount, currency, type, category_id, manual")
+      .select("id, name, original_name, counterparty_name, amount, currency, type, category_id, manual")
       .in("id", transactionIds)
       .eq("enrichment_completed", false);
 
@@ -193,7 +228,8 @@ export const enrichTransactionsTask = task({
       .select("id, name")
       .eq("org_id", orgId);
 
-    const categoryNames = categories?.map((c) => c.name) ?? [];
+    const categoryNames = [...new Set(categories?.map((c) => c.name) ?? [])];
+    const enrichmentSchema = buildEnrichmentSchema(categoryNames);
 
     let totalEnriched = 0;
 
@@ -222,8 +258,15 @@ export const enrichTransactionsTask = task({
 
             const patch: Record<string, unknown> = { enrichment_completed: true };
 
-            if (!tx.manual && result.merchant && result.merchantConfidence >= CONFIDENCE.MERCHANT_MIN) {
+            if (
+              !tx.manual &&
+              result.merchant &&
+              result.merchant !== tx.name &&
+              result.merchantConfidence >= CONFIDENCE.MERCHANT_MIN
+            ) {
               patch.name = result.merchant;
+              // Keep the bank's original line — written once, never overwritten
+              if (!tx.original_name) patch.original_name = tx.name;
             }
 
             if (
@@ -247,11 +290,18 @@ export const enrichTransactionsTask = task({
           })
           .filter((u): u is { id: string; patch: Record<string, unknown> } => u !== null);
 
-        await Promise.all(
+        const updateResults = await Promise.all(
           updates.map(({ id, patch }) =>
             supabase.from("transactions").update(patch).eq("id", id),
           ),
         );
+        const failedUpdates = updateResults.filter((r) => r.error);
+        if (failedUpdates.length) {
+          logger.error("Some enrichment updates failed", {
+            count: failedUpdates.length,
+            error: failedUpdates[0].error?.message,
+          });
+        }
 
         // Mark any unprocessed rows (LLM returned fewer results than batch) as done
         if (results.length < batch.length) {
@@ -268,7 +318,13 @@ export const enrichTransactionsTask = task({
         }
 
         totalEnriched += batch.length;
-        logger.info("Enriched batch", { batchSize: batch.length, applied: updates.length });
+        logger.info("Enriched batch", {
+          batchSize: batch.length,
+          resultCount: results.length,
+          merchantsRenamed: updates.filter((u) => "name" in u.patch).length,
+          counterpartiesSet: updates.filter((u) => "counterparty_name" in u.patch).length,
+          categoriesSet: updates.filter((u) => "category_id" in u.patch).length,
+        });
       } catch (err) {
         // On error: mark all as completed to prevent infinite reprocessing
         logger.error("Enrichment batch failed — marking as completed", { error: String(err) });

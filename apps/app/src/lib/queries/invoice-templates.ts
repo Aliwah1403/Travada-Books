@@ -1,5 +1,6 @@
 import { supabase } from "@/lib/supabase"
 import type { InvoiceSettings } from "@/components/invoices/invoice-settings-sheet"
+import { normalizePartialRules } from "@/lib/partial-payments"
 
 type InvoiceTemplateRow = {
   id: string
@@ -10,6 +11,7 @@ type InvoiceTemplateRow = {
   include_tax: boolean
   show_qty_column: boolean
   accept_payments: boolean
+  partial_payments: unknown
   include_pdf: boolean
   payment_terms: number | null
   default_note: string | null
@@ -25,7 +27,7 @@ type InvoiceTemplateRow = {
 }
 
 const TEMPLATE_SELECT =
-  "id, org_id, is_default, invoice_template, date_format, include_tax, show_qty_column, accept_payments, include_pdf, payment_terms, default_note, default_payment_details, cc, bcc, logo_url, selected_payment_integration, reminder_days_after_due, invoice_number_prefix, invoice_number_digits, custom_field_labels"
+  "id, org_id, is_default, invoice_template, date_format, include_tax, show_qty_column, accept_payments, partial_payments, include_pdf, payment_terms, default_note, default_payment_details, cc, bcc, logo_url, selected_payment_integration, reminder_days_after_due, invoice_number_prefix, invoice_number_digits, custom_field_labels"
 
 export async function getOrgInvoiceTemplate(orgId: string): Promise<InvoiceSettings | null> {
   const { data, error } = await supabase
@@ -62,6 +64,7 @@ export async function upsertOrgInvoiceTemplate(
     include_tax: settings.showTaxColumn,
     show_qty_column: settings.showQtyColumn,
     accept_payments: settings.acceptPaymentsEnabled,
+    partial_payments: settings.partialPayments,
     include_pdf: settings.includePdf,
     payment_terms: settings.paymentTerms,
     default_note: settings.defaultNote || null,
@@ -111,6 +114,7 @@ function rowToSettings(row: InvoiceTemplateRow): InvoiceSettings {
     showTaxColumn: row.include_tax ?? false,
     showQtyColumn: row.show_qty_column ?? true,
     acceptPaymentsEnabled: row.accept_payments ?? false,
+    partialPayments: normalizePartialRules(row.partial_payments),
     includePdf: row.include_pdf ?? true,
     selectedPaymentIntegration: row.selected_payment_integration ?? null,
     cc: row.cc ?? "",

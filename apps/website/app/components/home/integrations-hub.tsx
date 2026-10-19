@@ -53,7 +53,7 @@ type Tool = {
 // Order matters: index 0–2 is the top row, 3–5 the bottom row.
 // Statement import is live and isn't an "integration" in the data file.
 const TOOLS: Tool[] = [
-  { label: "Gmail", name: "Gmail", icon: iconOf("gmail"), status: statusOf("gmail") },
+  { label: "Forwarding", name: "Email forwarding from any inbox", icon: Mail01Icon, status: "available", glyph: true },
   { label: "Outlook", name: "Outlook", icon: iconOf("outlook"), status: statusOf("outlook") },
   { label: "Bank", name: "Bank statements, PDF or CSV", icon: BankIcon, status: "available", glyph: true },
   { label: "Mobile money", name: "Mobile money statements such as M-Pesa, PDF or CSV", icon: MpesaIcon, status: "available", iconSize: 30 },
@@ -373,7 +373,7 @@ export function IntegrationsHub() {
         align="center"
         eyebrow={<Eyebrow>Integrations</Eyebrow>}
         title="Works with the tools you already use."
-        lede="Connect Gmail or Outlook and upload your bank and mobile money statements, such as M-Pesa. Travada Books pulls in the receipts, matches them and categorises the transactions, so the records stay in one place."
+        lede="Connect Outlook, forward receipts from any inbox, and upload your bank and mobile money statements, such as M-Pesa. Travada Books pulls in the receipts, matches them and categorises the transactions, so the records stay in one place."
       />
 
       <Diagram />

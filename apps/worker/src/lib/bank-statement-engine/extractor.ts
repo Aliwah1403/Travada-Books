@@ -1,7 +1,7 @@
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { createMistral } from "@ai-sdk/mistral";
 import { logger } from "@trigger.dev/sdk";
-import { generateObject } from "ai";
+import { APICallError, generateObject } from "ai";
 import { bankStatementSchema, type BankStatementResult, type BankTransactionRow } from "./schema";
 import { buildPrompt } from "./prompts";
 
@@ -70,13 +70,21 @@ function scoreResult(result: BankStatementResult): QualityScore {
 
 // ─── Utilities ────────────────────────────────────────────────────────────────
 
+// Rate-limited (429) calls wait for the provider's retry-after (capped) instead of
+// the short linear backoff — hammering a throttled API just extends the 429s.
+function rateLimitDelayMs(err: unknown): number | null {
+  if (!APICallError.isInstance(err) || err.statusCode !== 429) return null;
+  const retryAfter = Number(err.responseHeaders?.["retry-after"]);
+  return Number.isFinite(retryAfter) && retryAfter > 0 ? Math.min(retryAfter * 1000, 30_000) : 15_000;
+}
+
 async function retryCall<T>(fn: () => Promise<T>, retries = 2, delayMs = 2000): Promise<T> {
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
       return await fn();
     } catch (err) {
       if (attempt === retries) throw err;
-      await new Promise((r) => setTimeout(r, delayMs * (attempt + 1)));
+      await new Promise((r) => setTimeout(r, rateLimitDelayMs(err) ?? delayMs * (attempt + 1)));
     }
   }
   throw new Error("unreachable");
@@ -133,6 +141,8 @@ async function extractWithModel(
         model,
         schema: bankStatementSchema,
         temperature: 0.1,
+        // retryCall owns retries — the SDK's own 2 retries would stack to 9 calls
+        maxRetries: 0,
         abortSignal: AbortSignal.timeout(120_000),
         messages: [
           { role: "system", content: prompt },

@@ -101,6 +101,7 @@ export function InvoiceActions({
       scheduled_at: null,
       send_template_id: null,
       accept_payments: invoice.accept_payments,
+      partial_payments: invoice.partial_payments,
       custom_fields: invoice.custom_fields ?? [],
     });
   }

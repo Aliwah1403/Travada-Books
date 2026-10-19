@@ -48,7 +48,7 @@ export const PRICING_PLANS: PricingPlan[] = [
       "Customer statements across multiple invoices",
       "Bill in any currency, totals in your own",
       "Record partial payments against a balance",
-      "Connected inbox — Gmail and Outlook receipt capture",
+      "Connected inbox — Outlook receipt capture, plus email forwarding",
     ],
     ctaLabel: "Start free",
     featured: true,

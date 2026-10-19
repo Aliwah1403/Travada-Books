@@ -37,6 +37,13 @@ const groups: NotificationGroup[] = [
         defaults: { in_app: true, email: true },
       },
       {
+        id: "invoice.payment_received",
+        label: "Part-payment received",
+        description: "A client pays part of an invoice online. You'll still get \"Invoice paid\" when it's settled.",
+        channels: ["in_app", "email"],
+        defaults: { in_app: true, email: true },
+      },
+      {
         id: "invoice.overdue",
         label: "Invoice overdue",
         description: "An invoice passes its due date without being paid.",

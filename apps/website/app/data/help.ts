@@ -163,8 +163,8 @@ export const HELP_ARTICLES: GuideEntry[] = [
   { slug: "add-transactions-and-attach-receipts", category: "transactions", keywords: ["add transaction", "manual", "expense", "receipt", "attachment", "document"] },
   { slug: "export-transactions", category: "transactions", keywords: ["export", "download", "csv", "excel", "accountant", "spreadsheet"] },
   // Inbox & Vault
-  { slug: "connect-gmail-or-outlook", category: "inbox", keywords: ["gmail", "outlook", "email", "connect", "inbox", "receipts", "google", "microsoft"], popular: true },
-  { slug: "forward-receipts-to-your-inbox", category: "inbox", keywords: ["forward", "forwarding address", "email receipts", "inbox address"] },
+  { slug: "connect-gmail-or-outlook", category: "inbox", keywords: ["outlook", "email", "connect", "inbox", "receipts", "microsoft"], popular: true },
+  { slug: "forward-receipts-to-your-inbox", category: "inbox", keywords: ["forward", "forwarding address", "email receipts", "inbox address", "gmail"] },
   { slug: "match-receipts-to-transactions", category: "inbox", keywords: ["match", "matching", "suggested match", "receipt", "reconcile"] },
   { slug: "store-files-in-the-vault", category: "inbox", keywords: ["vault", "files", "documents", "folders", "upload", "share", "storage"] },
   // Dashboard

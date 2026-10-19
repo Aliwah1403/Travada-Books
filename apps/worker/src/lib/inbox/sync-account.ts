@@ -112,11 +112,52 @@ export async function syncInboxAccount(
 
   const isBlocked = await loadBlocklistChecker(orgId);
 
-  const eligible = attachments.filter((attachment) => {
+  let eligible = attachments.filter((attachment) => {
     if (attachment.size > MAX_ATTACHMENT_BYTES) return false;
     if (isBlocked(attachment)) return false;
     return true;
   });
+
+  // Skip already-imported attachments BEFORE uploading — every vault upload
+  // fires handle_vault_upload (creating a documents row), so uploading then
+  // hitting the reference_id unique index would leave an orphaned duplicate.
+  // No org filter: idx_inbox_items_reference_id is global, so match it.
+  if (eligible.length > 0) {
+    const { data: existing, error: existingError } = await supabase
+      .from("inbox_items")
+      .select("reference_id")
+      .in(
+        "reference_id",
+        eligible.map((attachment) => attachment.referenceId),
+      );
+
+    if (existingError) {
+      // Fall back to the unfiltered list — the insert-failure cleanup below
+      // still prevents orphans.
+      logger.error("syncInboxAccount: existing reference_id lookup failed, proceeding unfiltered", {
+        accountId,
+        orgId,
+        error: existingError.message,
+      });
+    } else {
+      const seen = new Set((existing ?? []).map((row) => row.reference_id as string));
+      const before = eligible.length;
+      // Also dedupes within the batch (keeps the first occurrence).
+      eligible = eligible.filter((attachment) => {
+        if (seen.has(attachment.referenceId)) return false;
+        seen.add(attachment.referenceId);
+        return true;
+      });
+      const skipped = before - eligible.length;
+      if (skipped > 0) {
+        logger.info("syncInboxAccount: skipped already-imported attachments", {
+          accountId,
+          orgId,
+          skipped,
+        });
+      }
+    }
+  }
 
   const inserted: { id: string; display_name: string }[] = [];
 
@@ -169,6 +210,27 @@ export async function syncInboxAccount(
           accountId,
           orgId,
           error: insertError.message,
+        });
+      }
+
+      // The upload already created a storage object and (via trigger) a
+      // documents row — remove both so a failed insert leaves no orphan.
+      const { error: removeError } = await supabase.storage.from("vault").remove([filePath]);
+      if (removeError) {
+        logger.error("syncInboxAccount: orphan storage cleanup failed", {
+          accountId,
+          orgId,
+          filePath,
+          error: removeError.message,
+        });
+      }
+      const { error: docDeleteError } = await supabase.from("documents").delete().eq("file_path", filePath);
+      if (docDeleteError) {
+        logger.error("syncInboxAccount: orphan documents cleanup failed", {
+          accountId,
+          orgId,
+          filePath,
+          error: docDeleteError.message,
         });
       }
       continue;

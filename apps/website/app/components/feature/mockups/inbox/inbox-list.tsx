@@ -1,4 +1,4 @@
-import { CheckmarkCircle01Icon, GmailIcon, Mail01Icon, OutlookIcon, type Icon } from "@travada-books/ui/icons"
+import { CheckmarkCircle01Icon, Mail01Icon, OutlookIcon, type Icon } from "@travada-books/ui/icons"
 import { cn } from "@travada-books/ui/lib/utils"
 
 import { MockFrame, MockPanel, MockPanelHeader, Pill } from "~/components/feature/mockups/primitives"
@@ -6,8 +6,8 @@ import { revealStep } from "~/components/feature/mockups/reveal"
 
 // Capture row: the Inbox list (apps/app inbox-item-card.tsx): title and
 // amount, source icon and date, and the status (inbox-status.tsx — Matched,
-// Suggested match, Analyzing, No match). Sources are the app's own: Gmail,
-// Outlook, or forwarded to the organisation's inbox address.
+// Suggested match, Analyzing, No match). Sources are the app's own: Outlook
+// or forwarded to the organisation's inbox address.
 // Fictional suppliers and amounts.
 
 type Status = "matched" | "suggested" | "analyzing" | "none"
@@ -15,11 +15,11 @@ type Status = "matched" | "suggested" | "analyzing" | "none"
 type Item = { title: string; amount?: string; source: Icon; date: string; status: Status }
 
 const ITEMS: Item[] = [
-  { title: "Mtandao Fibre — September", amount: "KES 4,999.00", source: GmailIcon, date: "18 Sep 2026", status: "matched" },
+  { title: "Mtandao Fibre — September", amount: "KES 4,999.00", source: OutlookIcon, date: "18 Sep 2026", status: "matched" },
   { title: "Kahawa House receipt", amount: "KES 1,250.00", source: OutlookIcon, date: "17 Sep 2026", status: "suggested" },
-  { title: "Canvas Cloud invoice", source: GmailIcon, date: "17 Sep 2026", status: "analyzing" },
+  { title: "Canvas Cloud invoice", source: Mail01Icon, date: "17 Sep 2026", status: "analyzing" },
   { title: "Karatasi Stationers", amount: "KES 3,400.00", source: Mail01Icon, date: "15 Sep 2026", status: "matched" },
-  { title: "Safiri Cabs trip receipt", amount: "KES 820.00", source: GmailIcon, date: "14 Sep 2026", status: "none" },
+  { title: "Safiri Cabs trip receipt", amount: "KES 820.00", source: OutlookIcon, date: "14 Sep 2026", status: "none" },
 ]
 
 function ItemStatus({ status }: { status: Status }) {
@@ -49,7 +49,7 @@ export function InboxListMockup({ className }: { className?: string }) {
   return (
     <MockFrame
       className={className}
-      label="Illustration of the Travada Books inbox: receipts pulled in from Gmail, Outlook and a forwarded email, each with its amount and date, marked Matched, Suggested match, Analyzing or No match."
+      label="Illustration of the Travada Books inbox: receipts pulled in from Outlook and forwarded emails, each with its amount and date, marked Matched, Suggested match, Analyzing or No match."
     >
       <MockPanel className="mx-auto max-w-md">
         <MockPanelHeader title="Inbox" aside={<span className="tabular-nums">5 receipts</span>} />

@@ -33,9 +33,10 @@ export const exchangeRateSync = schedules.task({
       CURRENCIES.map(async (base) => {
         const res = await retry.fetch(`${API_BASE}/${base.toLowerCase()}.json`, {
           retry: {
-            maxAttempts: 3,
-            condition: (response) =>
-              response !== undefined && (response.status === 429 || response.status >= 500),
+            byStatus: {
+              "429": { strategy: "backoff", maxAttempts: 3, factor: 2, minTimeoutInMs: 1000, maxTimeoutInMs: 10000 },
+              "500-599": { strategy: "backoff", maxAttempts: 3, factor: 2, minTimeoutInMs: 1000, maxTimeoutInMs: 10000 },
+            },
           },
         });
         if (!res.ok) throw new Error(`HTTP ${res.status} for ${base}`);

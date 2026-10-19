@@ -17,11 +17,14 @@ import { Label } from "@travada-books/ui/components/label";
 import { Separator } from "@travada-books/ui/components/separator";
 import { Input } from "@travada-books/ui/components/input";
 import { Textarea } from "@travada-books/ui/components/textarea";
-import { TickIcon, Delete01Icon, PlusSignIcon } from "@travada-books/ui/icons";
+import { Delete01Icon, PlusSignIcon } from "@travada-books/ui/icons";
 import { useRef, useState } from "react";
+import { Link } from "react-router";
+import { usePaymentAccount } from "@/hooks/use-payment-account";
 import { supabase } from "@/lib/supabase";
 import { LOGO_ACCEPT, prepareLogoFile } from "@/lib/logo-upload";
 import { PAYMENTS_ENABLED } from "@/lib/features";
+import { DEFAULT_PARTIAL_RULES, type PartialPaymentRules } from "@/lib/partial-payments";
 import { toast } from "sonner";
 import { Button } from "@travada-books/ui/components/button";
 import {
@@ -39,6 +42,7 @@ export type InvoiceSettings = {
   showTaxColumn: boolean;
   showQtyColumn: boolean;
   acceptPaymentsEnabled: boolean;
+  partialPayments: PartialPaymentRules;
   selectedPaymentIntegration: string | null;
   includePdf: boolean;
   cc: string;
@@ -59,6 +63,7 @@ export const defaultInvoiceSettings: InvoiceSettings = {
   showTaxColumn: false,
   showQtyColumn: true,
   acceptPaymentsEnabled: false,
+  partialPayments: DEFAULT_PARTIAL_RULES,
   selectedPaymentIntegration: null,
   includePdf: true,
   cc: "",
@@ -77,12 +82,6 @@ const PAYMENT_TERMS_OPTIONS = [
   { value: "21", label: "Net 21" },
   { value: "30", label: "Net 30" },
   { value: "60", label: "Net 60" },
-];
-
-// Mock: integrations the business has configured. Replace with real data when backend is ready.
-const connectedIntegrations = [
-  { id: "mpesa", label: "M-Pesa", description: "Safaricom M-Pesa" },
-  { id: "stripe", label: "Stripe", description: "Cards & bank transfers" },
 ];
 
 const templates = [{ id: "classic", label: "Classic" }];
@@ -115,18 +114,21 @@ function SettingsSwitch({
   checked,
   onCheckedChange,
   id,
+  disabled,
 }: {
   checked: boolean;
   onCheckedChange: (checked: boolean) => void;
   id: string;
+  disabled?: boolean;
 }) {
   return (
     <SwitchPrimitive.Root
       id={id}
       checked={checked}
       onCheckedChange={onCheckedChange}
+      disabled={disabled}
       className={cn(
-        "relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors",
+        "relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors disabled:cursor-not-allowed disabled:opacity-50",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
         "data-checked:bg-primary bg-input",
       )}
@@ -138,6 +140,173 @@ function SettingsSwitch({
         )}
       />
     </SwitchPrimitive.Root>
+  );
+}
+
+// Empty input -> null ("no rule"); otherwise a non-negative number.
+function parseRuleNumber(value: string): number | null {
+  if (value.trim() === "") return null;
+  const n = Number(value);
+  return Number.isFinite(n) && n >= 0 ? n : null;
+}
+
+const DEADLINE_OPTIONS = [
+  { value: "none", label: "No deadline" },
+  { value: "0", label: "By the due date" },
+  { value: "7", label: "7 days after due" },
+  { value: "14", label: "14 days after due" },
+  { value: "30", label: "30 days after due" },
+];
+
+const MAX_PAYMENT_OPTIONS = [
+  { value: "none", label: "No limit" },
+  { value: "2", label: "2 payments" },
+  { value: "3", label: "3 payments" },
+  { value: "4", label: "4 payments" },
+  { value: "6", label: "6 payments" },
+];
+
+function PartialPaymentsSettings({
+  rules,
+  onChange,
+}: {
+  rules: PartialPaymentRules;
+  onChange: (rules: PartialPaymentRules) => void;
+}) {
+  function set<K extends keyof PartialPaymentRules>(key: K, value: PartialPaymentRules[K]) {
+    onChange({ ...rules, [key]: value });
+  }
+
+  return (
+    <div className='flex flex-col gap-3 rounded-md border p-3'>
+      <div className='flex items-start justify-between gap-3'>
+        <div className='flex flex-col gap-1'>
+          <Label htmlFor='allow-partial' className='text-xs font-medium cursor-pointer'>
+            Allow partial payments
+          </Label>
+          <p className='text-[11px] text-muted-foreground'>
+            Customers choose how much to pay, within your rules.
+          </p>
+        </div>
+        <SettingsSwitch
+          id='allow-partial'
+          checked={rules.enabled}
+          onCheckedChange={(v) => set("enabled", v)}
+        />
+      </div>
+
+      {rules.enabled && (
+        <>
+          <div className='flex flex-col gap-1.5'>
+            <Label className='text-[11px] font-normal text-muted-foreground'>
+              Minimum per payment
+            </Label>
+            <div className='flex items-center gap-2'>
+              <div className='relative w-20'>
+                <Input
+                  type='number'
+                  inputMode='decimal'
+                  min={0}
+                  max={100}
+                  value={rules.min_percent ?? ""}
+                  onChange={(e) => {
+                    const n = parseRuleNumber(e.target.value);
+                    set("min_percent", n == null ? null : Math.min(n, 100));
+                  }}
+                  placeholder='0'
+                  aria-label='Minimum percent of the total'
+                  className='pr-6 text-xs'
+                />
+                <span className='pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[11px] text-muted-foreground'>
+                  %
+                </span>
+              </div>
+              <span className='text-[11px] text-muted-foreground'>or</span>
+              <Input
+                type='number'
+                inputMode='decimal'
+                min={0}
+                value={rules.min_amount ?? ""}
+                onChange={(e) => set("min_amount", parseRuleNumber(e.target.value))}
+                placeholder='Amount'
+                aria-label='Minimum amount per payment'
+                className='flex-1 text-xs'
+              />
+            </div>
+            <p className='text-[11px] text-muted-foreground'>The higher of the two applies.</p>
+          </div>
+
+          <div className='flex flex-col gap-1.5'>
+            <Label className='text-[11px] font-normal text-muted-foreground'>
+              Deposit on the first payment
+            </Label>
+            <div className='relative w-20'>
+              <Input
+                type='number'
+                inputMode='decimal'
+                min={0}
+                max={100}
+                value={rules.deposit_percent ?? ""}
+                onChange={(e) => {
+                  const n = parseRuleNumber(e.target.value);
+                  set("deposit_percent", n == null ? null : Math.min(n, 100));
+                }}
+                placeholder='None'
+                aria-label='Deposit percent of the total'
+                className='pr-6 text-xs'
+              />
+              <span className='pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[11px] text-muted-foreground'>
+                %
+              </span>
+            </div>
+          </div>
+
+          <div className='grid grid-cols-2 gap-2'>
+            <div className='flex flex-col gap-1.5'>
+              <Label className='text-[11px] font-normal text-muted-foreground'>Paid off by</Label>
+              <Select
+                value={rules.deadline_days != null ? String(rules.deadline_days) : "none"}
+                onValueChange={(v) => set("deadline_days", v === "none" || v == null ? null : Number(v))}
+              >
+                <SelectTrigger className='text-xs w-full'>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {DEADLINE_OPTIONS.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value} className='text-xs'>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className='flex flex-col gap-1.5'>
+              <Label className='text-[11px] font-normal text-muted-foreground'>At most</Label>
+              <Select
+                value={rules.max_payments != null ? String(rules.max_payments) : "none"}
+                onValueChange={(v) => set("max_payments", v === "none" || v == null ? null : Number(v))}
+              >
+                <SelectTrigger className='text-xs w-full'>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {MAX_PAYMENT_OPTIONS.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value} className='text-xs'>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <p className='text-[11px] text-muted-foreground'>
+            After the deadline or the last allowed payment, the customer pays the
+            full balance. A part-payment can't leave less than the minimum owing.
+          </p>
+        </>
+      )}
+    </div>
   );
 }
 
@@ -160,6 +329,9 @@ export function InvoiceSettingsSheet({
 }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
+
+  const { data: paymentAccount, isLoading: paymentAccountLoading } = usePaymentAccount();
+  const paymentsReady = paymentAccount?.status === "active";
 
   function update<K extends keyof InvoiceSettings>(
     key: K,
@@ -546,68 +718,40 @@ export function InvoiceSettingsSheet({
                   <div className='flex flex-col gap-1'>
                     <p className='text-xs font-medium'>Accept Payments</p>
                     <p className='text-[11px] text-muted-foreground'>
-                      Adds a Pay Invoice button to the customer's invoice link.
+                      Adds a Pay button to the invoice link your customer opens.
                     </p>
                   </div>
                   <SettingsSwitch
                     id='accept-payments'
                     checked={settings.acceptPaymentsEnabled}
-                    onCheckedChange={(v) => {
-                      onSettingsChange({
-                        ...settings,
-                        acceptPaymentsEnabled: v,
-                        selectedPaymentIntegration:
-                          v ? settings.selectedPaymentIntegration : null,
-                      });
-                    }}
+                    disabled={!paymentsReady && !settings.acceptPaymentsEnabled}
+                    onCheckedChange={(v) => update("acceptPaymentsEnabled", v)}
                   />
                 </div>
 
+                {paymentsReady ?
+                  <p className='text-[11px] text-muted-foreground'>
+                    Customers can pay with M-Pesa via Paystack
+                    {paymentAccount?.cards_enabled ? " or card" : ""}
+                  </p>
+                : !paymentAccountLoading && (
+                    <p className='text-[11px] text-muted-foreground rounded-md border border-dashed p-3 text-center'>
+                      Connect M-Pesa payments in Settings → Integrations first.{" "}
+                      <Link
+                        to='/settings/integrations/paystack'
+                        className='underline underline-offset-2 text-foreground'
+                      >
+                        Set up payments
+                      </Link>
+                    </p>
+                  )
+                }
+
                 {settings.acceptPaymentsEnabled && (
-                  <div className='flex flex-col gap-1.5'>
-                    {connectedIntegrations.length === 0 ?
-                      <p className='text-[11px] text-muted-foreground rounded-md border border-dashed p-3 text-center'>
-                        No payment integrations set up yet. Go to Settings →
-                        Integrations to connect one.
-                      </p>
-                    : <div className='flex flex-col gap-1.5'>
-                        <p className='text-[11px] text-muted-foreground'>
-                          Select payment method
-                        </p>
-                        {connectedIntegrations.map((integration) => (
-                          <button
-                            key={integration.id}
-                            type='button'
-                            onClick={() =>
-                              update("selectedPaymentIntegration", integration.id)
-                            }
-                            className={cn(
-                              "flex items-center justify-between rounded-md border px-3 py-2 text-left transition-colors",
-                              (
-                                settings.selectedPaymentIntegration ===
-                                  integration.id
-                              ) ?
-                                "border-primary bg-primary/5"
-                              : "border-border hover:border-muted-foreground/40",
-                            )}
-                          >
-                            <div>
-                              <p className='text-xs font-medium'>
-                                {integration.label}
-                              </p>
-                              <p className='text-[11px] text-muted-foreground'>
-                                {integration.description}
-                              </p>
-                            </div>
-                            {settings.selectedPaymentIntegration ===
-                              integration.id && (
-                              <TickIcon className='size-4 stroke-primary shrink-0' />
-                            )}
-                          </button>
-                        ))}
-                      </div>
-                    }
-                  </div>
+                  <PartialPaymentsSettings
+                    rules={settings.partialPayments}
+                    onChange={(rules) => update("partialPayments", rules)}
+                  />
                 )}
               </div>
             </>

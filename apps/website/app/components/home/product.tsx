@@ -57,7 +57,7 @@ export function Problem() {
 const PARTS: { title: string; body: string; icon: Icon }[] = [
   { title: "Invoicing", body: "Invoices and quotes that send on schedule and follow up on their own.", icon: Invoice01Icon },
   { title: "Statement import", body: "Upload a statement as a PDF or CSV and review it already categorised.", icon: BankIcon },
-  { title: "Inbox", body: "Receipts from Gmail and Outlook, matched to the transaction they belong to.", icon: InboxIcon },
+  { title: "Inbox", body: "Receipts from Outlook or forwarded email, matched to the transaction they belong to.", icon: InboxIcon },
   { title: "Vault", body: "Every receipt and document, titled for you and searchable later.", icon: VaultIcon },
   { title: "Dashboard", body: "Revenue, profit, cash flow and overdue invoices at a glance.", icon: DashboardSquare01Icon },
 ]
@@ -164,7 +164,7 @@ const ROWS: Row[] = [
     icon: InboxIcon,
     title: "Receipts meet the transaction they belong to.",
     description:
-      "Bring receipts in from Gmail or Outlook, keep them searchable in your Vault, and match them to the right money movement.",
+      "Bring receipts in from Outlook or by email forwarding, keep them searchable in your Vault, and match them to the right money movement.",
     href: "/inbox",
     linkLabel: "Explore the Inbox",
     visual: <ReceiptMatch labelsFrom="xl" />,

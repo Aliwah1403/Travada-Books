@@ -9,6 +9,7 @@ import { useAuth } from "@/contexts/auth-context";
 import { markTransactionsVaultNudgeSeen } from "@/lib/queries/profile";
 import { useRealtime, useDebouncedCallback } from "@/hooks/use-realtime";
 import { useInvalidateTransactionQueries } from "@/hooks/use-invalidate-transaction-queries";
+import { useInvalidateAfterPaymentChange } from "@/hooks/use-invalidate-payment-queries";
 
 const pageTitles: Record<string, string> = {
   "/": "Dashboard",
@@ -74,6 +75,25 @@ export function AppLayout() {
     events: ["INSERT", "UPDATE"],
     filter: orgId ? `org_id=eq.${orgId}` : undefined,
     onEvent: debouncedInvalidateTransactions,
+  });
+
+  // Online (Paystack) payments are written server-side by the webhook or the
+  // verify fallback, never by this client, so no mutation is around to bust
+  // the caches. Listen for new ledger rows instead and run the same
+  // invalidation as Record payment: invoice list/detail, invoice summary
+  // cards, customer summaries, transactions and every ["metric", orgId]
+  // dashboard query. INSERT only, for the same REPLICA IDENTITY reason as above
+  // (payment deletes are client mutations that already invalidate).
+  const invalidateAfterPaymentChange = useInvalidateAfterPaymentChange();
+  useRealtime({
+    channelName: "app-invoice-payments",
+    table: "invoice_payments",
+    events: ["INSERT"],
+    filter: orgId ? `org_id=eq.${orgId}` : undefined,
+    onEvent: (payload) => {
+      const invoiceId = (payload.new as { invoice_id?: string } | null)?.invoice_id;
+      if (invoiceId) invalidateAfterPaymentChange(invoiceId);
+    },
   });
 
   function handleNudgeOpenChange(open: boolean) {

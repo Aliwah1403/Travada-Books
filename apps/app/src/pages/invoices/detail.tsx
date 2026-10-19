@@ -15,6 +15,7 @@ import {
   Wallet01Icon,
 } from "@travada-books/ui/icons";
 import { Button } from "@travada-books/ui/components/button";
+import { Badge } from "@travada-books/ui/components/badge";
 import { Separator } from "@travada-books/ui/components/separator";
 import { Switch } from "@travada-books/ui/components/switch";
 import { Textarea } from "@travada-books/ui/components/textarea";
@@ -193,8 +194,13 @@ function PaymentRow({
   return (
     <div className='flex items-start justify-between gap-3 py-2.5 text-xs'>
       <div className='flex flex-col gap-0.5'>
-        <span className='font-medium'>
+        <span className='flex items-center gap-2 font-medium'>
           {formatCurrency(payment.amount, currency)}
+          {payment.source === "gateway" && (
+            <Badge className='border-0 rounded-md bg-green-100 text-green-700 hover:bg-green-100 dark:bg-green-900/30 dark:text-green-400'>
+              Paid online
+            </Badge>
+          )}
         </span>
         <span className='text-[11px] text-muted-foreground'>
           {formatDate(payment.paid_at)} · {PAYMENT_METHOD_LABELS[payment.method] ?? payment.method}
@@ -404,6 +410,7 @@ export function InvoiceDetailPage() {
       scheduled_at: null,
       send_template_id: null,
       accept_payments: invoice!.accept_payments,
+      partial_payments: invoice!.partial_payments,
       custom_fields: invoice!.custom_fields ?? [],
     });
   }

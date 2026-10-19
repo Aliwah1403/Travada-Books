@@ -34,7 +34,7 @@ export function InboxGetStarted({ inboxEmail }: { inboxEmail: string | null }) {
         to="/settings/integrations"
         className="text-[11px] text-muted-foreground underline-offset-2 transition-colors fine-hover:text-foreground fine-hover:underline"
       >
-        Connect Gmail / Outlook
+        Connect Outlook
       </Link>
     </div>
   )

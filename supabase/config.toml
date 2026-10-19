@@ -96,7 +96,7 @@ openai_api_key = "env(OPENAI_API_KEY)"
 
 # Email testing server. Emails sent with the local dev setup are not actually sent - rather, they
 # are monitored, and you can view the emails that would have been sent from the web interface.
-[inbucket]
+[local_smtp]
 enabled = true
 # Port to use for the email testing server web interface.
 port = 54324
@@ -489,3 +489,24 @@ verify_jwt = true
 [functions.inbox-sync-now]
 verify_jwt = true
 
+
+# Paystack invoice payments. connect = owner-only (checked in the function);
+# pay / status / webhook are public (token- or signature-authorised);
+# reverify is worker-secret gated.
+[functions.payments-connect-paystack]
+verify_jwt = true
+
+[functions.invoice-pay-paystack]
+verify_jwt = false
+
+[functions.payments-webhook-paystack]
+verify_jwt = false
+
+[functions.invoice-payment-status]
+verify_jwt = false
+
+[functions.payments-reverify]
+verify_jwt = false
+
+[functions.notify-invoice-payment-received]
+verify_jwt = false

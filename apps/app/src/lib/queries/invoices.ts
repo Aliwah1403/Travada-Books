@@ -1,5 +1,6 @@
 import { supabase } from "@/lib/supabase"
 import type { CustomField } from "@/lib/custom-fields"
+import type { PartialPaymentRules } from "@/lib/partial-payments"
 
 export type LineItem = {
   description: string
@@ -46,6 +47,7 @@ export type Invoice = {
   viewed_at: string | null
   quote_id: string | null
   accept_payments: boolean
+  partial_payments: PartialPaymentRules | null
   include_pdf: boolean
   email_status: "queued" | "sent" | "failed" | null
   email_error: string | null
@@ -100,6 +102,7 @@ export type InvoiceInput = {
   sent_at?: string
   sent_via?: string | null
   accept_payments?: boolean
+  partial_payments?: PartialPaymentRules | null
   include_pdf?: boolean
   invoice_template?: string
   date_format?: string | null
@@ -189,7 +192,7 @@ export function summariseCustomerInvoices(
 }
 
 const INVOICE_SELECT =
-  "id, created_at, updated_at, org_id, user_id, customer_id, customer_name, token, invoice_number, status, issue_date, due_date, currency, line_items, subtotal, tax_amount, discount, vat_rate, discount_percent, total, amount_paid, customer_details, from_details, custom_fields, note, internal_note, payment_details, recurring, delivery_type, scheduled_at, send_template_id, sent_at, sent_via, paid_at, viewed_at, quote_id, accept_payments, include_pdf, email_status, email_error, email_status_at, invoice_template, date_format, show_tax_column, show_qty_column, invoice_recurring_id, recurring_sequence, exchange_rate, converted_amount, base_currency, skip_auto_reminder, last_reminder_sent_at, quotes(quote_number), invoice_recurring(id, status, frequency, next_scheduled_at, end_type, end_after_count, current_count), customers(logo_url)"
+  "id, created_at, updated_at, org_id, user_id, customer_id, customer_name, token, invoice_number, status, issue_date, due_date, currency, line_items, subtotal, tax_amount, discount, vat_rate, discount_percent, total, amount_paid, customer_details, from_details, custom_fields, note, internal_note, payment_details, recurring, delivery_type, scheduled_at, send_template_id, sent_at, sent_via, paid_at, viewed_at, quote_id, accept_payments, partial_payments, include_pdf, email_status, email_error, email_status_at, invoice_template, date_format, show_tax_column, show_qty_column, invoice_recurring_id, recurring_sequence, exchange_rate, converted_amount, base_currency, skip_auto_reminder, last_reminder_sent_at, quotes(quote_number), invoice_recurring(id, status, frequency, next_scheduled_at, end_type, end_after_count, current_count), customers(logo_url)"
 
 // Excludes owner identifiers and private fields for unauthenticated token lookups
 const INVOICE_PUBLIC_SELECT =
