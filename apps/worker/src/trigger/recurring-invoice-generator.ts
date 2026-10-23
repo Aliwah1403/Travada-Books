@@ -197,10 +197,7 @@ export const recurringInvoiceGenerator = schedules.task({
 
         // Get next invoice number via the Postgres RPC (same as web app, avoids races)
         const { data: newInvoiceNumber, error: numberError } = await supabase
-          .rpc("next_invoice_number", {
-            p_org_id: series.org_id,
-            p_customer_id: series.customer_id,
-          });
+          .rpc("next_invoice_number", { p_org_id: series.org_id });
 
         if (numberError) {
           throw new Error(`Failed to get next invoice number: ${numberError.message}`);
