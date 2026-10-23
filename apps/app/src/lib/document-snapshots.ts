@@ -33,6 +33,7 @@ export type CustomerSnapshotSource = {
   name: string
   email?: string | null
   billing_email?: string | null
+  billing_cc?: string | null
   phone?: string | null
   address_line1?: string | null
   address_line2?: string | null
@@ -45,6 +46,7 @@ export type CustomerDetailsSnapshot = {
   name: string
   email: string | null
   billing_email: string | null
+  billing_cc: string | null
   phone: string | null
   address_line1: string | null
   address_line2: string | null
@@ -89,6 +91,7 @@ export function buildCustomerDetailsSnapshot(
     name: customer.name,
     email: customer.email ?? null,
     billing_email: customer.billing_email ?? null,
+    billing_cc: customer.billing_cc ?? null,
     phone: customer.phone ?? null,
     address_line1: customer.address_line1 ?? null,
     address_line2: customer.address_line2 ?? null,

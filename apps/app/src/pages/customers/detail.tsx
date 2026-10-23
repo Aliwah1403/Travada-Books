@@ -426,6 +426,9 @@ export function CustomerDetailPage() {
                 customer.billing_email !== customer.email && (
                   <InfoRow label='Bill to' value={customer.billing_email} />
                 )}
+              {customer.billing_cc && (
+                <InfoRow label='CC on invoices' value={customer.billing_cc} />
+              )}
               {customer.phone && (
                 <InfoRow label='Phone' value={customer.phone} />
               )}
@@ -854,6 +857,7 @@ export function CustomerDetailPage() {
           name: customer.name,
           email: customer.email ?? null,
           billing_email: customer.billing_email ?? null,
+          billing_cc: customer.billing_cc ?? null,
           phone: customer.phone ?? null,
           address_line1: customer.address_line1 ?? null,
           address_line2: customer.address_line2 ?? null,
@@ -870,6 +874,7 @@ export function CustomerDetailPage() {
           name: customer.name,
           email: customer.email ?? "",
           billToEmail: customer.billing_email ?? "",
+          billingCc: customer.billing_cc ?? "",
           phone: customer.phone ?? "",
           mainContact: customer.main_contact ?? "",
           industry: customer.industry ?? "",

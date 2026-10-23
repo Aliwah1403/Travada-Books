@@ -26,6 +26,7 @@ export type SelectedCustomer = {
   name: string;
   email: string | null;
   billing_email: string | null;
+  billing_cc: string | null;
   phone: string | null;
   address_line1: string | null;
   address_line2: string | null;
@@ -164,6 +165,7 @@ export function CustomerCombobox({ value, onChange }: CustomerComboboxProps) {
                                 name: customer.name,
                                 email: customer.email,
                                 billing_email: customer.billing_email,
+                                billing_cc: customer.billing_cc,
                                 phone: customer.phone,
                                 address_line1: customer.address_line1,
                                 address_line2: customer.address_line2,

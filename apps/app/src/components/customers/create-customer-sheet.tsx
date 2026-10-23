@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { trackEvent, LogEvents } from "@/lib/analytics";
+import { isValidEmailList, normalizeEmailList } from "@/lib/email-list";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Button } from "@travada-books/ui/components/button";
@@ -47,6 +48,10 @@ const schema = z.object({
     .string()
     .email("Enter a valid email.")
     .or(z.literal(""))
+    .optional(),
+  billingCc: z
+    .string()
+    .refine(isValidEmailList, "Enter valid email addresses, separated by commas.")
     .optional(),
   phone: z.string().optional(),
   industry: z.string().optional(),
@@ -117,6 +122,7 @@ export function CreateCustomerSheet({
       name: defaultName,
       email: "",
       billToEmail: "",
+      billingCc: "",
       phone: "",
       industry: "",
       businessType: "",
@@ -140,6 +146,7 @@ export function CreateCustomerSheet({
         name: defaultName,
         email: "",
         billToEmail: "",
+        billingCc: "",
         phone: "",
         industry: "",
         businessType: "",
@@ -170,6 +177,7 @@ export function CreateCustomerSheet({
         name: data.name,
         email: data.email || undefined,
         billing_email: data.billToEmail || undefined,
+        billing_cc: normalizeEmailList(data.billingCc) || undefined,
         phone: data.phone || undefined,
         website: data.website || undefined,
         address_line1: data.addressLine1 || undefined,
@@ -301,6 +309,31 @@ export function CreateCustomerSheet({
                           <FieldDescription>
                             Where invoices are sent. Leave blank to use the
                             email above.
+                          </FieldDescription>
+                          {fieldState.invalid && (
+                            <FieldError errors={[fieldState.error]} />
+                          )}
+                        </Field>
+                      )}
+                    />
+
+                    <Controller
+                      name='billingCc'
+                      control={form.control}
+                      render={({ field, fieldState }) => (
+                        <Field data-invalid={fieldState.invalid}>
+                          <FieldLabel htmlFor={field.name}>
+                            CC on invoices
+                          </FieldLabel>
+                          <Input
+                            {...field}
+                            id={field.name}
+                            aria-invalid={fieldState.invalid}
+                            placeholder='accounts@client.com, finance@client.com'
+                            className='text-xs'
+                          />
+                          <FieldDescription>
+                            These addresses are copied on every invoice and reminder sent to this customer. Separate with commas.
                           </FieldDescription>
                           {fieldState.invalid && (
                             <FieldError errors={[fieldState.error]} />

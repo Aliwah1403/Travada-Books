@@ -6,6 +6,7 @@ import { getCallerOrgId } from "../_shared/auth.ts"
 import { InvoiceSentEmail } from "../_shared/emails/invoice-sent.tsx"
 import { downloadPdfAttachment } from "../_shared/pdf-attachment.ts"
 import { setEmailStatus } from "../_shared/email-status.ts"
+import { mergeCcEmails, parseEmails } from "../_shared/email-recipients.ts"
 
 const APP_URL = Deno.env.get("APP_URL") ?? "https://app.travadabooks.com"
 
@@ -63,11 +64,8 @@ async function sendInvoiceEmail(params: {
     .eq("is_default", true)
     .maybeSingle()
 
-  const parseEmails = (raw: string | null | undefined) =>
-    (raw ?? "").split(",").map((e) => e.trim()).filter(Boolean)
-
-  const ccEmails = parseEmails(template?.cc)
   const bccEmails = parseEmails(template?.bcc)
+  const ccEmails = mergeCcEmails(template?.cc, customer.billing_cc, [recipientEmail, ...bccEmails])
 
   const publicUrl = invoice.token ? `${APP_URL}/i/${invoice.token}` : APP_URL
   const html = await render(

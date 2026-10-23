@@ -4,6 +4,7 @@ import { resend, FROM_EMAIL } from "../_shared/resend.ts"
 import { db } from "../_shared/db.ts"
 import { getCallerOrgId } from "../_shared/auth.ts"
 import { InvoiceReminderEmail } from "../_shared/emails/invoice-reminder.tsx"
+import { mergeCcEmails, parseEmails } from "../_shared/email-recipients.ts"
 
 const APP_URL = Deno.env.get("APP_URL") ?? "https://app.travadabooks.com"
 const WORKER_SHARED_SECRET = Deno.env.get("WORKER_SHARED_SECRET") ?? ""
@@ -63,7 +64,7 @@ Deno.serve(async (req) => {
     }
 
     if (!customer && invoice.customer_id) {
-      const { data: cust } = await db.from("customers").select("name, email, billing_email").eq("id", invoice.customer_id).single()
+      const { data: cust } = await db.from("customers").select("name, email, billing_email, billing_cc").eq("id", invoice.customer_id).single()
       if (cust) customer = cust as unknown as Record<string, string>
     }
 
@@ -80,11 +81,8 @@ Deno.serve(async (req) => {
       .eq("is_default", true)
       .maybeSingle()
 
-    const parseEmails = (raw: string | null | undefined) =>
-      (raw ?? "").split(",").map((e) => e.trim()).filter(Boolean)
-
-    const ccEmails = parseEmails(template?.cc)
     const bccEmails = parseEmails(template?.bcc)
+    const ccEmails = mergeCcEmails(template?.cc, customer.billing_cc, [recipientEmail, ...bccEmails])
 
     // Compute daysOverdue in the org owner's local timezone so the email subject
     // and body don't show the wrong count near midnight.

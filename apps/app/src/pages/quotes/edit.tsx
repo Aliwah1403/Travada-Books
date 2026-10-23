@@ -120,6 +120,7 @@ export function EditQuotePage() {
           name: quote.customer_name,
           email: cd?.["email"] ?? null,
           billing_email: cd?.["billing_email"] ?? null,
+          billing_cc: cd?.["billing_cc"] ?? null,
           phone: cd?.["phone"] ?? null,
           address_line1: cd?.["address_line1"] ?? null,
           address_line2: cd?.["address_line2"] ?? null,

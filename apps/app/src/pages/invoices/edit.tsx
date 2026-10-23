@@ -378,6 +378,7 @@ export function EditInvoicePage() {
             name: invoice.customer_name,
             email: null,
             billing_email: null,
+            billing_cc: null,
             phone: null,
             address_line1: null,
             address_line2: null,
