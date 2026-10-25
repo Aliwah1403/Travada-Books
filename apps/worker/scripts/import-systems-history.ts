@@ -512,7 +512,7 @@ async function proposeMatches(): Promise<void> {
     const issue = inv.issue_date ?? "";
     const minDate = issue ? addDaysISO(issue, -7) : "";
     const cands = txns
-      .filter((t) => t.currency === inv.currency && Math.abs(Number(t.amount) - outstanding) <= 0.01 && (!minDate || t.date >= minDate))
+      .filter((t) => t.currency === inv.currency && round2(Number(t.amount)) === outstanding && (!minDate || t.date >= minDate))
       .map((t) => ({
         txn: t,
         custMatch: Boolean(inv.customer_id && t.customer_id === inv.customer_id),
@@ -607,10 +607,10 @@ async function applyMatches(path: string): Promise<void> {
     const amount = Number(txn.amount);
     res.amount = amount;
     if (outstanding <= 0) { done("skipped", "invoice has no outstanding balance"); continue; }
-    if (Math.abs(amount - outstanding) > 0.01) { done("skipped", `amount ${amount} no longer matches outstanding ${outstanding}`); continue; }
+    // Exact to the cent: a near-miss would leave the invoice partially paid.
+    if (round2(amount) !== outstanding) { done("skipped", `amount ${amount} no longer matches outstanding ${outstanding}`); continue; }
 
     const method = txn.payment_mode && PAYMENT_MODES.has(txn.payment_mode) ? txn.payment_mode : "other";
-    const note = Math.abs(amount - outstanding) > 0 ? `amount differs from outstanding by ${round2(outstanding - amount)}` : "";
 
     // Insert the ledger row WITH transaction_id: sync_payment_transaction()
     // then creates nothing. It never goes in without one.
@@ -639,7 +639,7 @@ async function applyMatches(path: string): Promise<void> {
 
     const after = await supabase.from("invoices").select("status, amount_paid").eq("id", inv.id).single();
     res.invoice_status_after = after.data ? `${after.data.status} (paid ${after.data.amount_paid}/${inv.total})` : "?";
-    done("linked", note);
+    done("linked");
   }
 
   const afterCount = await countTxns();
