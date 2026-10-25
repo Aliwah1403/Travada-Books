@@ -41,6 +41,16 @@ export function reasonText(reason: string): string {
   return REASONS[reason] ?? reason
 }
 
+/** Shared by the email heading and its subject line, so errors are never reported as "nothing to review". */
+export function billingRunTitle(draftedCount: number, errorCount: number): string {
+  const errorsText = `${errorCount} error${errorCount === 1 ? "" : "s"} need${errorCount === 1 ? "s" : ""} attention`
+  if (draftedCount > 0) {
+    const ready = `${draftedCount} Systems invoice${draftedCount === 1 ? "" : "s"} ready to review`
+    return errorCount > 0 ? `${ready}, ${errorsText}` : ready
+  }
+  return errorCount > 0 ? `Systems billing run: ${errorsText}` : "Systems billing run: nothing to review"
+}
+
 const h2 = { margin: "32px 0 12px", fontSize: 15, fontWeight: 600, color: colors.dark, fontFamily: font } as const
 const rowStyle = { margin: "0 0 8px", fontSize: 13, color: colors.body, lineHeight: "1.5", fontFamily: font } as const
 
@@ -80,9 +90,7 @@ function IssueRows({ items }: { items: BillingIssue[] }) {
 }
 
 export function SystemsBillingDraftsEmail({ periodLabel, drafted, alreadyBilled, skipped, errors, viewUrl }: Props) {
-  const title = drafted.length > 0
-    ? `${drafted.length} Systems invoice${drafted.length === 1 ? "" : "s"} ready to review`
-    : "Systems billing run: nothing to review"
+  const title = billingRunTitle(drafted.length, errors.length)
 
   return (
     <EmailLayout preview={`${title} — ${periodLabel}`} orgName="Travada Books">

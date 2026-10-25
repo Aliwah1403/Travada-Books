@@ -3,7 +3,7 @@ import { render } from "npm:@react-email/render@1"
 import { resend, FROM_EMAIL } from "../_shared/resend.ts"
 import { db } from "../_shared/db.ts"
 import { triggerNovu } from "../_shared/novu.ts"
-import { SystemsBillingDraftsEmail, reasonText } from "../_shared/emails/systems-billing-drafts.tsx"
+import { SystemsBillingDraftsEmail, billingRunTitle, reasonText } from "../_shared/emails/systems-billing-drafts.tsx"
 import type { BillingLine, BillingIssue } from "../_shared/emails/systems-billing-drafts.tsx"
 
 const APP_URL = Deno.env.get("APP_URL") ?? "https://app.travadabooks.com"
@@ -86,9 +86,8 @@ Deno.serve(async (req) => {
     ]))
     const viewUrl = `${APP_URL}/invoices?filters=${filters}`
 
-    const subject = drafted.length > 0
-      ? `${drafted.length} Systems invoice${drafted.length === 1 ? "" : "s"} ready to review — ${label}`
-      : "Systems billing run: nothing to review"
+    const title = billingRunTitle(drafted.length, errors.length)
+    const subject = drafted.length > 0 || errors.length > 0 ? `${title} — ${label}` : title
 
     const novuPayload = {
       billingDate: body.billingDate ?? null,
