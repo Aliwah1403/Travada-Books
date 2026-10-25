@@ -17,6 +17,8 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders })
 
   try {
+    // Awaited before responding: the runtime may stop once the response is sent.
+    const novuTasks: Promise<unknown>[] = []
     const { token } = await req.json()
     if (!token) return new Response(JSON.stringify({ error: "token required" }), { status: 400, headers: corsHeaders })
 
@@ -170,17 +172,20 @@ Deno.serve(async (req) => {
 
       for (const { userId, email: ownerEmail, sendInApp } of ownerPrefs) {
         if (sendInApp) {
-          triggerNovu("quote-accepted", { subscriberId: userId, email: ownerEmail }, {
-            quoteNumber: quote.quote_number,
-            customerName: customer?.name ?? "A customer",
-            total: quote.total,
-            currency: quote.currency,
-            viewUrl,
-          }).catch((err) => console.error("accept-quote: novu trigger failed:", err))
+          novuTasks.push(
+            triggerNovu("quote-accepted", { subscriberId: userId, email: ownerEmail }, {
+              quoteNumber: quote.quote_number,
+              customerName: customer?.name ?? "A customer",
+              total: quote.total,
+              currency: quote.currency,
+              viewUrl,
+            }).catch((err) => console.error("accept-quote: novu trigger failed:", err)),
+          )
         }
       }
     }
 
+    await Promise.allSettled(novuTasks)
     return new Response(JSON.stringify({ ok: true }), { headers: corsHeaders })
   } catch (err) {
     console.error("accept-quote error:", err)

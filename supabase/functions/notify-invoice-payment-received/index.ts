@@ -40,6 +40,8 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders })
 
   try {
+    // Awaited before responding: the runtime may stop once the response is sent.
+    const novuTasks: Promise<unknown>[] = []
     const workerSecret = req.headers.get("X-Worker-Secret") ?? ""
     if (!(WORKER_SHARED_SECRET.length > 0 && timingSafeEqual(workerSecret, WORKER_SHARED_SECRET))) {
       return json({ error: "Forbidden" }, 403)
@@ -124,24 +126,27 @@ Deno.serve(async (req) => {
       }
 
       if (sendInApp) {
-        triggerNovu(
-          "invoice-payment-received",
-          { subscriberId: member.user_id, email },
-          {
-            invoiceNumber: invoice.invoice_number,
-            customerName,
-            amount,
-            balanceDue,
-            currency: invoice.currency,
-            // Display strings for the in-app message, e.g. "KES 100,000.00".
-            amountFormatted: formatMoney(amount, invoice.currency),
-            balanceDueFormatted: formatMoney(balanceDue, invoice.currency),
-            viewUrl,
-          },
-        ).catch((err) => console.error("notify-invoice-payment-received: novu trigger failed:", err))
+        novuTasks.push(
+          triggerNovu(
+            "invoice-payment-received",
+            { subscriberId: member.user_id, email },
+            {
+              invoiceNumber: invoice.invoice_number,
+              customerName,
+              amount,
+              balanceDue,
+              currency: invoice.currency,
+              // Display strings for the in-app message, e.g. "KES 100,000.00".
+              amountFormatted: formatMoney(amount, invoice.currency),
+              balanceDueFormatted: formatMoney(balanceDue, invoice.currency),
+              viewUrl,
+            },
+          ).catch((err) => console.error("notify-invoice-payment-received: novu trigger failed:", err)),
+        )
       }
     }
 
+    await Promise.allSettled(novuTasks)
     return json({ ok: true, emailSent })
   } catch (err) {
     console.error("notify-invoice-payment-received error:", err)

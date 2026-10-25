@@ -18,6 +18,8 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders })
 
   try {
+    // Awaited before responding: the runtime may stop once the response is sent.
+    const novuTasks: Promise<unknown>[] = []
     const authorization = req.headers.get("Authorization")
     if (!authorization) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: corsHeaders })
@@ -131,15 +133,18 @@ Deno.serve(async (req) => {
       }
 
       if (canInApp) {
-        triggerNovu("team-joined", { subscriberId: owner.user_id, email: ownerEmail }, {
-          memberName,
-          memberEmail,
-          role,
-          settingsUrl,
-        }).catch((err) => console.error("notify-team-joined: novu trigger failed:", err))
+        novuTasks.push(
+          triggerNovu("team-joined", { subscriberId: owner.user_id, email: ownerEmail }, {
+            memberName,
+            memberEmail,
+            role,
+            settingsUrl,
+          }).catch((err) => console.error("notify-team-joined: novu trigger failed:", err)),
+        )
       }
     }
 
+    await Promise.allSettled(novuTasks)
     return new Response(JSON.stringify({ ok: true }), { headers: corsHeaders })
   } catch (err) {
     console.error("notify-team-joined error:", err)

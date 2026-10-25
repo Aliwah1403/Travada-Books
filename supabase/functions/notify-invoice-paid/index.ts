@@ -31,6 +31,8 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders })
 
   try {
+    // Awaited before responding: the runtime may stop once the response is sent.
+    const novuTasks: Promise<unknown>[] = []
     // Server-to-server path (payment webhook / worker): authorised by the
     // shared secret instead of a user session, and scoped to the invoice's own
     // org. Without a valid secret we fall through to the normal user path.
@@ -135,11 +137,14 @@ Deno.serve(async (req) => {
       }
 
       if (sendInApp) {
-        triggerNovu("invoice-paid", { subscriberId: member.user_id, email }, novuPayload)
-          .catch((err) => console.error("notify-invoice-paid: novu trigger failed:", err))
+        novuTasks.push(
+          triggerNovu("invoice-paid", { subscriberId: member.user_id, email }, novuPayload)
+            .catch((err) => console.error("notify-invoice-paid: novu trigger failed:", err)),
+        )
       }
     }
 
+    await Promise.allSettled(novuTasks)
     return new Response(JSON.stringify({ ok: true, emailSent }), { headers: corsHeaders })
   } catch (err) {
     console.error("notify-invoice-paid error:", err)
