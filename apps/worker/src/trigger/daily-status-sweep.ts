@@ -10,13 +10,25 @@ export const dailyStatusSweep = schedules.task({
   // 1 AM UTC = 4 AM EAT — runs after midnight Nairobi time
   cron: "0 1 * * *",
   run: async () => {
-    const overdue = await markOverdue.trigger(undefined, {
-      idempotencyKey: await idempotencyKeys.create("mark-overdue"),
-    });
-    const expire = await quoteExpire.trigger(undefined, {
-      idempotencyKey: await idempotencyKeys.create("quote-expire"),
-    });
-    logger.log("Daily status sweep: triggered", { markOverdue: overdue.id, quoteExpire: expire.id });
-    return { markOverdue: overdue.id, quoteExpire: expire.id };
+    // Attempt both before failing, so one rejected trigger can't skip the
+    // other; the throw then retries the sweep and the keys dedupe the one
+    // that already went through.
+    const [overdue, expire] = await Promise.allSettled([
+      idempotencyKeys.create("mark-overdue").then((idempotencyKey) => markOverdue.trigger(undefined, { idempotencyKey })),
+      idempotencyKeys.create("quote-expire").then((idempotencyKey) => quoteExpire.trigger(undefined, { idempotencyKey })),
+    ]);
+    const ids = {
+      markOverdue: overdue.status === "fulfilled" ? overdue.value.id : null,
+      quoteExpire: expire.status === "fulfilled" ? expire.value.id : null,
+    };
+    const failed: string[] = [];
+    if (overdue.status === "rejected") failed.push(`mark-overdue: ${String(overdue.reason)}`);
+    if (expire.status === "rejected") failed.push(`quote-expire: ${String(expire.reason)}`);
+    if (failed.length) {
+      logger.error("Daily status sweep: trigger failed", { ...ids, failed });
+      throw new Error(`Failed to trigger ${failed.join("; ")}`);
+    }
+    logger.log("Daily status sweep: triggered", ids);
+    return ids;
   },
 });
