@@ -5,12 +5,13 @@
   "scripts": {
     "dev": "npx trigger.dev@latest dev --profile travada",
     "deploy": "npx trigger.dev@latest deploy --profile travada",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "systems:simulate": "tsx scripts/simulate-systems-billing.mts"
   },
   "keywords": [],
   "license": "ISC",
   "devDependencies": {
-    "@trigger.dev/build": "4.7.4",
+    "@trigger.dev/build": "4.7.7",
     "tsx": "^4.20.6"
   },
   "dependencies": {
@@ -23,7 +24,7 @@
     "@react-pdf/renderer": "^4.5.1",
     "@supabase/supabase-js": "^2.106.2",
     "@travada-books/pdf": "*",
-    "@trigger.dev/sdk": "4.7.4",
+    "@trigger.dev/sdk": "4.7.7",
     "@types/papaparse": "^5.5.2",
     "ai": "^6.0.202",
     "chrono-node": "^2.9.1",

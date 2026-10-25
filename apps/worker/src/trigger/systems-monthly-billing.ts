@@ -102,12 +102,21 @@ export async function runSystemsBilling(opts: {
   billingDate: string;
   source: Source;
   onlyClerkOrgIds?: string[];
+  /** Local rehearsal only: never contact notification providers. */
+  notify?: boolean;
 }): Promise<SystemsBillingSummary> {
   const { billingDate, source, onlyClerkOrgIds } = opts;
   if (!/^\d{4}-\d{2}-\d{2}$/.test(billingDate)) {
     throw new AbortTaskRunError(`Invalid billingDate "${billingDate}", expected YYYY-MM-DD`);
   }
   const env = readEnv();
+  if (opts.notify === false) {
+    for (const url of [env.SUPABASE_URL, env.SYSTEMS_API_URL]) {
+      if (!["localhost", "127.0.0.1", "[::1]"].includes(new URL(url).hostname)) {
+        throw new AbortTaskRunError("Notifications may only be suppressed during a local rehearsal");
+      }
+    }
+  }
   logger.log("Systems billing: starting", { billingDate, source, onlyClerkOrgIds });
 
   const response = await fetchBilling(env, billingDate);
@@ -143,7 +152,7 @@ export async function runSystemsBilling(opts: {
     }
   }
 
-  await notify(env, summary);
+  if (opts.notify !== false) await notify(env, summary);
 
   logger.log("Systems billing: complete", {
     billingDate,

@@ -519,3 +519,6 @@ verify_jwt = false
 
 [functions.notify-systems-billing]
 verify_jwt = false
+
+[functions.systems-invoices]
+verify_jwt = false
