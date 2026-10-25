@@ -1,10 +1,9 @@
-import { schedules, logger } from "@trigger.dev/sdk";
+import { task, logger } from "@trigger.dev/sdk";
 import { supabase } from "../lib/supabase";
 
-export const markOverdue = schedules.task({
+export const markOverdue = task({
   id: "mark-overdue",
-  // 1 AM UTC = 4 AM EAT — runs after midnight Nairobi time
-  cron: "0 1 * * *",
+  // Triggered daily by daily-status-sweep (1 AM UTC = 4 AM EAT).
   maxDuration: 300,
   queue: { concurrencyLimit: 1 },
   retry: {
