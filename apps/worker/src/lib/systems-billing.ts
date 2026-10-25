@@ -212,12 +212,38 @@ export type CustomerPatch = Partial<{
   preferred_currency: string;
 }>;
 
+/**
+ * Systems stores billing "to" and "cc" as free-text lists. Books' billing_email
+ * is the single invoice recipient, so it takes the first "to" address; any
+ * other "to" addresses join the CC (deduped, case-insensitive, ", "-joined).
+ */
+export function splitBillingContacts(
+  to: unknown,
+  cc: unknown,
+): { billing_email: string | null; billing_cc: string | null } {
+  const list = (v: unknown) =>
+    (Array.isArray(v) ? v : [v])
+      .flatMap((x) => (typeof x === "string" ? x.split(/[,;\n]/) : []))
+      .map((x) => x.trim())
+      .filter(Boolean);
+  const [first, ...extraTo] = list(to);
+  const seen = new Set(first ? [first.toLowerCase()] : []);
+  const rest = [...extraTo, ...list(cc)].filter((e) => {
+    const key = e.toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+  return { billing_email: first ?? null, billing_cc: rest.length ? rest.join(", ") : null };
+}
+
 /** Maps the Systems customer block to Books columns, omitting empty values so Systems never blanks a field. */
 export function customerPatch(customer: SystemsCustomer, currency: string | null | undefined): CustomerPatch {
+  const contacts = splitBillingContacts(customer.billing_email, customer.cc);
   const map: [keyof CustomerPatch, string | null | undefined][] = [
     ["name", customer.name],
-    ["billing_email", customer.billing_email],
-    ["billing_cc", customer.cc],
+    ["billing_email", contacts.billing_email],
+    ["billing_cc", contacts.billing_cc],
     ["email", customer.email],
     ["phone", customer.phone],
     ["address_line1", customer.address],

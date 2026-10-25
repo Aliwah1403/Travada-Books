@@ -2,6 +2,7 @@
 import assert from "node:assert/strict";
 import {
   customerPatch,
+  splitBillingContacts,
   isFxFresh,
   linesTotalCents,
   parseOrgEntry,
@@ -74,6 +75,18 @@ assert.deepEqual(patch, {
   preferred_currency: "KES",
 });
 assert.deepEqual(customerPatch({}, null), {});
+
+// splitBillingContacts: one recipient, extra "to" addresses join the CC
+assert.deepEqual(splitBillingContacts("a@x.com", ""), { billing_email: "a@x.com", billing_cc: null });
+assert.deepEqual(splitBillingContacts("a@x.com, b@y.com", "c@z.com"), { billing_email: "a@x.com", billing_cc: "b@y.com, c@z.com" });
+assert.deepEqual(splitBillingContacts("a@x.com; B@y.com", "b@y.com, A@x.com, d@w.com"), { billing_email: "a@x.com", billing_cc: "B@y.com, d@w.com" });
+assert.deepEqual(splitBillingContacts(["a@x.com", "b@y.com"], undefined), { billing_email: "a@x.com", billing_cc: "b@y.com" });
+assert.deepEqual(splitBillingContacts(" , ", "c@z.com"), { billing_email: null, billing_cc: "c@z.com" });
+assert.deepEqual(splitBillingContacts(null, null), { billing_email: null, billing_cc: null });
+assert.deepEqual(
+  customerPatch({ billing_email: "a@x.com, b@y.com", cc: "c@z.com" }, null),
+  { billing_email: "a@x.com", billing_cc: "b@y.com, c@z.com" },
+);
 
 // validation: malformed -> error for that org, total mismatch -> error
 assert.equal(parseOrgEntry({ ...base, cycle: "weekly" }).status, "error");

@@ -16,6 +16,7 @@ import {
   toList,
   writeCsv,
 } from "./systems-script-common.ts";
+import { splitBillingContacts } from "../src/lib/systems-billing.ts";
 
 const { values: args } = parseArgs({
   options: {
@@ -197,13 +198,12 @@ async function linkExisting(r: Row): Promise<string> {
 async function createCustomer(r: Row): Promise<string> {
   const profile = (r._doc.profile ?? {}) as Record<string, unknown>;
   const contacts = ((r._doc.billing ?? {}) as Record<string, unknown>).billing_contacts as Record<string, unknown> | undefined;
-  const to = toList(contacts?.to).join(", ");
-  const cc = toList(contacts?.cc).join(", ");
+  const { billing_email, billing_cc } = splitBillingContacts(contacts?.to, contacts?.cc);
   const cur = str(profile.currency)?.toUpperCase();
   const country = countryFor(str(profile.country));
 
   const fields: Record<string, unknown> = {
-    name: str(profile.name), email: str(profile.email), billing_email: str(to), billing_cc: str(cc),
+    name: str(profile.name), email: str(profile.email), billing_email, billing_cc,
     phone: str(profile.phone), address_line1: str(profile.address), city: str(profile.city),
     zip: str(profile.postal_code), vat_number: str(profile.tax_number),
     preferred_currency: cur && /^[A-Z]{3}$/.test(cur) ? cur : null,
