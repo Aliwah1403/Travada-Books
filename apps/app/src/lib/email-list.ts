@@ -10,8 +10,11 @@ export function splitEmailList(value: string | null | undefined): string[] {
     .filter(Boolean)
 }
 
+// Blank is valid (no CC); separators with no addresses (", ;") are not.
 export function isValidEmailList(value: string | null | undefined): boolean {
-  return splitEmailList(value).every((e) => emailSchema.safeParse(e).success)
+  if (!(value ?? "").trim()) return true
+  const emails = splitEmailList(value)
+  return emails.length > 0 && emails.every((e) => emailSchema.safeParse(e).success)
 }
 
 // Normalizes to "a@x.com, b@y.com" (empty string when nothing is set).
