@@ -91,6 +91,7 @@ const customers = await fetchAll<Customer>(
       .select("id, name, email, billing_email, is_archived, external_source, external_id")
       .eq("org_id", orgId)
       .order("created_at")
+      .order("id")
       .range(from, to),
   "load customers",
 );

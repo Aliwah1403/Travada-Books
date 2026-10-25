@@ -149,6 +149,7 @@ async function runImport(): Promise<void> {
         .eq("org_id", orgId)
         .eq("external_source", EXTERNAL_SOURCE)
         .not("external_id", "is", null)
+        .order("id")
         .range(from, to),
     "load linked customers",
   );
@@ -156,7 +157,7 @@ async function runImport(): Promise<void> {
 
   const runs = await fetchAll<{ clerk_org_id: string; period_start: string }>(
     (from, to) =>
-      supabase.from("systems_billing_runs").select("clerk_org_id, period_start").eq("org_id", orgId).range(from, to),
+      supabase.from("systems_billing_runs").select("clerk_org_id, period_start").eq("org_id", orgId).order("id").range(from, to),
     "load billing runs",
   );
   const runKeys = new Set(runs.map((r) => `${r.clerk_org_id}|${r.period_start}`));
@@ -165,7 +166,7 @@ async function runImport(): Promise<void> {
     (
       await fetchAll<{ invoice_number: string | null }>(
         (from, to) =>
-          supabase.from("invoices").select("invoice_number").eq("org_id", orgId).not("invoice_number", "is", null).range(from, to),
+          supabase.from("invoices").select("invoice_number").eq("org_id", orgId).not("invoice_number", "is", null).order("id").range(from, to),
         "load invoice numbers",
       )
     ).map((r) => (r.invoice_number ?? "").trim().toLowerCase()),
@@ -481,6 +482,7 @@ async function proposeMatches(): Promise<void> {
           .neq("status", "canceled")
           .neq("status", "draft")
           .order("issue_date")
+          .order("id")
           .range(from, to),
       "load imported invoices",
     )
@@ -497,6 +499,7 @@ async function proposeMatches(): Promise<void> {
         .is("invoice_id", null)
         .is("invoice_payment_id", null)
         .order("date")
+        .order("id")
         .range(from, to),
     "load candidate transactions",
   );
