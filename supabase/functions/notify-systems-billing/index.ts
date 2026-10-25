@@ -115,6 +115,8 @@ Deno.serve(async (req) => {
 
     type UserFields = { email: string } | null
     let emailsSent = 0
+    // Awaited before responding: the runtime may stop once the response is sent.
+    const novuTasks: Promise<unknown>[] = []
 
     for (const member of members) {
       const email = (member.users as unknown as UserFields)?.email
@@ -136,9 +138,13 @@ Deno.serve(async (req) => {
         console.error(`notify-systems-billing: email threw for user ${member.user_id}:`, err)
       }
 
-      triggerNovu("systems-billing-drafts-ready", { subscriberId: member.user_id, email }, novuPayload)
-        .catch((err) => console.error(`notify-systems-billing: novu trigger failed for user ${member.user_id}:`, err))
+      novuTasks.push(
+        triggerNovu("systems-billing-drafts-ready", { subscriberId: member.user_id, email }, novuPayload)
+          .catch((err) => console.error(`notify-systems-billing: novu trigger failed for user ${member.user_id}:`, err)),
+      )
     }
+
+    await Promise.allSettled(novuTasks)
 
     return new Response(JSON.stringify({ ok: true, emailsSent }), { headers: corsHeaders })
   } catch (err) {
