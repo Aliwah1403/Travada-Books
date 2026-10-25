@@ -8,7 +8,8 @@ export interface BillingLine {
   clerkOrgId: string
   customerName?: string | null
   invoiceNumber?: string | null
-  total?: number | null
+  // The worker sends a decimal string ("1770.00").
+  total?: string | number | null
   currency?: string | null
 }
 
@@ -48,7 +49,8 @@ function label(l: { customerName?: string | null; clerkOrgId: string }) {
 }
 
 function money(l: BillingLine) {
-  return l.total != null && l.currency ? formatMoney(l.total, l.currency) : ""
+  const amount = l.total == null || l.total === "" ? NaN : Number(l.total)
+  return Number.isFinite(amount) && l.currency ? formatMoney(amount, l.currency) : ""
 }
 
 function InvoiceRows({ items }: { items: BillingLine[] }) {
