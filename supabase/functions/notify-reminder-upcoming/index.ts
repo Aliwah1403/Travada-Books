@@ -29,6 +29,8 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders })
 
   try {
+    // Awaited before responding: the runtime may stop once the response is sent.
+    const novuTasks: Promise<unknown>[] = []
     const workerSecret = req.headers.get("X-Worker-Secret") ?? ""
     const calledByWorker = WORKER_SHARED_SECRET.length > 0 && timingSafeEqual(workerSecret, WORKER_SHARED_SECRET)
 
@@ -139,8 +141,10 @@ Deno.serve(async (req) => {
             }
 
             if (sendInApp) {
-              triggerNovu("invoice-reminder-upcoming", { subscriberId: member.user_id, email }, novuPayload)
-                .catch((err) => console.error(`notify-reminder-upcoming: novu trigger failed for ${invoice.id}:`, err))
+              novuTasks.push(
+                triggerNovu("invoice-reminder-upcoming", { subscriberId: member.user_id, email }, novuPayload)
+                  .catch((err) => console.error(`notify-reminder-upcoming: novu trigger failed for ${invoice.id}:`, err)),
+              )
             }
           }
 
@@ -151,6 +155,7 @@ Deno.serve(async (req) => {
       }
     }
 
+    await Promise.allSettled(novuTasks)
     return new Response(JSON.stringify({ ok: true, sent }), { headers: corsHeaders })
   } catch (err) {
     console.error("notify-reminder-upcoming error:", err)

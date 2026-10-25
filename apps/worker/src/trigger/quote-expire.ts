@@ -1,10 +1,9 @@
-import { schedules, logger } from "@trigger.dev/sdk";
+import { task, logger } from "@trigger.dev/sdk";
 import { supabase } from "../lib/supabase";
 
-export const quoteExpire = schedules.task({
+export const quoteExpire = task({
   id: "quote-expire",
-  // Runs alongside mark-overdue at 1 AM UTC
-  cron: "0 1 * * *",
+  // Triggered daily by daily-status-sweep, alongside mark-overdue.
   maxDuration: 300,
   queue: { concurrencyLimit: 1 },
   retry: {

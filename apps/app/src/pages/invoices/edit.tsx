@@ -345,10 +345,10 @@ export function EditInvoicePage() {
     enabled: !!id,
   });
 
-  // Full customer record for the customer_details snapshot at send time —
+  // Prefetches the full customer record for the customer_details snapshot —
   // selectedCustomer only carries name/id until the user re-touches the
-  // combobox (see initializer below), so it can't be trusted alone.
-  const { data: fetchedCustomer } = useQuery({
+  // combobox (see initializer below). buildPatch reads it via fetchQuery.
+  useQuery({
     queryKey: ["customer", invoice?.customer_id],
     queryFn: () => getCustomer(invoice!.customer_id!, orgId!),
     enabled: !!invoice?.customer_id && !!orgId,
@@ -378,6 +378,7 @@ export function EditInvoicePage() {
             name: invoice.customer_name,
             email: null,
             billing_email: null,
+            billing_cc: null,
             phone: null,
             address_line1: null,
             address_line2: null,
@@ -527,14 +528,22 @@ export function EditInvoicePage() {
       }
     }
 
-    // Prefer the fully-fetched customer record over selectedCustomer when the
-    // customer hasn't changed — selectedCustomer only carries name/id from
-    // the initializer below until the user re-touches the combobox, so it
-    // can't be trusted alone for the snapshot (see fetchedCustomer above).
-    const snapshotCustomerSource =
-      fetchedCustomer && fetchedCustomer.id === selectedCustomer!.id
-        ? fetchedCustomer
-        : selectedCustomer!;
+    // While the customer is unchanged, selectedCustomer is the name/id
+    // placeholder from the initializer, so snapshot the full record instead.
+    // fetchQuery reuses the prefetch query's cache, or waits for it if the
+    // user sends before that query has resolved.
+    let snapshotCustomerSource: SelectedCustomer = selectedCustomer!;
+    if ((isSend || isSchedule) && invoice?.customer_id && selectedCustomer!.id === invoice.customer_id) {
+      try {
+        const customerId = invoice.customer_id;
+        snapshotCustomerSource = await queryClient.fetchQuery({
+          queryKey: ["customer", customerId],
+          queryFn: () => getCustomer(customerId, orgId!),
+        });
+      } catch {
+        throw new Error("customer_lookup_failed");
+      }
+    }
 
     return {
       customer_id: selectedCustomer!.id,
@@ -587,6 +596,8 @@ export function EditInvoicePage() {
     } catch (err) {
       if (err instanceof Error && err.message === "exchange_rate_lookup_failed") {
         toast.error("Failed to fetch exchange rate", { description: "Please try again." });
+      } else if (err instanceof Error && err.message === "customer_lookup_failed") {
+        toast.error("Failed to load customer details", { description: "Please try again." });
       }
       return;
     }

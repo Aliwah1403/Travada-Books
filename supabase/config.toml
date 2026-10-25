@@ -510,3 +510,15 @@ verify_jwt = false
 
 [functions.notify-invoice-payment-received]
 verify_jwt = false
+
+[functions.systems-clerk-webhook]
+verify_jwt = false
+
+[functions.systems-portal-link]
+verify_jwt = false
+
+[functions.notify-systems-billing]
+verify_jwt = false
+
+[functions.systems-invoices]
+verify_jwt = false

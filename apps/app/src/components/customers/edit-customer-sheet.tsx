@@ -38,6 +38,7 @@ import { updateCustomer } from "@/lib/queries/customers";
 import { useAuth } from "@/contexts/auth-context";
 import { toast } from "sonner";
 import { trackEvent, LogEvents } from "@/lib/analytics";
+import { isValidEmailList, normalizeEmailList } from "@/lib/email-list";
 
 const schema = z.object({
   name: z.string().min(1, "Name is required."),
@@ -46,6 +47,10 @@ const schema = z.object({
     .string()
     .email("Enter a valid email.")
     .or(z.literal(""))
+    .optional(),
+  billingCc: z
+    .string()
+    .refine(isValidEmailList, "Enter valid email addresses, separated by commas.")
     .optional(),
   phone: z.string().optional(),
   industry: z.string().optional(),
@@ -137,6 +142,7 @@ export function EditCustomerSheet({
         name: data.name,
         email: data.email || undefined,
         billing_email: data.billToEmail || undefined,
+        billing_cc: normalizeEmailList(data.billingCc),
         phone: data.phone || undefined,
         website: data.website || undefined,
         address_line1: data.addressLine1 || undefined,
@@ -258,6 +264,31 @@ export function EditCustomerSheet({
                           <FieldDescription>
                             Where invoices are sent. Leave blank to use the
                             email above.
+                          </FieldDescription>
+                          {fieldState.invalid && (
+                            <FieldError errors={[fieldState.error]} />
+                          )}
+                        </Field>
+                      )}
+                    />
+
+                    <Controller
+                      name='billingCc'
+                      control={form.control}
+                      render={({ field, fieldState }) => (
+                        <Field data-invalid={fieldState.invalid}>
+                          <FieldLabel htmlFor={field.name}>
+                            CC on invoices
+                          </FieldLabel>
+                          <Input
+                            {...field}
+                            id={field.name}
+                            aria-invalid={fieldState.invalid}
+                            placeholder='accounts@client.com, finance@client.com'
+                            className='text-xs'
+                          />
+                          <FieldDescription>
+                            These addresses are copied on every invoice and reminder sent to this customer. Separate with commas.
                           </FieldDescription>
                           {fieldState.invalid && (
                             <FieldError errors={[fieldState.error]} />

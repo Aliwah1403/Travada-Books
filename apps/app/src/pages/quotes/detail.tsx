@@ -221,6 +221,7 @@ export function QuoteDetailPage() {
           name: customer?.name ?? quote.customer_name ?? "",
           email: customer?.email ?? null,
           billing_email: customer?.billing_email ?? null,
+          billing_cc: customer?.billing_cc ?? null,
           phone: customer?.phone ?? null,
           address_line1: customer?.address_line1 ?? null,
           address_line2: customer?.address_line2 ?? null,

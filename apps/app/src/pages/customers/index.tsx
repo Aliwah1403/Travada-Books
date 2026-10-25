@@ -485,6 +485,7 @@ export function CustomersPage() {
                           name: customer.name,
                           email: customer.email ?? "",
                           billToEmail: customer.billing_email ?? "",
+                          billingCc: customer.billing_cc ?? "",
                           phone: customer.phone ?? "",
                           mainContact: customer.main_contact ?? "",
                           industry: customer.industry ?? "",

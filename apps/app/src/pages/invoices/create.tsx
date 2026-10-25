@@ -331,6 +331,7 @@ export function CreateInvoicePage() {
         name: preselectedCustomer.name,
         email: preselectedCustomer.email,
         billing_email: preselectedCustomer.billing_email,
+        billing_cc: preselectedCustomer.billing_cc,
         phone: preselectedCustomer.phone,
         address_line1: preselectedCustomer.address_line1,
         address_line2: preselectedCustomer.address_line2,

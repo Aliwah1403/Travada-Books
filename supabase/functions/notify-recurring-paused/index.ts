@@ -29,6 +29,8 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders })
 
   try {
+    // Awaited before responding: the runtime may stop once the response is sent.
+    const novuTasks: Promise<unknown>[] = []
     const workerSecret = req.headers.get("X-Worker-Secret") ?? ""
     const calledByWorker = WORKER_SHARED_SECRET.length > 0 && timingSafeEqual(workerSecret, WORKER_SHARED_SECRET)
 
@@ -131,11 +133,14 @@ Deno.serve(async (req) => {
       }
 
       if (sendInApp) {
-        triggerNovu("recurring-paused", { subscriberId: member.user_id, email }, novuPayload)
-          .catch((err) => console.error(`notify-recurring-paused: novu trigger failed for ${series.id}:`, err))
+        novuTasks.push(
+          triggerNovu("recurring-paused", { subscriberId: member.user_id, email }, novuPayload)
+            .catch((err) => console.error(`notify-recurring-paused: novu trigger failed for ${series.id}:`, err)),
+        )
       }
     }
 
+    await Promise.allSettled(novuTasks)
     return new Response(JSON.stringify({ ok: true, emailSent }), { headers: corsHeaders })
   } catch (err) {
     console.error("notify-recurring-paused error:", err)

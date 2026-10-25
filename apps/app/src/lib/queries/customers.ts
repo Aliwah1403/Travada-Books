@@ -7,6 +7,7 @@ export type Customer = {
   name: string
   email: string | null
   billing_email: string | null
+  billing_cc: string | null
   phone: string | null
   website: string | null
   address_line1: string | null
@@ -51,6 +52,7 @@ export type CustomerInput = {
   name: string
   email?: string
   billing_email?: string
+  billing_cc?: string
   phone?: string
   website?: string
   address_line1?: string
@@ -71,7 +73,7 @@ export type CustomerInput = {
 export async function listCustomers(orgId: string): Promise<Customer[]> {
   const { data, error } = await supabase
     .from("customers")
-    .select("id, created_at, org_id, name, email, billing_email, phone, website, address_line1, address_line2, city, state, zip, country, country_code, vat_number, note, logo_url, preferred_currency, is_archived, industry, company_type, main_contact, description, employee_count, founded_year, estimated_revenue, funding_stage, total_funding, headquarters_location, linkedin_url, twitter_url, instagram_url, facebook_url, ceo_name, finance_contact, finance_contact_email, primary_language, fiscal_year_end, enrichment_status, enriched_at, portal_enabled, portal_id")
+    .select("id, created_at, org_id, name, email, billing_email, billing_cc, phone, website, address_line1, address_line2, city, state, zip, country, country_code, vat_number, note, logo_url, preferred_currency, is_archived, industry, company_type, main_contact, description, employee_count, founded_year, estimated_revenue, funding_stage, total_funding, headquarters_location, linkedin_url, twitter_url, instagram_url, facebook_url, ceo_name, finance_contact, finance_contact_email, primary_language, fiscal_year_end, enrichment_status, enriched_at, portal_enabled, portal_id")
     .eq("org_id", orgId)
     .eq("is_archived", false)
     .order("created_at", { ascending: false })
@@ -83,7 +85,7 @@ export async function listCustomers(orgId: string): Promise<Customer[]> {
 export async function getCustomer(id: string, orgId: string): Promise<Customer> {
   const { data, error } = await supabase
     .from("customers")
-    .select("id, created_at, org_id, name, email, billing_email, phone, website, address_line1, address_line2, city, state, zip, country, country_code, vat_number, note, logo_url, preferred_currency, is_archived, industry, company_type, main_contact, description, employee_count, founded_year, estimated_revenue, funding_stage, total_funding, headquarters_location, linkedin_url, twitter_url, instagram_url, facebook_url, ceo_name, finance_contact, finance_contact_email, primary_language, fiscal_year_end, enrichment_status, enriched_at, portal_enabled, portal_id")
+    .select("id, created_at, org_id, name, email, billing_email, billing_cc, phone, website, address_line1, address_line2, city, state, zip, country, country_code, vat_number, note, logo_url, preferred_currency, is_archived, industry, company_type, main_contact, description, employee_count, founded_year, estimated_revenue, funding_stage, total_funding, headquarters_location, linkedin_url, twitter_url, instagram_url, facebook_url, ceo_name, finance_contact, finance_contact_email, primary_language, fiscal_year_end, enrichment_status, enriched_at, portal_enabled, portal_id")
     .eq("id", id)
     .eq("org_id", orgId)
     .single()
@@ -96,7 +98,7 @@ export async function createCustomer(orgId: string, input: CustomerInput): Promi
   const { data, error } = await supabase
     .from("customers")
     .insert({ org_id: orgId, ...input })
-    .select("id, created_at, org_id, name, email, billing_email, phone, website, address_line1, address_line2, city, state, zip, country, country_code, vat_number, note, logo_url, preferred_currency, is_archived, industry, company_type, main_contact, description, employee_count, founded_year, estimated_revenue, funding_stage, total_funding, headquarters_location, linkedin_url, twitter_url, instagram_url, facebook_url, ceo_name, finance_contact, finance_contact_email, primary_language, fiscal_year_end, enrichment_status, enriched_at, portal_enabled, portal_id")
+    .select("id, created_at, org_id, name, email, billing_email, billing_cc, phone, website, address_line1, address_line2, city, state, zip, country, country_code, vat_number, note, logo_url, preferred_currency, is_archived, industry, company_type, main_contact, description, employee_count, founded_year, estimated_revenue, funding_stage, total_funding, headquarters_location, linkedin_url, twitter_url, instagram_url, facebook_url, ceo_name, finance_contact, finance_contact_email, primary_language, fiscal_year_end, enrichment_status, enriched_at, portal_enabled, portal_id")
     .single()
 
   if (error) throw error
@@ -109,7 +111,7 @@ export async function updateCustomer(id: string, orgId: string, input: Partial<C
     .update(input)
     .eq("id", id)
     .eq("org_id", orgId)
-    .select("id, created_at, org_id, name, email, billing_email, phone, website, address_line1, address_line2, city, state, zip, country, country_code, vat_number, note, logo_url, preferred_currency, is_archived, industry, company_type, main_contact, description, employee_count, founded_year, estimated_revenue, funding_stage, total_funding, headquarters_location, linkedin_url, twitter_url, instagram_url, facebook_url, ceo_name, finance_contact, finance_contact_email, primary_language, fiscal_year_end, enrichment_status, enriched_at, portal_enabled, portal_id")
+    .select("id, created_at, org_id, name, email, billing_email, billing_cc, phone, website, address_line1, address_line2, city, state, zip, country, country_code, vat_number, note, logo_url, preferred_currency, is_archived, industry, company_type, main_contact, description, employee_count, founded_year, estimated_revenue, funding_stage, total_funding, headquarters_location, linkedin_url, twitter_url, instagram_url, facebook_url, ceo_name, finance_contact, finance_contact_email, primary_language, fiscal_year_end, enrichment_status, enriched_at, portal_enabled, portal_id")
     .single()
 
   if (error) throw error
@@ -161,7 +163,7 @@ export async function clearEnrichment(id: string, orgId: string): Promise<Custom
     })
     .eq("id", id)
     .eq("org_id", orgId)
-    .select("id, created_at, org_id, name, email, billing_email, phone, website, address_line1, address_line2, city, state, zip, country, country_code, vat_number, note, logo_url, preferred_currency, is_archived, industry, company_type, main_contact, description, employee_count, founded_year, estimated_revenue, funding_stage, total_funding, headquarters_location, linkedin_url, twitter_url, instagram_url, facebook_url, ceo_name, finance_contact, finance_contact_email, primary_language, fiscal_year_end, enrichment_status, enriched_at, portal_enabled, portal_id")
+    .select("id, created_at, org_id, name, email, billing_email, billing_cc, phone, website, address_line1, address_line2, city, state, zip, country, country_code, vat_number, note, logo_url, preferred_currency, is_archived, industry, company_type, main_contact, description, employee_count, founded_year, estimated_revenue, funding_stage, total_funding, headquarters_location, linkedin_url, twitter_url, instagram_url, facebook_url, ceo_name, finance_contact, finance_contact_email, primary_language, fiscal_year_end, enrichment_status, enriched_at, portal_enabled, portal_id")
     .single()
 
   if (error) throw error
