@@ -67,12 +67,25 @@ const MON_LABEL = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep"
 
 const pad = (n: number) => String(n).padStart(2, "0");
 
-/** "May 1 - Jul 31, 2026" / "Nov 1, 2025 - Jan 31, 2026" -> { start, endExclusive }. */
+/**
+ * -> { start, endExclusive } for the formats n8n wrote:
+ *   "May 1 - Jul 31, 2026" / "Nov 1, 2025 - Jan 31, 2026"   (day ranges)
+ *   "Feb 2025 – Apr 2025" / "Nov 2025 – Jan 2026"           (whole months)
+ *   "Nov 2024"                                              (one month)
+ */
 function parseServicePeriod(text: string | null): { start: string; endExclusive: string } | null {
   if (!text) return null;
-  const m = text
-    .trim()
-    .match(/^([A-Za-z]{3,9})\.?\s+(\d{1,2})(?:,?\s*(\d{4}))?\s*[-–—]\s*([A-Za-z]{3,9})\.?\s+(\d{1,2}),?\s*(\d{4})$/);
+  const t = text.trim();
+  const months = t.match(/^([A-Za-z]{3,9})\.?\s+(\d{4})(?:\s*[-–—]\s*([A-Za-z]{3,9})\.?\s+(\d{4}))?$/);
+  if (months) {
+    const sm = MONTHS[months[1].slice(0, 3).toLowerCase()];
+    const em = MONTHS[(months[3] ?? months[1]).slice(0, 3).toLowerCase()];
+    if (!sm || !em) return null;
+    const start = `${months[2]}-${pad(sm)}-01`;
+    const endExclusive = addMonthsISO(`${months[4] ?? months[2]}-${pad(em)}-01`, 1);
+    return endExclusive > start ? { start, endExclusive } : null;
+  }
+  const m = t.match(/^([A-Za-z]{3,9})\.?\s+(\d{1,2})(?:,?\s*(\d{4}))?\s*[-–—]\s*([A-Za-z]{3,9})\.?\s+(\d{1,2}),?\s*(\d{4})$/);
   if (!m) return null;
   const sm = MONTHS[m[1].slice(0, 3).toLowerCase()];
   const em = MONTHS[m[4].slice(0, 3).toLowerCase()];
@@ -253,20 +266,25 @@ async function runImport(): Promise<void> {
       continue;
     }
 
-    const periodEnd = `${issueDate.slice(0, 7)}-01`;
-    const periodStart = addMonthsISO(periodEnd, cycle === "quarterly" ? -3 : -1);
+    // The stated service_period wins (it's what the client was billed for);
+    // the invoice-date period (cycle ending the month before issue) is the
+    // fallback and the cross-check.
+    const derivedEnd = `${issueDate.slice(0, 7)}-01`;
+    const derivedStart = addMonthsISO(derivedEnd, cycle === "quarterly" ? -3 : -1);
+    const periodStart = parsedSP?.start ?? derivedStart;
+    const periodEnd = parsedSP?.endExclusive ?? derivedEnd;
     row.period_start = periodStart;
     row.period_end = periodEnd;
     row.cycle = cycle;
 
     if (parsedSP) {
-      if (parsedSP.start !== periodStart || parsedSP.endExclusive !== periodEnd) {
+      if (parsedSP.start !== derivedStart || parsedSP.endExclusive !== derivedEnd) {
         notes.push(
-          `PERIOD MISMATCH: service_period "${servicePeriodText}" = ${parsedSP.start}..${parsedSP.endExclusive}, derived ${periodStart}..${periodEnd}`,
+          `PERIOD MISMATCH: using service_period "${servicePeriodText}" = ${parsedSP.start}..${parsedSP.endExclusive}; invoice date implies ${derivedStart}..${derivedEnd}`,
         );
       }
     } else {
-      notes.push(`service_period "${servicePeriodText ?? ""}" not parseable; not cross-checked`);
+      notes.push(`service_period "${servicePeriodText ?? ""}" not parseable; period derived from invoice date`);
     }
 
     const amountBilled = num(d.amount_billed);
