@@ -5,7 +5,7 @@ import { EmailLayout, colors } from "./layout";
 interface Props {
   firstName: string;
   dashboardUrl: string;
-  invoiceUrl: string;
+  setupUrl: string;
   inviteUrl: string;
 }
 
@@ -17,7 +17,7 @@ const APP_URL = "https://app.travadabooks.com";
 export default function WelcomeEmail({
   firstName = "Jane",
   dashboardUrl = `${APP_URL}/invoices`,
-  invoiceUrl = `${APP_URL}/invoices/create`,
+  setupUrl = `${APP_URL}/settings/general`,
   inviteUrl = `${APP_URL}/settings/team`,
 }: Partial<Props>) {
   return (
@@ -59,12 +59,23 @@ export default function WelcomeEmail({
           fontFamily: font,
         }}
       >
-        We built Travada Books because running a business in Africa has
-        always felt like an afterthought for the software available — tools
-        built elsewhere, for different currencies, different contexts, and
-        different realities. Chasing payments, managing clients across
-        WhatsApp threads, and piecing together spreadsheets at the end of
-        the month shouldn't be part of running a business.
+        We built Travada Books because too much business software is built
+        for someone else's reality — other currencies, other ways of getting
+        paid, other ways of working. Chasing payments, managing clients across
+        WhatsApp threads, and piecing together spreadsheets at the end of the
+        month shouldn't be part of running a business.
+      </Text>
+      <Text
+        style={{
+          margin: "0 0 16px",
+          fontSize: 14,
+          color: colors.body,
+          lineHeight: "1.7",
+          fontFamily: font,
+        }}
+      >
+        Starting tomorrow, I'll send you a short email every couple of days,
+        each one about a single feature and how to get the most out of it.
       </Text>
       <Text
         style={{
@@ -76,9 +87,8 @@ export default function WelcomeEmail({
         }}
       >
         Travada Books is built with our customers — and it matters to us that
-        you know we're here when you need us. Take your time to explore at
-        your own pace. If you ever want to chat, just reply to this email.
-        We're always one message away.
+        you know we're here when you need us. If you ever want to chat, just
+        reply to this email. We're always one message away.
       </Text>
 
       {/* Divider */}
@@ -143,7 +153,7 @@ export default function WelcomeEmail({
                 fontFamily: font,
               }}
             >
-              Send your first invoice
+              Set up your business
             </Text>
             <Text
               style={{
@@ -154,11 +164,11 @@ export default function WelcomeEmail({
                 fontFamily: font,
               }}
             >
-              Create a professional invoice and send it to a customer in under
-              a minute.
+              Add your logo, base currency and the details that appear on your
+              invoices. It takes about a minute.
             </Text>
             <Link
-              href={invoiceUrl}
+              href={setupUrl}
               style={{
                 fontSize: 13,
                 fontWeight: 500,
@@ -167,7 +177,7 @@ export default function WelcomeEmail({
                 fontFamily: font,
               }}
             >
-              Create an invoice →
+              Set up your business →
             </Link>
           </Column>
         </Row>
