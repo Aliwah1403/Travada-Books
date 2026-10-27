@@ -25,18 +25,20 @@ export function WelcomeEmail({ firstName = "there" }: Props) {
         Welcome to Travada Books — I'm Curtis, one of the founders.
       </Text>
       <Text style={{ margin: "0 0 16px", fontSize: 14, color: colors.body, lineHeight: "1.7", fontFamily: font }}>
-        We built Travada Books because running a business in Africa has
-        always felt like an afterthought for the software available — tools
-        built elsewhere, for different currencies, different contexts, and
-        different realities. Chasing payments, managing clients across
-        WhatsApp threads, and piecing together spreadsheets at the end of
-        the month shouldn't be part of running a business.
+        We built Travada Books because too much business software is built
+        for someone else's reality — other currencies, other ways of getting
+        paid, other ways of working. Chasing payments, managing clients across
+        WhatsApp threads, and piecing together spreadsheets at the end of the
+        month shouldn't be part of running a business.
+      </Text>
+      <Text style={{ margin: "0 0 16px", fontSize: 14, color: colors.body, lineHeight: "1.7", fontFamily: font }}>
+        Starting tomorrow, I'll send you a short email every couple of days,
+        each one about a single feature and how to get the most out of it.
       </Text>
       <Text style={{ margin: "0 0 32px", fontSize: 14, color: colors.body, lineHeight: "1.7", fontFamily: font }}>
         Travada Books is built with our customers — and it matters to us that
-        you know we're here when you need us. Take your time to explore at
-        your own pace. If you ever want to chat, just reply to this email.
-        We're always one message away.
+        you know we're here when you need us. If you ever want to chat, just
+        reply to this email. We're always one message away.
       </Text>
 
       <Hr style={{ borderColor: colors.border, margin: "0 0 32px" }} />
@@ -57,13 +59,13 @@ export function WelcomeEmail({ firstName = "there" }: Props) {
           </Column>
           <Column style={{ verticalAlign: "top" }}>
             <Text style={{ margin: "0 0 4px", fontSize: 15, fontWeight: 600, color: colors.dark, fontFamily: font }}>
-              Send your first invoice
+              Set up your business
             </Text>
             <Text style={{ margin: "0 0 10px", fontSize: 13, color: colors.muted, lineHeight: "1.6", fontFamily: font }}>
-              Create a professional invoice and send it to a customer in under a minute.
+              Add your logo, base currency and the details that appear on your invoices. It takes about a minute.
             </Text>
-            <Link href={`${APP_URL}/invoices/create`} style={{ fontSize: 13, fontWeight: 500, color: colors.dark, textDecoration: "none", fontFamily: font }}>
-              Create an invoice →
+            <Link href={`${APP_URL}/settings/general`} style={{ fontSize: 13, fontWeight: 500, color: colors.dark, textDecoration: "none", fontFamily: font }}>
+              Set up your business →
             </Link>
           </Column>
         </Row>

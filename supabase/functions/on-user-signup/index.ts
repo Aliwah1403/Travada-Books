@@ -105,6 +105,8 @@ Deno.serve(async (req) => {
 
   const TRIGGER_SECRET_KEY = Deno.env.get("TRIGGER_SECRET_KEY");
 
+  // Adds the Resend contact and fires the signup event that starts the onboarding
+  // automation (the Day 1+ feature emails). This function sends the Day 0 welcome itself.
   const triggerPromise = TRIGGER_SECRET_KEY
     ? fetch("https://api.trigger.dev/api/v1/tasks/resend-add-contact/trigger", {
         method: "POST",
@@ -113,45 +115,24 @@ Deno.serve(async (req) => {
           "Content-Type": "application/json",
           "x-trigger-api-version": "2023-11-14",
         },
-        body: JSON.stringify({ payload: { email: record.email, firstName: firstName || undefined, lastName } }),
+        body: JSON.stringify({
+          payload: { email: record.email, firstName: firstName || undefined, lastName },
+          options: record.id
+            ? {
+                // A re-fired signup webhook returns the existing run instead of
+                // starting the onboarding automation a second time.
+                idempotencyKey: `resend-add-contact:${record.id}`,
+                idempotencyKeyTTL: "30d",
+                tags: [`user_${record.id}`],
+              }
+            : undefined,
+        }),
       }).then(async (res) => {
         if (!res.ok) {
           const text = await res.text().catch(() => "");
           throw new Error(`Trigger.dev resend-add-contact failed: ${res.status} ${res.statusText} - ${text}`);
         }
       }).catch((err) => console.error("Trigger.dev resend-add-contact failed (non-fatal):", err))
-    : Promise.resolve();
-
-  const welcomeSequencePromise = TRIGGER_SECRET_KEY && record.id
-    ? fetch("https://api.trigger.dev/api/v1/tasks/welcome-sequence/trigger", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${TRIGGER_SECRET_KEY}`,
-          "Content-Type": "application/json",
-          "x-trigger-api-version": "2023-11-14",
-        },
-        body: JSON.stringify({
-          payload: {
-            email: record.email,
-            firstName: firstName || undefined,
-            userId: record.id,
-          },
-          options: {
-            // A re-fired signup webhook returns the EXISTING run id rather than
-            // starting a second 14-day sequence. Platform default TTL is 30 days,
-            // which already outlives the sequence.
-            idempotencyKey: `welcome-sequence:${record.id}`,
-            tags: [`user_${record.id}`],
-          },
-        }),
-      })
-        .then(async (res) => {
-          if (!res.ok) {
-            const text = await res.text().catch(() => "");
-            throw new Error(`Trigger.dev welcome-sequence failed: ${res.status} ${res.statusText} - ${text}`);
-          }
-        })
-        .catch((err) => console.error("Trigger.dev welcome-sequence failed (non-fatal):", err))
     : Promise.resolve();
 
   const emailHtml = await render(WelcomeEmail({ firstName: firstName || undefined }));
@@ -165,7 +146,6 @@ Deno.serve(async (req) => {
       subject: "Welcome to Travada Books",
       html: emailHtml,
     }),
-    welcomeSequencePromise,
   ]);
 
   if (emailResult.status === "rejected") {

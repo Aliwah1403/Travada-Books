@@ -11,7 +11,7 @@ const REPLY_TO = ["curtis.aliwah@travadasys.com", "nate.muliro@travadasys.com"];
 
 // One-off broadcast to existing customers about Transactions + Vault — not a schedule.
 // Trigger manually once from the Trigger.dev dashboard ("Test" run) or a single REST call,
-// same as `on-user-signup` does for welcome-sequence. Safe to re-run: every send is claimed
+// same as `on-user-signup` does for resend-add-contact. Safe to re-run: every send is claimed
 // via a conditional update on transactions_vault_announcement_sent_at, so already-sent users
 // are skipped and a re-run only reaches stragglers.
 export const transactionsVaultAnnouncement = task({
