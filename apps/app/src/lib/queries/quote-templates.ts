@@ -1,3 +1,4 @@
+import { normalizeDocumentTemplate } from "@travada-books/pdf"
 import { supabase } from "@/lib/supabase"
 import type { QuoteSettings } from "@/components/quotes/quote-settings"
 
@@ -77,17 +78,10 @@ export async function upsertOrgQuoteTemplate(
   }
 }
 
-// Only "classic" renders today (see quote-settings-sheet.tsx). Normalize any
-// other saved id so the UI still shows Classic selected.
-const KNOWN_QUOTE_TEMPLATES = new Set(["classic"])
-
 function rowToSettings(row: QuoteTemplateRow): QuoteSettings {
   const digits = row.quote_number_digits ?? 4
   return {
-    quoteTemplate:
-      row.quote_template && KNOWN_QUOTE_TEMPLATES.has(row.quote_template)
-        ? row.quote_template
-        : "classic",
+    quoteTemplate: normalizeDocumentTemplate(row.quote_template),
     defaultNote: row.default_note ?? "",
     cc: row.cc ?? "",
     bcc: row.bcc ?? "",

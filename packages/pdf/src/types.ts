@@ -59,6 +59,9 @@ export type ClassicDocumentData = {
   // Invoice status, used only to show a CANCELED marker near the title.
   // Quotes never set this — leave it undefined to stay unaffected.
   status?: string | null;
+  // Layout id saved on the invoice/quote row (see DOCUMENT_TEMPLATES).
+  // Missing or unknown ids render as Classic.
+  template?: string | null;
 };
 
 export type LedgerEntry = {

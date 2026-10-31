@@ -24,6 +24,7 @@ export interface InvoiceDocumentDataRow {
   show_tax_column?: boolean | null;
   show_qty_column?: boolean | null;
   status?: string | null;
+  invoice_template?: string | null;
 }
 
 export interface BuildInvoiceDocumentDataOpts {
@@ -60,5 +61,6 @@ export function buildInvoiceDocumentData(
     showTaxColumn: invoice.show_tax_column ?? null,
     showQtyColumn: invoice.show_qty_column ?? null,
     status: invoice.status ?? null,
+    template: invoice.invoice_template ?? null,
   };
 }

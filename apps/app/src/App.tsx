@@ -133,6 +133,9 @@ const router = createBrowserRouter([
         path: "/pitch",
         element: <PitchPage />,
       },
+      ...(import.meta.env.DEV
+        ? [{ path: "/dev/invoice-templates", lazy: () => import("@/pages/dev/invoice-templates") }]
+        : []),
       {
         path: "/i/:token",
         element: <PublicInvoicePage />,

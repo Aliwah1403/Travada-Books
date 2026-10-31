@@ -1,3 +1,4 @@
+import { normalizeDocumentTemplate } from "@travada-books/pdf";
 import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -44,7 +45,8 @@ import {
   defaultQuoteSettings,
   type QuoteSettings,
 } from "@/components/quotes/quote-settings";
-import { type LineItem, QuotePreview } from "@/components/quotes/quote-preview";
+import type { LineItem } from "@/components/quotes/quote-utils";
+import { EditorDocumentPreview } from "@/components/invoice-templates/editor-preview";
 import { computeQuoteTotals, isQuoteEditable } from "@/components/quotes/quote-utils";
 import { deriveVatRate, toRateColumns } from "@/lib/document-totals";
 import { CustomFieldsEditor, type CustomField } from "@/components/invoices/custom-fields";
@@ -106,8 +108,10 @@ export function EditQuotePage() {
       setQuoteSettings({
         ...quoteTemplate,
         includePdf: quote?.include_pdf ?? quoteTemplate.includePdf,
+        // The quote keeps the layout it was saved with.
+        quoteTemplate: normalizeDocumentTemplate(quote?.quote_template ?? quoteTemplate.quoteTemplate),
       });
-  }, [quoteTemplate, quote?.include_pdf]);
+  }, [quoteTemplate, quote?.include_pdf, quote?.quote_template]);
 
   // Pre-populate form from existing quote
   useEffect(() => {
@@ -221,6 +225,7 @@ export function EditQuotePage() {
         base_currency: org?.base_currency ?? null,
         note: notes || null,
         include_pdf: quoteSettings.includePdf,
+        quote_template: quoteSettings.quoteTemplate,
         custom_fields: normalizeCustomFields(customFields),
         // Reset declined quotes to draft so they can be reviewed and resent
         ...(quote?.status === "declined" ? { status: "draft" } : {}),
@@ -535,10 +540,12 @@ export function EditQuotePage() {
           <p className='mb-4 text-xs font-medium text-muted-foreground'>
             Preview
           </p>
-          <QuotePreview
-            quoteNumber={quoteNumber}
+          <EditorDocumentPreview
+            kind="quote"
+            template={quoteSettings.quoteTemplate}
+            number={quoteNumber}
             issueDate={issueDate}
-            validUntil={validUntil}
+            secondaryDate={validUntil}
             currency={currency}
             items={items}
             discountType={discountType}

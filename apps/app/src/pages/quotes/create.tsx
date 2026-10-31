@@ -52,7 +52,8 @@ import {
   defaultQuoteSettings,
   type QuoteSettings,
 } from "@/components/quotes/quote-settings";
-import { type LineItem, QuotePreview } from "@/components/quotes/quote-preview";
+import type { LineItem } from "@/components/quotes/quote-utils";
+import { EditorDocumentPreview } from "@/components/invoice-templates/editor-preview";
 import { computeQuoteTotals } from "@/components/quotes/quote-utils";
 import { toRateColumns } from "@/lib/document-totals";
 import { supabase } from "@/lib/supabase";
@@ -212,6 +213,7 @@ export function CreateQuotePage() {
       note: notes || null,
       internal_note: null,
       include_pdf: quoteSettings.includePdf,
+      quote_template: quoteSettings.quoteTemplate,
       custom_fields: normalizeCustomFields(customFields),
       ...(isSend && { sent_at: new Date().toISOString(), sent_via: "email" }),
       ...(isSend &&
@@ -577,10 +579,12 @@ export function CreateQuotePage() {
           <p className='mb-4 text-xs font-medium text-muted-foreground'>
             Preview
           </p>
-          <QuotePreview
-            quoteNumber={quoteNumber}
+          <EditorDocumentPreview
+            kind="quote"
+            template={quoteSettings.quoteTemplate}
+            number={quoteNumber}
             issueDate={issueDate}
-            validUntil={validUntil}
+            secondaryDate={validUntil}
             currency={currency}
             items={items}
             discountType={discountType}

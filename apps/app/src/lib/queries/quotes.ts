@@ -32,6 +32,7 @@ export type Quote = {
   customer_details: Record<string, unknown> | null
   from_details: Record<string, unknown> | null
   custom_fields: CustomField[]
+  quote_template: string
   note: string | null
   internal_note: string | null
   sent_at: string | null
@@ -79,6 +80,7 @@ export type QuoteInput = {
   customer_details?: Record<string, unknown>
   custom_fields?: CustomField[]
   include_pdf?: boolean
+  quote_template?: string
 }
 
 export const QUOTE_PAGE_SIZE = 50
@@ -102,10 +104,10 @@ export type QuoteStatsSummary = {
 }
 
 const QUOTE_SELECT =
-  "id, created_at, updated_at, org_id, user_id, customer_id, customer_name, token, quote_number, status, issue_date, valid_until, currency, line_items, subtotal, tax_amount, discount, vat_rate, discount_percent, total, exchange_rate, converted_amount, base_currency, customer_details, from_details, custom_fields, note, internal_note, sent_at, sent_via, resent_at, accepted_at, declined_at, decline_reason, viewed_at, include_pdf, email_status, email_error, email_status_at, customers(logo_url)"
+  "id, created_at, updated_at, org_id, user_id, customer_id, customer_name, token, quote_number, status, issue_date, valid_until, currency, line_items, subtotal, tax_amount, discount, vat_rate, discount_percent, total, exchange_rate, converted_amount, base_currency, customer_details, from_details, custom_fields, note, internal_note, sent_at, sent_via, resent_at, accepted_at, declined_at, decline_reason, viewed_at, include_pdf, email_status, email_error, email_status_at, quote_template, customers(logo_url)"
 
 const PUBLIC_QUOTE_SELECT =
-  "id, created_at, updated_at, customer_id, customer_name, token, quote_number, status, issue_date, valid_until, currency, line_items, subtotal, tax_amount, discount, total, customer_details, from_details, custom_fields, note, sent_at, resent_at, accepted_at, declined_at, decline_reason, viewed_at"
+  "id, created_at, updated_at, customer_id, customer_name, token, quote_number, status, issue_date, valid_until, currency, line_items, subtotal, tax_amount, discount, total, customer_details, from_details, custom_fields, note, sent_at, resent_at, accepted_at, declined_at, decline_reason, viewed_at, quote_template"
 
 export async function listQuotes(
   orgId: string,
@@ -298,6 +300,7 @@ export async function duplicateQuote(quote: Quote, orgId: string, userId: string
       note: quote.note,
       internal_note: quote.internal_note,
       custom_fields: quote.custom_fields ?? [],
+      quote_template: quote.quote_template,
     })
     .select(QUOTE_SELECT)
     .single()
