@@ -27,6 +27,7 @@ import {
   DropdownMenuTrigger,
 } from "@travada-books/ui/components/dropdown-menu";
 import { useTheme } from "@/components/theme-provider";
+import { MobileNav } from "@/components/sidebar/sidebar";
 import { useAuth } from "@/contexts/auth-context";
 import { supabase } from "@/lib/supabase";
 
@@ -96,9 +97,12 @@ export function Header({ title }: HeaderProps) {
     : email.slice(0, 2).toUpperCase();
 
   return (
-    <header className='flex h-14 shrink-0 items-center justify-between border-b px-6'>
-      <h1 className='text-sm font-medium'>{title}</h1>
-      <div className='flex items-center gap-2'>
+    <header className='flex h-14 shrink-0 items-center justify-between gap-2 border-b px-4 md:px-6'>
+      <div className='flex min-w-0 items-center gap-1'>
+        <MobileNav />
+        <h1 className='truncate text-sm font-medium'>{title}</h1>
+      </div>
+      <div className='flex shrink-0 items-center gap-1 md:gap-2'>
         <Button
           variant='ghost'
           size='icon-lg'

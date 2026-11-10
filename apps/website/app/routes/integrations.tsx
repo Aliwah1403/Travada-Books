@@ -11,6 +11,7 @@ import { cn } from "@travada-books/ui/lib/utils"
 import { AppLink } from "~/components/app-link"
 import { ClosingCta } from "~/components/home/closing"
 import { ARROW_NUDGE, LearnMore } from "~/components/home/shared"
+import { IntegrationRequestForm } from "~/components/integrations/request-form"
 import { ToolMarquee } from "~/components/integrations/tool-marquee"
 import { Eyebrow } from "~/components/site/eyebrow"
 import { Section } from "~/components/site/section"
@@ -172,7 +173,7 @@ function Catalogue() {
 function RequestRow() {
   return (
     <Section size="sm" tone="canvas" id={REQUEST_ID} className="scroll-mt-16">
-      <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between md:gap-12">
+      <div className="grid gap-8 lg:grid-cols-[5fr_7fr] lg:gap-12">
         <div className="flex items-start gap-4">
           <span aria-hidden="true" className="flex size-10 shrink-0 items-center justify-center border border-line bg-panel">
             <Mail01Icon className="size-5 text-brand-line" />
@@ -185,9 +186,7 @@ function RequestRow() {
             </p>
           </div>
         </div>
-        <LearnMore to="/contact?topic=feature" className="shrink-0 pl-14 md:pl-0">
-          Request an integration
-        </LearnMore>
+        <IntegrationRequestForm />
       </div>
     </Section>
   )

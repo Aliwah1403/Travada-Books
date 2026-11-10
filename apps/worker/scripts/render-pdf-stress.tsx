@@ -137,6 +137,18 @@ const SCENARIOS: Record<string, ClassicDocumentData> = {
     showQtyColumn: false,
     showTaxColumn: false,
   },
+  // Tax number: labelled, printed without payment details, and a value too
+  // long for one line. `normal` covers an old snapshot with no label (PIN).
+  "tax-label": {
+    ...base,
+    from: { ...base.from, tax_id_label: "VAT", tax_id: "GB-123456789-ABCDEFGHIJKLMNOPQRSTUVWXYZ-0123456789-ABCDEFGHIJKLMNOP" },
+    paymentDetails: null,
+  },
+  "tax-label-gst": {
+    ...base,
+    from: { ...base.from, tax_id_label: "GST", tax_id: "29ABCDE1234F1Z5" },
+    paymentDetails: null,
+  },
   quote: {
     ...hugeMoney,
     label: "QUOTATION",

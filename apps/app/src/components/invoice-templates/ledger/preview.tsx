@@ -6,6 +6,7 @@ import {
   fmt,
   getDocumentView,
   PoweredBy,
+  taxIdLine,
 } from "../shared"
 
 const RULE = "border-t border-foreground/70"
@@ -55,7 +56,7 @@ export function LedgerPreview({ data }: { data: ClassicDocumentData }) {
           {addressLines(from).map((line) => (
             <p key={line}>{line}</p>
           ))}
-          {from.tax_id && <p>PIN: {from.tax_id}</p>}
+          {taxIdLine(from) && <p>{taxIdLine(from)}</p>}
         </div>
         {contact.length > 0 && (
           <div>

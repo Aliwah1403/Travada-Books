@@ -47,7 +47,7 @@ export function CustomerStats({
   currency,
 }: CustomerStatsProps) {
   return (
-    <div className="grid grid-cols-4 gap-4">
+    <div className='flex snap-x snap-mandatory gap-3 overflow-x-auto [scrollbar-width:none] *:min-w-[72%] *:snap-start md:grid md:gap-4 md:overflow-visible md:*:min-w-0 md:grid-cols-4'>
       <StatCard
         label="Total Customers"
         value={<NumberFlow value={totalCount} />}

@@ -1,8 +1,9 @@
-import { useState } from "react";
-import { Link, useNavigate } from "react-router";
+import { useEffect, useState } from "react";
+import { Link, useLocation, useNavigate } from "react-router";
 import { toast } from "sonner";
 import {
   DashboardSquare01Icon,
+  SparklesIcon,
   Invoice01Icon,
   FileEditIcon,
   User02Icon,
@@ -15,9 +16,18 @@ import {
   PlusSignIcon,
   VaultIcon,
   InboxIcon,
+  ReceiptTextIcon,
+  PanelLeftIcon,
+  Menu01Icon,
   type Icon,
 } from "@travada-books/ui/icons";
 import { Separator } from "@travada-books/ui/components/separator";
+import { Button } from "@travada-books/ui/components/button";
+import {
+  Sheet,
+  SheetContent,
+  SheetTitle,
+} from "@travada-books/ui/components/sheet";
 import {
   Avatar,
   AvatarFallback,
@@ -38,8 +48,11 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@travada-books/ui/components/tooltip";
+import { cn } from "@travada-books/ui/lib/utils";
+import { GlobalSearch } from "@/components/search/global-search";
 import { NavItem } from "./nav-item";
 import { OnboardingChecklistTrigger } from "./onboarding-checklist-trigger";
+import { useSidebarCollapsed } from "./use-sidebar-collapsed";
 import { useTheme } from "@/components/theme-provider";
 import { useAuth } from "@/contexts/auth-context";
 import { supabase } from "@/lib/supabase";
@@ -48,6 +61,7 @@ import LogoLime from "@/assets/Logo-Lime.svg";
 
 const dashboardNav = [
   { icon: DashboardSquare01Icon, label: "Dashboard", to: "/", end: true },
+  { icon: SparklesIcon, label: "Insights", to: "/insights" },
 ];
 
 const salesNav = [
@@ -71,9 +85,10 @@ const mainNav: {
   },
   { icon: VaultIcon, label: "Vault", to: "/vault" },
   { icon: InboxIcon, label: "Inbox", to: "/inbox" },
+  { icon: ReceiptTextIcon, label: "Bills", to: "/bills" },
 ];
 
-function OrgSwitcher() {
+function OrgSwitcher({ collapsed }: { collapsed: boolean }) {
   const { org, orgRole, orgs, switchOrg } = useAuth();
   const isOwner = orgRole === "owner";
   const navigate = useNavigate();
@@ -109,7 +124,13 @@ function OrgSwitcher() {
     <DropdownMenu>
       <DropdownMenuTrigger
         render={
-          <button className='flex w-full items-center gap-2.5 rounded-md px-2 py-2 text-sm fine-hover:bg-accent fine-hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring' />
+          <button
+            aria-label={collapsed ? orgName : undefined}
+            className={cn(
+              "flex w-full items-center gap-2.5 rounded-md px-2 py-2 text-sm fine-hover:bg-accent fine-hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+              collapsed && "justify-center",
+            )}
+          />
         }
       >
         <Avatar className='size-6 rounded-md'>
@@ -118,13 +139,17 @@ function OrgSwitcher() {
             {orgInitials}
           </AvatarFallback>
         </Avatar>
-        <span className='flex-1 truncate text-left text-xs font-medium'>
-          {orgName}
-        </span>
-        <MoreVerticalIcon
-          size={14}
-          className='shrink-0 text-muted-foreground'
-        />
+        {!collapsed && (
+          <>
+            <span className='flex-1 truncate text-left text-xs font-medium'>
+              {orgName}
+            </span>
+            <MoreVerticalIcon
+              size={14}
+              className='shrink-0 text-muted-foreground'
+            />
+          </>
+        )}
       </DropdownMenuTrigger>
 
       <DropdownMenuContent
@@ -239,22 +264,85 @@ function OrgSwitcher() {
   );
 }
 
-export function Sidebar() {
+/**
+ * Everything inside the sidebar: logo row, search, nav groups, checklist and
+ * org switcher. Shared by the desktop <aside> and the mobile nav sheet. On
+ * mobile `toggle` is omitted, so the logo row drops its collapse button.
+ */
+function SidebarBody({
+  collapsed,
+  toggle,
+}: {
+  collapsed: boolean;
+  toggle?: () => void;
+}) {
   const { theme } = useTheme();
   const logo = theme === "dark" ? LogoLime : LogoGreen;
 
   return (
-    <aside className='flex h-screen w-56 shrink-0 flex-col border-r bg-background'>
-      {/* Logo */}
-      <div className='flex h-14 items-center gap-2 px-4'>
-        <img src={logo} alt='Travada Books' className='size-6' />
-        <span className='text-sm font-semibold'>Travada Books</span>
-      </div>
+    <>
+      {/* Logo + open/close trigger */}
+      {collapsed && toggle ? (
+        <div className='flex h-14 items-center justify-center'>
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <button
+                  type='button'
+                  aria-label='Expand sidebar'
+                  onClick={toggle}
+                  className='group flex size-8 items-center justify-center rounded-md text-muted-foreground transition-[colors,transform] fine-hover:bg-muted fine-hover:text-foreground active:scale-[0.97]'
+                />
+              }
+            >
+              {/* The logo holds the spot; pointing at it reveals what it does. */}
+              <img
+                src={logo}
+                alt=''
+                className='size-6 group-focus-visible:hidden [@media(hover:hover)]:group-hover:hidden'
+              />
+              <PanelLeftIcon
+                size={16}
+                className='hidden group-focus-visible:block [@media(hover:hover)]:group-hover:block'
+              />
+            </TooltipTrigger>
+            <TooltipContent side='right'>Expand sidebar ⌘B</TooltipContent>
+          </Tooltip>
+        </div>
+      ) : (
+        <div className='flex h-14 items-center gap-2 pl-4 pr-3'>
+          <img src={logo} alt='Travada Books' className='size-6' />
+          <span className='min-w-0 flex-1 truncate text-sm font-semibold'>
+            Travada Books
+          </span>
+          {toggle && (
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <button
+                  type='button'
+                  aria-label='Collapse sidebar'
+                  onClick={toggle}
+                  className='flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-[colors,transform] fine-hover:bg-muted fine-hover:text-foreground active:scale-[0.97]'
+                />
+              }
+            >
+              <PanelLeftIcon size={16} />
+            </TooltipTrigger>
+            <TooltipContent side='right'>Collapse sidebar ⌘B</TooltipContent>
+          </Tooltip>
+          )}
+        </div>
+      )}
 
       <Separator />
 
+      <div className='px-2 pt-3'>
+        <GlobalSearch collapsed={collapsed} />
+      </div>
+
       {/* Main nav */}
-      <nav className='flex flex-1 flex-col overflow-y-auto px-2 py-3'>
+      <nav className='flex flex-1 flex-col overflow-y-auto px-2 pb-3 pt-2'>
         {/* Dashboard */}
         <div className='flex flex-col gap-0.5'>
           {dashboardNav.map((item) => (
@@ -264,6 +352,7 @@ export function Sidebar() {
               label={item.label}
               to={item.to}
               end={item.end}
+              collapsed={collapsed}
             />
           ))}
         </div>
@@ -279,6 +368,7 @@ export function Sidebar() {
               label={item.label}
               to={item.to}
               comingSoon={item.comingSoon}
+              collapsed={collapsed}
             />
           ))}
         </div>
@@ -294,21 +384,74 @@ export function Sidebar() {
               label={item.label}
               to={item.to}
               comingSoon={item.comingSoon}
+              collapsed={collapsed}
             />
           ))}
         </div>
       </nav>
 
       <div className='px-2 pb-2'>
-        <OnboardingChecklistTrigger />
+        <OnboardingChecklistTrigger collapsed={collapsed} />
       </div>
 
       <Separator />
 
       {/* Org switcher */}
       <div className='px-2 py-3'>
-        <OrgSwitcher />
+        <OrgSwitcher collapsed={collapsed} />
       </div>
+    </>
+  );
+}
+
+export function Sidebar() {
+  const { collapsed, toggle } = useSidebarCollapsed();
+
+  return (
+    <aside
+      className={cn(
+        "hidden h-screen shrink-0 flex-col border-r bg-background md:flex",
+        collapsed ? "w-14" : "w-56",
+      )}
+    >
+      <SidebarBody collapsed={collapsed} toggle={toggle} />
     </aside>
+  );
+}
+
+/**
+ * Below `md` the sidebar is hidden; this hamburger opens the same nav in a
+ * left sheet. It closes itself on every route change, so tapping a nav item,
+ * a search result or an org-menu link all dismiss it without wiring each one.
+ */
+export function MobileNav() {
+  const [open, setOpen] = useState(false);
+  const { pathname } = useLocation();
+
+  useEffect(() => {
+    setOpen(false);
+  }, [pathname]);
+
+  return (
+    <Sheet open={open} onOpenChange={setOpen} mobileDrawer={false}>
+      <Button
+        variant='ghost'
+        size='icon-lg'
+        aria-label='Open navigation'
+        onClick={() => setOpen(true)}
+        className='-ml-2 md:hidden'
+      >
+        <Menu01Icon size={20} />
+      </Button>
+      <SheetContent
+        side='left'
+        variant='default'
+        showCloseButton={false}
+        className='w-72 gap-0 bg-background p-0'
+      >
+        <SheetTitle className='sr-only'>Navigation</SheetTitle>
+        <SidebarBody collapsed={false} />
+      </SheetContent>
+    </Sheet>
   );
 }

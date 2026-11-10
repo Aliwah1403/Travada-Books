@@ -32,6 +32,8 @@ const DEFAULTS: { notification_type: string; channel: NotificationChannel; enabl
   { notification_type: "team.invited",             channel: "email",  enabled: true  },
   { notification_type: "team.joined",              channel: "in_app", enabled: true  },
   { notification_type: "team.joined",              channel: "email",  enabled: true  },
+  { notification_type: "transactions.missing_receipts", channel: "email",  enabled: true  },
+  { notification_type: "insights.weekly",            channel: "email",  enabled: true  },
   // Inbox — in-app only, no email channel for any of these.
   { notification_type: "inbox.new",                    channel: "in_app", enabled: true  },
   { notification_type: "inbox.auto_matched",            channel: "in_app", enabled: true  },

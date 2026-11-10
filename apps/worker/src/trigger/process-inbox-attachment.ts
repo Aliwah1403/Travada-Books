@@ -6,6 +6,7 @@ import convertHeic from "heic-convert";
 import { extractDocumentDataTask } from "./extract-document-data";
 import type { matchInboxTransactionsTask } from "./match-inbox-transactions";
 import type { classifyDocumentTask } from "./classify-document";
+import { captureServerEvent } from "../lib/posthog";
 
 function getSupabase() {
   return createClient(
@@ -33,6 +34,12 @@ const STUCK_THRESHOLD_MS = 5 * 60 * 1000;
 // Statuses at/after which this item has already gone through analysis and
 // matching (Batch 3b) — reprocessing would clobber a finished result.
 const TERMINAL_STATUSES = new Set(["suggested_match", "no_match", "done", "archived", "deleted"]);
+
+// A malformed model date would fail the whole bill insert; drop it instead.
+function validDate(value: string | null | undefined): string | null {
+  if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
+  return Number.isNaN(Date.parse(value)) ? null : value;
+}
 
 function mapDocumentType(docType: string | null | undefined): "invoice" | "expense" | "other" | null {
   if (docType === "invoice" || docType === "expense" || docType === "other") return docType;
@@ -231,6 +238,43 @@ export const processInboxAttachmentTask = task({
       if (updateError) throw updateError;
 
       logger.info("Extraction complete", { inboxItemId, ...patch });
+
+      // ── 1b. Bills ────────────────────────────────────────────────────────
+      // A supplier invoice the org owes (document is an invoice AND the money
+      // goes out) becomes a bill. type === "income" documents are the org's own
+      // invoices and never become bills. Isolated: must never fail the pipeline.
+      try {
+        if (
+          extracted.document_type === "invoice" &&
+          extracted.type === "expense" &&
+          extracted.amount != null &&
+          extracted.currency
+        ) {
+          const { error: billError } = await supabase.from("bills").upsert(
+            {
+              org_id: item.org_id,
+              inbox_item_id: inboxItemId,
+              source: "inbox",
+              vendor_name: extracted.counterparty_name || displayName,
+              bill_number: extracted.invoice_number,
+              amount: extracted.amount,
+              currency: extracted.currency,
+              issue_date: validDate(extracted.date),
+              due_date: validDate(extracted.due_date),
+            },
+            { onConflict: "inbox_item_id", ignoreDuplicates: true },
+          );
+          if (billError) throw billError;
+
+          await captureServerEvent(item.org_id, "bill_detected", {
+            org_id: item.org_id,
+            currency: extracted.currency,
+            has_due_date: !!extracted.due_date,
+          });
+        }
+      } catch (err) {
+        logger.error("Bill creation failed — continuing", { inboxItemId, error: String(err) });
+      }
     } catch (err) {
       logger.error("Extraction failed — marking pending", { inboxItemId, error: String(err) });
       await supabase.from("inbox_items").update({ status: "pending" }).eq("id", inboxItemId);

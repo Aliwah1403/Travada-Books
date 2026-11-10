@@ -7,7 +7,7 @@ import { buildUnsubscribeUrl } from "../lib/unsubscribe";
 import InactiveNudgeEmail from "../emails/inactive-nudge";
 
 // Matches the reply-to used elsewhere in the lifecycle sequence.
-const REPLY_TO = ["curtis.aliwah@travadasys.com", "nate.muliro@travadasys.com"];
+const REPLY_TO = ["curtis.aliwah@travadabooks.com"];
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 

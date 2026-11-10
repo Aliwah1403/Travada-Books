@@ -1,6 +1,7 @@
 import { Separator } from "@travada-books/ui/components/separator"
 import {
   formatMoney as fmt,
+  taxIdLine,
   resolveDateFnsPattern,
   formatServerDate,
   type ClassicDocumentData,
@@ -76,7 +77,7 @@ export function ClassicPreview({ data }: { data: ClassicDocumentData }) {
             {from.country_code && <p className="text-xs text-muted-foreground">{from.country_code}</p>}
             {from.phone && <p className="text-xs text-muted-foreground">{from.phone}</p>}
             {from.email && <p className="text-xs text-muted-foreground">{from.email}</p>}
-            {from.tax_id && <p className="text-xs text-muted-foreground">PIN: {from.tax_id}</p>}
+            {taxIdLine(from) && <p className="text-xs text-muted-foreground">{taxIdLine(from)}</p>}
           </div>
         </div>
         <div className="min-w-0 text-right sm:max-w-1/2">

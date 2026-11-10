@@ -28,6 +28,8 @@ import { ErrorState } from "@/components/shared/error-state"
 import { FileDropzone } from "@/components/shared/file-dropzone"
 import { InboxItemCard } from "@/components/inbox/inbox-item-card"
 import { InboxDetails } from "@/components/inbox/inbox-details"
+import { Sheet, SheetContent, SheetTitle } from "@travada-books/ui/components/sheet"
+import { useIsMobile } from "@/hooks/use-mobile"
 import { InboxListSkeleton } from "@/components/inbox/inbox-skeletons"
 import { InboxGetStarted } from "@/components/inbox/inbox-get-started"
 import { BulkActionBar } from "@/components/inbox/bulk-action-bar"
@@ -103,6 +105,11 @@ export function InboxView() {
 
   const [searchInput, setSearchInput] = useState(qParam)
   const [page, setPage] = useState(0)
+  // Phones show the list only; tapping an item opens its detail in a bottom
+  // drawer. (The first item is auto-selected for the desktop detail pane, so
+  // "selected" alone can't mean "open" here.)
+  const isMobile = useIsMobile()
+  const [mobileDetailOpen, setMobileDetailOpen] = useState(false)
 
   // Reset to page 0 whenever the active filter set changes (adjusted during
   // render, not in an effect, per React's "adjusting state on prop change" pattern).
@@ -401,9 +408,9 @@ export function InboxView() {
       />
 
       {/* Header */}
-      <div className="flex items-center justify-between gap-4 border-b px-6 py-4">
+      <div className="flex items-center justify-between gap-4 border-b px-4 py-4 md:px-6">
         <div className="flex flex-col gap-1">
-          <h1 className="text-lg font-semibold">Inbox</h1>
+          <h1 className="hidden text-lg font-semibold md:block">Inbox</h1>
           <p className="text-xs text-muted-foreground">
             Receipts and invoices, auto-matched to your transactions
           </p>
@@ -419,7 +426,7 @@ export function InboxView() {
       </div>
 
       {/* Toolbar */}
-      <div className="flex items-center gap-2 border-b px-6 py-3">
+      <div className="flex items-center gap-2 border-b px-4 py-3 md:px-6">
         <Tabs
           value={tab}
           onValueChange={(value) => updateParams({ tab: value === "other" ? "other" : null })}
@@ -430,14 +437,14 @@ export function InboxView() {
           </TabsList>
         </Tabs>
 
-        <div className="relative">
+        <div className="relative min-w-0 flex-1 md:flex-none">
           <Search01Icon
             size={14}
             className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
           />
           <Input
             placeholder="Search inbox…"
-            className={cn("h-8 w-56 pl-8 text-xs", searchInput ? "pr-8" : "pr-3")}
+            className={cn("h-8 w-full pl-8 text-xs md:w-56", searchInput ? "pr-8" : "pr-3")}
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
             autoComplete="off"
@@ -463,7 +470,7 @@ export function InboxView() {
             }
           >
             <SortingIcon size={13} />
-            {ORDER_LABEL[order]}
+            <span className="hidden sm:inline">{ORDER_LABEL[order]}</span>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             {ORDER_OPTIONS.map((opt) => (
@@ -486,7 +493,7 @@ export function InboxView() {
       ) : (
         <div className="flex flex-1 overflow-hidden">
           {/* Left: scrollable list */}
-          <div className="flex w-80 shrink-0 flex-col overflow-y-auto border-r">
+          <div className="flex w-full shrink-0 flex-col overflow-y-auto md:w-80 md:border-r">
             {isLoading ? (
               <InboxListSkeleton />
             ) : items.length === 0 ? (
@@ -505,7 +512,10 @@ export function InboxView() {
                   }}
                   item={item}
                   selected={item.id === inboxId}
-                  onSelect={() => updateParams({ inboxId: item.id })}
+                  onSelect={() => {
+                    updateParams({ inboxId: item.id })
+                    if (isMobile) setMobileDetailOpen(true)
+                  }}
                   checked={selectedIds.has(item.id)}
                   onToggleCheck={toggleSelect}
                 />
@@ -535,23 +545,50 @@ export function InboxView() {
             )}
           </div>
 
-          {/* Right: detail pane */}
-          <InboxDetails
-            item={selectedItem}
-            isLoading={isLoading && items.length === 0}
-            onMarkDone={handleMarkDone}
-            onMarkUnhandled={handleMarkUnhandled}
-            onDelete={handleDelete}
-            onRetryMatching={handleRetryMatching}
-            onBlockEmail={handleBlockEmail}
-            onBlockDomain={handleBlockDomain}
-            isMutating={
-              statusMutation.isPending ||
-              deleteMutation.isPending ||
-              retryMutation.isPending ||
-              blocklistMutation.isPending
-            }
-          />
+          {/* Right: detail pane (desktop) / bottom drawer (phones) */}
+          {isMobile ? (
+            <Sheet open={mobileDetailOpen && !!selectedItem} onOpenChange={setMobileDetailOpen}>
+              <SheetContent showCloseButton={false} className="p-0">
+                <SheetTitle className="sr-only">Inbox item</SheetTitle>
+                <InboxDetails
+                  item={selectedItem}
+                  isLoading={isLoading && items.length === 0}
+                  onMarkDone={handleMarkDone}
+                  onMarkUnhandled={handleMarkUnhandled}
+                  onDelete={(item) => {
+                    setMobileDetailOpen(false)
+                    handleDelete(item)
+                  }}
+                  onRetryMatching={handleRetryMatching}
+                  onBlockEmail={handleBlockEmail}
+                  onBlockDomain={handleBlockDomain}
+                  isMutating={
+                    statusMutation.isPending ||
+                    deleteMutation.isPending ||
+                    retryMutation.isPending ||
+                    blocklistMutation.isPending
+                  }
+                />
+              </SheetContent>
+            </Sheet>
+          ) : (
+            <InboxDetails
+              item={selectedItem}
+              isLoading={isLoading && items.length === 0}
+              onMarkDone={handleMarkDone}
+              onMarkUnhandled={handleMarkUnhandled}
+              onDelete={handleDelete}
+              onRetryMatching={handleRetryMatching}
+              onBlockEmail={handleBlockEmail}
+              onBlockDomain={handleBlockDomain}
+              isMutating={
+                statusMutation.isPending ||
+                deleteMutation.isPending ||
+                retryMutation.isPending ||
+                blocklistMutation.isPending
+              }
+            />
+          )}
         </div>
       )}
 

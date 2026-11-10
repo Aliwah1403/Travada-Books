@@ -1,0 +1,37 @@
+name: IndexNow
+
+# After each successful production deploy of the website (the Vercel project
+# "travada-books", not "travada-books-app"), submit the pages whose sitemap
+# <lastmod> is today (East Africa Time) to IndexNow, so Bing, ChatGPT search
+# and Copilot pick up new updates and guides within hours.
+# See apps/website/scripts/indexnow.mjs. Run by hand with "all" to submit every page.
+
+on:
+  deployment_status:
+  workflow_dispatch:
+    inputs:
+      all:
+        description: Submit every page in the sitemap, not just today's changes
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  submit:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.deployment_status.state == 'success' &&
+       github.event.deployment.environment == 'Production – travada-books')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          sparse-checkout: apps/website/scripts
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+
+      - run: node apps/website/scripts/indexnow.mjs ${{ inputs.all && '--all' || '' }}

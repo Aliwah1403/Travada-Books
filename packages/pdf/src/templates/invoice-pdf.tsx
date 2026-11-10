@@ -1,6 +1,6 @@
 import { Document, Page, StyleSheet, Text as PDFText, View } from "@react-pdf/renderer";
 import type { Style } from "@react-pdf/types";
-import { normalizeDocumentTemplate } from "../document-view";
+import { normalizeDocumentTemplate, taxIdLine } from "../document-view";
 import { resolveDateFnsPattern, formatServerDate } from "../ledger";
 import { fitColumns, fitText, fitsOnOnePage, shareWidths, totalsWidth } from "../pdf-layout";
 import { BandedPdf } from "./banded-pdf";
@@ -105,6 +105,12 @@ function InvoicePdfContent({ data }: { data: ClassicDocumentData }) {
   const fromSubtitle = [from.address_line1, from.city, from.email]
     .filter(Boolean)
     .join("  ·  ");
+
+  const fromTaxLine = taxIdLine(from);
+  const fromSubtitleBlock = (width: number) =>
+    [fitText(fromSubtitle, width, 11), fromTaxLine ? fitText(fromTaxLine, width, 11) : ""]
+      .filter(Boolean)
+      .join("\n");
 
   const customerAddress = [
     customer.address_line1,
@@ -254,13 +260,13 @@ function InvoicePdfContent({ data }: { data: ClassicDocumentData }) {
               />
             }
             title={from.name ?? "Your Business"}
-            subtitle={fitText(fromSubtitle, contentWidth - 160, 11) || undefined}
+            subtitle={fromSubtitleBlock(contentWidth - 160) || undefined}
           />
         ) : (
           <PageHeader
             variant="simple"
             title={from.name ?? "Your Business"}
-            subtitle={fitText(fromSubtitle, contentWidth, 11) || undefined}
+            subtitle={fromSubtitleBlock(contentWidth) || undefined}
           />
         )}
 
@@ -402,11 +408,6 @@ function InvoicePdfContent({ data }: { data: ClassicDocumentData }) {
                 <Text variant="xs" noMargin>
                   {fitText(data.paymentDetails, contentWidth, 10)}
                 </Text>
-                {from.tax_id ? (
-                  <Text variant="xs" noMargin color="mutedForeground">
-                    PIN: {from.tax_id}
-                  </Text>
-                ) : null}
               </View>
             ) : null}
             {data.note ? (

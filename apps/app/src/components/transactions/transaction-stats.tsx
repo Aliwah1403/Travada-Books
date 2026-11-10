@@ -62,7 +62,7 @@ export function TransactionStats({
 
   if (isLoading) {
     return (
-      <div className="flex items-stretch divide-x rounded-lg border overflow-hidden">
+      <div className="flex snap-x snap-mandatory items-stretch divide-x overflow-x-auto rounded-lg border [scrollbar-width:none] *:min-w-[72%] *:snap-start md:overflow-hidden md:*:min-w-0">
         <StatSkeleton />
         <StatSkeleton />
         <StatSkeleton />
@@ -71,7 +71,7 @@ export function TransactionStats({
   }
 
   return (
-    <div className="flex items-stretch divide-x rounded-lg border overflow-hidden">
+    <div className="flex snap-x snap-mandatory items-stretch divide-x overflow-x-auto rounded-lg border [scrollbar-width:none] *:min-w-[72%] *:snap-start md:overflow-hidden md:*:min-w-0">
       <StatItem
         label="Income"
         subtitle={countLabel}

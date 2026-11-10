@@ -351,7 +351,7 @@ export async function getInboxSignedUrl(filePath: string): Promise<string> {
 
 export function getInboxEmail(org: { inbox_id?: string | null } | null): string | null {
   if (!org?.inbox_id) return null
-  return `${org.inbox_id}@inbox.travadasys.com`
+  return `${org.inbox_id}@inbox.travadabooks.com`
 }
 
 // ─── Connected accounts (Gmail OAuth) ──────────────────────────────────────

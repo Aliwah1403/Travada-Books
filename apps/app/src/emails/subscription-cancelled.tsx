@@ -87,7 +87,7 @@ export default function SubscriptionCancelledEmail({
       </Text>
 
       {/* CTA */}
-      <OutlinedButton href="mailto:hello@travadasys.com?subject=Feedback on Travada Books">
+      <OutlinedButton href="mailto:info@travadabooks.com?subject=Feedback on Travada Books">
         Share Feedback
       </OutlinedButton>
 

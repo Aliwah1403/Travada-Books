@@ -1,5 +1,5 @@
 import type { ClassicDocumentData } from "@travada-books/pdf"
-import { addressLines, contactLines, fmt, getDocumentView, PoweredBy } from "../shared"
+import { addressLines, contactLines, fmt, getDocumentView, PoweredBy, taxIdLine } from "../shared"
 
 function Label({ children }: { children: React.ReactNode }) {
   return <p className="text-sm uppercase tracking-wide text-foreground">{children}</p>
@@ -37,7 +37,7 @@ export function MonoPreview({ data }: { data: ClassicDocumentData }) {
               {line}
             </p>
           ))}
-          {from.tax_id && <p>PIN: {from.tax_id}</p>}
+          {taxIdLine(from) && <p>{taxIdLine(from)}</p>}
         </div>
       </div>
 

@@ -3,6 +3,7 @@ import { render } from "npm:@react-email/render@1"
 import { resend, FROM_EMAIL } from "../_shared/resend.ts"
 import { db } from "../_shared/db.ts"
 import { getCallerOrgId } from "../_shared/auth.ts"
+import { rateLimitResponse } from "../_shared/rate-limit.ts"
 import { shouldSend } from "../_shared/notification-prefs.ts"
 import { InviteEmail } from "../_shared/emails/invite.tsx"
 import { TeamMemberInvitedEmail } from "../_shared/emails/team-member-invited.tsx"
@@ -20,6 +21,8 @@ Deno.serve(async (req) => {
   try {
     const auth = await getCallerOrgId(req)
     if ("error" in auth) return new Response(auth.error.body, { status: auth.error.status, headers: corsHeaders })
+    const limited = await rateLimitResponse("email", auth.userId, corsHeaders)
+    if (limited) return limited
     const { orgId, userId: actingUserId } = auth
 
     const body = await req.json() as {

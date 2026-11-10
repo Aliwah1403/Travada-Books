@@ -1,7 +1,7 @@
 import { Document, Page, Text, View } from "@react-pdf/renderer";
 import { PdfImage } from "../components/pdf-image/pdfx-pdf-image";
 import { PdfQRCode } from "../components/qrcode/pdfx-qrcode";
-import { addressLines, contactLines, formatMoney, getDocumentView } from "../document-view";
+import { addressLines, contactLines, formatMoney, getDocumentView, taxIdLine } from "../document-view";
 import { fitColumns, fitText, fitsOnOnePage, shareWidths, totalsWidth } from "../pdf-layout";
 import type { ClassicDocumentData, LineItem } from "../types";
 
@@ -164,7 +164,7 @@ export function LedgerPdf({ data }: { data: ClassicDocumentData }) {
                 {line}
               </Line>
             ))}
-            {from.tax_id ? <Line width={HALF}>{`PIN: ${from.tax_id}`}</Line> : null}
+            {taxIdLine(from) ? <Line width={HALF}>{taxIdLine(from) as string}</Line> : null}
           </View>
           {contact.length > 0 ? (
             <View style={{ width: HALF }}>

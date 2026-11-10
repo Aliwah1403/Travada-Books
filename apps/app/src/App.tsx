@@ -24,6 +24,7 @@ import { CreateQuotePage } from "@/pages/quotes/create"
 import { QuoteDetailPage } from "@/pages/quotes/detail"
 import { EditQuotePage } from "@/pages/quotes/edit"
 import { DashboardPage } from "@/pages/dashboard/index"
+import { InsightsPage } from "@/pages/insights/index"
 import { CustomersPage } from "@/pages/customers/index"
 import { CustomerDetailPage } from "@/pages/customers/detail"
 import { PublicInvoicePage } from "@/pages/invoice-public/token"
@@ -33,6 +34,7 @@ import { StatementDetailPage } from "@/pages/statements/detail"
 import { TransactionsPage } from "@/pages/transactions/index"
 import { VaultPage } from "@/pages/vault/index"
 import { InboxPage } from "@/pages/inbox/index"
+import { BillsPage } from "@/pages/bills/index"
 import { InboxOAuthCompletePage } from "@/pages/inbox/oauth-complete"
 import { CategoriesSettingsPage } from "@/pages/settings/categories"
 import { PublicStatementPage } from "@/pages/statement-public/token"
@@ -82,6 +84,7 @@ const router = createBrowserRouter([
         element: <AppLayout />,
         children: [
           { path: "/", element: <DashboardPage /> },
+          { path: "/insights", element: <InsightsPage /> },
           { path: "/invoices", element: <InvoicesPage /> },
           { path: "/invoices/create", element: <CreateInvoicePage /> },
           { path: "/invoices/:id/edit", element: <EditInvoicePage /> },
@@ -95,6 +98,7 @@ const router = createBrowserRouter([
           { path: "/transactions", element: <TransactionsPage /> },
           { path: "/vault", element: <VaultPage /> },
           { path: "/inbox", element: <InboxPage /> },
+          { path: "/bills", element: <BillsPage /> },
           { path: "/inbox/oauth-complete", element: <InboxOAuthCompletePage /> },
           { path: "/statements/:id", element: <StatementDetailPage /> },
           {

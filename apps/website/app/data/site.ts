@@ -38,6 +38,7 @@ export const HEADER_NAV: NavLink[] = [
 export const RESOURCES_NAV: NavLink[] = [
   { label: "Guides", href: "/guides", description: "How to use Travada Books" },
   { label: "Updates", href: "/updates", description: "What we have shipped recently" },
+  { label: "Free invoice generator", href: "/invoice-generator", description: "Make a PDF invoice, no signup" },
   { label: "About", href: "/about", description: "Why Travada Books exists" },
 ]
 
@@ -52,6 +53,7 @@ export const FOOTER_LINKS: { heading: string; links: NavLink[] }[] = [
       { label: "Integrations", href: "/integrations" },
       { label: "Guides", href: "/guides" },
       { label: "Updates", href: "/updates" },
+      { label: "Invoice generator", href: "/invoice-generator" },
     ],
   },
   {

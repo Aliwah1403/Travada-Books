@@ -76,13 +76,13 @@ function DocumentPreview({
 }) {
   if (isLoadingUrl || !signedUrl) {
     return (
-      <div className="flex h-64 items-center justify-center rounded-xl bg-muted animate-pulse" />
+      <div className="flex h-64 shrink-0 items-center justify-center rounded-xl bg-muted animate-pulse" />
     )
   }
 
   if (isPdf(doc.content_type)) {
     return (
-      <div className="overflow-hidden rounded-xl border bg-muted" style={{ height: 360 }}>
+      <div className="shrink-0 overflow-hidden rounded-xl border bg-muted" style={{ height: 360 }}>
         <iframe
           src={`${signedUrl}#toolbar=0&navpanes=0`}
           title={doc.name}
@@ -94,7 +94,7 @@ function DocumentPreview({
 
   if (isImage(doc.content_type)) {
     return (
-      <div className="flex items-center justify-center overflow-hidden rounded-xl border bg-muted/40" style={{ minHeight: 200 }}>
+      <div className="flex shrink-0 items-center justify-center overflow-hidden rounded-xl border bg-muted/40" style={{ minHeight: 200 }}>
         <img
           src={signedUrl}
           alt={doc.name}
@@ -105,7 +105,7 @@ function DocumentPreview({
   }
 
   return (
-    <div className="flex h-40 flex-col items-center justify-center gap-3 rounded-xl border bg-muted text-muted-foreground">
+    <div className="flex h-40 shrink-0 flex-col items-center justify-center gap-3 rounded-xl border bg-muted text-muted-foreground">
       <File01Icon size={32} />
       <p className="text-xs">No preview available</p>
     </div>

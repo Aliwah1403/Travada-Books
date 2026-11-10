@@ -16,7 +16,8 @@ import {
   TableHeader,
   TableRow,
 } from "@travada-books/ui/components/table";
-import { type InvoiceStatus } from "./invoice-status-badge";
+import { InvoiceStatusBadge, type InvoiceStatus } from "./invoice-status-badge";
+import { MobileList, MobileListItem } from "@/components/shared/mobile-list";
 import { type RecurringFrequency } from "./recurring-dialog";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Invoice01Icon } from "@travada-books/ui/icons";
@@ -92,8 +93,36 @@ export function InvoiceTable({ data, globalFilter, columnVisibility = {}, onColu
     );
   }
 
+  const rows = table.getRowModel().rows;
+
   return (
-    <div className='rounded-lg border'>
+    <>
+    {/* Phones: one tappable card per invoice — same filtered/sorted rows as the table. */}
+    <MobileList>
+      {rows.map((row) => {
+        const inv = row.original;
+        const shown =
+          inv.status === "partially_paid" ? inv.amount - inv.amountPaid : inv.amount;
+        return (
+          <MobileListItem
+            key={row.id}
+            avatarName={inv.customer}
+            avatarUrl={inv.customerLogoUrl}
+            title={inv.customer}
+            subtitle={
+              <>
+                <span className='font-mono'>{inv.number}</span>
+                {inv.dueDate && <> · Due {inv.dueDate}</>}
+              </>
+            }
+            amount={`${inv.currency} ${shown.toLocaleString("en-KE", { minimumFractionDigits: 2 })}`}
+            badge={<InvoiceStatusBadge status={inv.status} />}
+            onClick={() => navigate(`/invoices/${inv.id}`)}
+          />
+        );
+      })}
+    </MobileList>
+    <div className='hidden rounded-lg border md:block'>
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
@@ -130,7 +159,7 @@ export function InvoiceTable({ data, globalFilter, columnVisibility = {}, onColu
             ))}
           </TableHeader>
           <TableBody>
-            {table.getRowModel().rows.map((row) => (
+            {rows.map((row) => (
               <TableRow
                 key={row.id}
                 className="cursor-pointer transition-opacity active:opacity-80"
@@ -154,5 +183,6 @@ export function InvoiceTable({ data, globalFilter, columnVisibility = {}, onColu
           </TableBody>
         </Table>
       </div>
+    </>
   );
 }

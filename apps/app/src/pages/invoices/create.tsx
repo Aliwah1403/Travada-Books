@@ -61,6 +61,8 @@ import { useAuth } from "@/contexts/auth-context";
 import { supabase } from "@/lib/supabase";
 import { Spinner } from "@/components/shared/spinner";
 import { toast } from "sonner";
+import { EditorPaneTabs, type EditorPane } from "@/components/shared/editor-pane-tabs";
+import { cn } from "@travada-books/ui/lib/utils";
 
 type LineItem = {
   id: string;
@@ -77,6 +79,8 @@ export function CreateInvoicePage() {
   const preselectedCustomerId = searchParams.get("customerId");
   const { orgId, user, org } = useAuth();
   const queryClient = useQueryClient();
+
+  const [mobilePane, setMobilePane] = useState<EditorPane>("form");
 
   const [selectedCustomer, setSelectedCustomer] = useState<SelectedCustomer | null>(null);
 
@@ -392,7 +396,7 @@ export function CreateInvoicePage() {
   return (
     <div className="flex h-full flex-col">
       {/* Page header */}
-      <div className="flex items-center justify-between border-b px-6 py-3">
+      <div className="flex items-center justify-between gap-2 border-b px-4 py-3 md:px-6">
         <div className="flex items-center gap-3">
           <Button
             variant="ghost"
@@ -401,9 +405,9 @@ export function CreateInvoicePage() {
           >
             <ArrowLeft01Icon size={14} />
           </Button>
-          <div>
+          <div className="hidden md:block">
             <p className="text-sm font-semibold">New Invoice</p>
-            <p className="text-xs text-muted-foreground">Generate and send new invoice.</p>
+            <p className="hidden text-xs text-muted-foreground md:block">Generate and send new invoice.</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -413,7 +417,7 @@ export function CreateInvoicePage() {
             onClick={() => setInvoiceSettingsOpen(true)}
           >
             <Settings02Icon size={13} />
-            Invoice Settings
+            <span className="hidden sm:inline">Invoice Settings</span>
           </Button>
           <div className="flex">
             <Button
@@ -541,9 +545,10 @@ export function CreateInvoicePage() {
       />
 
       {/* Split panel */}
-      <div className="flex flex-1 overflow-hidden">
+      <EditorPaneTabs value={mobilePane} onChange={setMobilePane} />
+      <div className="flex flex-1 flex-col overflow-hidden md:flex-row">
         {/* Left: Form */}
-        <div className="flex w-1/2 flex-col gap-5 overflow-y-auto border-r p-6">
+        <div className={cn("flex flex-1 flex-col gap-5 overflow-y-auto p-4 md:w-1/2 md:flex-none md:border-r md:p-6", mobilePane === "preview" && "hidden md:flex")}>
           <div className="flex flex-col gap-1.5">
             <Label className="text-xs text-muted-foreground">Bill To</Label>
             <CustomerCombobox
@@ -589,14 +594,14 @@ export function CreateInvoicePage() {
 
           {/* Line items */}
           <div className="flex flex-col gap-2">
-            <div className="grid grid-cols-[1fr_60px_80px_60px_32px] gap-2 text-xs font-medium text-muted-foreground">
+            <div className="grid grid-cols-[1fr_52px_76px_32px] md:grid-cols-[1fr_60px_80px_60px_32px] gap-2 text-xs font-medium text-muted-foreground">
               <span>Description</span>
               <span>Qty</span>
               <span>Rate</span>
               <span />
             </div>
             {items.map((item) => (
-              <div key={item.id} className="grid grid-cols-[1fr_60px_80px_60px_32px] gap-2">
+              <div key={item.id} className="grid grid-cols-[1fr_52px_76px_32px] md:grid-cols-[1fr_60px_80px_60px_32px] gap-2">
                 <Input
                   placeholder="Item description"
                   value={item.description}
@@ -703,7 +708,7 @@ export function CreateInvoicePage() {
         </div>
 
         {/* Right: Preview */}
-        <div className="flex w-1/2 flex-col overflow-y-auto bg-muted/30 p-6">
+        <div className={cn("flex flex-1 flex-col overflow-y-auto bg-muted/30 p-4 md:w-1/2 md:flex-none md:p-6", mobilePane === "form" && "hidden md:flex")}>
           <p className="mb-4 text-xs font-medium text-muted-foreground">Preview</p>
           <EditorDocumentPreview
             kind="invoice"

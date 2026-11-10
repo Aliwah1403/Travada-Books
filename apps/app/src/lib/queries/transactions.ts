@@ -57,11 +57,13 @@ export type Transaction = {
   reference_number: string | null
   note: string | null
   manual: boolean
+  category_rule_id: string | null
   enrichment_completed: boolean
   base_amount: number | null
   base_currency: string | null
   created_at: string
   category: Pick<TransactionCategory, "id" | "name" | "slug" | "color"> | null
+  category_rule: { id: string; pattern: string } | null
   invoice: { id: string; invoice_number: string | null } | null
   attachments: Pick<TransactionAttachment, "id" | "file_path" | "file_name" | "file_size" | "content_type">[]
 }
@@ -127,8 +129,9 @@ const TRANSACTION_SELECT = `
   id, org_id, created_by, date, name, counterparty_name, customer_id, amount, currency,
   base_amount, base_currency, type, status, payment_mode, category_id, invoice_id,
   tax_amount, tax_rate, tax_type, recurring, frequency, internal,
-  reference_number, note, manual, enrichment_completed, created_at,
+  reference_number, note, manual, category_rule_id, enrichment_completed, created_at,
   category:transaction_categories(id, name, slug, color),
+  category_rule:transaction_category_rules(id, pattern),
   invoice:invoices(id, invoice_number),
   attachments:transaction_attachments(id, file_path, file_name, file_size, content_type)
 `

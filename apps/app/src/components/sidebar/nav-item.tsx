@@ -35,8 +35,8 @@ export function NavItem({ icon: NavIcon, label, to, comingSoon, collapsed, end }
     )
   }
 
-  return (
-    <NavLink to={to} end={end}>
+  const link = (
+    <NavLink to={to} end={end} aria-label={collapsed ? label : undefined}>
       {({ isActive }) => (
         <span
           className={cn(
@@ -53,4 +53,15 @@ export function NavItem({ icon: NavIcon, label, to, comingSoon, collapsed, end }
       )}
     </NavLink>
   )
+
+  if (collapsed) {
+    return (
+      <Tooltip>
+        <TooltipTrigger render={<div />}>{link}</TooltipTrigger>
+        <TooltipContent side="right">{label}</TooltipContent>
+      </Tooltip>
+    )
+  }
+
+  return link
 }

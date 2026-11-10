@@ -1,5 +1,6 @@
 import OpenAI from "npm:openai@4"
 import { getCallerOrgId } from "../_shared/auth.ts"
+import { rateLimitResponse } from "../_shared/rate-limit.ts"
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -29,6 +30,8 @@ Deno.serve(async (req) => {
     if ("error" in auth) {
       return new Response(auth.error.body, { status: auth.error.status, headers: corsHeaders })
     }
+    const limited = await rateLimitResponse("ai", auth.userId, corsHeaders)
+    if (limited) return limited
 
     const { input, currentDate, timezone } = await req.json() as {
       input: string

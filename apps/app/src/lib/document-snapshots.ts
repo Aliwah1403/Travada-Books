@@ -14,6 +14,7 @@ export type OrgSnapshotSource = {
   phone: string | null
   email: string | null
   tax_id: string | null
+  tax_id_label?: string | null
 }
 
 export type FromDetailsSnapshot = {
@@ -27,6 +28,7 @@ export type FromDetailsSnapshot = {
   phone: string | null
   email: string | null
   tax_id: string | null
+  tax_id_label?: string | null
 }
 
 export type CustomerSnapshotSource = {
@@ -81,6 +83,7 @@ export function buildFromDetailsSnapshot(
     phone: org.phone ?? null,
     email: org.email ?? null,
     tax_id: org.tax_id ?? null,
+    tax_id_label: org.tax_id ? (org.tax_id_label ?? "Tax ID") : null,
   }
 }
 

@@ -6,6 +6,7 @@ export {
   contactLines,
   formatMoney as fmt,
   getDocumentView,
+  taxIdLine,
 } from "@travada-books/pdf"
 
 export function DocumentQr({ value, size = 88 }: { value: string; size?: number }) {

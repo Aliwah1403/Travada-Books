@@ -8,6 +8,7 @@ import { Input } from "@travada-books/ui/components/input"
 import { Label } from "@travada-books/ui/components/label"
 import { Separator } from "@travada-books/ui/components/separator"
 import { Textarea } from "@travada-books/ui/components/textarea"
+import { TaxIdLabelSelect } from "@/components/tax-id-label-select"
 import { CurrencySelect } from "@travada-books/ui/components/currency-select"
 import {
   AlertDialog,
@@ -36,6 +37,7 @@ export function GeneralSettingsPage() {
 
   const [name, setName] = useState("")
   const [taxId, setTaxId] = useState("")
+  const [taxIdLabel, setTaxIdLabel] = useState("Tax ID")
   const [address, setAddress] = useState("")
   const [email, setEmail] = useState("")
   const [phone, setPhone] = useState("")
@@ -57,6 +59,7 @@ export function GeneralSettingsPage() {
     lastLoadedOrgIdRef.current = org.id
     setName(org.name ?? "")
     setTaxId(org.tax_id ?? "")
+    setTaxIdLabel(org.tax_id_label ?? "Tax ID")
     setAddress(org.address_line1 ?? "")
     setEmail(org.email ?? "")
     setPhone(org.phone ?? "")
@@ -87,6 +90,7 @@ export function GeneralSettingsPage() {
       updateOrg(orgId!, {
         name: name.trim() || org!.name,
         tax_id: taxId.trim() || null,
+        tax_id_label: taxId.trim() ? taxIdLabel : null,
         address_line1: address.trim() || null,
         email: email.trim() || org!.email,
         phone: phone.trim() || null,
@@ -223,7 +227,7 @@ export function GeneralSettingsPage() {
           </p>
         </div>
 
-        <div className='grid grid-cols-2 gap-4'>
+        <div className='grid grid-cols-1 gap-4 sm:grid-cols-2'>
           <div className='flex flex-col gap-1.5'>
             <Label htmlFor='business-name'>Business name</Label>
             <Input
@@ -234,13 +238,17 @@ export function GeneralSettingsPage() {
             />
           </div>
           <div className='flex flex-col gap-1.5'>
-            <Label htmlFor='kra-pin'>TAX/VAT No.</Label>
-            <Input
-              id='kra-pin'
-              placeholder='A000000000A'
-              value={taxId}
-              onChange={(e) => setTaxId(e.target.value)}
-            />
+            <Label htmlFor='tax-id'>Tax number</Label>
+            <div className='flex gap-2'>
+              <TaxIdLabelSelect value={taxIdLabel} onValueChange={setTaxIdLabel} />
+              <Input
+                id='tax-id'
+                className='min-w-0 flex-1'
+                placeholder='A000000000A'
+                value={taxId}
+                onChange={(e) => setTaxId(e.target.value)}
+              />
+            </div>
           </div>
         </div>
 
@@ -255,7 +263,7 @@ export function GeneralSettingsPage() {
           />
         </div>
 
-        <div className='grid grid-cols-2 gap-4'>
+        <div className='grid grid-cols-1 gap-4 sm:grid-cols-2'>
           <div className='flex flex-col gap-1.5'>
             <Label htmlFor='email'>
               Business email <span className='text-destructive'>*</span>
@@ -409,7 +417,7 @@ export function GeneralSettingsPage() {
           </p>
         </div>
 
-        <div className='grid grid-cols-2 gap-4'>
+        <div className='grid grid-cols-1 gap-4 sm:grid-cols-2'>
           <div className='flex flex-col gap-1.5'>
             <Label htmlFor='opening-balance'>Starting balance ({currency})</Label>
             <Input

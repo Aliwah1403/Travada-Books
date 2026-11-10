@@ -16,7 +16,8 @@ import {
   TableHeader,
   TableRow,
 } from "@travada-books/ui/components/table";
-import { type QuoteStatus } from "./quote-status-badge";
+import { QuoteStatusBadge, type QuoteStatus } from "./quote-status-badge";
+import { MobileList, MobileListItem } from "@/components/shared/mobile-list";
 import { EmptyState } from "@/components/shared/empty-state";
 import { FileEditIcon } from "@travada-books/ui/icons";
 import { quoteColumns } from "./quote-columns";
@@ -74,8 +75,34 @@ export function QuoteTable({ data, globalFilter, columnVisibility = {}, onColumn
     );
   }
 
+  const rows = table.getRowModel().rows;
+
   return (
-    <div className="rounded-lg border">
+    <>
+    {/* Phones: one tappable card per quote — same filtered/sorted rows as the table. */}
+    <MobileList>
+      {rows.map((row) => {
+        const q = row.original;
+        return (
+          <MobileListItem
+            key={row.id}
+            avatarName={q.customer}
+            avatarUrl={q.customerLogoUrl}
+            title={q.customer}
+            subtitle={
+              <>
+                <span className="font-mono">{q.number}</span>
+                {q.validUntil && <> · Valid until {q.validUntil}</>}
+              </>
+            }
+            amount={`${q.currency} ${q.amount.toLocaleString("en-KE", { minimumFractionDigits: 2 })}`}
+            badge={<QuoteStatusBadge status={q.status} />}
+            onClick={() => navigate(`/quotes/${q.id}`)}
+          />
+        );
+      })}
+    </MobileList>
+    <div className="hidden rounded-lg border md:block">
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
@@ -112,7 +139,7 @@ export function QuoteTable({ data, globalFilter, columnVisibility = {}, onColumn
             ))}
           </TableHeader>
           <TableBody>
-            {table.getRowModel().rows.map((row) => (
+            {rows.map((row) => (
               <TableRow
                 key={row.id}
                 className="cursor-pointer transition-opacity active:opacity-80"
@@ -136,5 +163,6 @@ export function QuoteTable({ data, globalFilter, columnVisibility = {}, onColumn
           </TableBody>
         </Table>
     </div>
+    </>
   );
 }

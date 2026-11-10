@@ -32,6 +32,7 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { ErrorState } from "@/components/shared/error-state";
 import { Spinner } from "@/components/shared/spinner";
 import { useTableScroll } from "@/hooks/use-table-scroll";
+import { MobileList, MobileListItem } from "@/components/shared/mobile-list";
 import { cn } from "@travada-books/ui/lib/utils";
 import { useAuth } from "@/contexts/auth-context";
 import { useFormatDate } from "@/hooks/use-format-date";
@@ -188,7 +189,7 @@ export function CustomersPage() {
 
   if (isLoading) {
     return (
-      <div className='flex flex-col gap-6 p-6'>
+      <div className='flex flex-col gap-6 p-4 md:p-6'>
         <div className='grid grid-cols-4 gap-4'>
           {[0, 1, 2, 3].map((i) => (
             <div
@@ -220,27 +221,27 @@ export function CustomersPage() {
 
   if (isError && !customers) {
     return (
-      <div className='flex flex-col gap-6 p-6'>
+      <div className='flex flex-col gap-6 p-4 md:p-6'>
         <ErrorState onRetry={refetch} />
       </div>
     );
   }
 
   return (
-    <div className='flex flex-col gap-6 p-6'>
+    <div className='flex flex-col gap-6 p-4 md:p-6'>
       <CustomerStats {...stats} />
 
       {/* Toolbar */}
       <div className='flex items-center justify-between gap-2'>
-        <div className='flex items-center gap-2'>
-          <div className='relative'>
+        <div className='flex min-w-0 flex-1 items-center gap-2 md:flex-none'>
+          <div className='relative min-w-0 flex-1 md:flex-none'>
             <Search01Icon
               size={14}
               className='absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground'
             />
             <Input
               placeholder='Search customers...'
-              className='h-10 w-80 pl-8 pr-8 text-xs'
+              className='h-10 w-full pl-8 pr-8 text-xs md:w-80'
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
@@ -256,7 +257,7 @@ export function CustomersPage() {
         </div>
         <Button className='gap-1.5' onClick={() => setSheetOpen(true)}>
           <PlusSignIcon size={13} />
-          New Customer
+          New<span className='hidden sm:inline'> Customer</span>
         </Button>
       </div>
 
@@ -266,7 +267,44 @@ export function CustomersPage() {
           title='No customers yet'
           description='Add your first customer to get started.'
         />
-      : <div className='rounded-lg border overflow-hidden'>
+      : <>
+        {/* Phones: one tappable card per customer instead of the 1800px-wide table. */}
+        <MobileList>
+          {filtered.map((customer) => {
+            const summary = summaries[customer.id];
+            const outstanding = summary?.outstanding ?? 0;
+            return (
+              <MobileListItem
+                key={customer.id}
+                avatarName={customer.name}
+                avatarUrl={customer.logo_url}
+                title={customer.name}
+                subtitle={
+                  customer.email ??
+                  customer.billing_email ??
+                  customer.country ??
+                  undefined
+                }
+                amount={
+                  outstanding > 0 ?
+                    <span className='text-destructive'>
+                      {formatCurrency(outstanding, orgCurrency)}
+                    </span>
+                  : undefined
+                }
+                badge={
+                  summary ?
+                    <span className='text-[11px] text-muted-foreground'>
+                      {outstanding > 0 ? "Outstanding" : `${summary.invoiceCount} invoices`}
+                    </span>
+                  : undefined
+                }
+                onClick={() => navigate(`/customers/${customer.id}`)}
+              />
+            );
+          })}
+        </MobileList>
+        <div className='hidden rounded-lg border overflow-hidden md:block'>
           <div ref={containerRef} className='overflow-x-auto'>
             <table className='w-full caption-bottom text-xs min-w-[1820px]'>
               <TableHeader>
@@ -513,6 +551,7 @@ export function CustomersPage() {
             </table>
           </div>
         </div>
+        </>
       }
 
       <CreateCustomerSheet

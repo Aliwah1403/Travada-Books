@@ -76,6 +76,7 @@ export function EditorDocumentPreview({
       phone: org?.phone,
       email: org?.email,
       tax_id: org?.tax_id,
+      tax_id_label: org?.tax_id_label ?? "Tax ID",
     },
     customer: customer ?? { name: "No customer selected" },
     lineItems: items.map((item) => ({

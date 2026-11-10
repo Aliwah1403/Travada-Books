@@ -63,6 +63,17 @@ export function addressLines(p: Participant) {
   ].filter((line): line is string => Boolean(line));
 }
 
+// Names the business tax number can carry. "Tax ID" is the neutral default.
+export const TAX_ID_LABELS = ["Tax ID", "VAT", "PIN", "TIN", "GST"] as const;
+
+// "<label>: <id>" for the business tax number, or null without one. Snapshots
+// saved before labels existed carry none and keep printing "PIN".
+export function taxIdLine(p: Pick<Participant, "tax_id" | "tax_id_label">) {
+  const id = p.tax_id?.trim();
+  if (!id) return null;
+  return `${p.tax_id_label?.trim() || "PIN"}: ${id}`;
+}
+
 export function contactLines(p: Participant) {
   return [p.phone, p.billing_email ?? p.email].filter((line): line is string => Boolean(line));
 }

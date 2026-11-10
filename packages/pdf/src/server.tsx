@@ -93,6 +93,7 @@ function participantFromSnapshot(snapshot: Snapshot, fallbackName?: string | nul
     email: str("email"),
     billing_email: str("billing_email"),
     tax_id: str("tax_id"),
+    tax_id_label: str("tax_id_label"),
   };
 }
 

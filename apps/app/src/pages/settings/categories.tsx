@@ -22,6 +22,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@travada-books/ui/components/popover";
+import { CategoryRules } from "@/components/settings/category-rules";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ColorPicker, COLOR_PALETTE } from "@/components/shared/color-picker";
 import { useAuth } from "@/contexts/auth-context";
@@ -396,6 +397,10 @@ export function CategoriesSettingsPage() {
         <PlusSignIcon size={13} />
         Add category
       </Button>
+
+      <Separator />
+
+      <CategoryRules categories={categories} />
 
       {orgId && (
         <AddCategoryDialog

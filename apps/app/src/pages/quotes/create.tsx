@@ -64,6 +64,7 @@ import {
   buildFromDetailsSnapshot,
   buildCustomerDetailsSnapshot,
 } from "@/lib/document-snapshots";
+import { EditorPaneTabs, type EditorPane } from "@/components/shared/editor-pane-tabs";
 
 export function CreateQuotePage() {
   const navigate = useNavigate();
@@ -72,6 +73,7 @@ export function CreateQuotePage() {
 
   const [selectedCustomer, setSelectedCustomer] =
     useState<SelectedCustomer | null>(null);
+  const [mobilePane, setMobilePane] = useState<EditorPane>("form");
   const [deliveryMode, setDeliveryMode] = useState<"draft" | "send">("draft");
   const [currency, setCurrency] = useState(org?.base_currency ?? "KES");
   useEffect(() => {
@@ -294,7 +296,7 @@ export function CreateQuotePage() {
   return (
     <div className='flex h-full flex-col'>
       {/* Page header */}
-      <div className='flex items-center justify-between border-b px-6 py-3'>
+      <div className='flex items-center justify-between gap-2 border-b px-4 py-3 md:px-6'>
         <div className='flex items-center gap-3'>
           <Button
             variant='ghost'
@@ -303,9 +305,9 @@ export function CreateQuotePage() {
           >
             <ArrowLeft01Icon size={14} />
           </Button>
-          <div>
+          <div className='hidden md:block'>
             <p className='text-sm font-semibold'>New Quote</p>
-            <p className='text-xs text-muted-foreground'>
+            <p className='hidden text-xs text-muted-foreground md:block'>
               Create and send a quote to your client.
             </p>
           </div>
@@ -317,7 +319,7 @@ export function CreateQuotePage() {
             onClick={() => setQuoteSettingsOpen(true)}
           >
             <Settings02Icon size={13} />
-            Quote Settings
+            <span className='hidden sm:inline'>Quote Settings</span>
           </Button>
           <div className='flex'>
             <Button
@@ -384,9 +386,10 @@ export function CreateQuotePage() {
       </div>
 
       {/* Split panel */}
-      <div className='flex flex-1 overflow-hidden'>
+      <EditorPaneTabs value={mobilePane} onChange={setMobilePane} />
+      <div className='flex flex-1 flex-col overflow-hidden md:flex-row'>
         {/* Left: Form */}
-        <div className='flex w-1/2 flex-col gap-5 overflow-y-auto border-r p-6'>
+        <div className={cn("flex flex-1 flex-col gap-5 overflow-y-auto p-4 md:w-1/2 md:flex-none md:border-r md:p-6", mobilePane === "preview" && "hidden md:flex")}>
           <div className='flex flex-col gap-1.5'>
             <Label className='text-xs text-muted-foreground'>
               Prepared For
@@ -460,7 +463,7 @@ export function CreateQuotePage() {
 
           {/* Line items */}
           <div className='flex flex-col gap-2'>
-            <div className='grid grid-cols-[1fr_60px_80px_60px_32px] gap-2 text-xs font-medium text-muted-foreground'>
+            <div className='grid grid-cols-[1fr_52px_76px_32px] md:grid-cols-[1fr_60px_80px_60px_32px] gap-2 text-xs font-medium text-muted-foreground'>
               <span>Description</span>
               <span>Qty</span>
               <span>Rate</span>
@@ -469,7 +472,7 @@ export function CreateQuotePage() {
             {items.map((item) => (
               <div
                 key={item.id}
-                className='grid grid-cols-[1fr_60px_80px_60px_32px] gap-2'
+                className='grid grid-cols-[1fr_52px_76px_32px] md:grid-cols-[1fr_60px_80px_60px_32px] gap-2'
               >
                 <Input
                   placeholder='Item description'
@@ -575,7 +578,7 @@ export function CreateQuotePage() {
         </div>
 
         {/* Right: Preview */}
-        <div className='flex w-1/2 flex-col overflow-y-auto bg-muted/30 p-6'>
+        <div className={cn("flex flex-1 flex-col overflow-y-auto bg-muted/30 p-4 md:w-1/2 md:flex-none md:p-6", mobilePane === "form" && "hidden md:flex")}>
           <p className='mb-4 text-xs font-medium text-muted-foreground'>
             Preview
           </p>

@@ -20,6 +20,7 @@ const CORE_STATIC_PATHS = [
   "/quotes",
   "/payments",
   "/integrations",
+  "/invoice-generator",
   "/who-its-for",
   "/about",
   "/contact",

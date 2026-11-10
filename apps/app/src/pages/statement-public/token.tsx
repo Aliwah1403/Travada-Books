@@ -9,7 +9,7 @@ import { Separator } from "@travada-books/ui/components/separator";
 import { cn } from "@travada-books/ui/lib/utils";
 import { useTheme } from "@/components/theme-provider";
 import { getStatementByToken } from "@/lib/queries/statements";
-import { StatementPdf, buildStatementDocumentData, buildStatementLedger } from "@travada-books/pdf";
+import { StatementPdf, buildStatementDocumentData, buildStatementLedger, taxIdLine } from "@travada-books/pdf";
 import { downloadPdf } from "@/lib/pdf-download";
 import LogoGreen from "@/assets/Logo-Green.svg";
 import LogoLime from "@/assets/Logo-Lime.svg";
@@ -67,6 +67,7 @@ export function PublicStatementPage() {
     phone?: string;
     email?: string;
     tax_id?: string;
+    tax_id_label?: string;
   };
   type CustomerDetails = {
     name?: string;
@@ -135,6 +136,7 @@ export function PublicStatementPage() {
           phone: fromSnap.phone,
           email: fromSnap.email,
           tax_id: fromSnap.tax_id,
+          tax_id_label: fromSnap.tax_id_label,
         },
         customer: {
           name: customerSnap.name,
@@ -233,7 +235,7 @@ export function PublicStatementPage() {
                 )}
                 {from.tax_id && (
                   <p className='text-xs text-muted-foreground'>
-                    PIN: {from.tax_id}
+                    {taxIdLine(from)}
                   </p>
                 )}
               </div>

@@ -13,6 +13,8 @@ export const OG_PAGES = {
   "customer-portal": { eyebrow: "Customer portal", title: "One link for everything you've sent them." },
   payments: { eyebrow: "Payments", title: "Paid in parts. Tracked in full." },
   integrations: { eyebrow: "Integrations", title: "Connect the tools your business runs on." },
+  "invoice-generator": { eyebrow: "Free tool", title: "Free invoice generator" },
+  "midday-alternative": { eyebrow: "Midday alternative", title: "Looking for a Midday alternative?" },
   pricing: { eyebrow: "Pricing", title: "Simple pricing, on the way." },
   "who-its-for": { eyebrow: "Who it's for", title: "Built for the person doing everything." },
   about: { eyebrow: "About", title: "We were our own first customer." },

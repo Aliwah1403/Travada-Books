@@ -2,32 +2,37 @@
 
 > Travada Books is invoicing and bookkeeping software for freelancers, consultants, agencies, and small businesses worldwide. It is built in Nairobi, Kenya, and handles mobile money, multi-currency billing and bank statements in any layout.
 
-Travada Books helps business owners automate recurring invoices, schedule invoice delivery, send overdue reminders, convert accepted quotes into invoices, import bank and mobile money statements (such as M-Pesa) from CSV or PDF, categorise transactions, match receipts from Outlook or forwarded email, and keep documents in a searchable vault.
+Travada Books helps business owners schedule and automate recurring invoices, send overdue reminders, turn accepted quotes into draft invoices, record full and partial payments, import bank and mobile money statements (such as M-Pesa) from CSV or PDF, categorise transactions, match receipts from Outlook or forwarded email, and keep documents in a searchable vault.
 
 ## Core pages
 
 - [Homepage](https://travadabooks.com/): Product overview and common questions
-- [Invoicing](https://travadabooks.com/invoicing): Recurring invoices, scheduled sending, reminders, quotes, and multi-currency billing
-- [Statement import](https://travadabooks.com/statement-import): Bank and M-Pesa CSV/PDF import, categorisation, bulk actions, and export
+- [Invoicing](https://travadabooks.com/invoicing): Recurring and scheduled invoices, reminders, and multi-currency billing
+- [Quotes](https://travadabooks.com/quotes): Quotes customers accept from a link, which become draft invoices
+- [Payments](https://travadabooks.com/payments): Recording full and partial payments, with balances and statuses kept up to date
+- [Statement import](https://travadabooks.com/statement-import): Bank and mobile money statement import (CSV or PDF), categorisation, bulk actions, and export
 - [Inbox](https://travadabooks.com/inbox): Outlook receipt ingestion, email forwarding from any inbox, transaction matching, and document storage
-- [Integrations](https://travadabooks.com/integrations): Available Outlook connection, plus the M-Pesa, Stripe, and WhatsApp roadmap
+- [Integrations](https://travadabooks.com/integrations): Email, statement imports, payments and messaging, with what works today and what is coming
+- [Free invoice generator](https://travadabooks.com/invoice-generator): Create and download a PDF invoice in the browser, with no signup
 - [Who it is for](https://travadabooks.com/who-its-for): Use cases for freelancers, consultants, agencies, and small businesses
-- [About](https://travadabooks.com/about): The Travada Books story and Nairobi context
-- [Guides](https://travadabooks.com/guides): Practical invoicing and bookkeeping guidance
-- [Updates](https://travadabooks.com/updates): Product changes and announcements
+- [About](https://travadabooks.com/about): The Travada Books story
+- [Guides](https://travadabooks.com/guides): Help centre with step-by-step guides for every feature
+- [Updates](https://travadabooks.com/updates): Changelog of product changes and announcements
+- [Contact](https://travadabooks.com/contact): Support requests, feature requests, and other questions
 
 ## Key facts
 
 - Market: worldwide (built in Kenya; strong fit for East Africa and mobile-money businesses)
 - Base currency: each organisation sets its own
 - Invoice currencies: any
-- Statement sources include banks and mobile money providers, such as M-Pesa
+- Statement sources: any bank, plus mobile money providers such as M-Pesa
 - Import formats: CSV and PDF
 - Connected email providers: Outlook (Gmail and other inboxes can forward receipts to a Travada inbox address)
-- Planned integrations: M-Pesa, Stripe, and WhatsApp
+- Coming soon: M-Pesa and Stripe payments from invoices, and WhatsApp delivery
 - Intended users: freelancers, consultants, agencies, and small business owners
 - Availability: web application
-- Contact: info@travadabooks.com
+- Support: support@travadabooks.com
+- General contact: info@travadabooks.com
 
 ## Canonical identity
 

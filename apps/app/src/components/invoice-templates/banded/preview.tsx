@@ -1,6 +1,6 @@
 import { CustomFieldsPreview } from "@/components/invoices/custom-fields"
 import type { ClassicDocumentData, Participant } from "@travada-books/pdf"
-import { addressLines, contactLines, fmt, getDocumentView, PoweredBy } from "../shared"
+import { addressLines, contactLines, fmt, getDocumentView, PoweredBy, taxIdLine } from "../shared"
 
 function Party({ title, party }: { title: string; party: Participant }) {
   const contact = contactLines(party)
@@ -11,7 +11,7 @@ function Party({ title, party }: { title: string; party: Participant }) {
       <div className="mt-3 space-y-0.5">
         {addressLines(party).length > 0 && <p>{addressLines(party).join(", ")}</p>}
         {contact.length > 0 && <p className="break-words">{contact.join(" | ")}</p>}
-        {party.tax_id && <p>PIN: {party.tax_id}</p>}
+        {taxIdLine(party) && <p>{taxIdLine(party)}</p>}
       </div>
     </div>
   )

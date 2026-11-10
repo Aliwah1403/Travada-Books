@@ -192,6 +192,7 @@ export function GenerateStatementSheet({
         phone: org.phone ?? null,
         email: org.email ?? null,
         tax_id: org.tax_id ?? null,
+        tax_id_label: org.tax_id ? (org.tax_id_label ?? "Tax ID") : null,
       };
 
       const statement = await createStatement({

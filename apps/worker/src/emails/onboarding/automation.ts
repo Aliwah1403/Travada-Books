@@ -5,10 +5,10 @@ import { ONBOARDING_TRIGGER_EVENT } from "./event"
 // See https://resend.com/docs/api-reference/automations
 
 export { ONBOARDING_TRIGGER_EVENT }
-// Same verified sending domain as every other worker email; replies go to both founders,
+// Same verified sending domain as every other worker email; replies go to Curtis,
 // like the Day 0 welcome. Automation steps only accept reply_to as one string.
-export const ONBOARDING_FROM = `Curtis at Travada Books <${process.env.FROM_EMAIL ?? "noreply@mail.travadasys.com"}>`
-export const ONBOARDING_REPLY_TO = "curtis.aliwah@travadasys.com, nate.muliro@travadasys.com"
+export const ONBOARDING_FROM = `Curtis at Travada Books <${process.env.FROM_EMAIL ?? "noreply@mail.travadabooks.com"}>`
+export const ONBOARDING_REPLY_TO = "curtis.aliwah@travadabooks.com"
 
 type Step =
   | { key: string; type: "trigger"; config: { event_name: string } }

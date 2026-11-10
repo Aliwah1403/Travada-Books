@@ -613,10 +613,7 @@ function CheckIn() {
   return (
     <OnboardingEmail preview="One question, and you can answer it in a sentence.">
       <P>Hi {FIRST_NAME},</P>
-      <P>
-        You've had Travada Books for about a month now, and this is the last of my getting-started
-        emails.
-      </P>
+      <P>This is the last of my getting-started emails.</P>
       <P bold>I'd love to know: what's the one thing that would make Travada Books more useful to you?</P>
       <P>
         It might be something missing, something confusing, or something that took longer than it
@@ -650,7 +647,7 @@ const steps: [key: string, subject: string, preview: string, delay: string, Emai
   ["dashboard", "Your business, in numbers", "Revenue, cash flow, who owes you and how long your cash will last.", "2 days", Dashboard],
   ["accountant", "Month-end with your accountant, in five minutes", "A spreadsheet of your transactions with every receipt, sent straight to your accountant.", "2 days", Accountant],
   ["team", "Bring your team (or your accountant) in", "Everyone working from the same books, each with their own login.", "2 days", Team],
-  ["check-in", "A month in. What's missing?", "One question, and you can answer it in a sentence.", "3 days", CheckIn],
+  ["check-in", "Before I go: what's missing?", "One question, and you can answer it in a sentence.", "3 days", CheckIn],
 ]
 
 export const ONBOARDING_SEQUENCE: OnboardingStep[] = steps.map(([key, subject, preview, delay, Email], i) => ({

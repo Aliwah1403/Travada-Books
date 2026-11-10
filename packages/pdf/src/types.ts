@@ -24,6 +24,7 @@ export type Participant = {
   email?: string | null;
   billing_email?: string | null;
   tax_id?: string | null;
+  tax_id_label?: string | null;
 };
 
 export type ClassicDocumentData = {

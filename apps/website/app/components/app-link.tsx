@@ -14,6 +14,8 @@ export type AppLinkLocation =
   | "integrations"
   | "cta-band"
   | "pricing"
+  | "invoice_generator"
+  | "midday_alternative"
 
 type AppLinkProps = Omit<ComponentProps<"a">, "href"> & {
   to: AppLinkTarget

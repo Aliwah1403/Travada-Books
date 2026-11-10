@@ -4,6 +4,7 @@ import { generateObject, embedMany } from "ai";
 import { z } from "zod";
 import { cleanTransactionDescription } from "../lib/clean-transaction-description";
 import { supabase } from "../lib/supabase";
+import { matchCategoryRule, type CategoryRule } from "../lib/category-rules";
 
 const google = createGoogleGenerativeAI({
   apiKey: process.env.GOOGLE_GENERATIVE_AI_API_KEY!,
@@ -231,6 +232,14 @@ export const enrichTransactionsTask = task({
     const categoryNames = [...new Set(categories?.map((c) => c.name) ?? [])];
     const enrichmentSchema = buildEnrichmentSchema(categoryNames);
 
+    // Rules beat the AI. Enrichment rewrites name/counterparty and sets the AI's
+    // category in one update, so the DB trigger can't intervene — match here.
+    const { data: ruleRows } = await supabase
+      .from("transaction_category_rules")
+      .select("id, pattern, category_id, created_at")
+      .eq("org_id", orgId);
+    const rules = (ruleRows ?? []) as CategoryRule[];
+
     let totalEnriched = 0;
 
     for (let i = 0; i < transactions.length; i += BATCH_SIZE) {
@@ -284,6 +293,19 @@ export const enrichTransactionsTask = task({
             ) {
               const matched = categories?.find((c) => c.name === result.category);
               if (matched) patch.category_id = matched.id;
+            }
+
+            if (!tx.category_id && rules.length) {
+              const rule = matchCategoryRule(rules, {
+                name: (patch.name as string | undefined) ?? tx.name,
+                original_name: (patch.original_name as string | undefined) ?? tx.original_name,
+                counterparty_name:
+                  (patch.counterparty_name as string | undefined) ?? tx.counterparty_name,
+              });
+              if (rule) {
+                patch.category_id = rule.category_id;
+                patch.category_rule_id = rule.id;
+              }
             }
 
             return { id: tx.id, patch };

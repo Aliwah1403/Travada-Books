@@ -125,10 +125,10 @@ export default function InactiveNudgeEmail({
         Co-founder, Travada Books
         <br />
         <Link
-          href="mailto:curtis.aliwah@travadasys.com"
+          href="mailto:curtis.aliwah@travadabooks.com"
           style={{ color: colors.muted, textDecoration: "none" }}
         >
-          curtis.aliwah@travadasys.com
+          curtis.aliwah@travadabooks.com
         </Link>
       </Text>
 

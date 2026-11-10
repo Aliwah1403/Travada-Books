@@ -142,7 +142,7 @@ Deno.serve(async (req) => {
     resend.emails.send({
       from: `Travada Books <${FROM_EMAIL}>`,
       to: record.email,
-      replyTo: ["curtis.aliwah@travadasys.com", "nate.muliro@travadasys.com"],
+      replyTo: ["curtis.aliwah@travadabooks.com"],
       subject: "Welcome to Travada Books",
       html: emailHtml,
     }),

@@ -1,7 +1,7 @@
 import { Document, Page, Text, View } from "@react-pdf/renderer";
 import { PdfImage } from "../components/pdf-image/pdfx-pdf-image";
 import { PdfQRCode } from "../components/qrcode/pdfx-qrcode";
-import { addressLines, contactLines, formatMoney, getDocumentView } from "../document-view";
+import { addressLines, contactLines, formatMoney, getDocumentView, taxIdLine } from "../document-view";
 import { COURIER_CHAR, fitColumns, fitText, fitsOnOnePage, totalsWidth } from "../pdf-layout";
 import type { ClassicDocumentData, LineItem } from "../types";
 
@@ -128,7 +128,7 @@ export function MonoPdf({ data }: { data: ClassicDocumentData }) {
             <Text style={{ color: INK, letterSpacing: 2, textTransform: "uppercase", textAlign: "right", marginBottom: 8 }}>
               {fit(from.name ?? "Your Business", CONTENT - 150, 11)}
             </Text>
-            {[...addressLines(from), ...contactLines(from), ...(from.tax_id ? [`PIN: ${from.tax_id}`] : [])].map(
+            {[...addressLines(from), ...contactLines(from), ...(taxIdLine(from) ? [taxIdLine(from) as string] : [])].map(
               (line) => (
                 <Text key={line} style={{ textAlign: "right" }}>
                   {fit(line, CONTENT - 150)}

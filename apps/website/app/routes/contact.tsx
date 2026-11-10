@@ -19,6 +19,7 @@ import {
 import { cn } from "@travada-books/ui/lib/utils"
 
 import { Eyebrow } from "~/components/site/eyebrow"
+import { FEEDBACK_IN, FieldMessage, INPUT } from "~/components/site/form"
 import { Section } from "~/components/site/section"
 import { Split } from "~/components/site/split"
 import { CONTACT_EMAIL } from "~/data/site"
@@ -74,8 +75,6 @@ const URGENCY: Option[] = [
   { value: "high", label: "High: it's blocking my work" },
   { value: "urgent", label: "Urgent: I can't send invoices or sign in" },
 ]
-
-const INPUT = "bg-panel text-sm md:text-sm"
 
 // The URL doesn't change while the form is open, so nothing to subscribe to.
 function noopSubscribe() {
@@ -136,20 +135,6 @@ const ACCEPTED = ["image/png", "image/jpeg", "application/pdf"]
 
 function formatBytes(bytes: number) {
   return bytes < 1024 * 1024 ? `${Math.max(1, Math.round(bytes / 1024))} KB` : `${(bytes / 1024 / 1024).toFixed(1)} MB`
-}
-
-// Form feedback (field errors, the error banner, attached-file rows) eases
-// in on mount so it doesn't jolt the layout; removal stays instant. The
-// global reduced-motion rule collapses it.
-const FEEDBACK_IN = "animate-in fade-in-0 slide-in-from-top-1 duration-150 [animation-timing-function:var(--ease-out)]"
-
-function FieldMessage({ id, message }: { id: string; message?: string }) {
-  if (!message) return null
-  return (
-    <p id={`${id}-error`} className={cn("text-xs text-status-overdue", FEEDBACK_IN)}>
-      {message}
-    </p>
-  )
 }
 
 type Status =

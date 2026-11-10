@@ -1,7 +1,7 @@
 import { Document, Page, Text, View } from "@react-pdf/renderer";
 import { PdfImage } from "../components/pdf-image/pdfx-pdf-image";
 import { PdfQRCode } from "../components/qrcode/pdfx-qrcode";
-import { addressLines, contactLines, formatMoney, getDocumentView } from "../document-view";
+import { addressLines, contactLines, formatMoney, getDocumentView, taxIdLine } from "../document-view";
 import { fitColumns, fitText, fitsOnOnePage, totalsWidth } from "../pdf-layout";
 import type { ClassicDocumentData, LineItem, Participant } from "../types";
 
@@ -17,7 +17,7 @@ function Party({ title, party, width }: { title: string; party: Participant; wid
   const lines = [
     addressLines(party).join(", "),
     contactLines(party).join(" | "),
-    party.tax_id ? `PIN: ${party.tax_id}` : "",
+    taxIdLine(party) ?? "",
   ].filter(Boolean);
   return (
     <View style={{ width }}>
