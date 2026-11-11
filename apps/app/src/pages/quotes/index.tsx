@@ -29,7 +29,7 @@ import { listCustomers } from "@/lib/queries/customers";
 import { parseQuoteFilters } from "@/lib/queries/ai";
 import { useAuth } from "@/contexts/auth-context";
 import { useFormatDate } from "@/hooks/use-format-date";
-import { isPastValidUntil } from "@/lib/quote-validity";
+import { isPastValidUntil } from "@travada-books/core";
 
 const PAGE_SIZE = 50;
 

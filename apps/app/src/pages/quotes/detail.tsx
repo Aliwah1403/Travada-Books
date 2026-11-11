@@ -54,12 +54,12 @@ import {
   resolveDocumentLogo,
   buildFromDetailsSnapshot,
   buildCustomerDetailsSnapshot,
-} from "@/lib/document-snapshots";
+  parseCustomFields,
+} from "@travada-books/core";
 import { supabase } from "@/lib/supabase";
 import type { Invoice } from "@/lib/queries/invoices";
 import { InvoicePdf, buildQuoteDocumentData, taxIdLine } from "@travada-books/pdf";
 import { downloadPdf, urlToDataUrl } from "@/lib/pdf-download";
-import { parseCustomFields } from "@/lib/custom-fields";
 import { CustomFieldsPreview } from "@/components/invoices/custom-fields";
 import { EmailDeliveryNotice } from "@/components/shared/email-delivery-notice";
 import { formatCurrency } from "@/lib/format";

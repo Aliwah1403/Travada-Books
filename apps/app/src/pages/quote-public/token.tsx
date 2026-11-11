@@ -18,8 +18,7 @@ import { supabase } from "@/lib/supabase";
 import { InvoicePreview } from "@/components/invoice-templates";
 import { InvoicePdf, buildQuoteDocumentData } from "@travada-books/pdf";
 import { downloadPdf } from "@/lib/pdf-download";
-import { parseCustomFields } from "@/lib/custom-fields";
-import { isPastValidUntil } from "@/lib/quote-validity";
+import { parseCustomFields, isPastValidUntil } from "@travada-books/core";
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
 import LogoGreen from "@/assets/Logo-Green.svg";

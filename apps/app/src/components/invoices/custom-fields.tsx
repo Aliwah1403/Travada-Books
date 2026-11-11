@@ -6,15 +6,15 @@ import {
   type CustomField,
   MAX_CUSTOM_FIELDS,
   normalizeCustomFields,
-} from "@/lib/custom-fields";
+} from "@travada-books/core";
 
-export type { CustomField } from "@/lib/custom-fields";
+export type { CustomField } from "@travada-books/core";
 export {
   MAX_CUSTOM_FIELDS,
   normalizeCustomFields,
   parseCustomFields,
   fieldsFromLabels,
-} from "@/lib/custom-fields";
+} from "@travada-books/core";
 
 export function CustomFieldsEditor({
   fields,

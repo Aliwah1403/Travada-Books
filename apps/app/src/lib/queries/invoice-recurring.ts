@@ -1,7 +1,6 @@
 import { supabase } from "@/lib/supabase"
 import type { LineItem } from "@/lib/queries/invoices"
-import type { CustomField } from "@/lib/custom-fields"
-import type { PartialPaymentRules } from "@/lib/partial-payments"
+import type { CustomField, PartialPaymentRules } from "@travada-books/core"
 
 export type InvoiceRecurringStatus = "active" | "paused" | "completed" | "canceled"
 export type InvoiceRecurringEndType = "never" | "on_date" | "after_count"

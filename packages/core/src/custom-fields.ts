@@ -1,7 +1,6 @@
-// Pure types + helpers for the invoice "custom fields" feature, kept out of
-// lib/queries and components so both can import without a circular
-// dependency. UI lives in components/invoices/custom-fields.tsx, which
-// re-exports the type + constant from here.
+// Pure types + helpers for the invoice/quote "custom fields" feature. Used by
+// the app's editor (components/invoices/custom-fields.tsx), the PDF templates
+// (packages/pdf) and the API.
 
 export type CustomField = { id: string; label: string; value: string }
 

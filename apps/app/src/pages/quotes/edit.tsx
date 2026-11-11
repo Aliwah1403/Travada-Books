@@ -48,10 +48,14 @@ import {
 import type { LineItem } from "@/components/quotes/quote-utils";
 import { EditorDocumentPreview } from "@/components/invoice-templates/editor-preview";
 import { computeQuoteTotals, isQuoteEditable } from "@/components/quotes/quote-utils";
-import { deriveVatRate, toRateColumns } from "@/lib/document-totals";
+import {
+  deriveVatRate,
+  toRateColumns,
+  normalizeCustomFields,
+  parseCustomFields,
+  resolveDocumentLogo,
+} from "@travada-books/core";
 import { CustomFieldsEditor, type CustomField } from "@/components/invoices/custom-fields";
-import { normalizeCustomFields, parseCustomFields } from "@/lib/custom-fields";
-import { resolveDocumentLogo } from "@/lib/document-snapshots";
 import { EditorPaneTabs, type EditorPane } from "@/components/shared/editor-pane-tabs";
 
 export function EditQuotePage() {

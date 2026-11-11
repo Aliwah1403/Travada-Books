@@ -26,7 +26,15 @@ import {
 } from "@/components/invoices/invoice-settings-sheet";
 import { DatePicker } from "@/components/shared/date-picker";
 import { CustomFieldsEditor, type CustomField } from "@/components/invoices/custom-fields";
-import { normalizeCustomFields, fieldsFromLabels } from "@/lib/custom-fields";
+import {
+  normalizeCustomFields,
+  fieldsFromLabels,
+  resolveDocumentLogo,
+  buildFromDetailsSnapshot,
+  buildCustomerDetailsSnapshot,
+  computeDocumentTotals,
+  toRateColumns,
+} from "@travada-books/core";
 import { format } from "date-fns";
 import { Button } from "@travada-books/ui/components/button";
 import { Input } from "@travada-books/ui/components/input";
@@ -48,12 +56,6 @@ import {
   DropdownMenuTrigger,
 } from "@travada-books/ui/components/dropdown-menu";
 import { createInvoice, getNextInvoiceNumber } from "@/lib/queries/invoices";
-import {
-  resolveDocumentLogo,
-  buildFromDetailsSnapshot,
-  buildCustomerDetailsSnapshot,
-} from "@/lib/document-snapshots";
-import { computeDocumentTotals, toRateColumns } from "@/lib/document-totals";
 import { lookupRate } from "@/lib/queries/exchange-rates";
 import { getCustomer } from "@/lib/queries/customers";
 import { getOrgInvoiceTemplate, upsertOrgInvoiceTemplate } from "@/lib/queries/invoice-templates";

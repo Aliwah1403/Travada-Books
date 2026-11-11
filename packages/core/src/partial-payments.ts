@@ -2,7 +2,7 @@
 // Stored as jsonb in `partial_payments` on invoices, invoice_templates and
 // invoice_recurring. The server enforces them — invoice_partial_bounds in the
 // 20261019000000 migration clamps whatever is stored — so this module only
-// shapes values for the settings UI.
+// shapes values (the settings UI and the API both use it).
 
 export type PartialPaymentRules = {
   enabled: boolean

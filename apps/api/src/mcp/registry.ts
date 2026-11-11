@@ -1,6 +1,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js"
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js"
 import { z } from "zod"
+import { ServiceError } from "../lib/errors.js"
 import { cancelPendingAction, confirmPendingAction, logAction, needsConfirmation, parkAction } from "./actions.js"
 import type { AnyTool, McpContext, ToolRuntime } from "./types.js"
 import { defineTool, ToolError } from "./types.js"
@@ -21,11 +22,9 @@ function textResult(value: unknown): CallToolResult {
 function errorResult(error: unknown): CallToolResult {
   // Expected failures (not found, wrong state) go to the model verbatim;
   // anything else is logged and hidden behind a generic message.
-  const message =
-    error instanceof ToolError || error instanceof z.ZodError
-      ? error.message
-      : "Something went wrong running this tool."
-  if (!(error instanceof ToolError)) console.error("[mcp] tool error:", error)
+  const expected = error instanceof ToolError || error instanceof ServiceError || error instanceof z.ZodError
+  const message = expected ? (error as Error).message : "Something went wrong running this tool."
+  if (!expected) console.error("[mcp] tool error:", error)
   return { content: [{ type: "text", text: message }], isError: true }
 }
 

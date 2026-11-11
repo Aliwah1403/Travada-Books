@@ -3,7 +3,9 @@ import { cors } from "hono/cors"
 import { HTTPException } from "hono/http-exception"
 import { logger } from "hono/logger"
 import { secureHeaders } from "hono/secure-headers"
+import type { ApiErrorBody } from "@travada-books/core"
 import type { AppEnv, Deps } from "./context.js"
+import { ServiceError } from "./lib/errors.js"
 import { health } from "./routes/health.js"
 import { mcp } from "./routes/mcp.js"
 import { me } from "./routes/me.js"
@@ -26,17 +28,23 @@ export function createApp(deps: Deps, options: { allowedOrigins: string[]; logRe
     await next()
   })
 
-  app.route("/health", health)
-  app.route("/v1/me", me)
-  app.route("/mcp", mcp)
+  // Chained so the route types are kept: AppType (below) is what the app's
+  // typed client (hc) is built from.
+  const routes = app.route("/health", health).route("/v1/me", me).route("/mcp", mcp)
 
-  app.notFound((c) => c.json({ error: "Not found" }, 404))
+  // Every error leaves as an ApiErrorBody ({ error, code, field? }) from
+  // @travada-books/core, so the app handles them one way.
+  app.notFound((c) => c.json({ error: "Not found", code: "NOT_FOUND" } satisfies ApiErrorBody, 404))
   app.onError((error, c) => {
+    if (error instanceof ServiceError) return c.json(error.toBody(), error.status)
     if (error instanceof HTTPException) return error.getResponse()
     console.error("[api] unhandled error:", error)
     deps.analytics.captureError(error, { path: c.req.path, method: c.req.method })
-    return c.json({ error: "Internal server error" }, 500)
+    return c.json({ error: "Something went wrong. Please try again.", code: "INTERNAL" } satisfies ApiErrorBody, 500)
   })
 
-  return app
+  return routes
 }
+
+/** The API's route types, for the app's typed client (`hc<AppType>`). */
+export type AppType = ReturnType<typeof createApp>

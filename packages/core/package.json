@@ -1,0 +1,17 @@
+{
+  "name": "@travada-books/core",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Business rules shared by the app, the API and the worker: document totals, snapshots, numbering, custom fields, quote and payment rules. Pure functions only — no Supabase, no React.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "vitest": "^5.1.0"
+  }
+}

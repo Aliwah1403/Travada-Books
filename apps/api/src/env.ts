@@ -9,6 +9,10 @@ const schema = z.object({
   SUPABASE_URL: z.url(),
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
 
+  // Direct Postgres for writes (Drizzle). Production: the Supabase pooler in
+  // transaction mode (port 6543). Local: postgresql://postgres:postgres@127.0.0.1:54322/postgres
+  DATABASE_URL: z.string().regex(/^postgres(ql)?:\/\//, "must be a postgres:// URL"),
+
   REDIS_URL: z.string().regex(/^rediss?:\/\//, "must be a redis:// or rediss:// URL"),
 
   // Comma-separated list of browser origins allowed to call the API (the app).

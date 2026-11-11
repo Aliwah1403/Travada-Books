@@ -55,15 +55,16 @@ import {
 import type { LineItem } from "@/components/quotes/quote-utils";
 import { EditorDocumentPreview } from "@/components/invoice-templates/editor-preview";
 import { computeQuoteTotals } from "@/components/quotes/quote-utils";
-import { toRateColumns } from "@/lib/document-totals";
-import { supabase } from "@/lib/supabase";
-import { CustomFieldsEditor, type CustomField } from "@/components/invoices/custom-fields";
-import { normalizeCustomFields, fieldsFromLabels } from "@/lib/custom-fields";
 import {
+  toRateColumns,
+  normalizeCustomFields,
+  fieldsFromLabels,
   resolveDocumentLogo,
   buildFromDetailsSnapshot,
   buildCustomerDetailsSnapshot,
-} from "@/lib/document-snapshots";
+} from "@travada-books/core";
+import { supabase } from "@/lib/supabase";
+import { CustomFieldsEditor, type CustomField } from "@/components/invoices/custom-fields";
 import { EditorPaneTabs, type EditorPane } from "@/components/shared/editor-pane-tabs";
 
 export function CreateQuotePage() {

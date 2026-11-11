@@ -44,6 +44,25 @@ export function computeDocumentTotals(
   };
 }
 
+// The line_items shape stored on invoices, quotes and recurring series.
+export type StoredLineItem = {
+  description: string;
+  quantity: number;
+  price: number;
+  tax_rate: number;
+};
+
+// Editor rows (strings, as typed) → the stored shape. Unparseable numbers
+// become 0, matching computeDocumentTotals.
+export function toStoredLineItems(items: LineItem[]): StoredLineItem[] {
+  return items.map((item) => ({
+    description: item.description,
+    quantity: parseFloat(item.qty) || 0,
+    price: parseFloat(item.rate) || 0,
+    tax_rate: parseFloat(item.tax) || 0,
+  }));
+}
+
 // Rate columns persisted alongside the computed amounts so a document can be
 // reopened for editing without losing the VAT rate or the fact that a
 // discount was entered as a percentage.

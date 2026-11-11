@@ -1,6 +1,5 @@
 import { supabase } from "@/lib/supabase"
-import type { CustomField } from "@/lib/custom-fields"
-import type { PartialPaymentRules } from "@/lib/partial-payments"
+import type { CustomField, PartialPaymentRules } from "@travada-books/core"
 
 export type LineItem = {
   description: string

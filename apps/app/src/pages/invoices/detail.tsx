@@ -79,12 +79,12 @@ import { InvoicePreview } from "@/components/invoice-templates";
 import { InvoicePdf, buildInvoiceDocumentData } from "@travada-books/pdf";
 import { downloadPdf, urlToDataUrl } from "@/lib/pdf-download";
 import { formatCurrency } from "@/lib/format";
-import { parseCustomFields } from "@/lib/custom-fields";
 import {
+  parseCustomFields,
   resolveDocumentLogo,
   buildFromDetailsSnapshot,
   buildCustomerDetailsSnapshot,
-} from "@/lib/document-snapshots";
+} from "@travada-books/core";
 import { toast } from "sonner";
 
 const PAYMENT_METHOD_LABELS: Record<string, string> = {

@@ -1,5 +1,6 @@
 import { serve } from "@hono/node-server"
 import { createApp } from "./app.js"
+import { createDb } from "./db/client.js"
 import { parseEnv } from "./env.js"
 import { createTokenVerifier } from "./lib/auth.js"
 import { createAnalytics } from "./lib/posthog.js"
@@ -9,10 +10,12 @@ import { createServiceClient } from "./lib/supabase.js"
 const env = parseEnv(process.env)
 
 const redis = await connectRedis(env.REDIS_URL)
+const database = createDb(env.DATABASE_URL)
 const analytics = createAnalytics(env.POSTHOG_API_KEY, env.POSTHOG_HOST)
 const app = createApp(
   {
     serviceDb: createServiceClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY),
+    db: database.db,
     redis,
     verifyToken: createTokenVerifier(env.SUPABASE_URL),
     analytics,
@@ -36,6 +39,7 @@ for (const signal of ["SIGTERM", "SIGINT"] as const) {
     server.close(async () => {
       await analytics.shutdown().catch(() => {})
       await redis.quit().catch(() => {})
+      await database.close().catch(() => {})
       process.exit(0)
     })
     setTimeout(() => process.exit(1), 10_000).unref()

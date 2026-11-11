@@ -28,7 +28,17 @@ import {
 } from "@/components/invoices/invoice-settings-sheet";
 import { DatePicker } from "@/components/shared/date-picker";
 import { CustomFieldsEditor, type CustomField } from "@/components/invoices/custom-fields";
-import { normalizeCustomFields, parseCustomFields } from "@/lib/custom-fields";
+import {
+  normalizeCustomFields,
+  parseCustomFields,
+  computeDocumentTotals,
+  deriveVatRate,
+  toRateColumns,
+  resolveDocumentLogo,
+  buildFromDetailsSnapshot,
+  buildCustomerDetailsSnapshot,
+  normalizePartialRules,
+} from "@travada-books/core";
 import { format } from "date-fns";
 import { Button } from "@travada-books/ui/components/button";
 import { Input } from "@travada-books/ui/components/input";
@@ -51,17 +61,10 @@ import {
 } from "@travada-books/ui/components/dropdown-menu";
 import { getInvoice, updateInvoice } from "@/lib/queries/invoices";
 import { getCustomer } from "@/lib/queries/customers";
-import { computeDocumentTotals, deriveVatRate, toRateColumns } from "@/lib/document-totals";
 import { lookupRate } from "@/lib/queries/exchange-rates";
 import { getOrgInvoiceTemplate, upsertOrgInvoiceTemplate } from "@/lib/queries/invoice-templates";
-import {
-  resolveDocumentLogo,
-  buildFromDetailsSnapshot,
-  buildCustomerDetailsSnapshot,
-} from "@/lib/document-snapshots";
 import { useAuth } from "@/contexts/auth-context";
 import { supabase } from "@/lib/supabase";
-import { normalizePartialRules } from "@/lib/partial-payments";
 import { Spinner } from "@/components/shared/spinner";
 import { toast } from "sonner";
 import { EditorPaneTabs, type EditorPane } from "@/components/shared/editor-pane-tabs";

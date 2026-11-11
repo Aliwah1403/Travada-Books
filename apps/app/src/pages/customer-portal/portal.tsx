@@ -40,7 +40,7 @@ import {
 import { InvoicePdf, buildInvoiceDocumentData } from "@travada-books/pdf"
 import { downloadPdf } from "@/lib/pdf-download"
 import { getInvoiceByToken } from "@/lib/queries/invoices"
-import { parseCustomFields } from "@/lib/custom-fields"
+import { parseCustomFields } from "@travada-books/core"
 import {
   getCustomerPortal,
   getCustomerPortalInvoices,

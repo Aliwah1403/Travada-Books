@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js"
+import type { Db } from "./db/client.js"
 import type { Caller, TokenVerifier } from "./lib/auth.js"
 import type { Analytics } from "./lib/posthog.js"
 import type { Redis } from "./lib/redis.js"
@@ -8,6 +9,8 @@ import type { ScopedDb } from "./lib/scoped.js"
 // createApp, so tests can swap in fakes without touching env or the network.
 export type Deps = {
   serviceDb: SupabaseClient
+  /** Drizzle on a direct Postgres connection, for transactional writes. */
+  db: Pick<Db, "execute" | "transaction" | "select" | "insert" | "update" | "delete" | "query">
   redis: Pick<Redis, "ping" | "set" | "getDel">
   verifyToken: TokenVerifier
   analytics: Analytics
