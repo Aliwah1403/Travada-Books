@@ -1,0 +1,79 @@
+# Render Blueprint for apps/api (assistant plan §10.5, Phase 1).
+#
+# Both services start on the free plan while we test: they sleep after ~15 idle
+# minutes (30–60s cold start) and have no static outbound IP. Move to a paid
+# plan before WhatsApp testing (Meta needs fast webhook replies) and before
+# Daraja (needs a static IP).
+#
+# Region: Singapore, the closest Render region to Supabase (ap-southeast-2) and
+# the same region as the Upstash database (ap-southeast-1).
+#
+# Secrets are `sync: false`: Render asks for them when the Blueprint is applied
+# and never reads them from this file.
+
+services:
+  - type: web
+    name: travada-api-staging
+    runtime: node
+    plan: free
+    region: singapore
+    branch: dev-branch
+    buildCommand: npm ci --workspace=@travada-books/api --include-workspace-root && npm run build --workspace=@travada-books/api
+    startCommand: npm run start --workspace=@travada-books/api
+    healthCheckPath: /health
+    autoDeployTrigger: commit
+    buildFilter:
+      paths:
+        - apps/api/**
+        - package-lock.json
+        - render.yaml
+    envVars:
+      - key: NODE_VERSION
+        value: 24.14.1
+      - key: NODE_ENV
+        value: production
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: ALLOWED_ORIGINS
+        sync: false
+      - key: POSTHOG_API_KEY
+        sync: false
+      - key: POSTHOG_HOST
+        value: https://eu.i.posthog.com
+
+  - type: web
+    name: travada-api
+    runtime: node
+    plan: free
+    region: singapore
+    branch: main
+    buildCommand: npm ci --workspace=@travada-books/api --include-workspace-root && npm run build --workspace=@travada-books/api
+    startCommand: npm run start --workspace=@travada-books/api
+    healthCheckPath: /health
+    autoDeployTrigger: commit
+    buildFilter:
+      paths:
+        - apps/api/**
+        - package-lock.json
+        - render.yaml
+    envVars:
+      - key: NODE_VERSION
+        value: 24.14.1
+      - key: NODE_ENV
+        value: production
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: ALLOWED_ORIGINS
+        sync: false
+      - key: POSTHOG_API_KEY
+        sync: false
+      - key: POSTHOG_HOST
+        value: https://eu.i.posthog.com
