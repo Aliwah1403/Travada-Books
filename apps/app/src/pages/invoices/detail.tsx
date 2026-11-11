@@ -72,6 +72,8 @@ import { listTeamMembers } from "@/lib/queries/team";
 import { useAuth } from "@/contexts/auth-context";
 import { useInvalidateAfterPaymentChange } from "@/hooks/use-invalidate-payment-queries";
 import { supabase } from "@/lib/supabase";
+import { apiWritesEnabled } from "@/lib/api-flags";
+import { invoiceApi } from "@/lib/invoice-api";
 import { notifyInvoicePaid } from "@/lib/notify-invoice-paid";
 import { Spinner } from "@/components/shared/spinner";
 import { EmailDeliveryNotice } from "@/components/shared/email-delivery-notice";
@@ -302,7 +304,9 @@ export function InvoiceDetailPage() {
 
   const seriesMutation = useMutation({
     mutationFn: (status: "active" | "paused" | "canceled") =>
-      updateInvoiceRecurringStatus(invoice!.invoice_recurring_id!, orgId!, status),
+      apiWritesEnabled("invoices")
+        ? invoiceApi.setRecurringStatus(invoice!.invoice_recurring_id!, status).then(() => undefined)
+        : updateInvoiceRecurringStatus(invoice!.invoice_recurring_id!, orgId!, status),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["invoice-recurring", invoice?.invoice_recurring_id] });
     },
@@ -338,10 +342,31 @@ export function InvoiceDetailPage() {
     },
   });
 
+  // The API counterpart of updateMutation (flag "api-writes-invoices"): runs
+  // one invoiceApi call with the same invalidations and toasts. The API
+  // applies the rules (status checks, snapshots, FX) itself.
+  const apiAction = useMutation({
+    mutationFn: ({ run }: { run: () => Promise<unknown>; label: string }) => run(),
+    onMutate: ({ label }: { run: () => Promise<unknown>; label: string }) => ({ label }),
+    onSuccess: (_, __, context) => {
+      queryClient.invalidateQueries({ queryKey: ["invoice", id] });
+      queryClient.invalidateQueries({ queryKey: ["invoices", orgId] });
+      toast.success(context?.label);
+    },
+    onError: (error, __, context) => {
+      toast.error(`Failed to ${context?.label?.toLowerCase()}`, {
+        description: error instanceof Error ? error.message : "Please try again.",
+      });
+    },
+  });
+
   // Separate from updateMutation: toggling the reminder switch should feel
   // instant (optimistic) and never show a success toast — only an error one.
   const skipReminderMutation = useMutation({
-    mutationFn: (skip: boolean) => updateInvoice(id!, orgId!, { skip_auto_reminder: skip }),
+    mutationFn: (skip: boolean): Promise<unknown> =>
+      apiWritesEnabled("invoices")
+        ? invoiceApi.updateMeta(id!, { skip_auto_reminder: skip })
+        : updateInvoice(id!, orgId!, { skip_auto_reminder: skip }),
     onMutate: async (skip: boolean) => {
       await queryClient.cancelQueries({ queryKey: ["invoice", id] });
       const previous = queryClient.getQueryData<Invoice>(["invoice", id]);
@@ -360,7 +385,7 @@ export function InvoiceDetailPage() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: () => deleteInvoice(id!, orgId!),
+    mutationFn: (): Promise<unknown> => (apiWritesEnabled("invoices") ? invoiceApi.remove(id!) : deleteInvoice(id!, orgId!)),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["invoices", orgId] });
       toast.success("Invoice deleted");
@@ -374,7 +399,7 @@ export function InvoiceDetailPage() {
   });
 
   function handleDeletePayment(payment: InvoicePayment) {
-    toast.promise(deleteInvoicePayment(payment.id, orgId!), {
+    toast.promise(apiWritesEnabled("invoices") ? invoiceApi.deletePayment(payment.id).then(() => {}) : deleteInvoicePayment(payment.id, orgId!), {
       loading: "Deleting payment…",
       success: () => {
         invalidateAfterPaymentChange(id!);
@@ -384,7 +409,8 @@ export function InvoiceDetailPage() {
     });
   }
 
-  async function handleDuplicate() {
+  async function handleDuplicate(): Promise<{ id: string }> {
+    if (apiWritesEnabled("invoices")) return (await invoiceApi.duplicate(id!)).invoice;
     const nextNumber = await getNextInvoiceNumber(orgId!);
     return createInvoice({
       org_id: orgId!,
@@ -421,6 +447,10 @@ export function InvoiceDetailPage() {
   const customerDetails = customer ? buildCustomerDetailsSnapshot(customer) : null;
 
   function handleSaveNote() {
+    if (apiWritesEnabled("invoices")) {
+      apiAction.mutate({ run: () => invoiceApi.updateMeta(id!, { internal_note: internalNote }), label: "Note saved" });
+      return;
+    }
     updateMutation.mutate({
       patch: { internal_note: internalNote },
       label: "Note saved",
@@ -436,6 +466,20 @@ export function InvoiceDetailPage() {
     // invoice that has since been sent, or sent_at/sent_via would be overwritten.
     const latest = queryClient.getQueryData<Invoice>(["invoice", id]) ?? invoice;
     if (latest?.status !== "draft") return;
+    if (apiWritesEnabled("invoices")) {
+      const label = channel === "manual" ? "Invoice marked as sent" : "Invoice sent";
+      const result = (await apiAction.mutateAsync({ run: () => invoiceApi.issue(id!, channel), label })) as Awaited<
+        ReturnType<typeof invoiceApi.issue>
+      >;
+      if (channel === "email") {
+        if (result.email && !result.email.ok) {
+          toast.warning("Invoice sent, but email delivery failed. Try resending from the invoice.");
+        } else if (result.email?.queued) {
+          toast.success(`Emailing it to ${customerDetails?.name ?? invoice!.customer_name} with the PDF attached…`);
+        }
+      }
+      return;
+    }
     const invoiceCurrency = invoice!.currency;
     const baseCurrency = org?.base_currency ?? null;
     let exchangeRate: number | null = null;
@@ -484,6 +528,13 @@ export function InvoiceDetailPage() {
   // delivery notice — invalidates the invoice query either way so
   // email_status (and the notice/poll driven by it) reflect the outcome.
   async function dispatchInvoiceEmail(): Promise<{ queued: boolean }> {
+    if (apiWritesEnabled("invoices")) {
+      try {
+        return await invoiceApi.resendEmail(id!);
+      } finally {
+        queryClient.invalidateQueries({ queryKey: ["invoice", id] });
+      }
+    }
     const res = await supabase.functions.invoke("send-invoice-email", { body: { invoiceId: id } });
     queryClient.invalidateQueries({ queryKey: ["invoice", id] });
     if (res.error) throw res.error;
@@ -519,6 +570,18 @@ export function InvoiceDetailPage() {
 
   function handleMarkPaid() {
     if (!invoice) return;
+    if (apiWritesEnabled("invoices")) {
+      toast.promise(
+        invoiceApi.markPaid(id!).then((result) => {
+          invalidateAfterPaymentChange(id!);
+          if (result.notify && !result.notify.ok) {
+            toast.warning("Invoice marked as paid, but the notification email failed to send.");
+          }
+        }),
+        { loading: "Marking as paid…", success: "Invoice marked as paid", error: "Failed to mark as paid" },
+      );
+      return;
+    }
     const amount = invoiceBalance(invoice);
     toast.promise(
       createInvoicePayment({
@@ -767,6 +830,10 @@ export function InvoiceDetailPage() {
               {status === "scheduled" && (
                 <DropdownMenuItem
                   onClick={() => {
+                    if (apiWritesEnabled("invoices")) {
+                      apiAction.mutate({ run: () => invoiceApi.unschedule(id!), label: "Schedule cancelled" });
+                      return;
+                    }
                     updateMutation.mutate({
                       patch: { status: "draft", scheduled_at: null },
                       label: "Schedule cancelled",
@@ -787,9 +854,11 @@ export function InvoiceDetailPage() {
                 <DropdownMenuItem
                   onClick={() => {
                     toast.promise(
-                      supabase.functions
-                        .invoke("send-invoice-reminder", { body: { invoiceId: id } })
-                        .then((res) => { if (res.error) throw res.error; }),
+                      apiWritesEnabled("invoices")
+                        ? invoiceApi.remind(id!).then(() => {})
+                        : supabase.functions
+                            .invoke("send-invoice-reminder", { body: { invoiceId: id } })
+                            .then((res) => { if (res.error) throw res.error; }),
                       {
                         loading: "Sending reminder…",
                         success: "Reminder sent",
@@ -821,12 +890,15 @@ export function InvoiceDetailPage() {
                 <DropdownMenuItem
                   onClick={() => {
                     toast.promise(
-                      updateInvoice(id!, orgId!, {
-                        status: reopenInvoiceStatus({
-                          due_date: invoice.due_date,
-                          amount_paid: invoice.amount_paid,
-                        }),
-                      }).then(() => {
+                      (apiWritesEnabled("invoices")
+                        ? invoiceApi.reopen(id!)
+                        : updateInvoice(id!, orgId!, {
+                            status: reopenInvoiceStatus({
+                              due_date: invoice.due_date,
+                              amount_paid: invoice.amount_paid,
+                            }),
+                          })
+                      ).then(() => {
                         queryClient.invalidateQueries({ queryKey: ["invoice", id] });
                         queryClient.invalidateQueries({ queryKey: ["invoices", orgId] });
                       }),
@@ -873,7 +945,7 @@ export function InvoiceDetailPage() {
               onClick={() => {
                 setCancelInvoiceOpen(false);
                 toast.promise(
-                  updateInvoice(id!, orgId!, { status: "canceled" }).then(() => {
+                  (apiWritesEnabled("invoices") ? invoiceApi.cancel(id!) : updateInvoice(id!, orgId!, { status: "canceled" })).then(() => {
                     queryClient.invalidateQueries({ queryKey: ["invoice", id] });
                     queryClient.invalidateQueries({ queryKey: ["invoices", orgId] });
                   }),

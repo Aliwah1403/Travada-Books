@@ -42,6 +42,12 @@ beforeAll(async () => {
     serviceDb: createFakeDb().db,
     redis: { ping: async () => "PONG", set: async () => "OK", getDel: async () => null } as unknown as Deps["redis"],
     appUrl: "http://localhost:5173",
+    effects: {
+      sendInvoiceEmail: async () => ({ queued: false }),
+      sendInvoiceReminder: async () => {},
+      notifyInvoicePaid: async () => {},
+      scheduleInvoiceSend: async () => {},
+    },
     db: { execute: async () => [] } as unknown as Deps["db"],
     verifyToken: createTokenVerifier(SUPABASE_URL, createLocalJWKSet({ keys: [jwk] })),
     analytics: { capture: () => {}, captureError: () => {}, shutdown: async () => {} },

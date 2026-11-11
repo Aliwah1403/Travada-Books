@@ -166,3 +166,41 @@ describe("normalizePartialRules", () => {
     })
   })
 })
+
+import { addFrequency, computeStoredTotals, isInvoiceCancelable, reopenInvoiceStatus } from "../src/index"
+
+describe("computeStoredTotals", () => {
+  it("matches the editor's arithmetic on the stored shape", () => {
+    const stored = [
+      { description: "A", quantity: 2, price: 500, tax_rate: 16 },
+      { description: "B", quantity: 1, price: 1000, tax_rate: 0 },
+    ]
+    const editor = [line("2", "500", "16"), line("1", "1000", "0")]
+    expect(computeStoredTotals(stored, { type: "%", value: 10 }, 16)).toEqual(computeDocumentTotals(editor, "%", "10", "16"))
+    expect(computeStoredTotals(stored, null, null)).toEqual(computeDocumentTotals(editor, "%", "", ""))
+  })
+})
+
+describe("addFrequency", () => {
+  it.each([
+    ["2026-01-31", "monthly", "2026-02-28"],
+    ["2024-01-31", "monthly", "2024-02-29"],
+    ["2026-11-11", "weekly", "2026-11-18"],
+    ["2026-11-11", "biweekly", "2026-11-25"],
+    ["2026-11-30", "quarterly", "2027-02-28"],
+    ["2026-02-28", "yearly", "2027-02-28"],
+  ] as const)("%s + %s → %s", (from, freq, to) => expect(addFrequency(from, freq)).toBe(to))
+})
+
+describe("invoice status rules", () => {
+  it("reopens to overdue, partially paid or unpaid", () => {
+    expect(reopenInvoiceStatus({ due_date: "2026-11-01", amount_paid: 0 }, "2026-11-11")).toBe("overdue")
+    expect(reopenInvoiceStatus({ due_date: "2026-12-01", amount_paid: 50 }, "2026-11-11")).toBe("partially_paid")
+    expect(reopenInvoiceStatus({ due_date: null, amount_paid: 0 }, "2026-11-11")).toBe("unpaid")
+  })
+  it("only cancels issued invoices with no payments", () => {
+    expect(isInvoiceCancelable("unpaid", 0)).toBe(true)
+    expect(isInvoiceCancelable("overdue", 10)).toBe(false)
+    expect(isInvoiceCancelable("draft", 0)).toBe(false)
+  })
+})

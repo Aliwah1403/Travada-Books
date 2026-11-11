@@ -65,6 +65,9 @@ import { lookupRate } from "@/lib/queries/exchange-rates";
 import { getOrgInvoiceTemplate, upsertOrgInvoiceTemplate } from "@/lib/queries/invoice-templates";
 import { useAuth } from "@/contexts/auth-context";
 import { supabase } from "@/lib/supabase";
+import { ApiError } from "@/lib/api";
+import { apiWritesEnabled } from "@/lib/api-flags";
+import { invoiceApi, type InvoiceFormState, type SaveAction } from "@/lib/invoice-api";
 import { Spinner } from "@/components/shared/spinner";
 import { toast } from "sonner";
 import { EditorPaneTabs, type EditorPane } from "@/components/shared/editor-pane-tabs";
@@ -257,6 +260,62 @@ export function EditInvoicePage() {
     },
   });
 
+  // API path (flag "api-writes-invoices"): one request that saves the draft,
+  // and sends/schedules it and starts any recurring series in the same
+  // transaction. The direct-Supabase path below stays as the fallback.
+  function formState(): InvoiceFormState {
+    return {
+      customerId: selectedCustomer!.id,
+      invoiceNumber,
+      currency,
+      issueDate,
+      dueDate,
+      items,
+      discountType,
+      discountValue,
+      vatRate,
+      paymentDetails,
+      notes,
+      customFields,
+      settings: invoiceSettings,
+      recurring,
+      // The edit page has no end settings; a series started here never ends
+      // (same as the direct path).
+      recurringEnds: null,
+    };
+  }
+
+  const apiUpdateMutation = useMutation({
+    mutationFn: ({ action, scheduleDate }: { action: SaveAction; scheduleDate?: Date }) =>
+      invoiceApi.update(id!, formState(), action, scheduleDate),
+    onSuccess: ({ invoice, email, schedule }, { action }) => {
+      queryClient.invalidateQueries({ queryKey: ["invoices"] });
+      queryClient.invalidateQueries({ queryKey: ["invoice", id] });
+      toast.success("Invoice updated");
+      if (action === "send") {
+        trackEvent(LogEvents.InvoiceSent, {
+          invoice_amount: invoice.total,
+          recipient_email: selectedCustomer?.billing_email || selectedCustomer?.email,
+        });
+        if (email && !email.ok) toast.warning("Invoice updated, but email delivery failed.");
+        else if (email?.queued) toast.success(`Emailing it to ${selectedCustomer?.name} with the PDF attached…`);
+      }
+      if (schedule && !schedule.ok) {
+        toast.warning("Invoice scheduled, but failed to queue the send job. Contact support.");
+      }
+      navigate(`/invoices/${invoice.id}`);
+    },
+    onError: (error) => {
+      if (error instanceof ApiError && error.code === "INVOICE_NUMBER_TAKEN") {
+        setInvoiceNumberError(error.message);
+      } else {
+        toast.error("Failed to update invoice", {
+          description: error instanceof Error ? error.message : "Please try again.",
+        });
+      }
+    },
+  });
+
   function addItem() {
     setItems((prev) => [
       ...prev,
@@ -364,6 +423,10 @@ export function EditInvoicePage() {
   }
 
   async function handleSubmit(action: "draft" | "send" | "schedule", scheduleDate?: Date) {
+    if (selectedCustomer && orgId && user && apiWritesEnabled("invoices")) {
+      apiUpdateMutation.mutate({ action, scheduleDate });
+      return;
+    }
     if (!selectedCustomer || !orgId || !user) return;
     let patch;
     try {
@@ -463,7 +526,7 @@ export function EditInvoicePage() {
     }
   }
 
-  const isSubmitting = updateMutation.isPending;
+  const isSubmitting = updateMutation.isPending || apiUpdateMutation.isPending;
 
   if (isLoading) {
     return (

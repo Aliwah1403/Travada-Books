@@ -63,6 +63,28 @@ export function toStoredLineItems(items: LineItem[]): StoredLineItem[] {
   }));
 }
 
+// Totals from the stored line-item shape — what the API receives. Routes
+// through computeDocumentTotals so the server and the editor can never do
+// the arithmetic differently.
+export function computeStoredTotals(
+  items: StoredLineItem[],
+  discount: { type: "%" | "fixed"; value: number } | null | undefined,
+  vatRate: number | null | undefined,
+) {
+  return computeDocumentTotals(
+    items.map((item, i) => ({
+      id: String(i),
+      description: item.description,
+      qty: String(item.quantity),
+      rate: String(item.price),
+      tax: String(item.tax_rate),
+    })),
+    discount?.type ?? "%",
+    discount ? String(discount.value) : "",
+    vatRate == null ? "" : String(vatRate),
+  );
+}
+
 // Rate columns persisted alongside the computed amounts so a document can be
 // reopened for editing without losing the VAT rate or the fact that a
 // discount was entered as a percentage.

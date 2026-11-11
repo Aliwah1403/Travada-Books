@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js"
 import { registerTools } from "./registry.js"
 import { customerTools } from "./tools/customers.js"
+import { invoiceWriteTools } from "./tools/invoice-writes.js"
 import { invoiceTools, paymentTools, quoteTools } from "./tools/invoices.js"
 import { billTools, inboxTools, transactionTools } from "./tools/money.js"
 import { insightTools, orgTools, reportTools, searchTools } from "./tools/reports.js"
@@ -16,6 +17,7 @@ export const allTools: AnyTool[] = [
   ...searchTools,
   ...customerTools,
   ...invoiceTools,
+  ...invoiceWriteTools,
   ...paymentTools,
   ...quoteTools,
   ...transactionTools,

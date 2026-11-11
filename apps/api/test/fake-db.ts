@@ -72,7 +72,9 @@ export function createFakeDb(tables: Record<string, Row[]> = {}, rpcResults: Rec
     return Promise.resolve({ data: rpcResults[fn] ?? [], error: null })
   }
 
-  return { db: { from, rpc } as unknown as SupabaseClient, calls, tables }
+  // The tables ride along on the client so test helpers can reach them.
+  const db = Object.assign({ from, rpc }, { __tables: tables }) as unknown as SupabaseClient
+  return { db, calls, tables }
 }
 
 /** A Redis stand-in with the two commands the confirmation flow uses. */

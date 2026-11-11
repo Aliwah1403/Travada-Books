@@ -26,6 +26,11 @@ const schema = z.object({
         .filter(Boolean),
     ),
 
+  // Post-commit effects (services/effects.ts). Optional: without them the
+  // "invoice paid" notification is skipped and scheduled sends fail.
+  WORKER_SHARED_SECRET: z.string().optional(),
+  TRIGGER_SECRET_KEY: z.string().optional(),
+
   // The web app, for links in assistant answers. Local: the Vite dev server.
   APP_URL: z.url().default("http://localhost:5173"),
 

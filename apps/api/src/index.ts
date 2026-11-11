@@ -1,6 +1,7 @@
 import { serve } from "@hono/node-server"
 import { createApp } from "./app.js"
 import { createDb } from "./db/client.js"
+import { createEffects } from "./services/effects.js"
 import { parseEnv } from "./env.js"
 import { createTokenVerifier } from "./lib/auth.js"
 import { createAnalytics } from "./lib/posthog.js"
@@ -20,6 +21,12 @@ const app = createApp(
     verifyToken: createTokenVerifier(env.SUPABASE_URL),
     analytics,
     appUrl: env.APP_URL,
+    effects: createEffects({
+      supabaseUrl: env.SUPABASE_URL,
+      serviceRoleKey: env.SUPABASE_SERVICE_ROLE_KEY,
+      workerSecret: env.WORKER_SHARED_SECRET,
+      triggerSecretKey: env.TRIGGER_SECRET_KEY,
+    }),
   },
   { allowedOrigins: env.ALLOWED_ORIGINS, logRequests: env.NODE_ENV !== "test" },
 )

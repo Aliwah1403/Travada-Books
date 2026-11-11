@@ -10,8 +10,8 @@ export class ServiceError extends Error {
   readonly code: ApiErrorCode
   readonly field?: string
 
-  constructor(status: ContentfulStatusCode, code: ApiErrorCode, message: string, field?: string) {
-    super(message)
+  constructor(status: ContentfulStatusCode, code: ApiErrorCode, message: string, field?: string, cause?: unknown) {
+    super(message, cause === undefined ? undefined : { cause })
     this.status = status
     this.code = code
     this.field = field

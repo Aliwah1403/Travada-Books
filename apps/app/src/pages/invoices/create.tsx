@@ -61,6 +61,9 @@ import { getCustomer } from "@/lib/queries/customers";
 import { getOrgInvoiceTemplate, upsertOrgInvoiceTemplate } from "@/lib/queries/invoice-templates";
 import { useAuth } from "@/contexts/auth-context";
 import { supabase } from "@/lib/supabase";
+import { ApiError } from "@/lib/api";
+import { apiWritesEnabled } from "@/lib/api-flags";
+import { invoiceApi, recurringEndsFrom, type InvoiceFormState, type SaveAction } from "@/lib/invoice-api";
 import { Spinner } from "@/components/shared/spinner";
 import { toast } from "sonner";
 import { EditorPaneTabs, type EditorPane } from "@/components/shared/editor-pane-tabs";
@@ -212,6 +215,65 @@ export function CreateInvoicePage() {
     },
   });
 
+  // API path (flag "api-writes-invoices"): one request; the API computes
+  // totals, snapshots, FX and status, and starts any recurring series in the
+  // same transaction. The direct-Supabase path below stays as the fallback.
+  function formState(): InvoiceFormState {
+    return {
+      customerId: selectedCustomer!.id,
+      invoiceNumber,
+      currency,
+      issueDate,
+      dueDate,
+      items,
+      discountType,
+      discountValue,
+      vatRate,
+      paymentDetails,
+      notes,
+      customFields,
+      settings: invoiceSettings,
+      recurring,
+      recurringEnds: recurringEndsFrom(recurringSettings),
+    };
+  }
+
+  const apiCreateMutation = useMutation({
+    mutationFn: ({ action, scheduleDate }: { action: SaveAction; scheduleDate?: Date }) =>
+      invoiceApi.create(formState(), action, scheduleDate),
+    onSuccess: ({ invoice, email, schedule }, { action }) => {
+      queryClient.invalidateQueries({ queryKey: ["invoices", orgId] });
+      toast.success("Invoice created");
+      trackEvent(LogEvents.InvoiceCreated, {
+        invoice_amount: invoice.total,
+        currency: invoice.currency,
+        line_item_count: items.length,
+        due_date: invoice.due_date,
+      });
+      if (action === "send") {
+        trackEvent(LogEvents.InvoiceSent, {
+          invoice_amount: invoice.total,
+          recipient_email: selectedCustomer?.billing_email || selectedCustomer?.email,
+        });
+        if (email && !email.ok) toast.warning("Invoice created, but email delivery failed.");
+        else if (email?.queued) toast.success(`Emailing it to ${selectedCustomer?.name} with the PDF attached…`);
+      }
+      if (schedule && !schedule.ok) {
+        toast.warning("Invoice scheduled, but failed to queue the send job. Contact support.");
+      }
+      navigate(`/invoices/${invoice.id}`);
+    },
+    onError: (error) => {
+      if (error instanceof ApiError && error.code === "INVOICE_NUMBER_TAKEN") {
+        setInvoiceNumberError(error.message);
+      } else {
+        toast.error("Failed to create invoice", {
+          description: error instanceof Error ? error.message : "Please try again.",
+        });
+      }
+    },
+  });
+
   function addItem() {
     setItems((prev) => [
       ...prev,
@@ -305,6 +367,10 @@ export function CreateInvoicePage() {
 
   async function handleSubmit(action: "draft" | "send" | "schedule", scheduleDate?: Date) {
     if (!selectedCustomer || !orgId || !user) return;
+    if (apiWritesEnabled("invoices")) {
+      apiCreateMutation.mutate({ action, scheduleDate });
+      return;
+    }
     try {
       const invoice = await createMutation.mutateAsync(await buildInput(action, scheduleDate));
       if (action === "send") {
@@ -393,7 +459,7 @@ export function CreateInvoicePage() {
     }
   }
 
-  const isSubmitting = createMutation.isPending;
+  const isSubmitting = createMutation.isPending || apiCreateMutation.isPending;
 
   return (
     <div className="flex h-full flex-col">

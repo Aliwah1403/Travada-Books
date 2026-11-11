@@ -131,11 +131,13 @@ export const invoiceTools = [
       return `Delete draft invoice ${invoiceLabel(inv)}${inv.customer_name ? ` to ${inv.customer_name}` : ""}${amount}? This can't be undone.`
     },
     run: async ({ id }, ctx) => {
-      // Re-check at run time: it may have been sent since the question was asked.
-      const inv = await loadInvoice(ctx, id, "id, invoice_number, status, customer_name, currency, total, token")
-      if (inv.status !== "draft") throw new ToolError(`${invoiceLabel(inv)} is no longer a draft (${inv.status}); not deleted.`)
-      must(await ctx.db.delete("invoices").eq("id", id).eq("status", "draft").select("id"), "Delete invoice")
-      return { data: { deleted: true, id }, entity: { type: "invoice", id }, summary: `Deleted draft invoice ${invoiceLabel(inv)}` }
+      // Re-check at run time: it may have been sent since the question was
+      // asked. The app may delete any invoice; the assistant only drafts.
+      const inv = await ctx.invoices.get(id)
+      const label = inv.invoiceNumber ?? `draft ${inv.id.slice(0, 8)}`
+      if (inv.status !== "draft") throw new ToolError(`${label} is no longer a draft (${inv.status}); not deleted.`)
+      await ctx.invoices.remove(id)
+      return { data: { deleted: true, id }, entity: { type: "invoice", id }, summary: `Deleted draft invoice ${label}` }
     },
   }),
 ]
@@ -248,34 +250,27 @@ export const paymentTools = [
       return `Record ${formatMoney(args.amount, inv.currency, ctx.user.locale)} paid on ${invoiceLabel(inv)}${inv.customer_name ? ` (${inv.customer_name})` : ""}?${over}`
     },
     run: async (args, ctx) => {
-      const inv = await payableInvoice(ctx, args.invoice_id)
-      // Noon UTC so the stored timestamp never drifts onto another calendar day.
+      // Same service the app's "Record payment" uses: status derived by the
+      // database, "invoice paid" notification when it settles the invoice.
       const paidOn = args.paid_on ?? new Date().toISOString().slice(0, 10)
-      const rows = must(
-        await ctx.db
-          .insert("invoice_payments", {
-            invoice_id: inv.id,
-            recorded_by: ctx.userId,
-            amount: args.amount,
-            currency: inv.currency,
-            paid_at: `${paidOn}T12:00:00Z`,
-            method: args.method ?? "mpesa",
-            reference: args.reference ?? null,
-            note: args.note ?? null,
-            source: "manual",
-          })
-          .select("id"),
-        "Record payment",
-      ) as { id: string }[]
-      const after = await loadInvoice(ctx, inv.id, "id, invoice_number, status, currency, total, amount_paid, customer_name, token")
+      const result = await ctx.invoices.recordPayment({
+        invoice_id: args.invoice_id,
+        amount: args.amount,
+        // Noon UTC so the stored timestamp never drifts onto another calendar day.
+        paid_at: `${paidOn}T12:00:00Z`,
+        method: args.method ?? "mpesa",
+        reference: args.reference ?? null,
+        note: args.note ?? null,
+      })
+      const label = result.invoice.invoiceNumber ?? "the invoice"
       return {
         data: {
-          payment_id: rows[0]?.id,
-          invoice_status: after.status,
-          balance_due: Number(after.total ?? 0) - Number(after.amount_paid ?? 0),
+          payment_id: result.payment.id,
+          invoice_status: result.invoice.status,
+          balance_due: Number(result.invoice.total ?? 0) - Number(result.invoice.amountPaid),
         },
-        entity: { type: "invoice", id: inv.id },
-        summary: `Recorded ${formatMoney(args.amount, inv.currency)} on ${invoiceLabel(inv)}`,
+        entity: { type: "invoice", id: args.invoice_id },
+        summary: `Recorded ${formatMoney(args.amount, result.invoice.currency)} on ${label}`,
       }
     },
   }),

@@ -9,6 +9,7 @@ import { ServiceError } from "./lib/errors.js"
 import { health } from "./routes/health.js"
 import { mcp } from "./routes/mcp.js"
 import { me } from "./routes/me.js"
+import { invoiceRoutes, paymentRoutes, recurringRoutes } from "./routes/v1/invoices.js"
 
 export function createApp(deps: Deps, options: { allowedOrigins: string[]; logRequests?: boolean }) {
   const app = new Hono<AppEnv>()
@@ -19,7 +20,7 @@ export function createApp(deps: Deps, options: { allowedOrigins: string[]; logRe
     cors({
       origin: options.allowedOrigins,
       allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-      allowHeaders: ["Authorization", "Content-Type"],
+      allowHeaders: ["Authorization", "Content-Type", "Idempotency-Key", "X-User-Timezone"],
       maxAge: 86_400,
     }),
   )
@@ -30,7 +31,13 @@ export function createApp(deps: Deps, options: { allowedOrigins: string[]; logRe
 
   // Chained so the route types are kept: AppType (below) is what the app's
   // typed client (hc) is built from.
-  const routes = app.route("/health", health).route("/v1/me", me).route("/mcp", mcp)
+  const routes = app
+    .route("/health", health)
+    .route("/v1/me", me)
+    .route("/v1/invoices", invoiceRoutes)
+    .route("/v1/invoice-recurring", recurringRoutes)
+    .route("/v1/payments", paymentRoutes)
+    .route("/mcp", mcp)
 
   // Every error leaves as an ApiErrorBody ({ error, code, field? }) from
   // @travada-books/core, so the app handles them one way.

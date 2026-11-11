@@ -19,7 +19,10 @@ export const api = hc<AppType>(API_URL, {
   headers: async (): Promise<Record<string, string>> => {
     const { data } = await supabase.auth.getSession();
     const token = data.session?.access_token;
-    return token ? { Authorization: `Bearer ${token}` } : {};
+    // Lets the API compute "today" (overdue checks, reopen status) in the
+    // user's timezone rather than the server's.
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    return { ...(token ? { Authorization: `Bearer ${token}` } : {}), ...(tz ? { "X-User-Timezone": tz } : {}) };
   },
 });
 

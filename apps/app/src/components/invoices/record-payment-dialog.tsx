@@ -1,3 +1,5 @@
+import { apiWritesEnabled } from "@/lib/api-flags";
+import { invoiceApi } from "@/lib/invoice-api";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Alert02Icon, Wallet01Icon } from "@travada-books/ui/icons";
@@ -157,6 +159,38 @@ function RecordPaymentForm({
     };
 
     setSubmitting(true);
+    if (apiWritesEnabled("invoices")) {
+      // The API records it, derives the status, and sends the "invoice paid"
+      // notification itself when this payment settles the invoice.
+      toast.promise(
+        invoiceApi.recordPayment({
+          invoice_id: invoiceId,
+          amount: parsedAmount,
+          paid_at: paidAt.toISOString(),
+          method: method as "mpesa" | "bank_transfer" | "cash" | "card" | "cheque" | "other",
+          reference: input.reference,
+          note: input.note,
+        }),
+        {
+          loading: "Recording payment…",
+          success: (result) => {
+            invalidateAfterPaymentChange(invoiceId);
+            if (result.notify && !result.notify.ok) {
+              toast.warning("Invoice marked as paid, but the notification email failed to send.");
+            }
+            onRecorded?.(result.invoice.status === "paid");
+            onOpenChange(false);
+            setSubmitting(false);
+            return "Payment recorded";
+          },
+          error: (error) => {
+            setSubmitting(false);
+            return error instanceof Error ? error.message : "Failed to record payment";
+          },
+        },
+      );
+      return;
+    }
     toast.promise(createInvoicePayment(input), {
       loading: "Recording payment…",
       success: () => {

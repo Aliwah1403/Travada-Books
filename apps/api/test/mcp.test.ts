@@ -5,6 +5,7 @@ import { confirmPendingAction, cancelPendingAction } from "../src/mcp/actions.js
 import { executeTool } from "../src/mcp/registry.js"
 import { allTools } from "../src/mcp/server.js"
 import type { AnyTool, Channel, McpContext, ToolRuntime } from "../src/mcp/types.js"
+import { ServiceError } from "../src/lib/errors.js"
 import { createFakeDb, createFakeRedis } from "./fake-db.js"
 
 const ORG_A = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
@@ -13,11 +14,66 @@ const USER = "11111111-1111-4111-8111-111111111111"
 const OTHER_USER = "22222222-2222-4222-8222-222222222222"
 const SOME_ID = "33333333-3333-4333-8333-333333333333"
 
-function makeCtx(db: ReturnType<typeof createFakeDb>["db"], overrides: Partial<McpContext> = {}): McpContext {
+type FakeTables = ReturnType<typeof createFakeDb>["tables"]
+const serviceCalls: { name: string; orgId: string }[] = []
+
+/**
+ * Stand-in for the invoice services (the real ones are tested against a
+ * database in invoices.test.ts). Works on the same in-memory tables and
+ * records each call with the org it was bound to.
+ */
+function fakeInvoiceServices(tables: FakeTables, orgId: string) {
+  const find = (id: string) => (tables.invoices ?? []).find((row) => row.id === id && row.org_id === orgId)
+  const asRow = (row: Record<string, unknown>) => ({
+    ...row,
+    invoiceNumber: row.invoice_number ?? null,
+    amountPaid: String(row.amount_paid ?? 0),
+    customerName: row.customer_name ?? null,
+  })
+  const call = (name: string) => serviceCalls.push({ name, orgId })
+  const get = async (id: string) => {
+    call("get")
+    const row = find(id)
+    if (!row) throw new ServiceError(404, "NOT_FOUND", "Invoice not found.")
+    return asRow(row)
+  }
+  return {
+    get,
+    remove: async (id: string) => {
+      call("remove")
+      const row = await get(id)
+      tables.invoices = (tables.invoices ?? []).filter((r) => r.id !== id)
+      return { invoice: row }
+    },
+    recordPayment: async (input: { invoice_id: string; amount: number; method: string }) => {
+      call("recordPayment")
+      const row = find(input.invoice_id)!
+      const payment = { id: crypto.randomUUID(), org_id: orgId, invoice_id: input.invoice_id, amount: input.amount, currency: row.currency, recorded_by: USER, method: input.method }
+      ;(tables.invoice_payments ??= []).push(payment)
+      row.amount_paid = Number(row.amount_paid ?? 0) + input.amount
+      row.status = Number(row.amount_paid) >= Number(row.total ?? 0) ? "paid" : "partially_paid"
+      return { payment, invoice: asRow(row) }
+    },
+    create: async () => (call("create"), { invoice: asRow({ id: SOME_ID, invoice_number: "INV-1", total: "10", currency: "KES" }) }),
+    update: async () => (call("update"), { invoice: asRow({ id: SOME_ID, invoice_number: "INV-1", total: "10", currency: "KES" }) }),
+    issue: async () => (call("issue"), { invoice: asRow({ id: SOME_ID, status: "unpaid" }), email: { ok: true as const } }),
+    remind: async () => (call("remind"), { invoice: asRow({ id: SOME_ID }) }),
+    duplicate: async () => (call("duplicate"), { invoice: asRow({ id: SOME_ID, invoice_number: "INV-2" }) }),
+    cancel: async () => (call("cancel"), { invoice: asRow({ id: SOME_ID, status: "canceled" }) }),
+    markPaid: async () => (call("markPaid"), { invoice: asRow({ id: SOME_ID, status: "paid" }) }),
+  } as unknown as McpContext["invoices"]
+}
+
+function makeCtx(
+  db: ReturnType<typeof createFakeDb>["db"],
+  overrides: Partial<McpContext> = {},
+  tables: FakeTables = (db as unknown as { __tables: FakeTables }).__tables,
+): McpContext {
   return {
     orgId: ORG_A,
     userId: USER,
     db: scopeToOrg(db, overrides.orgId ?? ORG_A),
+    invoices: fakeInvoiceServices(tables, overrides.orgId ?? ORG_A),
     org: { name: "Acme Ltd", baseCurrency: "KES", countryCode: "KE" },
     user: { timezone: "Africa/Nairobi", locale: "en", dateFormat: null },
     channel: "mcp",
@@ -39,6 +95,7 @@ function sampleArgs(tool: AnyTool): Record<string, unknown> {
   for (const [key, schema] of Object.entries(tool.input)) {
     if ((schema as z.ZodType).safeParse(undefined).success) continue
     if (key === "transaction_ids") args[key] = [SOME_ID]
+    else if (key === "line_items") args[key] = [{ description: "Work", quantity: 1, price: 100 }]
     else if (key === "id" || key === "action_id" || key.endsWith("_id")) args[key] = SOME_ID
     else if (key === "from") args[key] = "2026-01-01"
     else if (key === "to") args[key] = "2026-12-31"
@@ -55,15 +112,19 @@ function sampleArgs(tool: AnyTool): Record<string, unknown> {
 describe("org scoping (plan §14: every tool returns only its organisation's data)", () => {
   for (const tool of allTools) {
     it(`${tool.name} filters every query by the caller's org`, async () => {
-      const { db, calls } = createFakeDb()
-      const ctx = makeCtx(db)
+      const { db, calls, tables } = createFakeDb()
+      const ctx = makeCtx(db, {}, tables)
       const args = sampleArgs(tool)
+      serviceCalls.length = 0
       await tool.describe?.(args, ctx).catch(() => {})
       await tool.run(args, ctx).catch(() => {})
 
       const queries = new Map<number, typeof calls>()
       for (const call of calls) queries.set(call.query, [...(queries.get(call.query) ?? []), call])
-      expect(queries.size, "tool made no queries").toBeGreaterThan(0)
+      // Writes go through the invoice services, which are bound to the
+      // caller's org (and tested for scoping against a real database).
+      expect(queries.size + serviceCalls.length, "tool touched no data").toBeGreaterThan(0)
+      expect(serviceCalls.every((call) => call.orgId === ORG_A)).toBe(true)
 
       for (const queryCalls of queries.values()) {
         const first = queryCalls[0]!
@@ -200,8 +261,12 @@ describe("confirmations (plan §7)", () => {
   for (const channel of ["telegram", "whatsapp", "imessage", "slack", "web"] satisfies Channel[]) {
     it(`every confirm tool waits on ${channel}`, async () => {
       for (const t of allTools.filter((candidate) => candidate.confirm)) {
+        const needsDraft = t.name === "invoices_delete_draft" || t.name === "invoices_send"
         const { db } = createFakeDb({
-          invoices: [{ id: SOME_ID, org_id: ORG_A, status: t.name === "invoices_delete_draft" ? "draft" : "unpaid", currency: "KES", total: 10, amount_paid: 0 }],
+          invoices: [
+            { id: SOME_ID, org_id: ORG_A, status: needsDraft ? "draft" : "unpaid", currency: "KES", total: 10, amount_paid: 0, customer_id: OTHER_USER },
+          ],
+          customers: [{ id: OTHER_USER, org_id: ORG_A, name: "Acme", email: "billing@acme.test" }],
         })
         const { runtime } = makeRuntime()
         const result = text(await executeTool(t, sampleArgs(t), makeCtx(db, { channel }), runtime))

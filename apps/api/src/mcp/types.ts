@@ -2,6 +2,7 @@ import type { z } from "zod"
 import type { Analytics } from "../lib/posthog.js"
 import type { Redis } from "../lib/redis.js"
 import type { ScopedDb } from "../lib/scoped.js"
+import type { InvoiceServices } from "../services/invoices.js"
 
 // Where a tool call came from. Drives the confirmation rule (§7) and is
 // recorded on every assistant_actions row (§9).
@@ -12,6 +13,8 @@ export type McpContext = {
   userId: string
   /** Org-scoped data access. Tools never get the raw service-role client. */
   db: ScopedDb
+  /** Invoice and payment writes — the same services the app's /v1 routes use. */
+  invoices: InvoiceServices
   org: { name: string; baseCurrency: string; countryCode: string | null }
   user: { timezone: string; locale: string; dateFormat: string | null }
   channel: Channel
