@@ -1,5 +1,8 @@
 import { type RevenueType } from "@/lib/queries/metrics"
 import { WidgetsGrid } from "@/components/dashboard/widgets-grid"
+import { ChartCardErrorBoundary } from "@/components/dashboard/chart-card"
+import { BriefingStrip } from "@/components/dashboard/overview/briefing-strip"
+import { CashCalendar } from "@/components/dashboard/overview/cash-calendar"
 
 const OverviewTab = ({
   orgId,
@@ -20,6 +23,30 @@ const OverviewTab = ({
 }) => {
   return (
     <div className='flex flex-col gap-6 p-6'>
+      {/*
+        Briefing strip — today's few things worth knowing, each with one
+        action. Composed locally for now; the assistant will generate it
+        (see TODO(assistant) in lib/queries/briefing.ts). The assistant's
+        input + suggested-action chips may also land here later.
+      */}
+      <ChartCardErrorBoundary>
+        <BriefingStrip
+          orgId={orgId}
+          currency={currency}
+          displayCurrency={displayCurrency}
+          fxRate={fxRate}
+        />
+      </ChartCardErrorBoundary>
+
+      <ChartCardErrorBoundary>
+        <CashCalendar
+          orgId={orgId}
+          currency={currency}
+          displayCurrency={displayCurrency}
+          fxRate={fxRate}
+        />
+      </ChartCardErrorBoundary>
+
       <WidgetsGrid
         orgId={orgId}
         currency={currency}
@@ -29,12 +56,6 @@ const OverviewTab = ({
         displayCurrency={displayCurrency}
         fxRate={fxRate}
       />
-
-      {/*
-        Reserved slot for the assistant input + suggested-action chips
-        (future batch). Kept empty on purpose so the page doesn't reflow
-        when that lands.
-      */}
     </div>
   )
 }

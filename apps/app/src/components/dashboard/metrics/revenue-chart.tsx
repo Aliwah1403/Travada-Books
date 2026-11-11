@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { useNavigate } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import { parseISO } from "date-fns";
 import { ChartLineData01Icon } from "@travada-books/ui/icons";
@@ -13,6 +14,7 @@ import { chartCssVars } from "@/components/charts/chart-context";
 import { ChartCard, ChartCardError } from "@/components/dashboard/chart-card";
 import { getRevenueSummary, type RevenueType } from "@/lib/queries/metrics";
 import { formatCurrency, formatCurrencyCompact } from "@/lib/format";
+import { incomeForMonthUrl } from "@/lib/drilldown";
 
 const STALE_TIME = 2 * 60 * 1000;
 const MARGIN = { top: 24, right: 16, bottom: 32, left: 56 };
@@ -38,6 +40,7 @@ export function RevenueChart({
   displayCurrency = currency,
   fxRate = 1,
 }: RevenueChartProps) {
+  const navigate = useNavigate();
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["metric", orgId, "get_revenue_summary", from, to, revenueType],
     queryFn: () => getRevenueSummary(orgId, from, to, revenueType),
@@ -66,7 +69,7 @@ export function RevenueChart({
     <ChartCard
       title='Revenue'
       icon={ChartLineData01Icon}
-      description='Monthly revenue for the selected range'
+      description='Monthly revenue for the selected range · click a month to see its income'
     >
       {isLoading ?
         <BarChartLoading aspectRatio='3 / 1' margin={MARGIN} />
@@ -76,6 +79,9 @@ export function RevenueChart({
           aspectRatio='3 / 1'
           margin={MARGIN}
           barGap={0.35}
+          onBarClick={(point) =>
+            navigate(incomeForMonthUrl(point.date as Date))
+          }
         >
           <Grid horizontal />
           <Bar

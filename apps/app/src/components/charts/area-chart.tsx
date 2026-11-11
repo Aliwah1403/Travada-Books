@@ -53,6 +53,8 @@ export interface AreaChartProps {
   yDomainTweenDuration?: number;
   /** Animate y-domain when status or target domain changes. Default: true */
   yDomainTween?: boolean;
+  /** Fit the y-axis to the data instead of starting at zero. Default: false */
+  fitYDomain?: boolean;
   /** Visible x-domain for brush zoom. */
   xDomain?: [Date, Date];
   /** Full dataset length for x-scale padding when `xDomain` is set. */
@@ -124,6 +126,7 @@ interface ChartInnerProps {
   loadingLabel?: string;
   yDomainTweenDuration: number;
   yDomainTween: boolean;
+  fitYDomain?: boolean;
   xDomain?: [Date, Date];
   xDomainSlotCount?: number;
   tweenYDomainOnXDomainChange?: boolean;
@@ -146,6 +149,7 @@ function ChartInner({
   loadingLabel,
   yDomainTweenDuration,
   yDomainTween,
+  fitYDomain,
   xDomain,
   xDomainSlotCount,
   tweenYDomainOnXDomainChange,
@@ -164,6 +168,7 @@ function ChartInner({
       containerRef={containerRef}
       data={data}
       enterTransition={enterTransition}
+      fitYDomain={fitYDomain}
       height={height}
       lines={lines}
       loadingLabel={loadingLabel}
@@ -197,6 +202,7 @@ export function AreaChart({
   loadingLabel,
   yDomainTweenDuration = DEFAULT_Y_DOMAIN_TWEEN_MS,
   yDomainTween = true,
+  fitYDomain = false,
   xDomain,
   xDomainSlotCount,
   tweenYDomainOnXDomainChange = false,
@@ -240,6 +246,7 @@ export function AreaChart({
             containerRef={containerRef}
             data={data}
             enterTransition={enterTransition}
+            fitYDomain={fitYDomain}
             height={height}
             loadingLabel={loadingLabel}
             margin={margin}

@@ -15,7 +15,9 @@ import {
 } from "@/lib/queries/dashboard-preferences"
 import {
   DEFAULT_PRIMARY_WIDGETS,
+  NUMBER_OF_WIDGETS,
   WIDGET_KEYS,
+  isWidgetAvailable,
   isWidgetKey,
   type WidgetKey,
 } from "@/components/dashboard/widget-registry"
@@ -50,10 +52,12 @@ function sanitizePrimaryWidgets(saved: string[]): WidgetKey[] {
 type WidgetProviderProps = {
   orgId: string
   userId: string
+  /** Org's ISO-2 country — gates country-specific widgets (e.g. Tax Deadlines). */
+  countryCode?: string | null
   children: React.ReactNode
 }
 
-export function WidgetProvider({ orgId, userId, children }: WidgetProviderProps) {
+export function WidgetProvider({ orgId, userId, countryCode, children }: WidgetProviderProps) {
   const { data } = useQuery({
     queryKey: ["dashboard-preferences", orgId, userId],
     queryFn: () => getDashboardPreferences(orgId, userId),
@@ -74,9 +78,46 @@ export function WidgetProvider({ orgId, userId, children }: WidgetProviderProps)
     setPrimaryWidgets(data === null ? DEFAULT_PRIMARY_WIDGETS : sanitizePrimaryWidgets(data.primary_widgets))
   }, [data])
 
+  // ─── Availability gating ─────────────────────────────────────────────────
+  // `primaryWidgets` state keeps the user's full list, including keys that
+  // are unavailable for this org (e.g. Tax Deadlines outside a supported
+  // country). Consumers only ever see the filtered list, and every write
+  // re-appends the hidden keys, so filtering alone never rewrites the saved
+  // preference. The defaults are additionally capped at NUMBER_OF_WIDGETS
+  // because DEFAULT_PRIMARY_WIDGETS lists one more key than fits, on the
+  // assumption that at least one is country-gated out.
+  const isAvailable = useCallback(
+    (key: WidgetKey) => isWidgetAvailable(key, { countryCode }),
+    [countryCode],
+  )
+
+  const visiblePrimaryWidgets = useMemo(() => {
+    const visible = primaryWidgets.filter(isAvailable)
+    return primaryWidgets === DEFAULT_PRIMARY_WIDGETS ? visible.slice(0, NUMBER_OF_WIDGETS) : visible
+  }, [primaryWidgets, isAvailable])
+
   const availableWidgets = useMemo(
-    () => WIDGET_KEYS.filter((key) => !primaryWidgets.includes(key)),
-    [primaryWidgets],
+    () => WIDGET_KEYS.filter((key) => isAvailable(key) && !visiblePrimaryWidgets.includes(key)),
+    [visiblePrimaryWidgets, isAvailable],
+  )
+
+  /** Visible next-state + the hidden keys from `prev`, preserved for
+   * persistence. Defaults aren't a saved preference, so their hidden keys
+   * aren't carried into the first save. */
+  const withHidden = useCallback(
+    (nextVisible: WidgetKey[], prev: WidgetKey[]) =>
+      prev === DEFAULT_PRIMARY_WIDGETS
+        ? nextVisible
+        : [...nextVisible, ...prev.filter((key) => !isAvailable(key) && !nextVisible.includes(key))],
+    [isAvailable],
+  )
+
+  const visibleOf = useCallback(
+    (prev: WidgetKey[]) => {
+      const visible = prev.filter(isAvailable)
+      return prev === DEFAULT_PRIMARY_WIDGETS ? visible.slice(0, NUMBER_OF_WIDGETS) : visible
+    },
+    [isAvailable],
   )
 
   useEffect(() => {
@@ -102,31 +143,42 @@ export function WidgetProvider({ orgId, userId, children }: WidgetProviderProps)
     [orgId, userId],
   )
 
+  // Callers pass/derive orders from the visible list; `withHidden` puts the
+  // gated-out keys back before state + persistence.
   const reorderPrimaryWidgets = useCallback(
     (newOrder: WidgetKey[]) => {
-      setPrimaryWidgets(newOrder)
-      persist(newOrder)
+      setPrimaryWidgets((prev) => {
+        const next = withHidden(newOrder, prev)
+        persist(next)
+        return next
+      })
     },
-    [persist],
+    [persist, withHidden],
   )
 
   const moveToAvailable = useCallback(
     (widget: WidgetKey) => {
       setPrimaryWidgets((prev) => {
-        const next = prev.filter((w) => w !== widget)
+        const next = withHidden(
+          visibleOf(prev).filter((w) => w !== widget),
+          prev,
+        )
         persist(next)
         return next
       })
     },
-    [persist],
+    [persist, withHidden, visibleOf],
   )
 
   const moveToPrimary = useCallback(
     (_widget: WidgetKey, newPrimaryOrder: WidgetKey[]) => {
-      setPrimaryWidgets(newPrimaryOrder)
-      persist(newPrimaryOrder)
+      setPrimaryWidgets((prev) => {
+        const next = withHidden(newPrimaryOrder, prev)
+        persist(next)
+        return next
+      })
     },
-    [persist],
+    [persist, withHidden],
   )
 
   // Already-at-capacity case: drop the last primary widget, splice the
@@ -136,17 +188,18 @@ export function WidgetProvider({ orgId, userId, children }: WidgetProviderProps)
   const swapWithLastPrimary = useCallback(
     (incoming: WidgetKey, insertIndex: number) => {
       setPrimaryWidgets((prev) => {
-        const next = prev.slice(0, -1)
-        next.splice(insertIndex, 0, incoming)
+        const visible = visibleOf(prev).slice(0, -1)
+        visible.splice(insertIndex, 0, incoming)
+        const next = withHidden(visible, prev)
         persist(next)
         return next
       })
     },
-    [persist],
+    [persist, withHidden, visibleOf],
   )
 
   const value: WidgetContextValue = {
-    primaryWidgets,
+    primaryWidgets: visiblePrimaryWidgets,
     availableWidgets,
     isCustomizing,
     isSaving,

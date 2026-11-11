@@ -102,8 +102,17 @@ function collectNumericExtents(
 function resolveTimeSeriesYDomain(
   data: Record<string, unknown>[],
   dataKeys: string[],
-  yScaleDomainMax: number | undefined
+  yScaleDomainMax: number | undefined,
+  fitYDomain = false
 ): [number, number] {
+  if (fitYDomain) {
+    const { minValue, maxValue } = collectNumericExtents(data, dataKeys);
+    if (Number.isFinite(minValue) && Number.isFinite(maxValue)) {
+      const span = maxValue - minValue;
+      const padding = span > 0 ? span * 0.15 : Math.abs(maxValue) * 0.05 || 1;
+      return [minValue - padding, maxValue + padding];
+    }
+  }
   if (yScaleDomainMax != null && yScaleDomainMax > 0) {
     return [0, yScaleDomainMax * 1.1];
   }
@@ -153,6 +162,8 @@ export interface TimeSeriesChartInnerProps {
   composedStackGap?: number;
   /** When set, drives the y-axis max instead of scanning `lines` (e.g. stacked bar totals). */
   yScaleDomainMax?: number;
+  /** Fit the y-axis to the data's min/max instead of starting at zero (e.g. a running balance). */
+  fitYDomain?: boolean;
   /** Loading vs ready — drives chart phase until transition orchestration lands. */
   chartStatus?: ChartStatus;
   loadingLabel?: string;
@@ -198,6 +209,7 @@ const TimeSeriesChartCore = memo(function TimeSeriesChartCore({
   composedStackOffsets,
   composedStackGap,
   yScaleDomainMax,
+  fitYDomain = false,
   chartStatus = DEFAULT_CHART_STATUS,
   loadingLabel,
   yDomainTween = true,
@@ -220,9 +232,9 @@ const TimeSeriesChartCore = memo(function TimeSeriesChartCore({
         usesDefaultOnly && yScaleDomainMax != null
           ? yScaleDomainMax
           : undefined;
-      return resolveTimeSeriesYDomain(sourceData, dataKeys, domainMax);
+      return resolveTimeSeriesYDomain(sourceData, dataKeys, domainMax, fitYDomain);
     },
-    [lines, yScaleDomainMax]
+    [lines, yScaleDomainMax, fitYDomain]
   );
 
   const skeletonData = useMemo(() => {

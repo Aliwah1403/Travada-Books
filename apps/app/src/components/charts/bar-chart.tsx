@@ -95,6 +95,9 @@ export interface BarChartProps {
   /** Fetch / display status. When `"loading"`, a shimmer skeleton replaces the
    * bars (no chart data required). Default: `"ready"`. */
   status?: ChartStatus;
+  /** Optional click handler for a category band (drill-down). Receives the
+   * datum and its index. When set, the plot area shows a pointer cursor. */
+  onBarClick?: (point: Record<string, unknown>, index: number) => void;
 }
 
 const DEFAULT_MARGIN: Margin = { top: 40, right: 40, bottom: 40, left: 40 };
@@ -163,6 +166,7 @@ interface ChartInnerProps {
   containerRef: React.RefObject<HTMLDivElement | null>;
   onPhaseChange?: (phase: ChartPhase) => void;
   status: ChartStatus;
+  onBarClick?: (point: Record<string, unknown>, index: number) => void;
 }
 
 function ChartInner(props: ChartInnerProps) {
@@ -193,6 +197,7 @@ const ChartCore = memo(function ChartCore({
   containerRef,
   onPhaseChange,
   status,
+  onBarClick,
 }: ChartInnerProps) {
   const { tooltipData, setTooltipData, scheduleTooltip, clearTooltip } =
     useScheduledTooltip<TooltipData>();
@@ -578,6 +583,30 @@ const ChartCore = memo(function ChartCore({
     clearTooltip();
   }, [clearTooltip]);
 
+  // Same band lookup as handleMouseMove, so the clicked band always matches
+  // the hovered/tooltipped one.
+  const handleClick = useCallback(
+    (event: React.MouseEvent<SVGGElement>) => {
+      if (!onBarClick || status === "loading") {
+        return;
+      }
+      const point = localPoint(event);
+      if (!point || columnWidth <= 0) {
+        return;
+      }
+      const pos = isHorizontal ? point.y - margin.top : point.x - margin.left;
+      const bandIndex = Math.floor(pos / columnWidth);
+      if (bandIndex < 0 || bandIndex >= data.length) {
+        return;
+      }
+      const d = data[bandIndex];
+      if (d) {
+        onBarClick(d, bandIndex);
+      }
+    },
+    [onBarClick, status, isHorizontal, margin.top, margin.left, columnWidth, data]
+  );
+
   const canInteract = isLoaded;
 
   // Separate children into defs, pre-overlay, and post-overlay
@@ -669,7 +698,20 @@ const ChartCore = memo(function ChartCore({
         <g
           onMouseLeave={canInteract ? handleMouseLeave : undefined}
           onMouseMove={canInteract ? handleMouseMove : undefined}
-          style={{ cursor: canInteract ? "crosshair" : "default" }}
+          onClick={onBarClick ? handleClick : undefined}
+          // Bars pin `cursor: default` inline; override only for clickable charts.
+          className={
+            onBarClick && status !== "loading"
+              ? "[&_rect]:cursor-pointer!"
+              : undefined
+          }
+          style={{
+            cursor: onBarClick && status !== "loading"
+              ? "pointer"
+              : canInteract
+                ? "crosshair"
+                : "default",
+          }}
           transform={`translate(${margin.left},${margin.top})`}
         >
           {/* Background rect for mouse event detection */}
@@ -720,6 +762,7 @@ export function BarChart({
   children,
   onPhaseChange,
   status = "ready",
+  onBarClick,
 }: BarChartProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const margin = { ...DEFAULT_MARGIN, ...marginProp };
@@ -742,6 +785,7 @@ export function BarChart({
             enterTransition={enterTransition}
             height={height}
             margin={margin}
+            onBarClick={onBarClick}
             onPhaseChange={onPhaseChange}
             orientation={orientation}
             revealSignature={revealSignature}

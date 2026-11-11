@@ -9,6 +9,13 @@ import { CategoryExpensesChart } from "@/components/dashboard/metrics/category-e
 import { ProfitChart } from "@/components/dashboard/metrics/profit-chart";
 import { CustomerActivityChart } from "@/components/dashboard/metrics/customer-activity-chart";
 import { QuoteConversionChart } from "@/components/dashboard/metrics/quote-conversion-chart";
+import { ReceivablesAgingChart } from "@/components/dashboard/metrics/receivables-aging-chart";
+import { DaysToPayChart } from "@/components/dashboard/metrics/days-to-pay-chart";
+import { CustomerConcentrationChart } from "@/components/dashboard/metrics/customer-concentration-chart";
+import { InvoiceFunnelChart } from "@/components/dashboard/metrics/invoice-funnel-chart";
+import { PaymentChannelsChart } from "@/components/dashboard/metrics/payment-channels-chart";
+import { RevenueComparisonChart } from "@/components/dashboard/metrics/revenue-comparison-chart";
+import { CurrencyExposureChart } from "@/components/dashboard/metrics/currency-exposure-chart";
 
 const MetricsTab = ({
   orgId,
@@ -27,8 +34,10 @@ const MetricsTab = ({
   displayCurrency: string;
   fxRate: number;
 }) => {
+  const shared = { orgId, currency, from, to, displayCurrency, fxRate };
+
   return (
-    <div className='grid grid-cols-1 gap-6 p-6 lg:grid-cols-2'>
+    <div className='grid grid-cols-1 gap-6 p-4 sm:p-6 lg:grid-cols-2'>
       <div className='lg:col-span-2'>
         <ChartCardErrorBoundary>
           <RevenueChart
@@ -54,6 +63,22 @@ const MetricsTab = ({
           />
         </ChartCardErrorBoundary>
       </div>
+
+      {/* Money in — how it arrives, and how it compares with last period. */}
+      <ChartCardErrorBoundary>
+        <PaymentChannelsChart {...shared} />
+      </ChartCardErrorBoundary>
+      <ChartCardErrorBoundary>
+        <RevenueComparisonChart {...shared} revenueType={revenueType} />
+      </ChartCardErrorBoundary>
+
+      {/* Collections — what's owed and how fast it's paid. */}
+      <ChartCardErrorBoundary>
+        <ReceivablesAgingChart {...shared} />
+      </ChartCardErrorBoundary>
+      <ChartCardErrorBoundary>
+        <DaysToPayChart {...shared} />
+      </ChartCardErrorBoundary>
 
       {/* Compact, non-time-series pair — sits side by side on lg to break up
           the monotony of stacked full-width time-series cards. */}
@@ -131,6 +156,18 @@ const MetricsTab = ({
           from={from}
           to={to}
         />
+      </ChartCardErrorBoundary>
+
+      {/* Customers — who revenue depends on, and how invoices turn into cash. */}
+      <ChartCardErrorBoundary>
+        <CustomerConcentrationChart {...shared} />
+      </ChartCardErrorBoundary>
+      <ChartCardErrorBoundary>
+        <InvoiceFunnelChart {...shared} />
+      </ChartCardErrorBoundary>
+
+      <ChartCardErrorBoundary>
+        <CurrencyExposureChart {...shared} />
       </ChartCardErrorBoundary>
     </div>
   );

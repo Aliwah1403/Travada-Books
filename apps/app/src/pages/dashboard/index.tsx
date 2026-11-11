@@ -199,7 +199,7 @@ export function DashboardPage() {
   const greetingText = firstName ? `${greeting}, ${firstName}` : greeting;
 
   return (
-    <WidgetProvider orgId={orgId} userId={user.id}>
+    <WidgetProvider orgId={orgId} userId={user.id} countryCode={org.country_code}>
       <div className='flex flex-col'>
         <Tabs
           value={tab}

@@ -16,6 +16,7 @@ import {
   TaxesIcon,
   QuoteIcon,
   VaultIcon,
+  Calendar01Icon,
   type Icon,
 } from "@travada-books/ui/icons"
 import { type RevenueType } from "@/lib/queries/metrics"
@@ -35,6 +36,8 @@ import { CustomerChurnWidget } from "@/components/dashboard/widgets/customer-chu
 import { TaxSummaryWidget } from "@/components/dashboard/widgets/tax-summary-widget"
 import { QuotesPipelineWidget } from "@/components/dashboard/widgets/quotes-pipeline-widget"
 import { VaultActivityWidget } from "@/components/dashboard/widgets/vault-activity-widget"
+import { TaxDeadlinesWidget } from "@/components/dashboard/widgets/tax-deadlines-widget"
+import { isTaxCalendarSupported } from "@/lib/tax-calendar"
 
 export type WidgetKey =
   | "overdue-invoices"
@@ -53,6 +56,7 @@ export type WidgetKey =
   | "tax-summary"
   | "quotes-pipeline"
   | "vault-activity"
+  | "tax-deadlines"
 
 /**
  * Superset of every widget's own prop shape. Widgets narrower than this
@@ -70,10 +74,18 @@ export type WidgetRenderProps = {
   fxRate: number
 }
 
+/** Org context a widget's availability can depend on. */
+export type WidgetAvailabilityContext = {
+  countryCode: string | null | undefined
+}
+
 type WidgetRegistryEntry = {
   label: string
   icon: Icon
   component: ComponentType<WidgetRenderProps>
+  /** Omit for widgets every org can use. When set and false, the widget is
+   * hidden from both the primary grid and the customize picker. */
+  isAvailable?: (ctx: WidgetAvailabilityContext) => boolean
 }
 
 export const WIDGET_REGISTRY: Record<WidgetKey, WidgetRegistryEntry> = {
@@ -157,12 +169,22 @@ export const WIDGET_REGISTRY: Record<WidgetKey, WidgetRegistryEntry> = {
     icon: VaultIcon,
     component: VaultActivityWidget,
   },
+  "tax-deadlines": {
+    label: "Tax Deadlines",
+    icon: Calendar01Icon,
+    component: TaxDeadlinesWidget,
+    // Country-specific: only where lib/tax-calendar.ts has rules.
+    isAvailable: ({ countryCode }) => isTaxCalendarSupported(countryCode),
+  },
 }
 
 export const WIDGET_KEYS = Object.keys(WIDGET_REGISTRY) as WidgetKey[]
 
-/** The Phase 1 seven widgets — used as the fallback only when a user has
- * no saved preferences row yet. A saved layout that shrinks below
+/** The Phase 1 seven widgets plus Tax Deadlines — used as the fallback only
+ * when a user has no saved preferences row yet. The provider filters this by
+ * availability and caps it at `NUMBER_OF_WIDGETS`, so a supported-country org
+ * gets Tax Deadlines in place of Top Customer and everyone else gets the
+ * original seven. A saved layout that shrinks below
  * `NUMBER_OF_WIDGETS` (because unknown/removed keys were filtered out) is
  * left as-is rather than backfilled — a shorter primary list is fine. */
 export const DEFAULT_PRIMARY_WIDGETS: WidgetKey[] = [
@@ -172,6 +194,7 @@ export const DEFAULT_PRIMARY_WIDGETS: WidgetKey[] = [
   "cash-flow",
   "burn-rate",
   "cash-cushion",
+  "tax-deadlines",
   "top-customer",
 ]
 
@@ -180,4 +203,9 @@ export const NUMBER_OF_WIDGETS = 7
 
 export function isWidgetKey(key: string): key is WidgetKey {
   return Object.prototype.hasOwnProperty.call(WIDGET_REGISTRY, key)
+}
+
+export function isWidgetAvailable(key: WidgetKey, ctx: WidgetAvailabilityContext): boolean {
+  const check = WIDGET_REGISTRY[key].isAvailable
+  return check ? check(ctx) : true
 }
