@@ -13,7 +13,9 @@ export function scopeToOrg(db: SupabaseClient, orgId: string) {
 
   return {
     orgId,
-    select: (table: string, columns = "*") => db.from(table).select(columns).eq("org_id", orgId),
+    // Column lists are plain strings here, so rows come back untyped; each tool
+    // documents the columns it reads.
+    select: (table: string, columns = "*") => db.from(table).select(columns as "*").eq("org_id", orgId),
     insert: <Row extends Record<string, unknown>>(table: string, rows: Row | Row[]) =>
       db.from(table).insert((Array.isArray(rows) ? rows : [rows]).map((row) => ({ ...row, org_id: orgId }))),
     update: (table: string, values: Record<string, unknown>) => {

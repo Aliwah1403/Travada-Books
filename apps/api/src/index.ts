@@ -16,6 +16,7 @@ const app = createApp(
     redis,
     verifyToken: createTokenVerifier(env.SUPABASE_URL),
     analytics,
+    appUrl: env.APP_URL,
   },
   { allowedOrigins: env.ALLOWED_ORIGINS, logRequests: env.NODE_ENV !== "test" },
 )

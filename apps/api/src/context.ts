@@ -8,9 +8,11 @@ import type { ScopedDb } from "./lib/scoped.js"
 // createApp, so tests can swap in fakes without touching env or the network.
 export type Deps = {
   serviceDb: SupabaseClient
-  redis: Pick<Redis, "ping">
+  redis: Pick<Redis, "ping" | "set" | "getDel">
   verifyToken: TokenVerifier
   analytics: Analytics
+  /** The web app's origin, for links in tool results (invoice pages, /i/:token). */
+  appUrl: string
 }
 
 export type AppEnv = {

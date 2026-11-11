@@ -22,6 +22,9 @@ const schema = z.object({
         .filter(Boolean),
     ),
 
+  // The web app, for links in assistant answers. Local: the Vite dev server.
+  APP_URL: z.url().default("http://localhost:5173"),
+
   // Optional: without a key, analytics and error events are skipped.
   POSTHOG_API_KEY: z.string().optional(),
   POSTHOG_HOST: z.url().default("https://eu.i.posthog.com"),

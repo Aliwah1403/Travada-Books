@@ -40,7 +40,8 @@ beforeAll(async () => {
   const jwk = { ...(await exportJWK(keys.publicKey)), kid: "test", alg: "ES256" }
   deps = {
     serviceDb: createFakeDb().db,
-    redis: { ping: async () => "PONG" },
+    redis: { ping: async () => "PONG", set: async () => "OK", getDel: async () => null } as unknown as Deps["redis"],
+    appUrl: "http://localhost:5173",
     verifyToken: createTokenVerifier(SUPABASE_URL, createLocalJWKSet({ keys: [jwk] })),
     analytics: { capture: () => {}, captureError: () => {}, shutdown: async () => {} },
   }

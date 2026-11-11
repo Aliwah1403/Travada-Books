@@ -5,6 +5,7 @@ import { logger } from "hono/logger"
 import { secureHeaders } from "hono/secure-headers"
 import type { AppEnv, Deps } from "./context.js"
 import { health } from "./routes/health.js"
+import { mcp } from "./routes/mcp.js"
 import { me } from "./routes/me.js"
 
 export function createApp(deps: Deps, options: { allowedOrigins: string[]; logRequests?: boolean }) {
@@ -27,6 +28,7 @@ export function createApp(deps: Deps, options: { allowedOrigins: string[]; logRe
 
   app.route("/health", health)
   app.route("/v1/me", me)
+  app.route("/mcp", mcp)
 
   app.notFound((c) => c.json({ error: "Not found" }, 404))
   app.onError((error, c) => {
