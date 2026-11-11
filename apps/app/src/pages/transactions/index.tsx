@@ -35,6 +35,7 @@ import {
   deleteTransaction,
   bulkDeleteTransactions,
   bulkUpdateTransactions,
+  getTransaction,
   getTransactionSummary,
   getTransactionExport,
   triggerTransactionExport,
@@ -46,6 +47,7 @@ import { getDocumentSignedUrl } from "@/lib/queries/vault";
 import { createInboxItem } from "@/lib/queries/inbox";
 import { parseTransactionFilters } from "@/lib/queries/ai";
 import { useAuth } from "@/contexts/auth-context";
+import { trackEvent, LogEvents } from "@/lib/analytics";
 import { useFormatDate } from "@/hooks/use-format-date";
 import { useInvalidateTransactionQueries } from "@/hooks/use-invalidate-transaction-queries";
 
@@ -204,6 +206,7 @@ function mapDbTx(row: DbTransaction): UITransaction {
     categoryId: row.category?.id ?? null,
     categoryName: row.category?.name ?? null,
     categoryColor: row.category?.color ?? null,
+    categoryRulePattern: row.category_rule?.pattern ?? null,
     currency: row.currency,
     status: row.status,
     paymentMode: row.payment_mode,
@@ -248,6 +251,25 @@ export function TransactionsPage() {
   const invalidateTransactionQueries = useInvalidateTransactionQueries();
 
   const [searchParams, setSearchParams] = useSearchParams();
+
+  // Arrived from the weekly missing-receipts email: count it once, then drop the
+  // param (keeping filters) so a reload or shared link doesn't count again.
+  const nudgeTracked = useRef(false);
+  useEffect(() => {
+    if (searchParams.get("from") !== "receipt-nudge") return;
+    if (!nudgeTracked.current) {
+      nudgeTracked.current = true;
+      trackEvent(LogEvents.ReceiptNudgeOpened, {});
+    }
+    setSearchParams(
+      (prev) => {
+        const params = new URLSearchParams(prev);
+        params.delete("from");
+        return params;
+      },
+      { replace: true },
+    );
+  }, [searchParams, setSearchParams]);
   const inputRef = useRef<HTMLInputElement>(null);
   const [input, setInput] = useState("");
   const [search, setSearch] = useState("");
@@ -327,8 +349,37 @@ export function TransactionsPage() {
   const totalCount = data?.count ?? 0;
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
 
+  // ?open=<id> comes from global search. The row may be filtered out or on
+  // another page of the list, so it is loaded by id before the panel opens.
+  const openId = searchParams.get("open");
+  const [linkedTransaction, setLinkedTransaction] = useState<Awaited<ReturnType<typeof getTransaction>> | null>(null);
+  const { data: openedTransaction, isFetched: openedFetched } = useQuery({
+    queryKey: ["transaction-open", openId],
+    queryFn: () => getTransaction(openId!),
+    enabled: !!openId,
+  });
+  useEffect(() => {
+    if (!openId || !openedFetched) return;
+    if (openedTransaction) {
+      setLinkedTransaction(openedTransaction);
+      setEditingId(openedTransaction.id);
+      setSheetOpen(true);
+    }
+    setSearchParams(
+      (prev) => {
+        const params = new URLSearchParams(prev);
+        params.delete("open");
+        return params;
+      },
+      { replace: true },
+    );
+  }, [openId, openedFetched, openedTransaction, setSearchParams]);
+
   const editingTransaction =
-    editingId ? (transactions.find((t) => t.id === editingId) ?? null) : null;
+    editingId
+      ? (transactions.find((t) => t.id === editingId) ??
+        (linkedTransaction?.id === editingId ? linkedTransaction : null))
+      : null;
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => deleteTransaction(id, orgId!),
@@ -605,7 +656,7 @@ export function TransactionsPage() {
 
   if (isError && !data) {
     return (
-      <div className="flex flex-col gap-6 p-6">
+      <div className="flex flex-col gap-6 p-4 md:p-6">
         <ErrorState onRetry={refetch} />
       </div>
     );
@@ -613,7 +664,7 @@ export function TransactionsPage() {
 
   return (
     <FileDropzone
-      className="flex flex-col gap-6 p-6"
+      className="flex flex-col gap-6 p-4 md:p-6"
       onDropFiles={handleDropFiles}
       accept={["image/*", "application/pdf", "text/csv", "application/csv"]}
       maxSize={10 * 1024 * 1024}
@@ -638,9 +689,9 @@ export function TransactionsPage() {
         <div className="flex flex-col gap-2">
           {/* Row 1: controls + actions — always stable, never wraps */}
           <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
+            <div className="flex min-w-0 flex-1 items-center gap-2 md:flex-none">
               {/* Search */}
-              <form onSubmit={handleSearchSubmit} className="relative">
+              <form onSubmit={handleSearchSubmit} className="relative min-w-0 flex-1 md:flex-none">
                 {isAIParsing ?
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
                     <Spinner size={14} />
@@ -654,7 +705,7 @@ export function TransactionsPage() {
                   ref={inputRef}
                   placeholder="Search or filter transactions…"
                   className={cn(
-                    "h-10 w-80 pl-8 text-xs",
+                    "h-10 w-full pl-8 text-xs md:w-80",
                     (input || search) ? "pr-14" : "pr-9",
                   )}
                   value={input}
@@ -696,7 +747,7 @@ export function TransactionsPage() {
               {/* Columns toggle */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" className="h-10 gap-1.5 text-xs">
+                  <Button variant="outline" className="hidden h-10 gap-1.5 text-xs md:inline-flex">
                     <ColumnsThreeCogIcon size={14} />
                     Columns
                   </Button>
@@ -718,16 +769,16 @@ export function TransactionsPage() {
               </DropdownMenu>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex shrink-0 items-center gap-2">
               <Button
                 variant="outline"
-                className="h-10"
+                className="hidden h-10 sm:inline-flex"
                 onClick={() => setImportOpen(true)}
               >
                 Import
               </Button>
               <Button className="h-10" onClick={handleNewTransaction}>
-                + New Transaction
+                + New<span className="hidden sm:inline"> Transaction</span>
               </Button>
             </div>
           </div>

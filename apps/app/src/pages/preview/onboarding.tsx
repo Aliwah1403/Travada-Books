@@ -72,7 +72,7 @@ function PoweredBy() {
   return (
     <p className="mt-8 text-xs text-muted-foreground">
       Powered by{" "}
-      <span className="underline underline-offset-4">Travada Systems</span>
+      <span className="underline underline-offset-4">Travada Books</span>
     </p>
   );
 }

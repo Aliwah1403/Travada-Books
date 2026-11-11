@@ -49,17 +49,17 @@ function AccountNavItem({ label, to, comingSoon }: AccountNavItem) {
 export function AccountLayout() {
   return (
     <div className="flex flex-col">
-      <div className="px-8 pt-8">
+      <div className="hidden px-4 pt-6 md:block md:px-8 md:pt-8">
         <h1 className="text-2xl font-semibold">Account</h1>
       </div>
 
-      <nav className="mt-6 flex items-center gap-6 border-b px-8">
+      <nav className="mt-2 md:mt-6 flex items-center gap-6 overflow-x-auto border-b px-4 whitespace-nowrap [scrollbar-width:none] *:shrink-0 md:px-8">
         {accountNav.map((item) => (
           <AccountNavItem key={item.to} {...item} />
         ))}
       </nav>
 
-      <div className="mx-auto w-full max-w-5xl px-8 py-8">
+      <div className="mx-auto w-full max-w-5xl px-4 py-6 md:px-8 md:py-8">
         <Outlet />
       </div>
     </div>

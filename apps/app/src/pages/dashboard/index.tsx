@@ -206,8 +206,8 @@ export function DashboardPage() {
           onValueChange={(value) => handleTabChange(value as string)}
           className='gap-0'
         >
-          <div className='flex items-start justify-between gap-4 border-b px-6 py-4'>
-            <div>
+          <div className='flex flex-wrap items-center justify-between gap-x-4 gap-y-3 border-b px-4 py-4 md:flex-nowrap md:items-start md:px-6'>
+            <div className='w-full md:w-auto'>
               <h1 className='text-xl leading-tight font-semibold'>
                 {greetingText}
               </h1>

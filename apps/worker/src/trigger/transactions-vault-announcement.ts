@@ -7,7 +7,7 @@ import { buildUnsubscribeUrl } from "../lib/unsubscribe";
 import { TransactionsVaultAnnouncementEmail } from "../emails/transactions-vault-announcement";
 
 // Matches the reply-to used elsewhere in the lifecycle sequence.
-const REPLY_TO = ["curtis.aliwah@travadasys.com", "nate.muliro@travadasys.com"];
+const REPLY_TO = ["curtis.aliwah@travadabooks.com"];
 
 // One-off broadcast to existing customers about Transactions + Vault — not a schedule.
 // Trigger manually once from the Trigger.dev dashboard ("Test" run) or a single REST call,

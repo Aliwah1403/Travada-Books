@@ -74,7 +74,7 @@ Deno.serve(async (req) => {
 
     const { data: template } = await db
       .from("invoice_templates")
-      .select("payment_terms, default_note, default_payment_details")
+      .select("payment_terms, default_note, default_payment_details, invoice_template")
       .eq("org_id", quote.org_id)
       .eq("is_default", true)
       .maybeSingle()
@@ -101,6 +101,7 @@ Deno.serve(async (req) => {
       currency: quote.currency,
       line_items: quote.line_items,
       custom_fields: quote.custom_fields ?? [],
+      invoice_template: template?.invoice_template ?? "classic",
       subtotal: quote.subtotal,
       tax_amount: quote.tax_amount,
       discount: quote.discount,

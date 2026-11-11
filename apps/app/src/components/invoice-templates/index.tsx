@@ -1,12 +1,8 @@
+import { normalizeDocumentTemplate, type ClassicDocumentData } from "@travada-books/pdf"
+import { BandedPreview } from "./banded/preview"
 import { ClassicPreview } from "./classic/preview"
-import type { ClassicDocumentData } from "@travada-books/pdf"
-
-function getPreview(invoiceTemplate: string | null | undefined, data: ClassicDocumentData) {
-  switch (invoiceTemplate) {
-    default:
-      return <ClassicPreview data={data} />
-  }
-}
+import { LedgerPreview } from "./ledger/preview"
+import { MonoPreview } from "./mono/preview"
 
 export function InvoicePreview({
   data,
@@ -15,5 +11,14 @@ export function InvoicePreview({
   data: ClassicDocumentData
   invoiceTemplate?: string | null
 }) {
-  return getPreview(invoiceTemplate, data)
+  switch (normalizeDocumentTemplate(invoiceTemplate ?? data.template)) {
+    case "ledger":
+      return <LedgerPreview data={data} />
+    case "banded":
+      return <BandedPreview data={data} />
+    case "mono":
+      return <MonoPreview data={data} />
+    default:
+      return <ClassicPreview data={data} />
+  }
 }

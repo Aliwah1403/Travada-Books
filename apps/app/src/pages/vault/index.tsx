@@ -70,6 +70,7 @@ import {
   deleteDocument,
   bulkDeleteDocuments,
   renameDocument,
+  getDocument,
   getDocumentSignedUrl,
   uploadDocument,
   setDocumentFolder,
@@ -978,6 +979,30 @@ export function VaultPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [renamingDoc, setRenamingDoc] = useState<VaultDocument | null>(null);
   const [previewDoc, setPreviewDoc] = useState<VaultDocument | null>(null);
+
+  // ?open=<id> comes from global search; the document may live in another
+  // folder, so it is loaded by id rather than looked up in the current list.
+  const openId = searchParams.get("open");
+  useEffect(() => {
+    if (!openId) return;
+    let cancelled = false;
+    getDocument(openId)
+      .then((doc) => {
+        if (!cancelled && doc) setPreviewDoc(doc);
+      })
+      .catch(() => toast.error("Couldn't open that document"));
+    setSearchParams(
+      (prev) => {
+        const params = new URLSearchParams(prev);
+        params.delete("open");
+        return params;
+      },
+      { replace: true },
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [openId, setSearchParams]);
   const [createFolderOpen, setCreateFolderOpen] = useState(false);
   const [txSheetOpen, setTxSheetOpen] = useState(false);
   const [txInitialData, setTxInitialData] = useState<Parameters<typeof TransactionSheet>[0]["initialData"]>(undefined);
@@ -1468,7 +1493,7 @@ export function VaultPage() {
             <Breadcrumb path={folderPath} onNavigateTo={navigateTo} />
           ) : (
             <>
-              <h1 className='text-lg font-semibold'>Vault</h1>
+              <h1 className='hidden text-lg font-semibold md:block'>Vault</h1>
               <p className='text-xs text-muted-foreground'>
                 Secure document storage for your organization
               </p>

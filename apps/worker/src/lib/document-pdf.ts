@@ -49,7 +49,7 @@ type RenderOpts = { resolveLogo?: LogoResolver };
 // ── Invoice ──────────────────────────────────────────────────────────────
 
 const INVOICE_PDF_SELECT =
-  "id, org_id, user_id, token, invoice_number, currency, issue_date, due_date, line_items, subtotal, tax_amount, discount, total, note, payment_details, from_details, customer_details, customer_name, custom_fields, date_format, show_tax_column, show_qty_column, status";
+  "id, org_id, user_id, token, invoice_number, currency, issue_date, due_date, line_items, subtotal, tax_amount, discount, total, note, payment_details, from_details, customer_details, customer_name, custom_fields, date_format, show_tax_column, show_qty_column, status, invoice_template";
 
 export type InvoiceForPdf = InvoicePdfRow & {
   id: string;
@@ -84,7 +84,7 @@ export async function renderInvoiceBuffer(row: InvoiceForPdf, opts: RenderOpts =
 // ── Quote ────────────────────────────────────────────────────────────────
 
 const QUOTE_PDF_SELECT =
-  "id, org_id, user_id, token, quote_number, currency, issue_date, valid_until, line_items, subtotal, tax_amount, discount, total, note, from_details, customer_details, customer_name, custom_fields";
+  "id, org_id, user_id, token, quote_number, currency, issue_date, valid_until, line_items, subtotal, tax_amount, discount, total, note, from_details, customer_details, customer_name, custom_fields, quote_template";
 
 export type QuoteForPdf = QuotePdfRow & {
   id: string;

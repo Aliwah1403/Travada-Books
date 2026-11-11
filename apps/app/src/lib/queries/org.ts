@@ -7,6 +7,7 @@ export async function updateOrg(
     email?: string | null
     phone?: string | null
     tax_id?: string | null
+    tax_id_label?: string | null
     address_line1?: string | null
     base_currency?: string
     logo_url?: string | null

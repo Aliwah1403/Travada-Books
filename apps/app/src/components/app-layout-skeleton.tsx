@@ -1,4 +1,6 @@
 import { Separator } from "@travada-books/ui/components/separator";
+import { cn } from "@travada-books/ui/lib/utils";
+import { readSidebarCollapsed } from "@/components/sidebar/use-sidebar-collapsed";
 import { useTheme } from "@/components/theme-provider";
 import LogoGreen from "@/assets/Logo-Green.svg";
 import LogoLime from "@/assets/Logo-Lime.svg";
@@ -6,14 +8,20 @@ import LogoLime from "@/assets/Logo-Lime.svg";
 export function AppLayoutSkeleton() {
   const { theme } = useTheme();
   const logo = theme === "dark" ? LogoLime : LogoGreen;
+  const collapsed = readSidebarCollapsed();
 
   return (
     <div className='flex h-screen overflow-hidden'>
-      <aside className='flex h-screen w-56 shrink-0 flex-col border-r bg-background'>
+      <aside
+        className={cn(
+          "hidden h-screen shrink-0 flex-col border-r bg-background md:flex",
+          collapsed ? "w-14" : "w-56",
+        )}
+      >
         {/* Logo */}
-        <div className='flex h-14 items-center gap-2 px-4'>
+        <div className={cn("flex h-14 items-center gap-2", collapsed ? "justify-center" : "px-4")}>
           <img src={logo} alt='Travada Books' className='size-6' />
-          <span className='text-sm font-semibold'>Travada Books</span>
+          {!collapsed && <span className='text-sm font-semibold'>Travada Books</span>}
         </div>
 
         <Separator />

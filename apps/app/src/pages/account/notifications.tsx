@@ -113,6 +113,30 @@ const groups: NotificationGroup[] = [
     ],
   },
   {
+    label: "Transactions",
+    events: [
+      {
+        id: "transactions.missing_receipts",
+        label: "Missing receipts",
+        description: "A weekly list of expenses with no receipt attached.",
+        channels: ["email"],
+        defaults: { email: true },
+      },
+    ],
+  },
+  {
+    label: "Insights",
+    events: [
+      {
+        id: "insights.weekly",
+        label: "Weekly summary",
+        description: "A plain-language summary of your last week, every Monday.",
+        channels: ["email"],
+        defaults: { email: true },
+      },
+    ],
+  },
+  {
     label: "Inbox",
     events: [
       {

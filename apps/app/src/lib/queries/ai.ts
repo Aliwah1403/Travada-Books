@@ -1,5 +1,16 @@
 import { supabase } from "@/lib/supabase"
 
+// A rate-limited edge function explains itself in the response body, which
+// supabase-js hides behind a generic "non-2xx" message.
+async function throwInvokeError(error: unknown): Promise<never> {
+  const response = (error as { context?: Response }).context
+  if (response?.status === 429) {
+    const body = await response.json().catch(() => null) as { error?: string } | null
+    throw new Error(body?.error ?? "Too many requests. Please try again in a few minutes.")
+  }
+  throw error
+}
+
 export interface CsvMapping {
   date?: string
   description?: string
@@ -34,7 +45,7 @@ export async function suggestCsvMapping(
   const { data, error } = await supabase.functions.invoke("suggest-csv-mapping", {
     body: { headers, sampleRows },
   })
-  if (error) throw error
+  if (error) await throwInvokeError(error)
   return data as CsvMapping
 }
 
@@ -44,7 +55,7 @@ export async function extractDocumentData(
   const { data, error } = await supabase.functions.invoke("extract-document-data", {
     body: source,
   })
-  if (error) throw error
+  if (error) await throwInvokeError(error)
   return data as ExtractedDocument
 }
 
@@ -70,7 +81,7 @@ export async function importTransactions(
 
 export async function classifyDocument(args: { filePath: string }): Promise<{ runId: string }> {
   const { data, error } = await supabase.functions.invoke("classify-document", { body: args })
-  if (error) throw error
+  if (error) await throwInvokeError(error)
   return data as { runId: string }
 }
 
@@ -96,7 +107,7 @@ export async function parseTransactionFilters(args: {
   const { data, error } = await supabase.functions.invoke("parse-transaction-filters", {
     body: args,
   })
-  if (error) throw error
+  if (error) await throwInvokeError(error)
   return data as ParsedTransactionFilters
 }
 
@@ -118,7 +129,7 @@ export async function parseInvoiceFilters(args: {
   timezone?: string
 }): Promise<ParsedInvoiceFilters> {
   const { data, error } = await supabase.functions.invoke("parse-invoice-filters", { body: args })
-  if (error) throw error
+  if (error) await throwInvokeError(error)
   return data as ParsedInvoiceFilters
 }
 
@@ -139,7 +150,7 @@ export async function parseQuoteFilters(args: {
   timezone?: string
 }): Promise<ParsedQuoteFilters> {
   const { data, error } = await supabase.functions.invoke("parse-quote-filters", { body: args })
-  if (error) throw error
+  if (error) await throwInvokeError(error)
   return data as ParsedQuoteFilters
 }
 
@@ -155,7 +166,7 @@ export async function parseVaultFilters(args: {
   timezone?: string
 }): Promise<ParsedVaultFilters> {
   const { data, error } = await supabase.functions.invoke("parse-vault-filters", { body: args })
-  if (error) throw error
+  if (error) await throwInvokeError(error)
   return data as ParsedVaultFilters
 }
 
@@ -166,6 +177,6 @@ export async function categorizeTransactions(
   const { data, error } = await supabase.functions.invoke("categorize-transactions", {
     body: { rows, categoryNames },
   })
-  if (error) throw error
+  if (error) await throwInvokeError(error)
   return data as Record<string, string>
 }

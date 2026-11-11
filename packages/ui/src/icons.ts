@@ -38,6 +38,9 @@ import {
   PencilEdit01Icon as PencilEdit01Svg,
   PlusSignIcon as PlusSignSvg,
   SafeIcon as SafeSvg,
+  PanelLeftIcon as PanelLeftSvg,
+  ArrowUp01Icon as ArrowUp01Svg,
+  ArrowTurnBackwardIcon as ArrowTurnBackwardSvg,
   Search01Icon as Search01Svg,
   Setting06Icon as Setting06Svg,
   Sun01Icon as Sun01Svg,
@@ -149,6 +152,9 @@ export const Notification01Icon = make(Notification01Svg);
 export const PencilEdit01Icon = make(PencilEdit01Svg);
 export const PlusSignIcon = make(PlusSignSvg);
 export const SafeIcon = make(SafeSvg);
+export const PanelLeftIcon = make(PanelLeftSvg);
+export const ArrowUp01Icon = make(ArrowUp01Svg);
+export const ArrowTurnBackwardIcon = make(ArrowTurnBackwardSvg);
 export const Search01Icon = make(Search01Svg);
 export const Setting06Icon = make(Setting06Svg);
 export const Sun01Icon = make(Sun01Svg);

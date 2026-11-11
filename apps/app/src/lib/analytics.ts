@@ -21,6 +21,19 @@ export const LogEvents = {
   CustomerDeleted:  { event: "customer_deleted",   channel: "customer" },
   StatementCreated: { event: "statement_created",  channel: "statement" },
   SettingsUpdated:  { event: "settings_updated",   channel: "settings" },
+  BillCreated:      { event: "bill_created",       channel: "bill" },
+  BillEdited:       { event: "bill_edited",        channel: "bill" },
+  BillMarkedPaid:   { event: "bill_marked_paid",   channel: "bill" },
+  BillMarkedUnpaid: { event: "bill_marked_unpaid", channel: "bill" },
+  BillDeleted:      { event: "bill_deleted",       channel: "bill" },
+  BillFileOpened:   { event: "bill_file_opened",   channel: "bill" },
+  CategoryRuleCreated: { event: "category_rule_created", channel: "transaction" },
+  CategoryRuleDeleted: { event: "category_rule_deleted", channel: "transaction" },
+  CategoryRulePromptShown: { event: "category_rule_prompt_shown", channel: "transaction" },
+  ReceiptNudgeOpened: { event: "receipt_nudge_opened", channel: "transaction" },
+  InsightViewed: { event: "insight_viewed", channel: "insight" },
+  InsightActionClicked: { event: "insight_action_clicked", channel: "insight" },
+  InsightEmailOpened: { event: "insight_email_opened", channel: "insight" },
 } as const
 
 type LogEvent = (typeof LogEvents)[keyof typeof LogEvents]

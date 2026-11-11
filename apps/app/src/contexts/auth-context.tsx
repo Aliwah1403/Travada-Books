@@ -32,6 +32,7 @@ export type UserOrg = {
   email: string | null
   phone: string | null
   tax_id: string | null
+  tax_id_label: string | null
   zip: string | null
   opening_balance: number | null
   opening_balance_date: string | null
@@ -94,7 +95,7 @@ async function fetchUserData(userId: string): Promise<FetchResult> {
       .maybeSingle(),
     supabase
       .from("organization_members")
-      .select("role, organizations(id, name, logo_url, base_currency, address_line1, address_line2, city, state, country_code, email, phone, tax_id, zip, opening_balance, opening_balance_date, inbox_id)")
+      .select("role, organizations(id, name, logo_url, base_currency, address_line1, address_line2, city, state, country_code, email, phone, tax_id, tax_id_label, zip, opening_balance, opening_balance_date, inbox_id)")
       .eq("user_id", userId)
       .eq("status", "active"),
   ])

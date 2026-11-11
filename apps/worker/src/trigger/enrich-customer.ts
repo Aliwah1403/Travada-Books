@@ -269,7 +269,7 @@ export const enrichCustomerTask = task({
 
       // 4. Phase 2: Structured extraction
       const { object: extracted } = await generateObject({
-        model: google("gemini-2.5-flash"),
+        model: google("gemini-3.5-flash-lite"),
         schema: enrichmentSchema,
         prompt: buildExtractionPrompt(customer.name, customer.website ?? domain ?? "", researchText),
       });

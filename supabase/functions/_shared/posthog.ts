@@ -47,3 +47,24 @@ export function trackAIGeneration(props: AIGenerationProps): void {
     body: JSON.stringify(payload),
   }).catch(() => {/* intentionally swallowed */})
 }
+
+// Product events from edge functions. Awaited by callers because an isolate can
+// be torn down once the response is sent. Analytics never fails the request.
+export async function trackServerEvent(
+  distinctId: string,
+  event: string,
+  properties: Record<string, unknown> = {},
+): Promise<void> {
+  const apiKey = Deno.env.get("POSTHOG_API_KEY")
+  if (!apiKey) return
+
+  try {
+    await fetch("https://eu.i.posthog.com/capture/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ api_key: apiKey, event, distinct_id: distinctId, properties }),
+    })
+  } catch {
+    // intentionally swallowed
+  }
+}

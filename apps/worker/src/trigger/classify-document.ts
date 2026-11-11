@@ -136,7 +136,7 @@ export const classifyDocumentTask = task({
           ];
 
       const { object: result } = await generateObject({
-        model: google("gemini-2.5-flash"),
+        model: google("gemini-3.5-flash-lite"),
         schema: classifierSchema,
         temperature: 0.1,
         messages: [{ role: "user", content: userContent }],

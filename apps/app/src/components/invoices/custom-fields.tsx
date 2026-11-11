@@ -120,10 +120,10 @@ export function CustomFieldsPreview({ fields }: { fields: CustomField[] }) {
   if (visible.length === 0) return null;
 
   return (
-    <div className="grid grid-cols-2 gap-x-8 gap-y-1 text-xs">
+    <div className="grid grid-cols-1 gap-x-8 gap-y-1 text-xs sm:grid-cols-2">
       {visible.map((field) => (
-        <div key={field.id} className="flex justify-between gap-3">
-          <span className="text-muted-foreground">{field.label}:</span>
+        <div key={field.id} className="flex min-w-0 justify-between gap-3">
+          <span className="max-w-1/2 shrink-0 text-muted-foreground">{field.label}:</span>
           <span className="min-w-0 text-right font-medium break-words">{field.value}</span>
         </div>
       ))}

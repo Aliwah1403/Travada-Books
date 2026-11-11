@@ -135,6 +135,24 @@ export function Steps({ items }: { items: { title: string; body: string }[] }) {
   )
 }
 
+/** Bulleted list built from table rows, since list markers render unevenly across email clients. */
+export function Bullets({ items }: { items: string[] }) {
+  return (
+    <Section style={{ margin: "0 0 16px" }}>
+      {items.map((item) => (
+        <Row key={item} style={{ marginBottom: 6 }}>
+          <Column style={{ width: 20, verticalAlign: "top" }}>
+            <Text style={{ margin: 0, fontSize: 14, lineHeight: "1.7", color: colors.faint, fontFamily: font }}>•</Text>
+          </Column>
+          <Column style={{ verticalAlign: "top" }}>
+            <Text style={{ margin: 0, fontSize: 14, lineHeight: "1.7", color: colors.body, fontFamily: font }}>{item}</Text>
+          </Column>
+        </Row>
+      ))}
+    </Section>
+  )
+}
+
 export function Cta({ href, children }: { href: string; children: React.ReactNode }) {
   return <OutlinedButton href={href}>{children}</OutlinedButton>
 }

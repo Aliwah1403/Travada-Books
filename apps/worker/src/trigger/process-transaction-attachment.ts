@@ -113,7 +113,7 @@ async function extractWithMistral(fileData: Uint8Array, contentType: string): Pr
 
 async function extractWithGemini(fileData: Uint8Array, contentType: string): Promise<ExtractionResult> {
   const google = createGoogleGenerativeAI({ apiKey: process.env.GOOGLE_GENERATIVE_AI_API_KEY! });
-  return runExtraction(google("gemini-2.5-flash"), fileData, contentType);
+  return runExtraction(google("gemini-3.5-flash-lite"), fileData, contentType);
 }
 
 function hasAnyTaxData(result: ExtractionResult): boolean {

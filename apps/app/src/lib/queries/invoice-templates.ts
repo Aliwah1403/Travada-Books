@@ -1,3 +1,4 @@
+import { normalizeDocumentTemplate } from "@travada-books/pdf"
 import { supabase } from "@/lib/supabase"
 import type { InvoiceSettings } from "@/components/invoices/invoice-settings-sheet"
 import { normalizePartialRules } from "@/lib/partial-payments"
@@ -96,17 +97,9 @@ export async function upsertOrgInvoiceTemplate(
   }
 }
 
-// Only "classic" renders today (see invoice-settings-sheet.tsx). Normalize
-// any other saved id — from before the other templates were removed, or a
-// stale value — so the UI still shows Classic selected.
-const KNOWN_INVOICE_TEMPLATES = new Set(["classic"])
-
 function rowToSettings(row: InvoiceTemplateRow): InvoiceSettings {
   return {
-    invoiceTemplate:
-      row.invoice_template && KNOWN_INVOICE_TEMPLATES.has(row.invoice_template)
-        ? row.invoice_template
-        : "classic",
+    invoiceTemplate: normalizeDocumentTemplate(row.invoice_template),
     dateFormat: (row.date_format as InvoiceSettings["dateFormat"]) ?? "DD/MM/YYYY",
     paymentTerms: row.payment_terms ?? null,
     defaultNote: row.default_note ?? "",

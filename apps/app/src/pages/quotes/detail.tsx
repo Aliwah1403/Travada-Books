@@ -57,7 +57,7 @@ import {
 } from "@/lib/document-snapshots";
 import { supabase } from "@/lib/supabase";
 import type { Invoice } from "@/lib/queries/invoices";
-import { InvoicePdf, buildQuoteDocumentData } from "@travada-books/pdf";
+import { InvoicePdf, buildQuoteDocumentData, taxIdLine } from "@travada-books/pdf";
 import { downloadPdf, urlToDataUrl } from "@/lib/pdf-download";
 import { parseCustomFields } from "@/lib/custom-fields";
 import { CustomFieldsPreview } from "@/components/invoices/custom-fields";
@@ -343,6 +343,7 @@ export function QuoteDetailPage() {
           phone: from["phone"] ?? org?.phone,
           email: from["email"] ?? org?.email,
           tax_id: from["tax_id"] ?? org?.tax_id,
+          tax_id_label: from["tax_id"] ? from["tax_id_label"] : org?.tax_id_label,
         },
         customer: {
           name: customerSnap["name"] ?? customer?.name ?? quote.customer_name,
@@ -478,8 +479,8 @@ export function QuoteDetailPage() {
   return (
     <div className='flex h-full flex-col overflow-hidden'>
       {/* Page header */}
-      <div className='flex shrink-0 items-center justify-between border-b px-6 py-3'>
-        <div className='flex items-center gap-3'>
+      <div className='flex shrink-0 flex-wrap items-center justify-between gap-2 border-b px-4 py-3 md:flex-nowrap md:px-6'>
+        <div className='flex min-w-0 items-center gap-3'>
           <Button
             variant='ghost'
             size='icon-sm'
@@ -487,12 +488,12 @@ export function QuoteDetailPage() {
           >
             <ArrowLeft01Icon size={14} />
           </Button>
-          <span className='font-mono text-sm font-medium'>
+          <span className='whitespace-nowrap font-mono text-sm font-medium'>
             {quote.quote_number ?? "—"}
           </span>
           <QuoteStatusBadge status={quote.status} />
         </div>
-        <div className='flex items-center gap-2'>
+        <div className='-mx-4 flex w-[calc(100%+2rem)] items-center gap-2 overflow-x-auto px-4 [scrollbar-width:none] *:shrink-0 md:mx-0 md:w-auto md:overflow-visible md:px-0'>
           <Button variant='outline' className='gap-1.5' onClick={handleDownloadPdfClick} disabled={isPdfDownloading}>
             <Download01Icon size={13} />
             {isPdfDownloading ? "Generating…" : "Download PDF"}
@@ -679,7 +680,7 @@ export function QuoteDetailPage() {
                   )}
                   {org?.tax_id && (
                     <p className='text-xs text-muted-foreground'>
-                      PIN: {org.tax_id}
+                      {taxIdLine(org)}
                     </p>
                   )}
                 </div>

@@ -1,5 +1,6 @@
 import type { ReactNode } from "react"
-import { useQuery } from "@tanstack/react-query"
+import { Link } from "react-router"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 import {
   DropdownMenu,
@@ -20,6 +21,10 @@ import {
   MailBlock01Icon,
   Globe02Icon,
 } from "@travada-books/ui/icons"
+import { Button } from "@travada-books/ui/components/button"
+import { useAuth } from "@/contexts/auth-context"
+import { trackEvent, LogEvents } from "@/lib/analytics"
+import { createBillFromInboxItem, getBillForInboxItem } from "@/lib/queries/bills"
 import { formatCurrency } from "@/lib/format"
 import { getInboxSignedUrl, type InboxItem } from "@/lib/queries/inbox"
 import { InboxStatus } from "@/components/inbox/inbox-status"
@@ -43,9 +48,9 @@ const TYPE_LABEL: Record<NonNullable<InboxItem["type"]>, string> = {
 
 function Field({ label, value }: { label: string; value: ReactNode }) {
   return (
-    <div>
+    <div className="min-w-0">
       <p className="text-muted-foreground">{label}</p>
-      <div className="mt-1 font-medium">{value}</div>
+      <div className="mt-1 font-medium [overflow-wrap:anywhere]">{value}</div>
     </div>
   )
 }
@@ -95,6 +100,54 @@ function InboxPreview({
       <File01Icon size={32} />
       <p className="text-xs">No preview available</p>
     </div>
+  )
+}
+
+function BillAction({ item }: { item: InboxItem }) {
+  const { orgId, user } = useAuth()
+  const queryClient = useQueryClient()
+  const { data: bill, isLoading } = useQuery({
+    queryKey: ["bill-for-inbox", item.id],
+    queryFn: () => getBillForInboxItem(item.id),
+  })
+  const add = useMutation({
+    mutationFn: () => createBillFromInboxItem(item, user?.id ?? null),
+    onSuccess: () => {
+      trackEvent(LogEvents.BillCreated, {
+        source: "inbox_item",
+        has_due_date: false,
+        currency: item.currency,
+      })
+      queryClient.invalidateQueries({ queryKey: ["bill-for-inbox", item.id] })
+      queryClient.invalidateQueries({ queryKey: ["bills", orgId] })
+    },
+  })
+
+  if (isLoading) return null
+  if (bill) {
+    return (
+      <Link to="/bills" className="text-xs font-medium underline underline-offset-2">
+        On your bills
+      </Link>
+    )
+  }
+  if (item.amount == null || !item.currency) return null
+  return (
+    <Button
+      variant="outline"
+      size="sm"
+      className="w-fit text-xs"
+      disabled={add.isPending}
+      onClick={() =>
+        toast.promise(add.mutateAsync(), {
+          loading: "Adding to bills…",
+          success: "Added to bills",
+          error: (e) => (e instanceof Error ? e.message : "Couldn't add to bills."),
+        })
+      }
+    >
+      Add to bills
+    </Button>
   )
 }
 
@@ -261,6 +314,8 @@ export function InboxDetails({
         </div>
 
         <div className="border-t" />
+
+        <BillAction item={item} />
 
         <InboxActions item={item} />
       </div>

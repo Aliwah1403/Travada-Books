@@ -851,6 +851,12 @@ export function TransactionSheet({
                     </Command>
                   </PopoverContent>
                 </Popover>
+                {transaction?.categoryRulePattern &&
+                  categoryId === transaction.categoryId && (
+                    <p className='text-[11px] text-muted-foreground truncate'>
+                      Set by rule: "{transaction.categoryRulePattern}"
+                    </p>
+                  )}
               </div>
 
               <div className='flex flex-col gap-1.5'>

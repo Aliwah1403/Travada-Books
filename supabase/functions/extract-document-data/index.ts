@@ -2,6 +2,7 @@ import OpenAI from "npm:openai@4"
 import { createGoogleGenerativeAI } from "npm:@ai-sdk/google"
 import { generateObject } from "npm:ai"
 import { getCallerOrgId } from "../_shared/auth.ts"
+import { rateLimitResponse } from "../_shared/rate-limit.ts"
 import { db } from "../_shared/db.ts"
 import { createExtractDocumentPrompt, extractDocumentSchema, type ExtractedDocument } from "../_shared/prompts/extract-document.ts"
 import { trackAIGeneration } from "../_shared/posthog.ts"
@@ -56,7 +57,7 @@ async function extractWithGemini(
   prompt: string,
 ): Promise<ExtractedDocument> {
   const google = createGoogleGenerativeAI({ apiKey: Deno.env.get("GOOGLE_GENERATIVE_AI_API_KEY")! })
-  const model = google("gemini-2.5-flash")
+  const model = google("gemini-3.5-flash-lite")
 
   const content =
     contentType === "application/pdf"
@@ -85,6 +86,8 @@ Deno.serve(async (req) => {
   try {
     const auth = await getCallerOrgId(req)
     if ("error" in auth) return new Response(auth.error.body, { status: auth.error.status, headers: corsHeaders })
+    const limited = await rateLimitResponse("ai", auth.userId, corsHeaders)
+    if (limited) return limited
 
     const { orgId } = auth
     const body = await req.json() as {
@@ -180,7 +183,7 @@ Deno.serve(async (req) => {
 
     trackAIGeneration({
       distinctId: orgId,
-      model: isPdf || !hasUsefulData(extracted) ? "gemini-2.5-flash" : "gpt-4o",
+      model: isPdf || !hasUsefulData(extracted) ? "gemini-3.5-flash-lite" : "gpt-4o",
       provider: isPdf ? "google" : "openai",
       functionId: "extract_document_data",
       inputTokens,

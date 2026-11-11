@@ -12,6 +12,17 @@ export {
 } from "./theme-context";
 
 export { normalizeCustomFields } from "./custom-fields";
+export {
+  addressLines,
+  contactLines,
+  DOCUMENT_TEMPLATES,
+  formatMoney,
+  getDocumentView,
+  normalizeDocumentTemplate,
+  TAX_ID_LABELS,
+  taxIdLine,
+  type DocumentTemplateId,
+} from "./document-view";
 
 export type {
   ClassicDocumentData,

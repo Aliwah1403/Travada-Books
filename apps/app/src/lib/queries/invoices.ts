@@ -196,9 +196,10 @@ const INVOICE_SELECT =
 
 // Excludes owner identifiers and private fields for unauthenticated token lookups
 const INVOICE_PUBLIC_SELECT =
-  "id, token, invoice_number, status, issue_date, due_date, currency, line_items, subtotal, tax_amount, discount, total, amount_paid, customer_details, from_details, custom_fields, note, payment_details, customer_name, accept_payments, date_format, show_tax_column, show_qty_column"
+  "id, token, invoice_number, status, issue_date, due_date, currency, line_items, subtotal, tax_amount, discount, total, amount_paid, customer_details, from_details, custom_fields, note, payment_details, customer_name, accept_payments, date_format, show_tax_column, show_qty_column, invoice_template"
 
 export type PublicInvoice = {
+  invoice_template: string | null
   id: string
   token: string
   invoice_number: string | null

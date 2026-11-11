@@ -43,7 +43,7 @@ export function AuthLayout() {
               target="_blank"
               rel="noreferrer"
             >
-              Travada Systems
+              Travada Books
             </a>
           </p>
         </div>

@@ -12,6 +12,7 @@ export interface QuoteDocumentDataRow {
   discount: number | null;
   total: number | null;
   note: string | null;
+  quote_template?: string | null;
 }
 
 export interface BuildQuoteDocumentDataOpts {
@@ -43,5 +44,6 @@ export function buildQuoteDocumentData(
     note: quote.note,
     customFields: opts.customFields ?? null,
     publicUrl: opts.publicUrl ?? null,
+    template: quote.quote_template ?? null,
   };
 }

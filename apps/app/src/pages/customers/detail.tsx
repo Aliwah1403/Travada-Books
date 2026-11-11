@@ -218,8 +218,8 @@ export function CustomerDetailPage() {
   return (
     <div className='flex h-full flex-col overflow-hidden'>
       {/* Header bar */}
-      <div className='flex shrink-0 items-center justify-between border-b px-6 py-3'>
-        <div className='flex items-center gap-3'>
+      <div className='flex shrink-0 flex-wrap items-center justify-between gap-2 border-b px-4 py-3 md:flex-nowrap md:px-6'>
+        <div className='flex min-w-0 items-center gap-3'>
           <Button
             variant='ghost'
             size='icon-sm'
@@ -227,9 +227,9 @@ export function CustomerDetailPage() {
           >
             <ArrowLeft01Icon size={14} />
           </Button>
-          <span className='text-sm font-medium'>{customer.name}</span>
+          <span className='truncate text-sm font-medium'>{customer.name}</span>
         </div>
-        <div className='flex items-center gap-2'>
+        <div className='-mx-4 flex w-[calc(100%+2rem)] items-center gap-2 overflow-x-auto px-4 [scrollbar-width:none] *:shrink-0 md:mx-0 md:w-auto md:overflow-visible md:px-0'>
           <Button
             variant='outline'
             className='gap-1.5'
@@ -317,7 +317,7 @@ export function CustomerDetailPage() {
       </div>
 
       {/* KPI row */}
-      <div className='grid shrink-0 grid-cols-4 gap-4 border-b p-4'>
+      <div className='flex snap-x snap-mandatory gap-3 overflow-x-auto [scrollbar-width:none] *:min-w-[72%] *:snap-start md:grid md:gap-4 md:overflow-visible md:*:min-w-0 shrink-0 scroll-px-4 border-b p-4 md:grid-cols-4'>
         <Card>
           <CardContent className='p-4'>
             <div className='flex flex-col justify-between gap-3'>

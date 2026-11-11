@@ -6,7 +6,7 @@ import { Resend } from "resend";
 import { supabase } from "../lib/supabase";
 import { InvoiceSentEmail } from "../emails/invoice-sent";
 
-const FROM_EMAIL = process.env.FROM_EMAIL ?? "noreply@mail.travadasys.com";
+const FROM_EMAIL = process.env.FROM_EMAIL ?? "noreply@mail.travadabooks.com";
 const APP_URL = "https://app.travadabooks.com";
 
 export const scheduledSend = schemaTask({

@@ -3,6 +3,7 @@ import { render } from "npm:@react-email/render@1"
 import { resend, FROM_EMAIL } from "../_shared/resend.ts"
 import { db } from "../_shared/db.ts"
 import { getCallerOrgId } from "../_shared/auth.ts"
+import { rateLimitResponse } from "../_shared/rate-limit.ts"
 import { QuoteSentEmail } from "../_shared/emails/quote-sent.tsx"
 import { downloadPdfAttachment } from "../_shared/pdf-attachment.ts"
 import { setEmailStatus } from "../_shared/email-status.ts"
@@ -131,6 +132,8 @@ Deno.serve(async (req) => {
     if (!calledByWorker) {
       const auth = await getCallerOrgId(req)
       if ("error" in auth) return new Response(auth.error.body, { status: auth.error.status, headers: corsHeaders })
+      const limited = await rateLimitResponse("email", auth.userId, corsHeaders)
+      if (limited) return limited
       orgId = auth.orgId
     }
 

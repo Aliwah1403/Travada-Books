@@ -454,7 +454,7 @@ export function InvoicesPage() {
 
   if (isLoading && !data) {
     return (
-      <div className="flex flex-col gap-6 p-6">
+      <div className="flex flex-col gap-6 p-4 md:p-6">
         <SkeletonRows />
       </div>
     );
@@ -462,14 +462,14 @@ export function InvoicesPage() {
 
   if (isError && !data) {
     return (
-      <div className="flex flex-col gap-6 p-6">
+      <div className="flex flex-col gap-6 p-4 md:p-6">
         <ErrorState onRetry={refetch} />
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col gap-6 p-6">
+    <div className="flex flex-col gap-6 p-4 md:p-6">
       <InvoiceStats {...stats} />
 
       {/* Toolbar */}
@@ -483,8 +483,8 @@ export function InvoicesPage() {
         <div className="flex flex-col gap-2">
           {/* Row 1: search + filter + actions */}
           <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
-              <form onSubmit={handleSearchSubmit} className="relative">
+            <div className="flex min-w-0 flex-1 items-center gap-2 md:flex-none">
+              <form onSubmit={handleSearchSubmit} className="relative min-w-0 flex-1 md:flex-none">
                 {isAIParsing ? (
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
                     <Spinner size={14} />
@@ -499,7 +499,7 @@ export function InvoicesPage() {
                   ref={inputRef}
                   placeholder="Search or filter invoices…"
                   className={cn(
-                    "h-10 w-80 pl-8 text-xs",
+                    "h-10 w-full pl-8 text-xs md:w-80",
                     (input || search) ? "pr-14" : "pr-9",
                   )}
                   value={input}
@@ -540,7 +540,7 @@ export function InvoicesPage() {
               {/* Columns toggle */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" className="h-10 gap-1.5 text-xs">
+                  <Button variant="outline" className="hidden h-10 gap-1.5 text-xs md:inline-flex">
                     <ColumnsThreeCogIcon size={14} />
                     Columns
                   </Button>
@@ -563,7 +563,7 @@ export function InvoicesPage() {
             </div>
 
             <Button className="h-10" onClick={() => navigate("/invoices/create")}>
-              + New Invoice
+              + New<span className="hidden sm:inline"> Invoice</span>
             </Button>
           </div>
 

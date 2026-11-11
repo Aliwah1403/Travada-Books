@@ -1,3 +1,5 @@
+import { DOCUMENT_TEMPLATES } from "@travada-books/pdf";
+import { TemplateThumbnail } from "@/components/invoice-templates/thumbnail";
 import { Switch as SwitchPrimitive } from "@base-ui/react/switch";
 import {
   Sheet,
@@ -83,32 +85,6 @@ const PAYMENT_TERMS_OPTIONS = [
   { value: "30", label: "Net 30" },
   { value: "60", label: "Net 60" },
 ];
-
-const templates = [{ id: "classic", label: "Classic" }];
-
-function TemplateThumbnail({ id }: { id: string }) {
-  if (id === "classic") {
-    return (
-      <div className='flex h-full flex-col gap-1 p-1.5'>
-        <div className='flex items-start justify-between'>
-          <div className='size-3 rounded-sm bg-muted-foreground/30' />
-          <div className='h-1.5 w-8 rounded bg-muted-foreground/20' />
-        </div>
-        <div className='mt-0.5 h-px w-full bg-muted-foreground/15' />
-        <div className='flex flex-col gap-0.5'>
-          <div className='h-1 w-10 rounded bg-muted-foreground/20' />
-          <div className='h-1 w-7 rounded bg-muted-foreground/15' />
-        </div>
-        <div className='mt-auto flex flex-col gap-0.5 items-end'>
-          <div className='h-1 w-8 rounded bg-muted-foreground/20' />
-          <div className='h-1 w-6 rounded bg-muted-foreground/15' />
-          <div className='h-1.5 w-10 rounded bg-muted-foreground/30' />
-        </div>
-      </div>
-    );
-  }
-  return null;
-}
 
 function SettingsSwitch({
   checked,
@@ -463,7 +439,7 @@ export function InvoiceSettingsSheet({
           <div className='flex flex-col gap-3'>
             <p className='text-xs font-medium'>Invoice Template</p>
             <div className='grid grid-cols-2 gap-2'>
-              {templates.map((t) => (
+              {DOCUMENT_TEMPLATES.map((t) => (
                 <button
                   key={t.id}
                   type='button'
@@ -484,9 +460,6 @@ export function InvoiceSettingsSheet({
                 </button>
               ))}
             </div>
-            <p className='text-[11px] text-muted-foreground'>
-              More templates coming soon.
-            </p>
           </div>
 
           <Separator />

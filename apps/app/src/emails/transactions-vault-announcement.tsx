@@ -70,8 +70,8 @@ export default function TransactionsVaultAnnouncementEmail({
       <Text style={{ margin: 0, fontSize: 13, color: colors.muted, fontFamily: font }}>
         Co-founder, Travada Books
         <br />
-        <Link href="mailto:curtis.aliwah@travadasys.com" style={{ color: colors.muted, textDecoration: "none" }}>
-          curtis.aliwah@travadasys.com
+        <Link href="mailto:curtis.aliwah@travadabooks.com" style={{ color: colors.muted, textDecoration: "none" }}>
+          curtis.aliwah@travadabooks.com
         </Link>
       </Text>
 

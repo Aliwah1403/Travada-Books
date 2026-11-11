@@ -1,5 +1,5 @@
 // Public, unauthenticated inbound-email webhook. Resend POSTs here whenever
-// mail arrives at *@inbox.travadasys.com. There is no getCallerOrgId — the
+// mail arrives at *@inbox.travadabooks.com. There is no getCallerOrgId — the
 // ONLY trust boundary is the Svix signature below. Every field on the parsed
 // payload (from, to, subject, attachment filenames/content) is attacker
 // controllable and MUST be treated as untrusted: never interpolated into SQL
@@ -65,6 +65,9 @@ const MAX_ATTACHMENT_BYTES = 25 * 1024 * 1024 // 25MB
 // one of our own outbound emails back into the inbound webhook, drop it
 // rather than re-ingesting it as an attachment.
 const OWN_SEND_DOMAINS = new Set(["mail.travadasys.com", "mail.travadabooks.com"])
+// The old domain stays accepted so forwarding rules people set up before the
+// move to travadabooks.com keep working if mail reaches us.
+const INBOX_DOMAINS = new Set(["inbox.travadabooks.com", "inbox.travadasys.com"])
 const GOOGLE_FORWARDING_CONFIRMATION_SENDER = "forwarding-noreply@google.com"
 
 // ── Helpers ──────────────────────────────────────────────────────────────
@@ -79,7 +82,7 @@ function extractInboxId(toAddresses: string[]): string | null {
   for (const raw of toAddresses) {
     const email = extractEmailAddress(raw)
     const [local, domain] = email.split("@")
-    if (domain === "inbox.travadasys.com" && local) return local
+    if (INBOX_DOMAINS.has(domain) && local) return local
   }
   return null
 }

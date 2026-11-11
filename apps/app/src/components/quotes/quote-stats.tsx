@@ -41,7 +41,7 @@ function StatCard({ label, amount, currency, count }: StatCard) {
 
 export function QuoteStats({ open, accepted, expired }: QuoteStatsProps) {
   return (
-    <div className='grid grid-cols-3 gap-4'>
+    <div className='flex snap-x snap-mandatory gap-3 overflow-x-auto [scrollbar-width:none] *:min-w-[72%] *:snap-start md:grid md:gap-4 md:overflow-visible md:*:min-w-0 md:grid-cols-3'>
       <StatCard {...open} />
       <StatCard {...accepted} />
       <StatCard {...expired} />

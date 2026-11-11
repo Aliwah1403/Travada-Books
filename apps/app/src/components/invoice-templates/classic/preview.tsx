@@ -1,5 +1,7 @@
 import { Separator } from "@travada-books/ui/components/separator"
 import {
+  formatMoney as fmt,
+  taxIdLine,
   resolveDateFnsPattern,
   formatServerDate,
   type ClassicDocumentData,
@@ -8,11 +10,6 @@ import { normalizeCustomFields } from "@/lib/custom-fields"
 import { CustomFieldsPreview } from "@/components/invoices/custom-fields"
 
 export type { ClassicDocumentData, Participant } from "@travada-books/pdf"
-
-function fmt(n: number | null | undefined) {
-  if (n == null || Number.isNaN(n)) return "0.00"
-  return n.toLocaleString("en-KE", { minimumFractionDigits: 2 })
-}
 
 export function ClassicPreview({ data }: { data: ClassicDocumentData }) {
   const {
@@ -55,10 +52,10 @@ export function ClassicPreview({ data }: { data: ClassicDocumentData }) {
   const customerEmail = customer.billing_email ?? customer.email
 
   return (
-    <div className="rounded-lg border bg-white p-5 text-sm shadow-sm sm:p-10 dark:bg-card">
+    <div className="rounded-lg border bg-white p-5 text-sm [overflow-wrap:anywhere] shadow-sm sm:p-10 dark:bg-card">
       {/* Letterhead */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div>
+        <div className="min-w-0">
           {from.logo_url ? (
             <img
               src={from.logo_url}
@@ -80,10 +77,10 @@ export function ClassicPreview({ data }: { data: ClassicDocumentData }) {
             {from.country_code && <p className="text-xs text-muted-foreground">{from.country_code}</p>}
             {from.phone && <p className="text-xs text-muted-foreground">{from.phone}</p>}
             {from.email && <p className="text-xs text-muted-foreground">{from.email}</p>}
-            {from.tax_id && <p className="text-xs text-muted-foreground">PIN: {from.tax_id}</p>}
+            {taxIdLine(from) && <p className="text-xs text-muted-foreground">{taxIdLine(from)}</p>}
           </div>
         </div>
-        <div className="text-right">
+        <div className="min-w-0 text-right sm:max-w-1/2">
           <p className="text-2xl font-bold text-foreground">{label}</p>
           <p className="text-xs text-muted-foreground">{number ?? "—"}</p>
           {status === "canceled" && (
@@ -112,12 +109,12 @@ export function ClassicPreview({ data }: { data: ClassicDocumentData }) {
           </div>
         </div>
         <div className="space-y-1">
-          <div className="flex justify-between text-xs">
+          <div className="flex justify-between gap-4 text-xs">
             <span className="text-muted-foreground">Issue date:</span>
             <span className="font-medium">{formatDate(issueDate)}</span>
           </div>
           {secondaryDate !== undefined && (
-            <div className="flex justify-between text-xs">
+            <div className="flex justify-between gap-4 text-xs">
               <span className="text-muted-foreground">{secondaryDateLabel}</span>
               <span className="font-medium">{formatDate(secondaryDate)}</span>
             </div>
@@ -138,22 +135,22 @@ export function ClassicPreview({ data }: { data: ClassicDocumentData }) {
         <table className="w-full min-w-[480px] text-xs">
           <thead>
             <tr className="border-b text-muted-foreground">
-              <th className="pb-3 text-left font-medium">Description</th>
-              {showQty && <th className="pb-3 text-right font-medium">Qty</th>}
-              {showQty && <th className="pb-3 text-right font-medium">Rate</th>}
-              {showTax && <th className="pb-3 text-right font-medium">Tax</th>}
-              <th className="pb-3 text-right font-medium">Amount</th>
+              <th className="min-w-40 pb-3 text-left font-medium">Description</th>
+              {showQty && <th className="whitespace-nowrap pb-3 pl-4 text-right font-medium">Qty</th>}
+              {showQty && <th className="whitespace-nowrap pb-3 pl-4 text-right font-medium">Rate</th>}
+              {showTax && <th className="whitespace-nowrap pb-3 pl-4 text-right font-medium">Tax</th>}
+              <th className="whitespace-nowrap pb-3 pl-4 text-right font-medium">Amount</th>
             </tr>
           </thead>
           <tbody>
             {lineItems.map((item, i) => (
               <tr key={i} className="border-b border-dashed">
                 <td className="py-3">{item.description}</td>
-                {showQty && <td className="py-3 text-right">{item.quantity}</td>}
-                {showQty && <td className="py-3 text-right">{currency} {fmt(item.price)}</td>}
-                {showTax && <td className="py-3 text-right">{item.tax_rate}%</td>}
-                <td className="py-3 text-right font-medium">
-                  {currency} {fmt(item.quantity * item.price * (1 + item.tax_rate / 100))}
+                {showQty && <td className="whitespace-nowrap py-3 pl-4 text-right">{item.quantity}</td>}
+                {showQty && <td className="whitespace-nowrap py-3 pl-4 text-right">{currency} {fmt(item.price)}</td>}
+                {showTax && <td className="whitespace-nowrap py-3 pl-4 text-right">{item.tax_rate}%</td>}
+                <td className="whitespace-nowrap py-3 pl-4 text-right font-medium">
+                  {currency} {fmt(item.quantity * item.price)}
                 </td>
               </tr>
             ))}
@@ -161,25 +158,25 @@ export function ClassicPreview({ data }: { data: ClassicDocumentData }) {
         </table>
       </div>
 
-      <div className="mt-5 flex flex-col items-end gap-1.5 text-xs">
-        <div className="flex w-48 justify-between">
+      <div className="mt-5 ml-auto flex w-fit max-w-full min-w-48 flex-col gap-1.5 text-xs">
+        <div className="flex justify-between gap-6">
           <span className="text-muted-foreground">Subtotal</span>
           <span>{currency} {fmt(displaySubtotal)}</span>
         </div>
         {displayTax > 0 && (
-          <div className="flex w-48 justify-between">
+          <div className="flex justify-between gap-6">
             <span className="text-muted-foreground">Tax</span>
             <span>{currency} {fmt(displayTax)}</span>
           </div>
         )}
         {displayDiscount > 0 && (
-          <div className="flex w-48 justify-between text-green-600 dark:text-green-400">
+          <div className="flex justify-between gap-6 text-green-600 dark:text-green-400">
             <span>Discount</span>
             <span>− {currency} {fmt(displayDiscount)}</span>
           </div>
         )}
-        <Separator className="my-1 w-48" />
-        <div className="flex w-48 justify-between text-sm font-semibold">
+        <Separator className="my-1" />
+        <div className="flex justify-between gap-6 text-sm font-semibold">
           <span>Total</span>
           <span>{currency} {fmt(displayTotal)}</span>
         </div>

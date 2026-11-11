@@ -6,6 +6,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@travada-books/ui/components/popover"
+import { cn } from "@travada-books/ui/lib/utils"
 import { ChecklistProgressRing } from "@/components/onboarding/checklist-progress-ring"
 import {
   CHECKLIST_STEPS,
@@ -17,7 +18,7 @@ import {
   getOnboardingChecklist,
 } from "@/lib/queries/onboarding"
 
-export function OnboardingChecklistTrigger() {
+export function OnboardingChecklistTrigger({ collapsed }: { collapsed?: boolean }) {
   const [open, setOpen] = useState(false)
   const { orgId, user, profile } = useAuth()
 
@@ -108,12 +109,16 @@ export function OnboardingChecklistTrigger() {
         render={
           <button
             type="button"
-            className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors text-muted-foreground fine-hover:bg-muted fine-hover:text-foreground active:opacity-80"
+            aria-label={collapsed ? "Get set up" : undefined}
+            className={cn(
+              "flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors text-muted-foreground fine-hover:bg-muted fine-hover:text-foreground active:opacity-80",
+              collapsed && "justify-center px-2",
+            )}
           />
         }
       >
         <ChecklistProgressRing pct={pct} className="size-4 shrink-0" />
-        <span>Get set up</span>
+        {!collapsed && <span>Get set up</span>}
       </PopoverTrigger>
 
       <PopoverContent

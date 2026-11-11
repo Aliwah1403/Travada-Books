@@ -681,8 +681,8 @@ export function InvoiceDetailPage() {
   return (
     <div className='flex h-full flex-col overflow-hidden'>
       {/* Page header */}
-      <div className='flex shrink-0 items-center justify-between border-b px-6 py-3'>
-        <div className='flex items-center gap-3'>
+      <div className='flex shrink-0 flex-wrap items-center justify-between gap-2 border-b px-4 py-3 md:flex-nowrap md:px-6'>
+        <div className='flex min-w-0 items-center gap-3'>
           <Button
             variant='ghost'
             size='icon-sm'
@@ -690,12 +690,12 @@ export function InvoiceDetailPage() {
           >
             <ArrowLeft01Icon size={14} />
           </Button>
-          <span className='font-mono text-sm font-medium'>
+          <span className='whitespace-nowrap font-mono text-sm font-medium'>
             {invoice.invoice_number ?? "—"}
           </span>
           <InvoiceStatusBadge status={status} />
         </div>
-        <div className='flex items-center gap-2'>
+        <div className='-mx-4 flex w-[calc(100%+2rem)] items-center gap-2 overflow-x-auto px-4 [scrollbar-width:none] *:shrink-0 md:mx-0 md:w-auto md:overflow-visible md:px-0'>
           <Button
             variant='outline'
             className='gap-1.5'

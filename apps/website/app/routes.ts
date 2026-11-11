@@ -9,6 +9,8 @@ export default [
   route("customer-portal", "routes/customer-portal.tsx"),
   route("payments", "routes/payments.tsx"),
   route("integrations", "routes/integrations.tsx"),
+  route("invoice-generator", "routes/invoice-generator.tsx"),
+  route("midday-alternative", "routes/midday-alternative.tsx"),
   route("who-its-for", "routes/who-its-for.tsx"),
   route("about", "routes/about.tsx"),
   route("contact", "routes/contact.tsx"),

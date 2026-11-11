@@ -55,6 +55,7 @@ export type Transaction = {
   categoryId: string | null;
   categoryName: string | null;
   categoryColor: string | null;
+  categoryRulePattern: string | null;
   currency: string;
   status: TransactionStatus;
   paymentMode: PaymentMode | null;

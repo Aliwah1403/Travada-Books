@@ -115,6 +115,7 @@ export function PublicQuotePage() {
       phone: from["phone"],
       email: from["email"],
       tax_id: from["tax_id"],
+      tax_id_label: from["tax_id_label"],
     },
     customer: {
       name: customerName,

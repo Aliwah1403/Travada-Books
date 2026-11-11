@@ -19,6 +19,7 @@ export const extractDocumentSchema = z.object({
   payment_mode: z.enum(["mpesa", "bank_transfer", "cash", "cheque", "card", "other"]).nullable(),
   invoice_number: z.string().nullable().describe("The invoice/bill/receipt number printed on the document, distinct from reference_number"),
   document_type: z.enum(["invoice", "expense", "other"]).nullable().describe("Doc-level classification: invoice (bill requesting/recording payment), expense (receipt/proof of payment), other (non-financial document)"),
+  due_date: z.string().nullable().describe("Payment due date as YYYY-MM-DD. Null if the document shows no due date and no payment terms"),
 });
 
 export type ExtractedDocumentData = z.infer<typeof extractDocumentSchema>;
@@ -48,6 +49,7 @@ function buildPrompt(orgName: string): string {
     `- payment_mode: One of "mpesa", "bank_transfer", "cash", "cheque", "card", or "other"`,
     `- invoice_number: The invoice/bill/receipt number printed on the document (e.g. "INV-2024-001"). Distinct from reference_number (a payment confirmation code). Null if not shown`,
     `- document_type: Classify the document itself: "invoice" if this is a bill requesting/recording payment, "expense" if this is a receipt/proof of payment already made, "other" if it is not a financial record. Independent of "type" (income/expense direction)`,
+    `- due_date: The payment due date in YYYY-MM-DD, with the same date-order rules as date. If only terms such as "Net 30" or "Due in 14 days" are printed, compute it from the issue date. Null for receipts and anything without a due date or terms`,
     `</rules>`,
     ``,
     `<examples>`,

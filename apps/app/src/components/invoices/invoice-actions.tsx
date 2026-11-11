@@ -103,6 +103,7 @@ export function InvoiceActions({
       accept_payments: invoice.accept_payments,
       partial_payments: invoice.partial_payments,
       custom_fields: invoice.custom_fields ?? [],
+      invoice_template: invoice.invoice_template,
     });
   }
 

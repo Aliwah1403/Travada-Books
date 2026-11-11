@@ -21,18 +21,24 @@ const pageTitles: Record<string, string> = {
   "/transactions": "Transactions",
   "/vault": "Vault",
   "/inbox": "Inbox",
+  "/insights": "Insights",
+  "/bills": "Bills",
   "/settings": "Settings",
   "/account": "Account",
 };
 
 function getTitle(pathname: string): string {
   if (pageTitles[pathname]) return pageTitles[pathname];
+  if (/^\/invoices\/[^/]+\/edit$/.test(pathname)) return "Edit Invoice";
+  if (/^\/quotes\/[^/]+\/edit$/.test(pathname)) return "Edit Quote";
   if (pathname.startsWith("/invoices/")) return "Invoice";
   if (pathname.startsWith("/quotes/")) return "Quote";
   if (pathname.startsWith("/customers/")) return "Customer";
   if (pathname.startsWith("/transactions/")) return "Transactions";
   if (pathname.startsWith("/vault/")) return "Vault";
   if (pathname.startsWith("/settings")) return "Settings";
+  if (pathname.startsWith("/bills/")) return "Bills";
+  if (pathname.startsWith("/insights")) return "Insights";
   if (pathname.startsWith("/account")) return "Account";
   return "Travada Books";
 }

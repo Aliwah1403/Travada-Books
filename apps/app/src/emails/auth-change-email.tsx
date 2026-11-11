@@ -79,7 +79,7 @@ export default function AuthChangeEmailEmail({
       >
         This link expires in <strong style={{ color: colors.body }}>24 hours</strong>.
         If you did not request this change, please contact{" "}
-        <strong style={{ color: colors.body }}>support@travadasys.com</strong>{" "}
+        <strong style={{ color: colors.body }}>support@travadabooks.com</strong>{" "}
         immediately.
       </Text>
     </EmailLayout>

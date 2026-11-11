@@ -1,3 +1,4 @@
+import { EditorDocumentPreview } from "@/components/invoice-templates/editor-preview";
 import { useState, useEffect, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -24,7 +25,7 @@ import {
   defaultInvoiceSettings,
 } from "@/components/invoices/invoice-settings-sheet";
 import { DatePicker } from "@/components/shared/date-picker";
-import { CustomFieldsEditor, CustomFieldsPreview, type CustomField } from "@/components/invoices/custom-fields";
+import { CustomFieldsEditor, type CustomField } from "@/components/invoices/custom-fields";
 import { normalizeCustomFields, fieldsFromLabels } from "@/lib/custom-fields";
 import { format } from "date-fns";
 import { Button } from "@travada-books/ui/components/button";
@@ -56,10 +57,12 @@ import { computeDocumentTotals, toRateColumns } from "@/lib/document-totals";
 import { lookupRate } from "@/lib/queries/exchange-rates";
 import { getCustomer } from "@/lib/queries/customers";
 import { getOrgInvoiceTemplate, upsertOrgInvoiceTemplate } from "@/lib/queries/invoice-templates";
-import { useAuth, type UserOrg } from "@/contexts/auth-context";
+import { useAuth } from "@/contexts/auth-context";
 import { supabase } from "@/lib/supabase";
 import { Spinner } from "@/components/shared/spinner";
 import { toast } from "sonner";
+import { EditorPaneTabs, type EditorPane } from "@/components/shared/editor-pane-tabs";
+import { cn } from "@travada-books/ui/lib/utils";
 
 type LineItem = {
   id: string;
@@ -70,251 +73,14 @@ type LineItem = {
 };
 
 
-const DATE_FORMAT_MAP: Record<InvoiceSettings["dateFormat"], string> = {
-  "DD/MM/YYYY": "dd/MM/yyyy",
-  "MM/DD/YYYY": "MM/dd/yyyy",
-  "YYYY-MM-DD": "yyyy-MM-dd",
-};
-
-function InvoicePreview({
-  invoiceNumber,
-  issueDate,
-  dueDate,
-  currency,
-  items,
-  discountType,
-  discountValue,
-  vatRate,
-  paymentDetails,
-  notes,
-  dateFormat,
-  showTaxColumn,
-  showQtyColumn,
-  customer,
-  org,
-  logoUrl,
-  customFields,
-}: {
-  invoiceNumber: string;
-  issueDate: Date | undefined;
-  dueDate: Date | undefined;
-  currency: string;
-  items: LineItem[];
-  discountType: "%" | "fixed";
-  discountValue: string;
-  vatRate: string;
-  paymentDetails: string;
-  notes: string;
-  dateFormat: InvoiceSettings["dateFormat"];
-  showTaxColumn: boolean;
-  showQtyColumn: boolean;
-  customer: SelectedCustomer | null;
-  org: UserOrg | null;
-  logoUrl: string | null;
-  customFields: CustomField[];
-}) {
-  const {
-    subtotal,
-    tax_amount: taxAmount,
-    discount: discountAmt,
-    total,
-  } = computeDocumentTotals(items, discountType, discountValue, vatRate);
-  const lineItemTax = items.reduce((sum, item) => {
-    const qty = parseFloat(item.qty) || 0;
-    const rate = parseFloat(item.rate) || 0;
-    const taxRate = parseFloat(item.tax) || 0;
-    return sum + qty * rate * (taxRate / 100);
-  }, 0);
-  const vat = taxAmount - lineItemTax;
-  const visibleCustomFields = customFields.filter(
-    (f) => f.label.trim() && f.value.trim(),
-  );
-
-  return (
-    <div className="rounded-lg border bg-white p-8 text-sm dark:bg-card">
-      <div className="flex items-start justify-between">
-        <div>
-          {logoUrl ? (
-            <img
-              src={logoUrl}
-              alt={org?.name}
-              className="h-8 w-auto max-w-[120px] object-contain"
-            />
-          ) : (
-            <div className="flex size-8 items-center justify-center rounded bg-foreground text-background text-[10px] font-bold">
-              {org?.name?.slice(0, 2).toUpperCase() ?? "TB"}
-            </div>
-          )}
-          <div className="mt-2 space-y-0.5">
-            <p className="font-semibold text-foreground">{org?.name ?? "Your Business"}</p>
-            {org?.address_line1 && <p className="text-xs text-muted-foreground">{org.address_line1}</p>}
-            {org?.address_line2 && <p className="text-xs text-muted-foreground">{org.address_line2}</p>}
-            {(org?.city || org?.zip) && (
-              <p className="text-xs text-muted-foreground">{[org.city, org.zip].filter(Boolean).join(" ")}</p>
-            )}
-            {org?.country_code && <p className="text-xs text-muted-foreground">{org.country_code}</p>}
-            {org?.phone && <p className="text-xs text-muted-foreground">{org.phone}</p>}
-            {org?.email && <p className="text-xs text-muted-foreground">{org.email}</p>}
-            {org?.tax_id && <p className="text-xs text-muted-foreground">PIN: {org.tax_id}</p>}
-          </div>
-        </div>
-        <div className="text-right">
-          <p className="text-lg font-bold text-foreground">INVOICE</p>
-          <p className="text-xs text-muted-foreground">{invoiceNumber || "INV-0001"}</p>
-        </div>
-      </div>
-
-      <Separator className="my-5" />
-
-      <div className="grid grid-cols-2 gap-4 text-xs">
-        <div>
-          <p className="font-medium text-foreground">Bill To</p>
-          {customer ? (
-            <div className="mt-1 space-y-0.5">
-              <p className="font-medium text-foreground">{customer.name}</p>
-              {customer.address_line1 && <p className="text-muted-foreground">{customer.address_line1}</p>}
-              {customer.address_line2 && <p className="text-muted-foreground">{customer.address_line2}</p>}
-              {(customer.city || customer.zip) && (
-                <p className="text-muted-foreground">{[customer.city, customer.zip].filter(Boolean).join(" ")}</p>
-              )}
-              {customer.country && <p className="text-muted-foreground">{customer.country}</p>}
-              {customer.phone && <p className="text-muted-foreground">{customer.phone}</p>}
-              {(customer.billing_email || customer.email) && (
-                <p className="text-muted-foreground">{customer.billing_email ?? customer.email}</p>
-              )}
-            </div>
-          ) : (
-            <p className="mt-1 text-muted-foreground/50 italic">No customer selected</p>
-          )}
-        </div>
-        <div className="text-right">
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">Issue date:</span>
-            <span className="font-medium">
-              {issueDate ? format(issueDate, DATE_FORMAT_MAP[dateFormat]) : "—"}
-            </span>
-          </div>
-          <div className="mt-1 flex justify-between">
-            <span className="text-muted-foreground">Due date:</span>
-            <span className="font-medium">
-              {dueDate ? format(dueDate, DATE_FORMAT_MAP[dateFormat]) : "—"}
-            </span>
-          </div>
-        </div>
-      </div>
-
-      {visibleCustomFields.length > 0 && (
-        <>
-          <Separator className="my-5" />
-          <CustomFieldsPreview fields={customFields} />
-        </>
-      )}
-
-      <Separator className="my-5" />
-
-      <table className="w-full text-xs">
-        <thead>
-          <tr className="border-b text-muted-foreground">
-            <th className="w-1/2 pb-2 text-left font-medium">Description</th>
-            {showQtyColumn && (
-              <>
-                <th className="whitespace-nowrap pb-2 pl-4 text-right font-medium">Qty</th>
-                <th className="whitespace-nowrap pb-2 pl-4 text-right font-medium">Rate</th>
-              </>
-            )}
-            {showTaxColumn && (
-              <th className="whitespace-nowrap pb-2 pl-4 text-right font-medium">Tax</th>
-            )}
-            <th className="whitespace-nowrap pb-2 pl-4 text-right font-medium">Amount</th>
-          </tr>
-        </thead>
-        <tbody>
-          {items.map((item) => {
-            const amount = (parseFloat(item.qty) || 0) * (parseFloat(item.rate) || 0);
-            return (
-              <tr key={item.id} className="border-b border-dashed">
-                <td className="py-2 break-words">{item.description || "—"}</td>
-                {showQtyColumn && (
-                  <>
-                    <td className="whitespace-nowrap py-2 pl-4 text-right">{item.qty || "0"}</td>
-                    <td className="whitespace-nowrap py-2 pl-4 text-right">{item.rate || "0.00"}</td>
-                  </>
-                )}
-                {showTaxColumn && (
-                  <td className="whitespace-nowrap py-2 pl-4 text-right">{item.tax || "0"}%</td>
-                )}
-                <td className="whitespace-nowrap py-2 pl-4 text-right">
-                  {currency}{" "}
-                  {amount.toLocaleString("en-KE", { minimumFractionDigits: 2 })}
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-
-      <div className="mt-4 flex flex-col items-end gap-1.5 text-xs">
-        <div className="flex w-48 justify-between">
-          <span className="text-muted-foreground">Subtotal</span>
-          <span>{currency} {subtotal.toLocaleString("en-KE", { minimumFractionDigits: 2 })}</span>
-        </div>
-        {lineItemTax > 0 && (
-          <div className="flex w-48 justify-between">
-            <span className="text-muted-foreground">Tax</span>
-            <span>{currency} {lineItemTax.toLocaleString("en-KE", { minimumFractionDigits: 2 })}</span>
-          </div>
-        )}
-        {discountAmt > 0 && (
-          <div className="flex w-48 justify-between text-green-600 dark:text-green-400">
-            <span>Discount{discountType === "%" ? ` (${discountValue}%)` : ""}</span>
-            <span>− {currency} {discountAmt.toLocaleString("en-KE", { minimumFractionDigits: 2 })}</span>
-          </div>
-        )}
-        {vat > 0 && (
-          <div className="flex w-48 justify-between">
-            <span className="text-muted-foreground">VAT ({vatRate}%)</span>
-            <span>{currency} {vat.toLocaleString("en-KE", { minimumFractionDigits: 2 })}</span>
-          </div>
-        )}
-        <Separator className="my-1 w-48" />
-        <div className="flex w-48 justify-between font-semibold text-sm">
-          <span>Total</span>
-          <span>{currency} {total.toLocaleString("en-KE", { minimumFractionDigits: 2 })}</span>
-        </div>
-      </div>
-
-      {paymentDetails && (
-        <>
-          <Separator className="my-5" />
-          <div>
-            <p className="text-xs font-medium text-foreground">Payment Details</p>
-            <p className="mt-1 text-xs text-muted-foreground whitespace-pre-wrap">{paymentDetails}</p>
-          </div>
-        </>
-      )}
-
-      {notes && (
-        <>
-          <Separator className="my-5" />
-          <div>
-            <p className="text-xs font-medium text-foreground">Notes</p>
-            <p className="mt-1 text-xs text-muted-foreground whitespace-pre-wrap">{notes}</p>
-          </div>
-        </>
-      )}
-
-      <Separator className="my-5" />
-      <p className="text-center text-[10px] text-muted-foreground">Powered by Travada Books</p>
-    </div>
-  );
-}
-
 export function CreateInvoicePage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const preselectedCustomerId = searchParams.get("customerId");
   const { orgId, user, org } = useAuth();
   const queryClient = useQueryClient();
+
+  const [mobilePane, setMobilePane] = useState<EditorPane>("form");
 
   const [selectedCustomer, setSelectedCustomer] = useState<SelectedCustomer | null>(null);
 
@@ -630,7 +396,7 @@ export function CreateInvoicePage() {
   return (
     <div className="flex h-full flex-col">
       {/* Page header */}
-      <div className="flex items-center justify-between border-b px-6 py-3">
+      <div className="flex items-center justify-between gap-2 border-b px-4 py-3 md:px-6">
         <div className="flex items-center gap-3">
           <Button
             variant="ghost"
@@ -639,9 +405,9 @@ export function CreateInvoicePage() {
           >
             <ArrowLeft01Icon size={14} />
           </Button>
-          <div>
+          <div className="hidden md:block">
             <p className="text-sm font-semibold">New Invoice</p>
-            <p className="text-xs text-muted-foreground">Generate and send new invoice.</p>
+            <p className="hidden text-xs text-muted-foreground md:block">Generate and send new invoice.</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -651,7 +417,7 @@ export function CreateInvoicePage() {
             onClick={() => setInvoiceSettingsOpen(true)}
           >
             <Settings02Icon size={13} />
-            Invoice Settings
+            <span className="hidden sm:inline">Invoice Settings</span>
           </Button>
           <div className="flex">
             <Button
@@ -779,9 +545,10 @@ export function CreateInvoicePage() {
       />
 
       {/* Split panel */}
-      <div className="flex flex-1 overflow-hidden">
+      <EditorPaneTabs value={mobilePane} onChange={setMobilePane} />
+      <div className="flex flex-1 flex-col overflow-hidden md:flex-row">
         {/* Left: Form */}
-        <div className="flex w-1/2 flex-col gap-5 overflow-y-auto border-r p-6">
+        <div className={cn("flex flex-1 flex-col gap-5 overflow-y-auto p-4 md:w-1/2 md:flex-none md:border-r md:p-6", mobilePane === "preview" && "hidden md:flex")}>
           <div className="flex flex-col gap-1.5">
             <Label className="text-xs text-muted-foreground">Bill To</Label>
             <CustomerCombobox
@@ -827,14 +594,14 @@ export function CreateInvoicePage() {
 
           {/* Line items */}
           <div className="flex flex-col gap-2">
-            <div className="grid grid-cols-[1fr_60px_80px_60px_32px] gap-2 text-xs font-medium text-muted-foreground">
+            <div className="grid grid-cols-[1fr_52px_76px_32px] md:grid-cols-[1fr_60px_80px_60px_32px] gap-2 text-xs font-medium text-muted-foreground">
               <span>Description</span>
               <span>Qty</span>
               <span>Rate</span>
               <span />
             </div>
             {items.map((item) => (
-              <div key={item.id} className="grid grid-cols-[1fr_60px_80px_60px_32px] gap-2">
+              <div key={item.id} className="grid grid-cols-[1fr_52px_76px_32px] md:grid-cols-[1fr_60px_80px_60px_32px] gap-2">
                 <Input
                   placeholder="Item description"
                   value={item.description}
@@ -941,12 +708,14 @@ export function CreateInvoicePage() {
         </div>
 
         {/* Right: Preview */}
-        <div className="flex w-1/2 flex-col overflow-y-auto bg-muted/30 p-6">
+        <div className={cn("flex flex-1 flex-col overflow-y-auto bg-muted/30 p-4 md:w-1/2 md:flex-none md:p-6", mobilePane === "form" && "hidden md:flex")}>
           <p className="mb-4 text-xs font-medium text-muted-foreground">Preview</p>
-          <InvoicePreview
-            invoiceNumber={invoiceNumber}
+          <EditorDocumentPreview
+            kind="invoice"
+            template={invoiceSettings.invoiceTemplate}
+            number={invoiceNumber}
             issueDate={issueDate}
-            dueDate={dueDate}
+            secondaryDate={dueDate}
             currency={currency}
             items={items}
             discountType={discountType}

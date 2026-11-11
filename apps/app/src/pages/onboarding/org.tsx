@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { Button } from "@travada-books/ui/components/button";
 import { Input } from "@travada-books/ui/components/input";
 import { Label } from "@travada-books/ui/components/label";
+import { TaxIdLabelSelect } from "@/components/tax-id-label-select";
 import { CurrencySelect } from "@travada-books/ui/components/currency-select";
 import {
   ArrowLeft01Icon,
@@ -301,6 +302,8 @@ function BrandStep({
   businessName,
   taxId,
   onTaxIdChange,
+  taxIdLabel,
+  onTaxIdLabelChange,
   onBack,
   onSkip,
   onNext,
@@ -313,6 +316,8 @@ function BrandStep({
   businessName: string;
   taxId: string;
   onTaxIdChange: (value: string) => void;
+  taxIdLabel: string;
+  onTaxIdLabelChange: (value: string) => void;
   onBack: () => void;
   onSkip: () => void;
   onNext: () => void;
@@ -354,13 +359,17 @@ function BrandStep({
           )}
         </button>
         <div className="flex flex-col gap-1.5">
-          <Label htmlFor="onboarding-tax-id">Tax/VAT ID</Label>
-          <Input
-            id="onboarding-tax-id"
-            placeholder="e.g. P051234567X"
-            value={taxId}
-            onChange={(e) => onTaxIdChange(e.target.value)}
-          />
+          <Label htmlFor="onboarding-tax-id">Tax number</Label>
+          <div className="flex gap-2">
+            <TaxIdLabelSelect value={taxIdLabel} onValueChange={onTaxIdLabelChange} />
+            <Input
+              id="onboarding-tax-id"
+              className="min-w-0 flex-1"
+              placeholder="e.g. P051234567X"
+              value={taxId}
+              onChange={(e) => onTaxIdChange(e.target.value)}
+            />
+          </div>
         </div>
         {error && <p className="text-xs text-destructive">{error}</p>}
       </div>
@@ -561,6 +570,7 @@ export function OnboardingOrgPage() {
 
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [taxId, setTaxId] = useState("");
+  const [taxIdLabel, setTaxIdLabel] = useState("Tax ID");
   const [brandError, setBrandError] = useState("");
   const [brandSubmitting, setBrandSubmitting] = useState(false);
   const logoInputRef = useRef<HTMLInputElement>(null);
@@ -767,7 +777,7 @@ export function OnboardingOrgPage() {
     }
     setBrandSubmitting(true);
     try {
-      await updateOrg(orgId, { tax_id: trimmed });
+      await updateOrg(orgId, { tax_id: trimmed, tax_id_label: taxIdLabel });
       setStep(3);
     } catch (err) {
       Sentry.captureException(err);
@@ -905,6 +915,8 @@ export function OnboardingOrgPage() {
               onPickLogo={() => logoInputRef.current?.click()}
               businessName={businessName}
               taxId={taxId}
+              taxIdLabel={taxIdLabel}
+              onTaxIdLabelChange={setTaxIdLabel}
               onTaxIdChange={setTaxId}
               onBack={goBack}
               onSkip={handleBrandSkip}
