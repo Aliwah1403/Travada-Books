@@ -6,7 +6,8 @@
 //
 // The edge functions accept the API as a trusted internal caller, the same
 // way the Trigger.dev worker calls them (API-WRITES-PLAN.md D6):
-//   send-invoice-email, send-invoice-reminder → service-role bearer
+//   send-invoice-email, send-invoice-reminder,
+//   send-quote-email                          → service-role bearer
 //   notify-invoice-paid                       → X-Worker-Secret
 // Scheduled sends go straight to Trigger.dev, as trigger-scheduled-send does.
 
@@ -18,6 +19,8 @@ export type Effects = {
   notifyInvoicePaid(invoiceId: string): Promise<void>
   /** Queues the Trigger.dev job that sends a scheduled invoice. */
   scheduleInvoiceSend(invoiceId: string, scheduledAt: string): Promise<void>
+  /** Emails a sent quote. `queued` = a PDF is being generated first. */
+  sendQuoteEmail(quoteId: string): Promise<{ queued: boolean }>
 }
 
 export type EffectsConfig = {
@@ -83,6 +86,11 @@ export function createEffects(config: EffectsConfig): Effects {
         },
         10_000,
       )
+    },
+
+    async sendQuoteEmail(quoteId) {
+      const data = await postJson(fn("send-quote-email"), asService, { quoteId })
+      return { queued: data.queued === true }
     },
   }
 }

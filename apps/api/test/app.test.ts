@@ -47,6 +47,7 @@ beforeAll(async () => {
       sendInvoiceReminder: async () => {},
       notifyInvoicePaid: async () => {},
       scheduleInvoiceSend: async () => {},
+      sendQuoteEmail: async () => ({ queued: false }),
     },
     db: { execute: async () => [] } as unknown as Deps["db"],
     verifyToken: createTokenVerifier(SUPABASE_URL, createLocalJWKSet({ keys: [jwk] })),
@@ -128,5 +129,34 @@ describe("CORS", () => {
     expect(allowed.headers.get("access-control-allow-origin")).toBe("http://localhost:5173")
     const blocked = await app.request("/health", { headers: { Origin: "https://evil.example" } })
     expect(blocked.headers.get("access-control-allow-origin")).toBeNull()
+  })
+})
+
+describe("/v1 write routes", () => {
+  const json = (token: string, body: unknown) => ({
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  })
+
+  it("reject a request with no token", async () => {
+    for (const path of ["/v1/quotes", "/v1/invoices", "/v1/payments"]) {
+      const res = await makeApp(memberTables()).request(path, { method: "POST", body: "{}" })
+      expect(res.status, path).toBe(401)
+    }
+  })
+
+  it("answer invalid input with VALIDATION_FAILED and the field", async () => {
+    const token = await sign()
+    const res = await makeApp(memberTables()).request("/v1/quotes", json(token, { customer_id: "not-a-uuid", action: "draft" }))
+    expect(res.status).toBe(422)
+    expect(await res.json()).toMatchObject({ code: "VALIDATION_FAILED", field: "customer_id" })
+  })
+
+  it("reject a malformed id before touching the database", async () => {
+    const token = await sign()
+    const res = await makeApp(memberTables()).request("/v1/quotes/123/accept", json(token, {}))
+    expect(res.status).toBe(422)
+    expect(await res.json()).toMatchObject({ code: "VALIDATION_FAILED", field: "id" })
   })
 })

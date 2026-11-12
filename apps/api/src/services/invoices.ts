@@ -49,8 +49,8 @@ const NUMBER_TAKEN = {
   },
 }
 
-const num = (value: number) => String(Math.round(value * 100) / 100)
-const nowIso = () => new Date().toISOString()
+export const num = (value: number) => String(Math.round(value * 100) / 100)
+export const nowIso = () => new Date().toISOString()
 
 async function rethrow<T>(work: Promise<T>): Promise<T> {
   try {
@@ -60,12 +60,12 @@ async function rethrow<T>(work: Promise<T>): Promise<T> {
   }
 }
 
-async function followUp(work: () => Promise<{ queued?: boolean } | void>): Promise<FollowUp> {
+export async function followUp(work: () => Promise<{ queued?: boolean } | void>): Promise<FollowUp> {
   try {
     const result = await work()
     return { ok: true, ...(result && "queued" in result ? { queued: result.queued } : {}) }
   } catch (error) {
-    console.error("[invoices] follow-up failed:", error)
+    console.error("[services] follow-up failed:", error)
     return { ok: false, error: error instanceof Error ? error.message : String(error) }
   }
 }
@@ -78,13 +78,13 @@ export async function getInvoiceRow(ctx: Pick<ServiceCtx, "db" | "orgId">, id: s
   return row
 }
 
-async function getCustomer(ctx: Pick<ServiceCtx, "db" | "orgId">, id: string) {
+export async function getCustomer(ctx: Pick<ServiceCtx, "db" | "orgId">, id: string) {
   const [row] = await ctx.db.select().from(customers).where(inOrg(customers, ctx.orgId, eq(customers.id, id))).limit(1)
   if (!row) throw new ServiceError(422, "VALIDATION_FAILED", "Customer not found.", "customer_id")
   return row
 }
 
-async function getDefaultTemplate(ctx: Pick<ServiceCtx, "db" | "orgId">) {
+export async function getDefaultTemplate(ctx: Pick<ServiceCtx, "db" | "orgId">) {
   const [row] = await ctx.db
     .select()
     .from(invoiceTemplates)
@@ -93,7 +93,7 @@ async function getDefaultTemplate(ctx: Pick<ServiceCtx, "db" | "orgId">) {
   return row ?? null
 }
 
-async function getOrg(ctx: Pick<ServiceCtx, "db" | "orgId">) {
+export async function getOrg(ctx: Pick<ServiceCtx, "db" | "orgId">) {
   // organizations is keyed by id (no org_id column); ctx.orgId is the caller's
   // verified active org.
   const [row] = await ctx.db.select().from(organizations).where(eq(organizations.id, ctx.orgId)).limit(1)
@@ -101,14 +101,14 @@ async function getOrg(ctx: Pick<ServiceCtx, "db" | "orgId">) {
   return row
 }
 
-async function nextInvoiceNumber(ctx: Pick<ServiceCtx, "db" | "orgId">): Promise<string> {
+export async function nextInvoiceNumber(ctx: Pick<ServiceCtx, "db" | "orgId">): Promise<string> {
   const rows = await ctx.db.execute<{ n: string }>(sql`select public.next_invoice_number(${ctx.orgId}::uuid) as n`)
   const n = rows[0]?.n
   if (!n) throw new Error("next_invoice_number returned nothing")
   return n
 }
 
-async function lookupRate(ctx: Pick<ServiceCtx, "db">, base: string, target: string): Promise<number | null> {
+export async function lookupRate(ctx: Pick<ServiceCtx, "db">, base: string, target: string): Promise<number | null> {
   if (base === target) return 1
   const [row] = await ctx.db
     .select({ rate: exchangeRates.rate })
@@ -121,7 +121,7 @@ async function lookupRate(ctx: Pick<ServiceCtx, "db">, base: string, target: str
 // ─── Snapshots (CLAUDE.md "JSONB snapshot pattern") ─────────────────────────
 
 type OrgRow = Awaited<ReturnType<typeof getOrg>>
-type CustomerRow = Awaited<ReturnType<typeof getCustomer>>
+export type CustomerRow = Awaited<ReturnType<typeof getCustomer>>
 
 function fromSnapshot(org: OrgRow, templateLogo: string | null | undefined) {
   return buildFromDetailsSnapshot(
@@ -157,7 +157,7 @@ function customerSnapshot(customer: CustomerRow) {
 }
 
 /** Issue-time values: FX against the base currency and both snapshots. */
-async function issueValues(ctx: ServiceCtx, opts: { currency: string; total: number; customer: CustomerRow; withFx: boolean }) {
+export async function issueValues(ctx: ServiceCtx, opts: { currency: string; total: number; customer: CustomerRow; withFx: boolean }) {
   const [org, template] = await Promise.all([getOrg(ctx), getDefaultTemplate(ctx)])
   let fx: Record<string, unknown> = {}
   if (opts.withFx) {

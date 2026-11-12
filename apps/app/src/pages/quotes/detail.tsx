@@ -57,6 +57,8 @@ import {
   parseCustomFields,
 } from "@travada-books/core";
 import { supabase } from "@/lib/supabase";
+import { apiWritesEnabled } from "@/lib/api-flags";
+import { quoteApi } from "@/lib/quote-api";
 import type { Invoice } from "@/lib/queries/invoices";
 import { InvoicePdf, buildQuoteDocumentData, taxIdLine } from "@travada-books/pdf";
 import { downloadPdf, urlToDataUrl } from "@/lib/pdf-download";
@@ -213,7 +215,10 @@ export function QuoteDetailPage() {
 
     setIsSending(true);
     try {
-      await sendQuote(
+      const viaApi = apiWritesEnabled("quotes");
+      // The API path sends the email itself when the channel is email.
+      const apiEmail = viaApi ? (await quoteApi.issue(quote.id, channel)).email : null;
+      if (!viaApi) await sendQuote(
         quote.id,
         orgId,
         buildFromDetailsSnapshot(org, logoUrl),
@@ -241,7 +246,13 @@ export function QuoteDetailPage() {
         : "Quote sent",
       );
 
-      if (channel === "email") {
+      if (channel === "email" && viaApi) {
+        if (apiEmail && !apiEmail.ok) {
+          toast.warning("Quote sent, but email delivery failed. Try resending from the quote.");
+        } else if (apiEmail?.queued) {
+          toast.success(`Emailing it to ${customer?.name ?? quote.customer_name} with the PDF attached…`);
+        }
+      } else if (channel === "email") {
         dispatchQuoteEmail()
           .then(({ queued }) => {
             if (queued) {
@@ -265,6 +276,13 @@ export function QuoteDetailPage() {
   // delivery notice — invalidates the quote query either way so email_status
   // (and the notice/poll driven by it) reflect the outcome.
   async function dispatchQuoteEmail(): Promise<{ queued: boolean }> {
+    if (apiWritesEnabled("quotes")) {
+      try {
+        return await quoteApi.resendEmail(id!);
+      } finally {
+        queryClient.invalidateQueries({ queryKey: ["quote", id] });
+      }
+    }
     const res = await supabase.functions.invoke("send-quote-email", { body: { quoteId: id } });
     queryClient.invalidateQueries({ queryKey: ["quote", id] });
     if (res.error) throw res.error;
@@ -301,7 +319,8 @@ export function QuoteDetailPage() {
   const { mutate: handleDuplicate } = useMutation({
     mutationFn: () => {
       if (!quote || !orgId || !user) throw new Error("Missing data");
-      return duplicateQuote(quote, orgId, user.id);
+      if (apiWritesEnabled("quotes")) return quoteApi.duplicate(quote.id).then(({ quote: copy }) => ({ id: copy.id }));
+      return duplicateQuote(quote, orgId, user.id).then((copy) => ({ id: copy.id }));
     },
     onSuccess: (newQuote) => {
       queryClient.invalidateQueries({ queryKey: ["quotes", orgId] });
@@ -312,7 +331,7 @@ export function QuoteDetailPage() {
   });
 
   const { mutate: handleDelete } = useMutation({
-    mutationFn: () => deleteQuote(id!, orgId!),
+    mutationFn: () => (apiWritesEnabled("quotes") ? quoteApi.remove(id!).then(() => {}) : deleteQuote(id!, orgId!)),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["quotes", orgId] });
       navigate("/quotes");
@@ -390,7 +409,10 @@ export function QuoteDetailPage() {
   }
 
   const { mutate: saveInternalNote } = useMutation({
-    mutationFn: () => updateQuote(id!, orgId!, { internal_note: internalNote || null }),
+    mutationFn: () =>
+      apiWritesEnabled("quotes")
+        ? quoteApi.updateMeta(id!, { internal_note: internalNote }).then(() => {})
+        : updateQuote(id!, orgId!, { internal_note: internalNote || null }).then(() => {}),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["quote", id] });
       setInternalNoteDirty(false);

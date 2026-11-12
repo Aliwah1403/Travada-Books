@@ -64,6 +64,43 @@ function fakeInvoiceServices(tables: FakeTables, orgId: string) {
   } as unknown as McpContext["invoices"]
 }
 
+/** Stand-in for the quote services (real ones: quotes.test.ts). */
+function fakeQuoteServices(tables: FakeTables, orgId: string) {
+  const find = (id: string) => (tables.quotes ?? []).find((row) => row.id === id && row.org_id === orgId)
+  const asRow = (row: Record<string, unknown>) => ({
+    ...row,
+    quoteNumber: row.quote_number ?? null,
+    customerId: row.customer_id ?? SOME_ID,
+    customerName: row.customer_name ?? null,
+    lineItems: row.line_items ?? [],
+    customFields: [],
+  })
+  const call = (name: string) => serviceCalls.push({ name, orgId })
+  const get = async (id: string) => {
+    call("get")
+    const row = find(id)
+    if (!row) throw new ServiceError(404, "NOT_FOUND", "Quote not found.")
+    return asRow(row)
+  }
+  const invoice = { id: SOME_ID, invoiceNumber: "INV-9", status: "draft" }
+  return {
+    get,
+    remove: async (id: string) => {
+      call("remove")
+      const row = await get(id)
+      tables.quotes = (tables.quotes ?? []).filter((r) => r.id !== id)
+      return { quote: row }
+    },
+    create: async () => (call("create"), { quote: asRow({ id: SOME_ID, quote_number: "QUO-1", total: "10", currency: "KES" }) }),
+    update: async () => (call("update"), { quote: asRow({ id: SOME_ID, quote_number: "QUO-1", total: "10", currency: "KES" }) }),
+    issue: async () => (call("issue"), { quote: asRow({ id: SOME_ID, status: "sent", token: "t" }), email: { ok: true as const } }),
+    duplicate: async () => (call("duplicate"), { quote: asRow({ id: SOME_ID, quote_number: "QUO-2" }) }),
+    accept: async () => (call("accept"), { quote: asRow({ id: SOME_ID, status: "accepted" }), invoice }),
+    decline: async () => (call("decline"), { quote: asRow({ id: SOME_ID, status: "declined" }) }),
+    convert: async () => (call("convert"), { quote: asRow({ id: SOME_ID }), invoice, created: true }),
+  } as unknown as McpContext["quotes"]
+}
+
 function makeCtx(
   db: ReturnType<typeof createFakeDb>["db"],
   overrides: Partial<McpContext> = {},
@@ -74,6 +111,7 @@ function makeCtx(
     userId: USER,
     db: scopeToOrg(db, overrides.orgId ?? ORG_A),
     invoices: fakeInvoiceServices(tables, overrides.orgId ?? ORG_A),
+    quotes: fakeQuoteServices(tables, overrides.orgId ?? ORG_A),
     org: { name: "Acme Ltd", baseCurrency: "KES", countryCode: "KE" },
     user: { timezone: "Africa/Nairobi", locale: "en", dateFormat: null },
     channel: "mcp",
@@ -121,7 +159,7 @@ describe("org scoping (plan §14: every tool returns only its organisation's dat
 
       const queries = new Map<number, typeof calls>()
       for (const call of calls) queries.set(call.query, [...(queries.get(call.query) ?? []), call])
-      // Writes go through the invoice services, which are bound to the
+      // Writes go through the invoice/quote services, which are bound to the
       // caller's org (and tested for scoping against a real database).
       expect(queries.size + serviceCalls.length, "tool touched no data").toBeGreaterThan(0)
       expect(serviceCalls.every((call) => call.orgId === ORG_A)).toBe(true)
@@ -265,6 +303,17 @@ describe("confirmations (plan §7)", () => {
         const { db } = createFakeDb({
           invoices: [
             { id: SOME_ID, org_id: ORG_A, status: needsDraft ? "draft" : "unpaid", currency: "KES", total: 10, amount_paid: 0, customer_id: OTHER_USER },
+          ],
+          quotes: [
+            {
+              id: SOME_ID,
+              org_id: ORG_A,
+              status: t.name === "quotes_mark_accepted" ? "sent" : "draft",
+              currency: "KES",
+              total: 10,
+              customer_id: OTHER_USER,
+              quote_number: "QUO-1",
+            },
           ],
           customers: [{ id: OTHER_USER, org_id: ORG_A, name: "Acme", email: "billing@acme.test" }],
         })

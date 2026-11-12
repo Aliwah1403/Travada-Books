@@ -12,6 +12,8 @@ import { Button } from "@travada-books/ui/components/button";
 import { type QuoteStatus } from "./quote-status-badge";
 import { toast } from "sonner";
 import { deleteQuote } from "@/lib/queries/quotes";
+import { apiWritesEnabled } from "@/lib/api-flags";
+import { quoteApi } from "@/lib/quote-api";
 import { useAuth } from "@/contexts/auth-context";
 import { isQuoteEditable } from "./quote-utils";
 
@@ -27,7 +29,8 @@ export function QuoteActions({ quoteId, quoteToken, status }: QuoteActionsProps)
   const { orgId } = useAuth();
 
   const { mutate: handleDelete } = useMutation({
-    mutationFn: () => deleteQuote(quoteId, orgId!),
+    mutationFn: () =>
+      apiWritesEnabled("quotes") ? quoteApi.remove(quoteId).then(() => {}) : deleteQuote(quoteId, orgId!),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["quotes", orgId] });
     },

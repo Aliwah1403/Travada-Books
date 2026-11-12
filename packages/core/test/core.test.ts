@@ -4,7 +4,10 @@ import {
   buildFromDetailsSnapshot,
   computeDocumentTotals,
   deriveVatRate,
+  addDays,
+  invoiceFromQuote,
   isPastValidUntil,
+  isQuoteSendable,
   isQuoteEditable,
   normalizeCustomFields,
   normalizePartialRules,
@@ -153,6 +156,51 @@ describe("quotes", () => {
     expect(isPastValidUntil("2026-11-11", "2026-11-11")).toBe(false)
     expect(isPastValidUntil("2026-11-10", "2026-11-11")).toBe(true)
     expect(isPastValidUntil(null, "2026-11-11")).toBe(false)
+  })
+  it("drafts and declined quotes can be (re)sent", () => {
+    expect(["draft", "declined"].every(isQuoteSendable)).toBe(true)
+    expect(["sent", "accepted", "expired"].some(isQuoteSendable)).toBe(false)
+  })
+  it("adds calendar days across month ends", () => {
+    expect(addDays("2026-11-25", 14)).toBe("2026-12-09")
+    expect(addDays("2026-02-28", 1)).toBe("2026-03-01")
+  })
+  it("converts a quote into a draft invoice like accept-quote does", () => {
+    const quote = {
+      customer_id: "c1",
+      customer_name: "Acme",
+      currency: "USD",
+      line_items: [{ description: "Work", quantity: 1, price: 100, tax_rate: 0 }],
+      custom_fields: null,
+      subtotal: "100.00",
+      tax_amount: "0.00",
+      discount: "0.00",
+      vat_rate: null,
+      discount_percent: null,
+      total: "100.00",
+      from_details: { name: "Us" },
+      customer_details: { name: "Acme" },
+      note: "",
+    }
+    const defaults = { payment_terms: 30, default_note: "Thanks", default_payment_details: "M-Pesa 123", invoice_template: "modern" }
+    const inv = invoiceFromQuote(quote, defaults, "2026-11-12")
+    expect(inv).toMatchObject({
+      status: "draft",
+      issue_date: "2026-11-12",
+      due_date: "2026-12-12",
+      currency: "USD",
+      custom_fields: [],
+      invoice_template: "modern",
+      total: "100.00",
+      note: "Thanks",
+      payment_details: "M-Pesa 123",
+    })
+    expect(invoiceFromQuote({ ...quote, note: "Quote note" }, null, "2026-11-12")).toMatchObject({
+      due_date: null,
+      invoice_template: "classic",
+      note: "Quote note",
+      payment_details: null,
+    })
   })
 })
 

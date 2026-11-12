@@ -27,6 +27,7 @@ function fakeEffects() {
     sendInvoiceReminder: async (...args) => void calls.push({ name: "sendInvoiceReminder", args }),
     notifyInvoicePaid: async (...args) => void calls.push({ name: "notifyInvoicePaid", args }),
     scheduleInvoiceSend: async (...args) => void calls.push({ name: "scheduleInvoiceSend", args }),
+    sendQuoteEmail: async (...args) => (calls.push({ name: "sendQuoteEmail", args }), { queued: false }),
   }
   return { effects, calls }
 }

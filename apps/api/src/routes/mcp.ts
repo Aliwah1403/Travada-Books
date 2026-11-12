@@ -4,7 +4,8 @@ import type { AppEnv } from "../context.js"
 import { createMcpServer } from "../mcp/server.js"
 import type { McpContext } from "../mcp/types.js"
 import { requireCaller } from "../middleware/require-caller.js"
-import { invoiceServices } from "../services/invoices.js"
+import { invoiceServices, type ServiceCtx } from "../services/invoices.js"
+import { quoteServices } from "../services/quotes.js"
 
 export const mcp = new Hono<AppEnv>()
 
@@ -24,17 +25,19 @@ mcp.all("/", async (c) => {
   if (orgError || !org) return c.json({ error: "Organization not found" }, 404)
 
   const timezone = user?.timezone || "Africa/Nairobi"
+  const services: ServiceCtx = {
+    db: deps.db as ServiceCtx["db"],
+    orgId: caller.orgId,
+    userId: caller.userId,
+    today: new Intl.DateTimeFormat("en-CA", { timeZone: timezone }).format(new Date()),
+    effects: deps.effects,
+  }
   const ctx: McpContext = {
     orgId: caller.orgId,
     userId: caller.userId,
     db,
-    invoices: invoiceServices({
-      db: deps.db as Parameters<typeof invoiceServices>[0]["db"],
-      orgId: caller.orgId,
-      userId: caller.userId,
-      today: new Intl.DateTimeFormat("en-CA", { timeZone: timezone }).format(new Date()),
-      effects: deps.effects,
-    }),
+    invoices: invoiceServices(services),
+    quotes: quoteServices(services),
     org: { name: org.name, baseCurrency: org.base_currency ?? "KES", countryCode: org.country_code ?? null },
     user: {
       timezone,

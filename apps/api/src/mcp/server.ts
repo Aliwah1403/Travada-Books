@@ -3,6 +3,7 @@ import { registerTools } from "./registry.js"
 import { customerTools } from "./tools/customers.js"
 import { invoiceWriteTools } from "./tools/invoice-writes.js"
 import { invoiceTools, paymentTools, quoteTools } from "./tools/invoices.js"
+import { quoteWriteTools } from "./tools/quote-writes.js"
 import { billTools, inboxTools, transactionTools } from "./tools/money.js"
 import { insightTools, orgTools, reportTools, searchTools } from "./tools/reports.js"
 import type { AnyTool, McpContext, ToolRuntime } from "./types.js"
@@ -20,6 +21,7 @@ export const allTools: AnyTool[] = [
   ...invoiceWriteTools,
   ...paymentTools,
   ...quoteTools,
+  ...quoteWriteTools,
   ...transactionTools,
   ...billTools,
   ...inboxTools,
