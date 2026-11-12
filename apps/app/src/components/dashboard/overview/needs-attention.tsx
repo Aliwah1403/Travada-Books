@@ -103,7 +103,7 @@ export function NeedsAttention({ orgId, displayCurrency, fxRate }: NeedsAttentio
         <Alert01Icon size={16} className="shrink-0 text-muted-foreground" />
         <CardTitle>Needs attention</CardTitle>
       </CardHeader>
-      <CardContent>
+      <CardContent className="min-h-0 flex-1 overflow-y-auto">
         {query.isError ? (
           <div className="flex items-center gap-3">
             <p className="flex-1 text-xs text-muted-foreground">Couldn't check what's waiting.</p>

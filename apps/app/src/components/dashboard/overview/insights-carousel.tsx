@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { Link } from "react-router"
+import { Link, useSearchParams } from "react-router"
 import { useQuery } from "@tanstack/react-query"
 import { Card, CardContent, CardHeader, CardTitle } from "@travada-books/ui/components/card"
 import { Button } from "@travada-books/ui/components/button"
@@ -16,6 +16,7 @@ import {
 } from "@/lib/queries/overview-insights"
 import { useCashForecast } from "./use-cash-forecast"
 import { useOverviewIncome } from "./use-overview-data"
+import { INSIGHT_PARAM } from "./weekly-summary-sheet"
 
 const STALE_TIME = 5 * 60 * 1000
 
@@ -31,6 +32,13 @@ type InsightsCarouselProps = {
 
 export function InsightsCarousel({ orgId, currency, from, to, displayCurrency, fxRate }: InsightsCarouselProps) {
   const today = localToday()
+  const [, setSearchParams] = useSearchParams()
+  const openSummary = (id: string) =>
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      next.set(INSIGHT_PARAM, id)
+      return next
+    })
   const stored = useQuery({
     queryKey: ["insights", orgId],
     queryFn: () => listInsights(orgId),
@@ -69,14 +77,13 @@ export function InsightsCarousel({ orgId, currency, from, to, displayCurrency, f
         <CardTitle className="flex-1">Insights</CardTitle>
         <Button
           size="sm"
-          variant="outline"
           onClick={() => openAssistant("How is my business doing right now? Anything I should act on?")}
         >
           <SparklesIcon data-icon="inline-start" />
           Ask Travada
         </Button>
       </CardHeader>
-      <CardContent className="min-w-0">
+      <CardContent className="min-h-0 min-w-0 flex-1 overflow-y-auto">
         {cards == null ? (
           <div className="flex gap-3 overflow-hidden">
             {[0, 1].map((i) => (
@@ -99,14 +106,14 @@ export function InsightsCarousel({ orgId, currency, from, to, displayCurrency, f
             Nothing stands out yet. Insights appear here as invoices, payments and expenses come in.
           </p>
         ) : (
-          <Track cards={cards} />
+          <Track cards={cards} onReadSummary={openSummary} />
         )}
       </CardContent>
     </Card>
   )
 }
 
-function Track({ cards }: { cards: OverviewInsightCard[] }) {
+function Track({ cards, onReadSummary }: { cards: OverviewInsightCard[]; onReadSummary: (id: string) => void }) {
   const scrollerRef = useRef<HTMLDivElement>(null)
   const [active, setActive] = useState(0)
   const [atStart, setAtStart] = useState(true)
@@ -149,7 +156,7 @@ function Track({ cards }: { cards: OverviewInsightCard[] }) {
         aria-label="Insights"
       >
         {cards.map((card, i) => (
-          <InsightTile key={card.id} card={card} index={i} total={cards.length} />
+          <InsightTile key={card.id} card={card} index={i} total={cards.length} onReadSummary={onReadSummary} />
         ))}
       </div>
 
@@ -194,7 +201,17 @@ function Track({ cards }: { cards: OverviewInsightCard[] }) {
   )
 }
 
-function InsightTile({ card, index, total }: { card: OverviewInsightCard; index: number; total: number }) {
+function InsightTile({
+  card,
+  index,
+  total,
+  onReadSummary,
+}: {
+  card: OverviewInsightCard
+  index: number
+  total: number
+  onReadSummary: (id: string) => void
+}) {
   return (
     <article
       aria-roledescription="slide"
@@ -207,22 +224,28 @@ function InsightTile({ card, index, total }: { card: OverviewInsightCard; index:
       </p>
       <h3 className="text-sm font-medium text-pretty">{card.title}</h3>
       <p className="line-clamp-3 text-xs/relaxed text-muted-foreground">{card.text}</p>
-      <div className="mt-auto flex flex-wrap items-center gap-x-3 gap-y-1 pt-1.5">
-        {card.action && (
-          <Link
-            to={card.action.href}
-            className="max-w-full truncate text-xs font-medium text-primary underline-offset-4 fine-hover:underline"
+      <div className="mt-auto flex min-w-0 items-center pt-1.5">
+        {card.insightId && (
+          <Button
+            size="sm"
+            variant="ghost"
+            className="-ml-2.5 underline underline-offset-4"
+            onClick={() => onReadSummary(card.insightId!)}
           >
-            {card.action.label}
-          </Link>
+            Read the summary
+          </Button>
         )}
-        <button
-          type="button"
-          onClick={() => openAssistant(card.askPrompt)}
-          className="text-xs text-muted-foreground underline-offset-4 transition-colors fine-hover:text-foreground fine-hover:underline"
-        >
-          Ask about this
-        </button>
+        {card.action && (
+          <Button
+            size="sm"
+            variant="ghost"
+            nativeButton={false}
+            render={<Link to={card.action.href} />}
+            className="-ml-2.5 max-w-full min-w-0 underline underline-offset-4"
+          >
+            <span className="truncate">{card.action.label}</span>
+          </Button>
+        )}
       </div>
     </article>
   )

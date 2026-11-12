@@ -37,7 +37,7 @@ export function WhatMovesIt({ orgId, currency, from, to, displayCurrency, fxRate
           <CardDescription>Money in this period, by customer, against the stretch before</CardDescription>
         </div>
       </CardHeader>
-      <CardContent className="flex flex-1 flex-col gap-4">
+      <CardContent className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto">
         {income.isError ? (
           <div className="flex items-center gap-3">
             <p className="flex-1 text-xs text-muted-foreground">Couldn't load your income.</p>

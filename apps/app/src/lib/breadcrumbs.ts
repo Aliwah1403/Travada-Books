@@ -17,7 +17,6 @@ export type CrumbRecords = {
 export type CrumbOrigin = { customerId: string; customerName?: string | null }
 
 const SECTION_LABELS: Record<string, string> = {
-  insights: "Insights",
   invoices: "Invoices",
   quotes: "Quotes",
   customers: "Customers",

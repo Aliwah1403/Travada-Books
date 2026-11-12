@@ -274,7 +274,9 @@ export function Grid({
         <g className="chart-grid-highlight-rows">
           {highlightRowValues.map((value) => {
             const y = yScale(value);
-            if (y == null || !Number.isFinite(y)) {
+            // Travada: a fitted y-domain (e.g. a cash balance that never nears
+            // zero) puts the row outside the plot; don't draw it below the axis.
+            if (y == null || !Number.isFinite(y) || y < 0 || y > innerHeight) {
               return null;
             }
 

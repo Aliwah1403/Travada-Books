@@ -21,8 +21,8 @@ export type OverviewInsightCard = {
   title: string
   text: string
   action?: { label: string; href: string }
-  /** Prompt handed to the assistant by "Ask about this". */
-  askPrompt: string
+  /** Stored weekly insight this card summarises — its full text opens in the weekly summary sheet. */
+  insightId?: string
 }
 
 const MAX_AI_CARDS = 3
@@ -83,17 +83,15 @@ export function composeOverviewInsights(
 
   // 1. Stored weekly AI insights, newest first.
   for (const insight of input.stored.slice(0, MAX_AI_CARDS)) {
-    const { title, summary, actions } = insight.content ?? { title: "", summary: "", actions: [] }
+    const { title, summary } = insight.content ?? { title: "", summary: "" }
     if (!title && !summary) continue
-    const action = actions?.[0]
     cards.push({
       id: `ai:${insight.id}`,
       source: "ai",
       eyebrow: `Weekly insight · ${weekLabel(insight.period_start, insight.period_end)}`,
       title: title || "This week",
       text: summary,
-      action: action ? { label: action.text, href: action.href } : { label: "All insights", href: "/insights" },
-      askPrompt: `Tell me more about this weekly insight: "${title}". ${summary}`,
+      insightId: insight.id,
     })
   }
 
@@ -113,8 +111,7 @@ export function composeOverviewInsights(
         eyebrow,
         title: `${pct}% of your money in came from one customer`,
         text: `${top.name} paid ${money(top.current)} of the ${money(income.total)} you brought in. If they slowed down, you'd feel it — worth widening the base.`,
-        action: { label: `View ${top.name}`, href: `/customers/${top.customerId}` },
-        askPrompt: `${pct}% of my income in this period came from ${top.name}. How exposed am I, and what can I do about it?`,
+        action: { label: "View customer", href: `/customers/${top.customerId}` },
       })
     }
   }
@@ -142,7 +139,6 @@ export function composeOverviewInsights(
           label: slow.n === 1 ? "View invoice" : "View invoices",
           href: slow.n === 1 ? slow.href : invoicesDrilldownUrl({ statuses: ["unpaid", "partially_paid", "overdue"] }),
         },
-        askPrompt: `${slow.label} usually pays ${slow.late} days late and has ${money(slow.amount)} open. How should I approach them?`,
       })
     }
   }
@@ -177,7 +173,6 @@ export function composeOverviewInsights(
             categoryIds: top.c.category_id ? [top.c.category_id] : undefined,
           }),
         },
-        askPrompt: `My ${top.c.category_name} spending went up ${pct}% in the last 30 days (${money(top.c.total)} vs ${money(top.before)}). What's driving it?`,
       })
     }
   }
@@ -203,8 +198,7 @@ export function composeOverviewInsights(
         text: up
           ? `${money(c.current)} this period${c.previous > 0 ? `, up from ${money(c.previous)}` : ""}.`
           : `${money(c.current)} this period, down from ${money(c.previous)}${c.current === 0 ? " — nothing yet" : ""}.`,
-        action: { label: `View ${c.name}`, href: `/customers/${c.customerId}` },
-        askPrompt: `${c.name} paid ${money(c.current)} this period vs ${money(c.previous)} the period before. What changed?`,
+        action: { label: "View customer", href: `/customers/${c.customerId}` },
       })
     }
   }
@@ -222,7 +216,6 @@ export function composeOverviewInsights(
         title: `${capital} was your best ${income.granularity} in this range`,
         text: `${money(bs.best.amount)} came in — ${bs.slowest.amount > 0 ? `${Math.round(bs.best.amount / bs.slowest.amount)}× your slowest` : "your slowest brought in nothing"}.`,
         action: { label: "See the income", href: incomeHref(bs.best.start, income.granularity) },
-        askPrompt: `${capital} was my best ${income.granularity} at ${money(bs.best.amount)}. What made it work, and can I repeat it?`,
       })
     }
   }
@@ -237,7 +230,6 @@ export function composeOverviewInsights(
       title: `${money(forecast.totals.inflow)} expected in over the next ${forecast.horizonDays} days`,
       text: `From ${invoices.length} open invoice${invoices.length === 1 ? "" : "s"}, placed on the day each customer usually pays.`,
       action: { label: "Open invoices", href: invoicesDrilldownUrl({ statuses: ["unpaid", "partially_paid", "overdue"] }) },
-      askPrompt: `I'm expecting ${money(forecast.totals.inflow)} in over the next ${forecast.horizonDays} days. Which of it is at risk?`,
     })
   }
 

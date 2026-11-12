@@ -14,6 +14,7 @@ import { YAxis } from "@/components/charts/y-axis"
 import { ChartTooltip } from "@/components/charts/tooltip"
 import { chartCssVars, useChartStable } from "@/components/charts/chart-context"
 import { ChartCardError } from "@/components/dashboard/chart-card"
+import { useTileMode } from "@/components/dashboard/tile-mode"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { formatCurrency, formatCurrencyCompact } from "@/lib/format"
 import { CASH_HISTORY_DAYS, type CashMoment, type CashStory } from "@/lib/queries/cash-story"
@@ -41,7 +42,12 @@ type CashStoryChartProps = {
 export function CashStoryChart({ orgId, currency, displayCurrency, fxRate }: CashStoryChartProps) {
   const { data, forecast, isLoading, isError, refetch } = useCashStory(orgId, currency)
   const isMobile = useIsMobile()
-  const aspectRatio = isMobile ? "3 / 2" : "5 / 2"
+  // In a grid tile the card has a fixed height, so the chart takes whatever is
+  // left after the summary and caveats instead of a fixed ratio.
+  const fill = useTileMode() === "grid"
+  const aspectRatio = fill ? "auto" : isMobile ? "3 / 2" : "5 / 2"
+  const chartClassName = fill ? "absolute inset-0" : undefined
+  const chartSlotClassName = fill ? "relative min-h-0 min-w-0 flex-1" : "min-w-0"
 
   const fmt = (base: number) => formatCurrency(base * fxRate, displayCurrency)
   const fmtCompact = (base: number) => formatCurrencyCompact(base * fxRate, displayCurrency)
@@ -63,7 +69,7 @@ export function CashStoryChart({ orgId, currency, displayCurrency, fxRate }: Cas
 
   if (isError) {
     return (
-      <div id="cash-story" className="scroll-mt-6">
+      <div id="cash-story" className="h-full scroll-mt-6">
         <ChartCardError title={TITLE} icon={ChartLineData01Icon} onRetry={refetch} />
       </div>
     )
@@ -97,7 +103,7 @@ export function CashStoryChart({ orgId, currency, displayCurrency, fxRate }: Cas
         </div>
       </CardHeader>
 
-      <CardContent className="flex flex-col gap-5">
+      <CardContent className="flex min-h-0 flex-1 flex-col gap-5">
         {isLoading || !data || !forecast ? (
           <>
             <div className="grid grid-cols-3 gap-3">
@@ -108,14 +114,23 @@ export function CashStoryChart({ orgId, currency, displayCurrency, fxRate }: Cas
                 </div>
               ))}
             </div>
-            <AreaChartLoading aspectRatio={aspectRatio} margin={MARGIN} />
+            <div className={chartSlotClassName}>
+              <AreaChartLoading aspectRatio={aspectRatio} margin={MARGIN} className={chartClassName} />
+            </div>
           </>
         ) : (
           <>
             <Summary story={data} fmtCompact={fmtCompact} />
 
-            <div className="min-w-0">
-              <AreaChart data={chartData} xDataKey="date" aspectRatio={aspectRatio} margin={MARGIN} fitYDomain>
+            <div className={chartSlotClassName}>
+              <AreaChart
+                data={chartData}
+                xDataKey="date"
+                aspectRatio={aspectRatio}
+                className={chartClassName}
+                margin={MARGIN}
+                fitYDomain
+              >
                 <Grid horizontal highlightRowValues={[0]} />
                 <ForecastShade todayIndex={data.todayIndex} />
                 <Area

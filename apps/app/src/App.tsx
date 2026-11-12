@@ -24,7 +24,7 @@ import { CreateQuotePage } from "@/pages/quotes/create"
 import { QuoteDetailPage } from "@/pages/quotes/detail"
 import { EditQuotePage } from "@/pages/quotes/edit"
 import { DashboardPage } from "@/pages/dashboard/index"
-import { InsightsPage } from "@/pages/insights/index"
+import { InsightsRedirect } from "@/pages/insights/index"
 import { CustomersPage } from "@/pages/customers/index"
 import { CustomerDetailPage } from "@/pages/customers/detail"
 import { PublicInvoicePage } from "@/pages/invoice-public/token"
@@ -84,7 +84,7 @@ const router = createBrowserRouter([
         element: <AppLayout />,
         children: [
           { path: "/", element: <DashboardPage /> },
-          { path: "/insights", element: <InsightsPage /> },
+          { path: "/insights", element: <InsightsRedirect /> },
           { path: "/invoices", element: <InvoicesPage /> },
           { path: "/invoices/create", element: <CreateInvoicePage /> },
           { path: "/invoices/:id/edit", element: <EditInvoicePage /> },

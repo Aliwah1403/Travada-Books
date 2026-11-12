@@ -47,10 +47,9 @@ type WidgetCardProps = {
   className?: string
 }
 
-// Applied to the grid/flex item itself (Link or plain div) so mobile
-// snap-scroll and desktop grid sizing behave the same whether or not the
-// widget is clickable.
-const WIDGET_SLOT_CLASSES = "h-full min-w-[85vw] shrink-0 snap-start md:min-w-0 md:shrink"
+// Applied to the tile's root (Link or plain div) so it fills its grid cell
+// whether or not the widget is clickable.
+const WIDGET_SLOT_CLASSES = "h-full min-w-0"
 
 export function WidgetCard({ title, icon: TitleIcon, to, badge, children, className }: WidgetCardProps) {
   const card = (
@@ -62,7 +61,8 @@ export function WidgetCard({ title, icon: TitleIcon, to, badge, children, classN
         <CardTitle className="truncate">{title}</CardTitle>
         {badge && <div className="ml-auto shrink-0">{badge}</div>}
       </CardHeader>
-      <CardContent>{children}</CardContent>
+      {/* Fills the tile; a tile resized shorter than its content scrolls inside instead of spilling. */}
+      <CardContent className="min-h-0 flex-1 overflow-y-auto">{children}</CardContent>
     </Card>
   )
 
@@ -89,7 +89,7 @@ export function WidgetError({ title, icon: TitleIcon, onRetry }: { title: string
           <TitleIcon size={16} className="shrink-0 text-muted-foreground" />
           <CardTitle className="truncate">{title}</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="min-h-0 flex-1 overflow-y-auto">
           <ErrorState title="Couldn't load" description="Something went wrong." onRetry={onRetry} compact />
         </CardContent>
       </Card>
