@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Outlet, useLocation, Navigate } from "react-router";
+import { Outlet, Navigate } from "react-router";
 import { Sidebar } from "@/components/sidebar/sidebar";
 import { Header } from "@/components/header/header";
 import { WorkspaceLoadError } from "@/components/workspace-load-error";
@@ -11,40 +11,7 @@ import { useRealtime, useDebouncedCallback } from "@/hooks/use-realtime";
 import { useInvalidateTransactionQueries } from "@/hooks/use-invalidate-transaction-queries";
 import { useInvalidateAfterPaymentChange } from "@/hooks/use-invalidate-payment-queries";
 
-const pageTitles: Record<string, string> = {
-  "/": "Dashboard",
-  "/invoices": "Invoices",
-  "/invoices/create": "New Invoice",
-  "/quotes": "Quotes",
-  "/quotes/create": "New Quote",
-  "/customers": "Customers",
-  "/transactions": "Transactions",
-  "/vault": "Vault",
-  "/inbox": "Inbox",
-  "/insights": "Insights",
-  "/bills": "Bills",
-  "/settings": "Settings",
-  "/account": "Account",
-};
-
-function getTitle(pathname: string): string {
-  if (pageTitles[pathname]) return pageTitles[pathname];
-  if (/^\/invoices\/[^/]+\/edit$/.test(pathname)) return "Edit Invoice";
-  if (/^\/quotes\/[^/]+\/edit$/.test(pathname)) return "Edit Quote";
-  if (pathname.startsWith("/invoices/")) return "Invoice";
-  if (pathname.startsWith("/quotes/")) return "Quote";
-  if (pathname.startsWith("/customers/")) return "Customer";
-  if (pathname.startsWith("/transactions/")) return "Transactions";
-  if (pathname.startsWith("/vault/")) return "Vault";
-  if (pathname.startsWith("/settings")) return "Settings";
-  if (pathname.startsWith("/bills/")) return "Bills";
-  if (pathname.startsWith("/insights")) return "Insights";
-  if (pathname.startsWith("/account")) return "Account";
-  return "Travada Books";
-}
-
 export function AppLayout() {
-  const { pathname } = useLocation();
   const { user, profile, loading, orgId, orgLoading, orgError, refreshOrg } =
     useAuth();
   const [nudgeOpen, setNudgeOpen] = useState(false);
@@ -123,7 +90,7 @@ export function AppLayout() {
     <div className='flex h-screen overflow-hidden'>
       <Sidebar />
       <div className='flex flex-1 flex-col overflow-hidden'>
-        <Header title={getTitle(pathname)} />
+        <Header />
         <main className='flex-1 overflow-y-auto'>
           <Outlet />
         </main>
