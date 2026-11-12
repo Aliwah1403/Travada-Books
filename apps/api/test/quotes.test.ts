@@ -32,6 +32,8 @@ function fakeEffects(failEmail = false) {
       if (failEmail) throw new Error("resend down")
       return { queued: true }
     },
+    sendStatementEmail: async (...args) => (calls.push({ name: "sendStatementEmail", args }), { queued: false }),
+    removeVaultFile: async (...args) => void calls.push({ name: "removeVaultFile", args }),
   }
   return { effects, calls }
 }
@@ -65,7 +67,7 @@ describe.skipIf(!url)("quote services (local database)", () => {
     const { effects, calls } = fakeEffects(opts.failEmail)
     await db
       .transaction(async (tx) => {
-        await body({ db: tx, orgId, userId, today: "2026-11-12", effects }, tx, calls)
+        await body({ db: tx, orgId, userId, today: "2026-11-12", timezone: "Africa/Nairobi", effects }, tx, calls)
         throw ROLLBACK
       })
       .catch((error) => {

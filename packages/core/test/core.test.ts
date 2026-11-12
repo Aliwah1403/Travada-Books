@@ -5,6 +5,8 @@ import {
   computeDocumentTotals,
   deriveVatRate,
   addDays,
+  buildStatementSnapshot,
+  calendarDateIn,
   invoiceFromQuote,
   isPastValidUntil,
   isQuoteSendable,
@@ -250,5 +252,54 @@ describe("invoice status rules", () => {
     expect(isInvoiceCancelable("unpaid", 0)).toBe(true)
     expect(isInvoiceCancelable("overdue", 10)).toBe(false)
     expect(isInvoiceCancelable("draft", 0)).toBe(false)
+  })
+})
+
+describe("buildStatementSnapshot", () => {
+  const inv = (id: string, issue: string | null, total: number, status = "unpaid") => ({
+    id,
+    invoice_number: id.toUpperCase(),
+    status,
+    issue_date: issue,
+    due_date: null,
+    total,
+    currency: "KES",
+    paid_at: null,
+    amount_paid: null,
+    created_at: "2026-09-15T10:00:00Z",
+  })
+  const pay = (invoice_id: string, amount: number, paid_at: string) => ({ invoice_id, amount, paid_at, currency: "KES" })
+
+  const result = buildStatementSnapshot({
+    invoices: [
+      inv("a", "2026-09-20", 1000),
+      inv("b", "2026-10-05", 500, "paid"),
+      inv("c", "2026-10-10", 700, "draft"),
+      inv("d", null, 300), // falls back to created_at (Sept) → before the period
+      inv("e", "2026-11-02", 900),
+    ],
+    payments: [
+      pay("a", 400, "2026-09-30T08:00:00Z"), // before → reduces opening
+      pay("b", 500, "2026-10-31T22:30:00Z"), // 1 Nov in UTC+3 → after the period
+      pay("a", 100, "2026-10-15T08:00:00Z"), // in the period
+      pay("c", 50, "2026-10-15T08:00:00Z"), // draft invoice → ignored
+    ],
+    dateFrom: "2026-10-01",
+    dateTo: "2026-10-31",
+    timeZone: "Africa/Nairobi",
+  })
+
+  it("carries billed invoices and payments from before the period", () => {
+    expect(result.opening_balance).toBe(1000 + 300 - 400)
+  })
+  it("lists only billed invoices issued in the period", () => {
+    expect(result.snapshot_data.map((r) => r.id)).toEqual(["b"])
+    expect(result.snapshot_data[0]?.amount_paid).toBe(0)
+  })
+  it("lists payments in the period by the user's calendar day", () => {
+    expect(result.payments_snapshot).toEqual([
+      { invoice_id: "a", invoice_number: "A", amount: 100, paid_at: "2026-10-15T08:00:00Z", currency: "KES" },
+    ])
+    expect(calendarDateIn("2026-10-31T22:30:00Z", "Africa/Nairobi")).toBe("2026-11-01")
   })
 })

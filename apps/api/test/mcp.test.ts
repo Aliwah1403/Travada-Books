@@ -101,6 +101,37 @@ function fakeQuoteServices(tables: FakeTables, orgId: string) {
   } as unknown as McpContext["quotes"]
 }
 
+function fakeStatementServices(tables: FakeTables, orgId: string) {
+  const find = (id: string) => (tables.statements ?? []).find((row) => row.id === id && row.org_id === orgId)
+  const asRow = (row: Record<string, unknown>) => ({
+    ...row,
+    dateFrom: row.date_from,
+    dateTo: row.date_to,
+    openingBalance: String(row.opening_balance ?? 0),
+    snapshotData: row.snapshot_data ?? [],
+    paymentsSnapshot: row.payments_snapshot ?? [],
+    customerDetails: row.customer_details ?? null,
+  })
+  const call = (name: string) => serviceCalls.push({ name, orgId })
+  const get = async (id: string) => {
+    call("get")
+    const row = find(id)
+    if (!row) throw new ServiceError(404, "NOT_FOUND", "Statement not found.")
+    return asRow(row)
+  }
+  return {
+    get,
+    create: async () => (call("create"), { statement: asRow({ id: SOME_ID, token: "t", date_from: "2026-10-01", date_to: "2026-10-31", opening_balance: 100 }) }),
+    send: async () => (call("send"), { queued: false }),
+    remove: async (id: string) => {
+      call("remove")
+      const row = await get(id)
+      tables.statements = (tables.statements ?? []).filter((r) => r.id !== id)
+      return { statement: row }
+    },
+  } as unknown as McpContext["statements"]
+}
+
 function makeCtx(
   db: ReturnType<typeof createFakeDb>["db"],
   overrides: Partial<McpContext> = {},
@@ -112,6 +143,7 @@ function makeCtx(
     db: scopeToOrg(db, overrides.orgId ?? ORG_A),
     invoices: fakeInvoiceServices(tables, overrides.orgId ?? ORG_A),
     quotes: fakeQuoteServices(tables, overrides.orgId ?? ORG_A),
+    statements: fakeStatementServices(tables, overrides.orgId ?? ORG_A),
     org: { name: "Acme Ltd", baseCurrency: "KES", countryCode: "KE" },
     user: { timezone: "Africa/Nairobi", locale: "en", dateFormat: null },
     channel: "mcp",
@@ -137,6 +169,8 @@ function sampleArgs(tool: AnyTool): Record<string, unknown> {
     else if (key === "id" || key === "action_id" || key.endsWith("_id")) args[key] = SOME_ID
     else if (key === "from") args[key] = "2026-01-01"
     else if (key === "to") args[key] = "2026-12-31"
+    else if (key === "date_from") args[key] = "2026-10-01"
+    else if (key === "date_to") args[key] = "2026-10-31"
     else if (key === "amount") args[key] = 10
     else args[key] = "Acme"
   }
@@ -316,6 +350,17 @@ describe("confirmations (plan §7)", () => {
             },
           ],
           customers: [{ id: OTHER_USER, org_id: ORG_A, name: "Acme", email: "billing@acme.test" }],
+          statements: [
+            {
+              id: SOME_ID,
+              org_id: ORG_A,
+              customer_id: OTHER_USER,
+              date_from: "2026-10-01",
+              date_to: "2026-10-31",
+              email_status: null,
+              customer_details: { name: "Acme", email: "billing@acme.test" },
+            },
+          ],
         })
         const { runtime } = makeRuntime()
         const result = text(await executeTool(t, sampleArgs(t), makeCtx(db, { channel }), runtime))

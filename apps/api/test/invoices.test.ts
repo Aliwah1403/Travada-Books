@@ -28,6 +28,8 @@ function fakeEffects() {
     notifyInvoicePaid: async (...args) => void calls.push({ name: "notifyInvoicePaid", args }),
     scheduleInvoiceSend: async (...args) => void calls.push({ name: "scheduleInvoiceSend", args }),
     sendQuoteEmail: async (...args) => (calls.push({ name: "sendQuoteEmail", args }), { queued: false }),
+    sendStatementEmail: async (...args) => (calls.push({ name: "sendStatementEmail", args }), { queued: false }),
+    removeVaultFile: async (...args) => void calls.push({ name: "removeVaultFile", args }),
   }
   return { effects, calls }
 }
@@ -59,7 +61,7 @@ describe.skipIf(!url)("invoice services (local database)", () => {
     const { effects, calls } = fakeEffects()
     await db
       .transaction(async (tx) => {
-        await body({ db: tx, orgId, userId, today: "2026-11-11", effects }, tx, calls)
+        await body({ db: tx, orgId, userId, today: "2026-11-11", timezone: "Africa/Nairobi", effects }, tx, calls)
         throw ROLLBACK
       })
       .catch((error) => {

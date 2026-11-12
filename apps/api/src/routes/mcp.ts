@@ -6,6 +6,7 @@ import type { McpContext } from "../mcp/types.js"
 import { requireCaller } from "../middleware/require-caller.js"
 import { invoiceServices, type ServiceCtx } from "../services/invoices.js"
 import { quoteServices } from "../services/quotes.js"
+import { statementServices } from "../services/statements.js"
 
 export const mcp = new Hono<AppEnv>()
 
@@ -30,6 +31,7 @@ mcp.all("/", async (c) => {
     orgId: caller.orgId,
     userId: caller.userId,
     today: new Intl.DateTimeFormat("en-CA", { timeZone: timezone }).format(new Date()),
+    timezone,
     effects: deps.effects,
   }
   const ctx: McpContext = {
@@ -38,6 +40,7 @@ mcp.all("/", async (c) => {
     db,
     invoices: invoiceServices(services),
     quotes: quoteServices(services),
+    statements: statementServices(services),
     org: { name: org.name, baseCurrency: org.base_currency ?? "KES", countryCode: org.country_code ?? null },
     user: {
       timezone,

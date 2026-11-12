@@ -11,6 +11,7 @@ import { mcp } from "./routes/mcp.js"
 import { me } from "./routes/me.js"
 import { invoiceRoutes, paymentRoutes, recurringRoutes } from "./routes/v1/invoices.js"
 import { quoteRoutes } from "./routes/v1/quotes.js"
+import { statementRoutes } from "./routes/v1/statements.js"
 
 export function createApp(deps: Deps, options: { allowedOrigins: string[]; logRequests?: boolean }) {
   const app = new Hono<AppEnv>()
@@ -39,6 +40,7 @@ export function createApp(deps: Deps, options: { allowedOrigins: string[]; logRe
     .route("/v1/invoice-recurring", recurringRoutes)
     .route("/v1/payments", paymentRoutes)
     .route("/v1/quotes", quoteRoutes)
+    .route("/v1/statements", statementRoutes)
     .route("/mcp", mcp)
 
   // Every error leaves as an ApiErrorBody ({ error, code, field? }) from

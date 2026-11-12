@@ -35,6 +35,8 @@ export type ServiceCtx = {
   userId: string
   /** Today, "YYYY-MM-DD", in the caller's timezone. */
   today: string
+  /** The caller's IANA timezone (what `today` was computed in). */
+  timezone: string
   effects: Effects
 }
 

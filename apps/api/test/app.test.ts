@@ -48,6 +48,8 @@ beforeAll(async () => {
       notifyInvoicePaid: async () => {},
       scheduleInvoiceSend: async () => {},
       sendQuoteEmail: async () => ({ queued: false }),
+      sendStatementEmail: async () => ({ queued: false }),
+      removeVaultFile: async () => {},
     },
     db: { execute: async () => [] } as unknown as Deps["db"],
     verifyToken: createTokenVerifier(SUPABASE_URL, createLocalJWKSet({ keys: [jwk] })),

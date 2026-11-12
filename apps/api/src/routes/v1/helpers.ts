@@ -70,5 +70,5 @@ export async function serviceCtx(c: Context<AppEnv>): Promise<ServiceCtx> {
     const [user] = await deps.db.select({ timezone: users.timezone }).from(users).where(eq(users.id, caller.userId)).limit(1)
     tz = user?.timezone && isTimezone(user.timezone) ? user.timezone : "UTC"
   }
-  return { db: deps.db as ServiceCtx["db"], orgId: caller.orgId, userId: caller.userId, today: todayIn(tz), effects: deps.effects }
+  return { db: deps.db as ServiceCtx["db"], orgId: caller.orgId, userId: caller.userId, today: todayIn(tz), timezone: tz, effects: deps.effects }
 }

@@ -7,7 +7,7 @@
 // The edge functions accept the API as a trusted internal caller, the same
 // way the Trigger.dev worker calls them (API-WRITES-PLAN.md D6):
 //   send-invoice-email, send-invoice-reminder,
-//   send-quote-email                          → service-role bearer
+//   send-quote-email, send-statement-email    → service-role bearer
 //   notify-invoice-paid                       → X-Worker-Secret
 // Scheduled sends go straight to Trigger.dev, as trigger-scheduled-send does.
 
@@ -21,6 +21,10 @@ export type Effects = {
   scheduleInvoiceSend(invoiceId: string, scheduledAt: string): Promise<void>
   /** Emails a sent quote. `queued` = a PDF is being generated first. */
   sendQuoteEmail(quoteId: string): Promise<{ queued: boolean }>
+  /** Emails a statement. `queued` = a PDF is being generated first. */
+  sendStatementEmail(statementId: string): Promise<{ queued: boolean }>
+  /** Removes a file from the private `vault` storage bucket. */
+  removeVaultFile(path: string): Promise<void>
 }
 
 export type EffectsConfig = {
@@ -91,6 +95,21 @@ export function createEffects(config: EffectsConfig): Effects {
     async sendQuoteEmail(quoteId) {
       const data = await postJson(fn("send-quote-email"), asService, { quoteId })
       return { queued: data.queued === true }
+    },
+
+    async sendStatementEmail(statementId) {
+      const data = await postJson(fn("send-statement-email"), asService, { statementId })
+      return { queued: data.queued === true }
+    },
+
+    async removeVaultFile(path) {
+      const res = await fetch(`${config.supabaseUrl}/storage/v1/object/vault`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json", ...asService },
+        body: JSON.stringify({ prefixes: [path] }),
+        signal: AbortSignal.timeout(10_000),
+      })
+      if (!res.ok) throw new EffectError(`vault remove failed (${res.status}): ${(await res.text()).slice(0, 200)}`)
     },
   }
 }

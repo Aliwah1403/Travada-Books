@@ -4,6 +4,7 @@ import type { Redis } from "../lib/redis.js"
 import type { ScopedDb } from "../lib/scoped.js"
 import type { InvoiceServices } from "../services/invoices.js"
 import type { QuoteServices } from "../services/quotes.js"
+import type { StatementServices } from "../services/statements.js"
 
 // Where a tool call came from. Drives the confirmation rule (§7) and is
 // recorded on every assistant_actions row (§9).
@@ -18,6 +19,8 @@ export type McpContext = {
   invoices: InvoiceServices
   /** Quote writes — the same services as /v1/quotes. */
   quotes: QuoteServices
+  /** Statement writes — the same services as /v1/statements. */
+  statements: StatementServices
   org: { name: string; baseCurrency: string; countryCode: string | null }
   user: { timezone: string; locale: string; dateFormat: string | null }
   channel: Channel
