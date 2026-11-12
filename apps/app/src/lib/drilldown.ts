@@ -6,7 +6,8 @@
 // in pages/invoices/index.tsx and pages/transactions/index.tsx). Only column
 // ids those pages translate into queries are used here:
 //   invoices:     status (option), dueDate / issueDate (date)
-//   transactions: date (date), type (option), paymentMode (option)
+//   quotes:       status (option), validUntil (date)
+//   transactions: date (date), type (option), paymentMode (option), category (option)
 
 import { endOfMonth, format, parseISO } from "date-fns"
 
@@ -63,6 +64,7 @@ export function transactionsDrilldownUrl(opts: {
   to?: string
   type?: "income" | "expense"
   paymentModes?: string[]
+  categoryIds?: string[]
 }): string {
   return buildUrl("/transactions", [
     dateFilter("date", opts.from, opts.to),
@@ -75,6 +77,23 @@ export function transactionsDrilldownUrl(opts: {
           values: opts.paymentModes,
         }
       : null,
+    opts.categoryIds?.length
+      ? {
+          columnId: "category",
+          type: "option",
+          operator: opts.categoryIds.length > 1 ? "is any of" : "is",
+          values: opts.categoryIds,
+        }
+      : null,
+  ])
+}
+
+export function quotesDrilldownUrl(opts: { statuses?: string[]; validFrom?: string; validTo?: string }): string {
+  return buildUrl("/quotes", [
+    opts.statuses?.length
+      ? { columnId: "status", type: "option", operator: opts.statuses.length > 1 ? "is any of" : "is", values: opts.statuses }
+      : null,
+    dateFilter("validUntil", opts.validFrom, opts.validTo),
   ])
 }
 

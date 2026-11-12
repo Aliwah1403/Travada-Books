@@ -17,7 +17,7 @@ import { getRunway, getCashFlow } from "@/lib/queries/metrics"
 import { formatCurrency, formatCurrencyCompact } from "@/lib/format"
 
 const STALE_TIME = 2 * 60 * 1000
-const MARGIN = { top: 24, right: 16, bottom: 32, left: 56 }
+const MARGIN = { top: 24, right: 16, bottom: 32, left: 68 }
 const MAX_PROJECTION_MONTHS = 36
 
 type CashPositionChartProps = {
@@ -103,7 +103,7 @@ export function CashPositionChart({
   if (isLoading) {
     return (
       <ChartCard title="Cash Position" icon={SafeIcon}>
-        <AreaChartLoading aspectRatio="3 / 1" margin={MARGIN} />
+        <AreaChartLoading aspectRatio="2 / 1" margin={MARGIN} />
       </ChartCard>
     )
   }
@@ -147,7 +147,7 @@ export function CashPositionChart({
       icon={SafeIcon}
       description="Projected at current spending — a straight-line estimate, not a forecast"
     >
-      <AreaChart data={chartData} xDataKey="date" aspectRatio="3 / 1" margin={MARGIN}>
+      <AreaChart data={chartData} xDataKey="date" aspectRatio="2 / 1" margin={MARGIN}>
         <Grid horizontal />
         <Area
           dataKey="balance"

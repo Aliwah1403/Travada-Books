@@ -1,6 +1,7 @@
 "use client";
 
-import { motion, useSpring, useTransform } from "motion/react";
+import { m, useSpring, useTransform } from "motion/react";
+import { useId } from "react";
 import { type SpringConfig, useChartConfig } from "../chart-config-context";
 import { chartCssVars } from "../chart-context";
 
@@ -9,10 +10,27 @@ export interface TooltipDotProps {
   y: number;
   visible: boolean;
   color: string;
-  /** Half of width/height for dots; half-extent for ring squares. Default: 5 */
+  /** Core dot radius; half-extent for ring squares. Default: 5 */
   size?: number;
+  /** Outline color for the `dot` variant. Default: `var(--chart-background)` */
   strokeColor?: string;
+  /**
+   * `dot`: outline width around the core (default `0`, no outline).
+   * `ring`: ring stroke width (default `1.5`).
+   */
   strokeWidth?: number;
+  /**
+   * `dot` variant: halo radius as a multiple of `size`. The halo is a soft disc
+   * in the series color behind the core. `0` hides it. Default: `2.6`
+   */
+  haloScale?: number;
+  /** `dot` variant: halo opacity (0–1). Default: `0.3` */
+  haloOpacity?: number;
+  /**
+   * `dot` variant: Gaussian blur (px) on the halo, turning the disc into a
+   * soft glow. `0` keeps a crisp disc. Default: `0`
+   */
+  haloBlur?: number;
   /** Dot fill or transparent ring around the hovered mark. Default: "dot" */
   variant?: "dot" | "ring";
   /**
@@ -25,6 +43,11 @@ export interface TooltipDotProps {
   /** Animate position with a spring. Default: true */
   animate?: boolean;
 }
+
+const DEFAULT_HALO_SCALE = 2.6;
+const DEFAULT_HALO_OPACITY = 0.3;
+/** Entrance spring for the core + halo radius (position uses the tooltip spring). */
+const HALO_SPRING = { type: "spring", stiffness: 420, damping: 28 } as const;
 
 function ringCornerRadius(
   halfExtent: number,
@@ -66,7 +89,7 @@ function AnimatedRingDot({
   animatedY.set(y);
 
   return (
-    <motion.rect
+    <m.rect
       fill={fill}
       height={side}
       rx={rx}
@@ -87,7 +110,10 @@ export function TooltipDot({
   color,
   size = 5,
   strokeColor = chartCssVars.background,
-  strokeWidth = 2,
+  strokeWidth,
+  haloScale = DEFAULT_HALO_SCALE,
+  haloOpacity = DEFAULT_HALO_OPACITY,
+  haloBlur = 0,
   variant = "dot",
   cornerRadiusFraction = 0.25,
   springConfig,
@@ -97,11 +123,9 @@ export function TooltipDot({
   const effectiveSpring = springConfig ?? tooltipSpring;
   const animatedX = useSpring(x, effectiveSpring);
   const animatedY = useSpring(y, effectiveSpring);
+  const haloFilterId = `tooltip-dot-halo-${useId()}`;
 
   const isRing = variant === "ring";
-  const fill = isRing ? "transparent" : color;
-  const stroke = isRing ? color : strokeColor;
-  const effectiveStrokeWidth = isRing ? (strokeWidth ?? 1.5) : strokeWidth;
 
   if (animate && !isRing) {
     animatedX.set(x);
@@ -113,15 +137,16 @@ export function TooltipDot({
   }
 
   if (isRing) {
+    const ringStrokeWidth = strokeWidth ?? 1.5;
     if (animate) {
       return (
         <AnimatedRingDot
           cornerRadiusFraction={cornerRadiusFraction}
-          fill={fill}
+          fill="transparent"
           halfExtent={size}
           springConfig={springConfig}
-          stroke={stroke}
-          strokeWidth={effectiveStrokeWidth}
+          stroke={color}
+          strokeWidth={ringStrokeWidth}
           x={x}
           y={y}
         />
@@ -133,12 +158,12 @@ export function TooltipDot({
 
     return (
       <rect
-        fill={fill}
+        fill="transparent"
         height={side}
         rx={rx}
         ry={rx}
-        stroke={stroke}
-        strokeWidth={effectiveStrokeWidth}
+        stroke={color}
+        strokeWidth={ringStrokeWidth}
         width={side}
         x={x - size}
         y={y - size}
@@ -146,28 +171,69 @@ export function TooltipDot({
     );
   }
 
+  const outlineWidth = strokeWidth ?? 0;
+  const outline =
+    outlineWidth > 0
+      ? { stroke: strokeColor, strokeWidth: outlineWidth }
+      : undefined;
+  const haloRadius = Math.max(0, size * haloScale);
+  const showHalo = haloRadius > size && haloOpacity > 0;
+  const blurHalo = showHalo && haloBlur > 0;
+  const haloFilter = blurHalo ? `url(#${haloFilterId})` : undefined;
+  // Filter region: 3× the halo's bounding box leaves room for the blur's
+  // falloff without cropping it into a square.
+  const haloFilterDefs = blurHalo ? (
+    <defs>
+      <filter height="300%" id={haloFilterId} width="300%" x="-100%" y="-100%">
+        <feGaussianBlur stdDeviation={haloBlur} />
+      </filter>
+    </defs>
+  ) : null;
+
   if (!animate) {
     return (
-      <circle
-        cx={x}
-        cy={y}
-        fill={fill}
-        r={size}
-        stroke={stroke}
-        strokeWidth={effectiveStrokeWidth}
-      />
+      <g>
+        {haloFilterDefs}
+        {showHalo && (
+          <circle
+            cx={x}
+            cy={y}
+            fill={color}
+            fillOpacity={haloOpacity}
+            filter={haloFilter}
+            r={haloRadius}
+          />
+        )}
+        <circle cx={x} cy={y} fill={color} r={size} {...outline} />
+      </g>
     );
   }
 
   return (
-    <motion.circle
-      cx={animatedX}
-      cy={animatedY}
-      fill={fill}
-      r={size}
-      stroke={stroke}
-      strokeWidth={effectiveStrokeWidth}
-    />
+    <g>
+      {haloFilterDefs}
+      {showHalo && (
+        <m.circle
+          animate={{ r: haloRadius }}
+          cx={animatedX}
+          cy={animatedY}
+          fill={color}
+          fillOpacity={haloOpacity}
+          filter={haloFilter}
+          initial={{ r: size }}
+          transition={HALO_SPRING}
+        />
+      )}
+      <m.circle
+        animate={{ r: size }}
+        cx={animatedX}
+        cy={animatedY}
+        fill={color}
+        initial={{ r: size * 0.5 }}
+        transition={HALO_SPRING}
+        {...outline}
+      />
+    </g>
   );
 }
 

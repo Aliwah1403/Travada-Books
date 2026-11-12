@@ -19,9 +19,10 @@ import {
 } from "@/lib/queries/metrics-extended"
 import { invoicesDrilldownUrl } from "@/lib/drilldown"
 import { formatCurrency, formatCurrencyCompact } from "@/lib/format"
+import { getInvoicePaymentStats } from "@/lib/queries/metrics"
 
 const STALE_TIME = 2 * 60 * 1000
-const MARGIN = { top: 24, right: 16, bottom: 32, left: 56 }
+const MARGIN = { top: 24, right: 16, bottom: 32, left: 68 }
 const TITLE = "Receivables Aging"
 
 // Increasing warning colour as invoices age. Each bucket is its own series so
@@ -44,10 +45,9 @@ const LIVE_BADGE = (
 type ReceivablesAgingChartProps = {
   orgId: string
   currency: string
-  /** Unused — aging is a live snapshot. Kept for prop-shape consistency. */
-  from?: string
-  /** Unused — aging is a live snapshot. Kept for prop-shape consistency. */
-  to?: string
+  /** The buckets are a live snapshot; the range only drives the days-to-pay line. */
+  from: string
+  to: string
   displayCurrency?: string
   fxRate?: number
 }
@@ -55,10 +55,22 @@ type ReceivablesAgingChartProps = {
 export function ReceivablesAgingChart({
   orgId,
   currency,
+  from,
+  to,
   displayCurrency = currency,
   fxRate = 1,
 }: ReceivablesAgingChartProps) {
   const navigate = useNavigate()
+  // Same query (and cache) as the Payment Score widget.
+  const { data: payStats } = useQuery({
+    queryKey: ["metric", orgId, "get_invoice_payment_stats", from, to],
+    queryFn: () => getInvoicePaymentStats(orgId, from, to),
+    staleTime: STALE_TIME,
+  })
+  const avgDaysToPay =
+    payStats && payStats.invoice_count > 0 && payStats.avg_days_to_pay !== null
+      ? Math.round(payStats.avg_days_to_pay)
+      : null
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["metric", orgId, "receivables_aging"],
     queryFn: () => getReceivablesAging(orgId),
@@ -108,6 +120,11 @@ export function ReceivablesAgingChart({
                 {over30Pct}% is over 30 days late
               </span>
             </span>
+            {avgDaysToPay !== null && (
+              <span className="w-full text-xs text-muted-foreground">
+                Customers take {avgDaysToPay} {avgDaysToPay === 1 ? "day" : "days"} on average to pay in this range
+              </span>
+            )}
           </div>
           <BarChart
             data={chartData}

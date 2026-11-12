@@ -15,7 +15,7 @@ import {
 } from "@/lib/queries/dashboard-preferences"
 import {
   DEFAULT_PRIMARY_WIDGETS,
-  NUMBER_OF_WIDGETS,
+  DEFAULT_VISIBLE_WIDGETS,
   WIDGET_KEYS,
   isWidgetAvailable,
   isWidgetKey,
@@ -83,9 +83,9 @@ export function WidgetProvider({ orgId, userId, countryCode, children }: WidgetP
   // are unavailable for this org (e.g. Tax Deadlines outside a supported
   // country). Consumers only ever see the filtered list, and every write
   // re-appends the hidden keys, so filtering alone never rewrites the saved
-  // preference. The defaults are additionally capped at NUMBER_OF_WIDGETS
-  // because DEFAULT_PRIMARY_WIDGETS lists one more key than fits, on the
-  // assumption that at least one is country-gated out.
+  // preference. The defaults are additionally capped at
+  // DEFAULT_VISIBLE_WIDGETS because DEFAULT_PRIMARY_WIDGETS lists a spare
+  // that only shows when a country-gated widget drops out.
   const isAvailable = useCallback(
     (key: WidgetKey) => isWidgetAvailable(key, { countryCode }),
     [countryCode],
@@ -93,7 +93,7 @@ export function WidgetProvider({ orgId, userId, countryCode, children }: WidgetP
 
   const visiblePrimaryWidgets = useMemo(() => {
     const visible = primaryWidgets.filter(isAvailable)
-    return primaryWidgets === DEFAULT_PRIMARY_WIDGETS ? visible.slice(0, NUMBER_OF_WIDGETS) : visible
+    return primaryWidgets === DEFAULT_PRIMARY_WIDGETS ? visible.slice(0, DEFAULT_VISIBLE_WIDGETS) : visible
   }, [primaryWidgets, isAvailable])
 
   const availableWidgets = useMemo(
@@ -115,7 +115,7 @@ export function WidgetProvider({ orgId, userId, countryCode, children }: WidgetP
   const visibleOf = useCallback(
     (prev: WidgetKey[]) => {
       const visible = prev.filter(isAvailable)
-      return prev === DEFAULT_PRIMARY_WIDGETS ? visible.slice(0, NUMBER_OF_WIDGETS) : visible
+      return prev === DEFAULT_PRIMARY_WIDGETS ? visible.slice(0, DEFAULT_VISIBLE_WIDGETS) : visible
     },
     [isAvailable],
   )

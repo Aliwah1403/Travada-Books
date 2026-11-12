@@ -1,6 +1,6 @@
 "use client";
 
-import { motion } from "motion/react";
+import { m } from "motion/react";
 import { cn } from "@travada-books/ui/lib/utils";
 import { ShimmeringText } from "../shimmering-text";
 import {
@@ -27,7 +27,7 @@ export function ChartLoadingLabel({
   }
 
   return (
-    <motion.div
+    <m.div
       animate={{
         y: exiting ? LOADING_LABEL_EXIT_Y_PX : 0,
         opacity: exiting ? 0 : 1,
@@ -46,10 +46,10 @@ export function ChartLoadingLabel({
       }}
     >
       <ShimmeringText
-        className="font-medium text-sm tracking-wide [--color:var(--muted-foreground)] [--shimmering-color:var(--foreground)]"
+        className="whitespace-nowrap font-medium text-sm tracking-normal [--color:var(--muted-foreground)] [--shimmering-color:var(--foreground)]"
         text={text}
       />
-    </motion.div>
+    </m.div>
   );
 }
 

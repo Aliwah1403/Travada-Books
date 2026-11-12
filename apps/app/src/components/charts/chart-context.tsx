@@ -1,16 +1,15 @@
 "use client";
 
-import type { scaleBand, scaleLinear, scaleTime } from "@visx/scale";
+import {
+  type ScaleBand as D3ScaleBand,
+  type ScaleLinear as D3ScaleLinear,
+  type ScaleTime as D3ScaleTime,
+  scaleLinear,
+} from "d3-scale";
 
-type ScaleLinear<Output, _Input = number> = ReturnType<
-  typeof scaleLinear<Output>
->;
-type ScaleTime<Output, _Input = Date | number> = ReturnType<
-  typeof scaleTime<Output>
->;
-type ScaleBand<Domain extends { toString(): string }> = ReturnType<
-  typeof scaleBand<Domain>
->;
+type ScaleLinear<Output, _Input = number> = D3ScaleLinear<Output, Output>;
+type ScaleTime<Output, _Input = Date | number> = D3ScaleTime<Output, Output>;
+type ScaleBand<Domain extends { toString(): string }> = D3ScaleBand<Domain>;
 
 import type { Transition } from "motion/react";
 import {
@@ -20,7 +19,11 @@ import {
   type RefObject,
   type SetStateAction,
   useContext,
+  useEffect,
+  useLayoutEffect,
   useMemo,
+  useState,
+  useSyncExternalStore,
 } from "react";
 import type { ChartPhase, ChartStatus } from "./chart-phase";
 import type { ReferenceAreaConfig } from "./reference-area-config";
@@ -60,6 +63,14 @@ export const defaultScatterColors = [
   "var(--chart-5)",
 ] as const;
 
+/**
+ * Above this many x labels, `ChartTooltip` switches to discrete interaction:
+ * the crosshair, tooltip box and dots snap between points instead of
+ * springing (springs would lag behind a dense series). The hover highlight
+ * band follows the same rule.
+ */
+export const DISCRETE_INTERACTION_LABEL_THRESHOLD = 60;
+
 export interface Margin {
   top: number;
   right: number;
@@ -78,6 +89,12 @@ export interface TooltipData {
   yPositions: Record<string, number>;
   /** X positions for each series (for grouped bars), keyed by dataKey */
   xPositions?: Record<string, number>;
+  /**
+   * Series whose point is hovered when hover snaps to the nearest point
+   * (`ScatterChart` with `jitter`). The tooltip dot and panel follow this
+   * point.
+   */
+  activeDataKey?: string;
 }
 
 export interface LineConfig {
@@ -86,6 +103,19 @@ export interface LineConfig {
   strokeWidth: number;
   /** Scale group id (Recharts `yAxisId`). Default: `"left"`. */
   yAxisId?: string | number;
+}
+
+/** Y-domain and tooltip inputs collected from a `<Band>` child. */
+export interface BandConfig {
+  yAxisId: string;
+  upperKey: string;
+  lowerKey: string;
+  /** Tooltip swatch / edge-dot colour (the band's `fill`). */
+  color: string;
+  /** Tooltip row label. */
+  label: string;
+  /** Whether the band adds a range row and edge dots to `ChartTooltip`. */
+  showInTooltip: boolean;
 }
 
 /**
@@ -145,6 +175,9 @@ export interface ChartContextValue extends ChartHoverContextValue {
 
   // Line configurations (extracted from children)
   lines: LineConfig[];
+
+  /** `<Band>` configs (time-series charts) — tooltip range rows and edge dots. */
+  bands?: BandConfig[];
 
   /** {@link ReferenceArea} bands — drives y-axis label colors in range. */
   referenceAreas: ReferenceAreaConfig[];
@@ -215,6 +248,13 @@ export interface ChartContextValue extends ChartHoverContextValue {
   composedStackOffsets?: Map<number, Map<string, number>>;
   /** Vertical gap in px between stacked `SeriesBar` segments. Default: 0 */
   composedStackGap?: number;
+
+  /**
+   * Hover resolves to the nearest point in 2D rather than the nearest x column
+   * (e.g. `ScatterChart` with `jitter`). `ChartTooltip` hides its crosshair
+   * line by default when set, since the line would not mark a single x value.
+   */
+  nearestPointHover?: boolean;
 }
 
 /**
@@ -227,8 +267,114 @@ export type ChartStableContextValue = Omit<
   keyof ChartHoverContextValue
 >;
 
+/** `useLayoutEffect` in the browser, `useEffect` on the server (no SSR warning). */
+const useIsomorphicLayoutEffect =
+  typeof window === "undefined" ? useEffect : useLayoutEffect;
+
 const ChartStableContext = createContext<ChartStableContextValue | null>(null);
 const ChartHoverContext = createContext<ChartHoverContextValue | null>(null);
+
+/**
+ * Subscribable hover/selection state. Time-series charts keep hover in one of
+ * these instead of React state, so a pointer move re-renders only the
+ * components that read hover — not the chart shell and its layers.
+ */
+export interface ChartHoverStore {
+  getSnapshot: () => ChartHoverContextValue;
+  subscribe: (listener: () => void) => () => void;
+}
+
+/** A {@link ChartHoverStore} the owning chart writes to. */
+export interface WritableChartHoverStore extends ChartHoverStore {
+  setTooltipData: Dispatch<SetStateAction<TooltipData | null>>;
+  setSelection: (selection: ChartSelection | null) => void;
+}
+
+const ChartHoverStoreContext = createContext<ChartHoverStore | null>(null);
+
+export function createChartHoverStore(): WritableChartHoverStore {
+  const listeners = new Set<() => void>();
+  let tooltipData: TooltipData | null = null;
+  let selection: ChartSelection | null = null;
+  const emit = () => {
+    snapshot = { ...snapshot, tooltipData, selection };
+    for (const listener of listeners) {
+      listener();
+    }
+  };
+  const setTooltipData: Dispatch<SetStateAction<TooltipData | null>> = (
+    action
+  ) => {
+    const next = typeof action === "function" ? action(tooltipData) : action;
+    if (next === tooltipData) {
+      return;
+    }
+    tooltipData = next;
+    emit();
+  };
+  const setSelection = (next: ChartSelection | null) => {
+    if (next === selection) {
+      return;
+    }
+    selection = next;
+    emit();
+  };
+  let snapshot: ChartHoverContextValue = {
+    tooltipData,
+    setTooltipData,
+    selection,
+    clearSelection: () => setSelection(null),
+  };
+  return {
+    getSnapshot: () => snapshot,
+    subscribe: (listener) => {
+      listeners.add(listener);
+      return () => {
+        listeners.delete(listener);
+      };
+    },
+    setTooltipData,
+    setSelection,
+  };
+}
+
+const noop = () => undefined;
+
+/** Read-only store over a plain hover value (re-created when it changes). */
+function staticChartHoverStore(value: ChartHoverContextValue): ChartHoverStore {
+  return {
+    getSnapshot: () => value,
+    subscribe: () => noop,
+  };
+}
+
+/**
+ * Publishes a hover store to `useChartHover()` (whole slice, re-renders on
+ * every change) and `useChartHoverSelector()` (re-renders only when the
+ * selected value changes). Only this provider re-renders on a hover change;
+ * `children` keeps its identity, so the subtree is skipped apart from hover
+ * consumers.
+ */
+export function ChartHoverStoreProvider({
+  children,
+  store,
+}: {
+  children: ReactNode;
+  store: ChartHoverStore;
+}) {
+  const hover = useSyncExternalStore(
+    store.subscribe,
+    store.getSnapshot,
+    store.getSnapshot
+  );
+  return (
+    <ChartHoverStoreContext.Provider value={store}>
+      <ChartHoverContext.Provider value={hover}>
+        {children}
+      </ChartHoverContext.Provider>
+    </ChartHoverStoreContext.Provider>
+  );
+}
 
 /**
  * Splits the merged `value` into a stable slice and a volatile hover slice,
@@ -258,6 +404,7 @@ export function ChartProvider({
       columnWidth: value.columnWidth,
       containerRef: value.containerRef,
       lines: value.lines,
+      bands: value.bands,
       referenceAreas: value.referenceAreas,
       chartPhase: value.chartPhase,
       chartStatus: value.chartStatus,
@@ -288,6 +435,7 @@ export function ChartProvider({
       composedStacked: value.composedStacked,
       composedStackOffsets: value.composedStackOffsets,
       composedStackGap: value.composedStackGap,
+      nearestPointHover: value.nearestPointHover,
     }),
     [
       value.data,
@@ -303,6 +451,7 @@ export function ChartProvider({
       value.columnWidth,
       value.containerRef,
       value.lines,
+      value.bands,
       value.referenceAreas,
       value.chartPhase,
       value.chartStatus,
@@ -333,6 +482,7 @@ export function ChartProvider({
       value.composedStacked,
       value.composedStackOffsets,
       value.composedStackGap,
+      value.nearestPointHover,
     ]
   );
 
@@ -359,14 +509,21 @@ export function ChartProvider({
     ]
   );
 
+  const hoverStore = useMemo(() => staticChartHoverStore(hover), [hover]);
+
   return (
     <ChartStableContext.Provider value={stable}>
-      <ChartHoverContext.Provider value={hover}>
-        {children}
-      </ChartHoverContext.Provider>
+      <ChartHoverStoreContext.Provider value={hoverStore}>
+        <ChartHoverContext.Provider value={hover}>
+          {children}
+        </ChartHoverContext.Provider>
+      </ChartHoverStoreContext.Provider>
     </ChartStableContext.Provider>
   );
 }
+
+/** Stable-slice context, for chart shells that build the slice themselves. */
+export const ChartStableContextProvider = ChartStableContext.Provider;
 
 /**
  * Stable slice — data, scales, dimensions, animation state, layout config.
@@ -384,6 +541,52 @@ export function useChartStable(): ChartStableContextValue {
   return context;
 }
 
+/**
+ * Resolves a chart container element to use as a `createPortal` target.
+ *
+ * The element is kept in state: it is seeded once from the ref (already
+ * attached when the chart renders after its container measured), then
+ * re-captured after mount. Returns `null` during SSR and when the ref is not
+ * attached on the first render.
+ *
+ * - Layout effect: when the container is a sibling or ancestor already
+ *   attached, the synchronous re-render puts portalled axes and tooltips in
+ *   the same painted frame as the plot.
+ * - Passive effect: React attaches refs child-first in the layout phase, so a
+ *   portal rendered *inside* its container (heatmap, choropleth tooltips) sees
+ *   `null` above. By the passive phase every ref is attached; this picks it up.
+ */
+export function useChartPortalContainer<T extends HTMLElement>(
+  containerRef: RefObject<T | null> | undefined
+): T | null {
+  // Seed from the ref when it is already attached (charts render after their
+  // container measured, so it usually is) — saves a mount re-render of every
+  // portalled axis / tooltip. The effects below stay as the fallback.
+  const [container, setContainer] = useState<T | null>(
+    () => containerRef?.current ?? null
+  );
+  useIsomorphicLayoutEffect(() => {
+    setContainer(containerRef?.current ?? null);
+  }, [containerRef]);
+  useEffect(() => {
+    const element = containerRef?.current ?? null;
+    setContainer((previous) => (previous === element ? previous : element));
+  }, [containerRef]);
+  return container;
+}
+
+/**
+ * Same margin object while its four numbers are unchanged, so an inline
+ * `margin={{…}}` (or the default merge) doesn't defeat memoised chart cores.
+ */
+export function useStableMargin(margin: Margin): Margin {
+  const { top, right, bottom, left } = margin;
+  return useMemo(
+    () => ({ top, right, bottom, left }),
+    [top, right, bottom, left]
+  );
+}
+
 /** Y-scale for a series axis (`yAxisId` on Line / Area / YAxis). */
 export function useYScale(
   yAxisId?: string | number
@@ -392,6 +595,32 @@ export function useYScale(
   const id =
     yAxisId == null || yAxisId === "" ? DEFAULT_Y_AXIS_ID : String(yAxisId);
   return yScales[id] ?? yScale;
+}
+
+/**
+ * Y-scale at the end of the y-domain tween (the target domain), for series
+ * that animate toward their final pixels rather than the mid-tween scale.
+ * Falls back to {@link useYScale} when no target domain is published.
+ */
+export function useSettledYScale(
+  yAxisId?: string | number
+): ScaleLinear<number, number> {
+  const { yDomainTargetByAxis, innerHeight } = useChartStable();
+  const liveScale = useYScale(yAxisId);
+  const id =
+    yAxisId == null || yAxisId === "" ? DEFAULT_Y_AXIS_ID : String(yAxisId);
+  const domain =
+    yDomainTargetByAxis?.[id] ?? yDomainTargetByAxis?.[DEFAULT_Y_AXIS_ID];
+  const min = domain?.[0];
+  const max = domain?.[1];
+  const settled = useMemo(
+    () =>
+      min == null || max == null
+        ? null
+        : scaleLinear().domain([min, max]).range([innerHeight, 0]),
+    [min, max, innerHeight]
+  );
+  return settled ?? liveScale;
 }
 
 /**
@@ -408,6 +637,46 @@ export function useChartHover(): ChartHoverContextValue {
     );
   }
   return context;
+}
+
+/**
+ * One derived value from the hover slice; re-renders only when it changes
+ * (by `Object.is`). Return a primitive or a reference taken from the hover
+ * state (e.g. `s.tooltipData`), not a fresh object or array. Prefer this over
+ * `useChartHover()` for components that only care about part of hover, such
+ * as "is the chart hovered" or "which index".
+ */
+export function useChartHoverSelector<T>(
+  selector: (hover: ChartHoverContextValue) => T
+): T {
+  const store = useContext(ChartHoverStoreContext);
+  if (!store) {
+    throw new Error(
+      "useChartHoverSelector must be used within a ChartProvider. " +
+        "Make sure your component is wrapped in <LineChart>, <AreaChart>, <BarChart>, or <ComposedChart>."
+    );
+  }
+  const getSelected = () => selector(store.getSnapshot());
+  return useSyncExternalStore(store.subscribe, getSelected, getSelected);
+}
+
+/**
+ * The hover store itself, for components that drive motion values straight
+ * from hover changes without re-rendering. `null` outside a chart.
+ */
+export function useChartHoverStore(): ChartHoverStore | null {
+  return useContext(ChartHoverStoreContext);
+}
+
+export function selectTooltipData(
+  hover: ChartHoverContextValue
+): TooltipData | null {
+  return hover.tooltipData;
+}
+
+/** Whether the chart is hovered or a drag-selection is active. */
+export function selectIsChartHovering(hover: ChartHoverContextValue): boolean {
+  return hover.tooltipData !== null || hover.selection?.active === true;
 }
 
 /**

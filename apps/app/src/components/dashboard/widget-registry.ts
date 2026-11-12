@@ -188,15 +188,20 @@ export const WIDGET_KEYS = Object.keys(WIDGET_REGISTRY) as WidgetKey[]
  * `NUMBER_OF_WIDGETS` (because unknown/removed keys were filtered out) is
  * left as-is rather than backfilled — a shorter primary list is fine. */
 export const DEFAULT_PRIMARY_WIDGETS: WidgetKey[] = [
-  "overdue-invoices",
-  "outstanding-invoices",
   "revenue",
   "cash-flow",
-  "burn-rate",
-  "cash-cushion",
+  "monthly-spending",
   "tax-deadlines",
   "top-customer",
 ]
+
+/**
+ * How many default widgets show for a user with no saved layout. The story
+ * headline, cash story chart and insights carry the overview now, so the grid stays
+ * short. DEFAULT_PRIMARY_WIDGETS lists one spare ("top-customer") that takes
+ * Tax Deadlines' place for orgs whose country it doesn't support.
+ */
+export const DEFAULT_VISIBLE_WIDGETS = 4
 
 /** Max number of primary widgets visible on Overview at any time. */
 export const NUMBER_OF_WIDGETS = 7

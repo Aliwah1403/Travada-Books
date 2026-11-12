@@ -1,13 +1,13 @@
 import { useMemo } from "react"
 import { useNavigate } from "react-router"
 import { useQuery } from "@tanstack/react-query"
-import { parseISO } from "date-fns"
+import { format, parseISO } from "date-fns"
 import { CreditCardIcon } from "@travada-books/ui/icons"
 import { BarChart } from "@/components/charts/bar-chart"
 import { BarChartLoading } from "@/components/charts/bar-chart-loading"
 import { Bar } from "@/components/charts/bar"
 import { Grid } from "@/components/charts/grid"
-import { XAxis } from "@/components/charts/x-axis"
+import { BarXAxis } from "@/components/charts/bar-x-axis"
 import { YAxis } from "@/components/charts/y-axis"
 import { ChartTooltip } from "@/components/charts/tooltip"
 import { ChartCard, ChartCardError } from "@/components/dashboard/chart-card"
@@ -17,7 +17,7 @@ import { incomeForMonthUrl } from "@/lib/drilldown"
 import { formatCurrency, formatCurrencyCompact } from "@/lib/format"
 
 const STALE_TIME = 2 * 60 * 1000
-const MARGIN = { top: 24, right: 16, bottom: 32, left: 56 }
+const MARGIN = { top: 24, right: 16, bottom: 32, left: 68 }
 const TITLE = "Payment Channels"
 
 type PaymentChannelsChartProps = {
@@ -47,7 +47,7 @@ export function PaymentChannelsChart({
   const { chartData, totals, grandTotal } = useMemo(() => {
     const totals = Object.fromEntries(PAYMENT_CHANNELS.map((c) => [c.key, 0])) as Record<string, number>
     const chartData = (data ?? []).map((m) => {
-      const row: Record<string, unknown> = { date: parseISO(m.month), month: m.month }
+      const row: Record<string, unknown> = { date: parseISO(m.month), label: format(parseISO(m.month), "MMM yy"), month: m.month }
       for (const c of PAYMENT_CHANNELS) {
         const value = m[c.key] * fxRate
         row[c.key] = value
@@ -84,7 +84,7 @@ export function PaymentChannelsChart({
         <div className="flex flex-col gap-3">
           <BarChart
             data={chartData}
-            xDataKey="date"
+            xDataKey="label"
             aspectRatio="2 / 1"
             margin={MARGIN}
             barGap={0.3}
@@ -95,7 +95,7 @@ export function PaymentChannelsChart({
             {activeChannels.map((c) => (
               <Bar key={c.key} dataKey={c.key} fill={c.color} lineCap="butt" />
             ))}
-            <XAxis />
+            <BarXAxis maxLabels={6} />
             <YAxis formatValue={(v) => formatCurrencyCompact(v, displayCurrency)} />
             <ChartTooltip
               rows={(point) =>

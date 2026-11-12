@@ -1,18 +1,26 @@
 "use client";
 
-import { memo, useEffect, useMemo, useState } from "react";
+import { memo, useMemo } from "react";
 import { createPortal } from "react-dom";
-import { cn } from "@travada-books/ui/lib/utils";
-import { useChart, useChartStable } from "./chart-context";
+import {
+  selectTooltipData,
+  useChartHoverSelector,
+  useChartPortalContainer,
+  useChartStable,
+} from "./chart-context";
 import { shortDateFmt } from "./chart-formatters";
 import { DEFAULT_Y_DOMAIN_TWEEN_MS } from "./chart-phase";
 import { LINE_LOADING_PULSE_EASE } from "./line-loading-timing";
+import {
+  type ChartLabelCount,
+  resolveResponsiveChartLabelCount,
+} from "./responsive-chart-label-count";
 
 const X_AXIS_POSITION_TWEEN_MS = DEFAULT_Y_DOMAIN_TWEEN_MS;
 
 export interface XAxisProps {
   /** Number of ticks to show (including first and last). Default: 5. */
-  numTicks?: number;
+  numTicks?: ChartLabelCount;
   /** Width of the date ticker box for fade calculation. Default: 50 */
   tickerHalfWidth?: number;
   /**
@@ -20,6 +28,8 @@ export interface XAxisProps {
    * `"domain"` — evenly spaced ticks across the time domain (may not align with hover).
    */
   tickMode?: "domain" | "data";
+  /** Optional labels aligned with data rows for the displayed ticks. */
+  labels?: string[];
 }
 
 interface AxisTick {
@@ -31,37 +41,48 @@ interface AxisTick {
 interface XAxisLabelProps {
   label: string;
   x: number;
-  crosshairX: number | null;
-  hoveredLabel: string | null;
-  isHovering: boolean;
-  tickerHalfWidth: number;
+  /** Fades out near the crosshair; see {@link xAxisLabelOpacity}. */
+  opacity: number;
   animatePosition: boolean;
 }
 
-function XAxisLabel({
-  label,
-  x,
-  crosshairX,
-  hoveredLabel,
-  isHovering,
-  tickerHalfWidth,
-  animatePosition,
-}: XAxisLabelProps) {
+/**
+ * Label opacity while hovering: hidden under the date ticker (or when it shows
+ * the same label), fading back in over `fadeBuffer` px beyond it.
+ */
+function xAxisLabelOpacity(
+  label: string,
+  x: number,
+  crosshairX: number | null,
+  hoveredLabel: string | null,
+  tickerHalfWidth: number
+): number {
+  if (crosshairX === null) {
+    return 1;
+  }
   const fadeBuffer = 20;
   const fadeRadius = tickerHalfWidth + fadeBuffer;
-
-  let opacity = 1;
-  if (isHovering && crosshairX !== null) {
-    const distance = Math.abs(x - crosshairX);
-    if (distance < tickerHalfWidth) {
-      opacity = 0;
-    } else if (hoveredLabel && label === hoveredLabel) {
-      opacity = 0;
-    } else if (distance < fadeRadius) {
-      opacity = (distance - tickerHalfWidth) / fadeBuffer;
-    }
+  const distance = Math.abs(x - crosshairX);
+  if (distance < tickerHalfWidth) {
+    return 0;
   }
+  if (hoveredLabel && label === hoveredLabel) {
+    return 0;
+  }
+  if (distance < fadeRadius) {
+    return (distance - tickerHalfWidth) / fadeBuffer;
+  }
+  return 1;
+}
 
+// Memoised on its resolved opacity: a pointer move re-renders only the labels
+// whose fade changes, not every label.
+const XAxisLabel = memo(function XAxisLabel({
+  label,
+  x,
+  opacity,
+  animatePosition,
+}: XAxisLabelProps) {
   return (
     <div
       className="absolute"
@@ -77,7 +98,7 @@ function XAxisLabel({
       }}
     >
       <span
-        className={cn("whitespace-nowrap text-chart-label text-xs")}
+        className="whitespace-nowrap text-chart-label text-xs"
         style={{
           opacity,
           transition: "opacity 0.4s ease-in-out",
@@ -87,7 +108,7 @@ function XAxisLabel({
       </span>
     </div>
   );
-}
+});
 
 const MAX_GAP_LAYOUTS = 400;
 
@@ -558,14 +579,9 @@ function appendProjectionTailTicks(
 
 export function XAxis(props: XAxisProps) {
   const { containerRef } = useChartStable();
-  const [mounted, setMounted] = useState(false);
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  const container = containerRef.current;
-  if (!(mounted && container)) {
+  const container = useChartPortalContainer(containerRef);
+  if (!container) {
     return null;
   }
 
@@ -576,10 +592,24 @@ const XAxisInner = memo(function XAxisInner({
   numTicks = 5,
   tickerHalfWidth = 50,
   tickMode = "data",
+  labels: labelsProp,
   container,
 }: XAxisProps & { container: HTMLDivElement }) {
-  const { xScale, margin, tooltipData, data, xAccessor, dateLabels, xDomain } =
-    useChart();
+  const {
+    xScale,
+    margin,
+    data,
+    xAccessor,
+    dateLabels: contextDateLabels,
+    xDomain,
+    width,
+  } = useChartStable();
+  const tooltipData = useChartHoverSelector(selectTooltipData);
+  const dateLabels = labelsProp ?? contextDateLabels;
+  const resolvedNumTicks = useMemo(
+    () => resolveResponsiveChartLabelCount(numTicks, width, 5),
+    [numTicks, width]
+  );
 
   const labelsToShow = useMemo(() => {
     const projectionExtendsScale =
@@ -588,7 +618,7 @@ const XAxisInner = memo(function XAxisInner({
     if (tickMode === "domain") {
       return buildDomainTicks({
         marginLeft: margin.left,
-        numTicks,
+        numTicks: resolvedNumTicks,
         xScale,
       });
     }
@@ -597,7 +627,7 @@ const XAxisInner = memo(function XAxisInner({
     if (projectionExtendsScale && xDomain == null) {
       return buildDomainTicks({
         marginLeft: margin.left,
-        numTicks,
+        numTicks: resolvedNumTicks,
         xScale,
       });
     }
@@ -606,7 +636,7 @@ const XAxisInner = memo(function XAxisInner({
       data,
       dateLabels,
       marginLeft: margin.left,
-      targetTickCount: numTicks,
+      targetTickCount: resolvedNumTicks,
       xAccessor,
       xScale,
     });
@@ -619,7 +649,7 @@ const XAxisInner = memo(function XAxisInner({
         xAccessor,
         xScale,
         margin.left,
-        Math.max(1, numTicks - dataTicks.length + 1)
+        Math.max(1, resolvedNumTicks - dataTicks.length + 1)
       );
     }
 
@@ -632,28 +662,29 @@ const XAxisInner = memo(function XAxisInner({
     xAccessor,
     xScale,
     margin.left,
-    numTicks,
+    resolvedNumTicks,
   ]);
 
-  const isHovering = tooltipData !== null;
   const crosshairX = tooltipData ? tooltipData.x + margin.left : null;
-  const hoveredLabel =
-    isHovering && tooltipData
-      ? (dateLabels[tooltipData.index] ??
-        shortDateFmt.format(xAccessor(tooltipData.point)))
-      : null;
+  const hoveredLabel = tooltipData
+    ? (dateLabels[tooltipData.index] ??
+      shortDateFmt.format(xAccessor(tooltipData.point)))
+    : null;
 
   return createPortal(
     <div className="pointer-events-none absolute inset-0">
       {labelsToShow.map((item) => (
         <XAxisLabel
           animatePosition={xDomain == null}
-          crosshairX={crosshairX}
-          hoveredLabel={hoveredLabel}
-          isHovering={isHovering}
           key={`${item.date.getTime()}-${item.x}`}
           label={item.label}
-          tickerHalfWidth={tickerHalfWidth}
+          opacity={xAxisLabelOpacity(
+            item.label,
+            item.x,
+            crosshairX,
+            hoveredLabel,
+            tickerHalfWidth
+          )}
           x={item.x}
         />
       ))}

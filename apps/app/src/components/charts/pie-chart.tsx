@@ -1,10 +1,8 @@
 "use client";
 
-import { Group } from "@visx/group";
-import { ParentSize } from "@visx/responsive";
-import { arc as arcGenerator } from "@visx/shape";
 import { pie as d3Pie } from "d3-shape";
 import type { Transition } from "motion/react";
+import { domAnimation, LazyMotion } from "motion/react";
 import {
   Children,
   isValidElement,
@@ -18,6 +16,8 @@ import {
   useState,
 } from "react";
 import { cn } from "@travada-books/ui/lib/utils";
+import { arcPath } from "./arc-path";
+import { ParentSize } from "./chart-parent-size";
 import {
   defaultPieColors,
   type PieArcData,
@@ -86,23 +86,6 @@ interface PieChartInnerProps {
   enterTransition?: Transition;
   enterStaggerScale: number;
   geometryScrubbing: boolean;
-}
-
-function generatePieArcPath(
-  innerRadius: number,
-  outerRadius: number,
-  startAngle: number,
-  endAngle: number,
-  cornerRadius: number,
-  padAngle: number
-): string {
-  const generator = arcGenerator<unknown>({
-    innerRadius,
-    outerRadius,
-    cornerRadius,
-    padAngle,
-  });
-  return generator({ startAngle, endAngle } as unknown as null) || "";
 }
 
 // Helper to check if a child is a PieCenter component
@@ -253,7 +236,7 @@ const PieChartCore = memo(function PieChartCore({
       return null;
     }
     return arcs.map((arc) =>
-      generatePieArcPath(
+      arcPath(
         innerRadius,
         outerRadius,
         arc.startAngle,
@@ -266,12 +249,29 @@ const PieChartCore = memo(function PieChartCore({
 
   const effectiveIsLoaded = geometryScrubbing || isLoaded;
 
+  // Replay enter when motion settings change. The reset is adjusted during
+  // render ("store previous props in state") instead of setState in an effect.
+  const [enterKey, setEnterKey] = useState({
+    enterTransition,
+    enterStaggerScale,
+    geometryScrubbing,
+  });
+  if (
+    enterKey.enterTransition !== enterTransition ||
+    enterKey.enterStaggerScale !== enterStaggerScale ||
+    enterKey.geometryScrubbing !== geometryScrubbing
+  ) {
+    setEnterKey({ enterTransition, enterStaggerScale, geometryScrubbing });
+    if (!geometryScrubbing) {
+      setIsLoaded(false);
+    }
+  }
+
   // biome-ignore lint/correctness/useExhaustiveDependencies: enterTransition
   useEffect(() => {
     if (geometryScrubbing) {
       return;
     }
-    setIsLoaded(false);
     const timer = setTimeout(() => {
       setIsLoaded(true);
     }, 100);
@@ -381,13 +381,18 @@ const PieChartCore = memo(function PieChartCore({
         <svg
           aria-hidden="true"
           height={size}
-          style={{ gridArea: "1 / 1", contain: "layout style paint" }}
+          style={{
+            gridArea: "1 / 1",
+            // No `paint` containment: it clips hover glow at the svg box.
+            contain: "layout style",
+            overflow: "visible",
+          }}
           width={size}
         >
           {/* Defs for patterns and gradients */}
           {defsChildren.length > 0 && <defs>{defsChildren}</defs>}
 
-          <Group left={center} top={center}>
+          <g transform={`translate(${center}, ${center})`}>
             {scrubSlicePaths && scrubSliceFills
               ? scrubSlicePaths.map((d, index) =>
                   d ? (
@@ -401,7 +406,7 @@ const PieChartCore = memo(function PieChartCore({
                 )
               : null}
             {svgChildren}
-          </Group>
+          </g>
         </svg>
 
         {/* HTML layer with center content - stacked on top via grid */}
@@ -463,42 +468,12 @@ export function PieChart({
   // If fixed size is provided, use it directly
   if (fixedSize) {
     return (
-      <div
-        className={cn("relative flex items-center justify-center", className)}
-        ref={containerRef}
-        style={{ width: fixedSize, height: fixedSize }}
-      >
-        <PieChartInner
-          containerRef={containerRef}
-          cornerRadius={cornerRadius}
-          data={data}
-          endAngle={endAngle}
-          enterStaggerScale={enterStaggerScale}
-          enterTransition={enterTransition}
-          geometryScrubbing={geometryScrubbing}
-          height={fixedSize}
-          hoveredIndexProp={hoveredIndex}
-          hoverOffset={hoverOffset}
-          innerRadius={innerRadius}
-          onHoverChange={onHoverChange}
-          padAngle={padAngle}
-          startAngle={startAngle}
-          width={fixedSize}
+      <LazyMotion features={domAnimation}>
+        <div
+          className={cn("relative flex items-center justify-center", className)}
+          ref={containerRef}
+          style={{ width: fixedSize, height: fixedSize }}
         >
-          {children}
-        </PieChartInner>
-      </div>
-    );
-  }
-
-  // Otherwise use ParentSize for responsive sizing
-  return (
-    <div
-      className={cn("relative aspect-square w-full", className)}
-      ref={containerRef}
-    >
-      <ParentSize debounceTime={10}>
-        {({ width, height }) => (
           <PieChartInner
             containerRef={containerRef}
             cornerRadius={cornerRadius}
@@ -507,20 +482,54 @@ export function PieChart({
             enterStaggerScale={enterStaggerScale}
             enterTransition={enterTransition}
             geometryScrubbing={geometryScrubbing}
-            height={height}
+            height={fixedSize}
             hoveredIndexProp={hoveredIndex}
             hoverOffset={hoverOffset}
             innerRadius={innerRadius}
             onHoverChange={onHoverChange}
             padAngle={padAngle}
             startAngle={startAngle}
-            width={width}
+            width={fixedSize}
           >
             {children}
           </PieChartInner>
-        )}
-      </ParentSize>
-    </div>
+        </div>
+      </LazyMotion>
+    );
+  }
+
+  // Otherwise use ParentSize for responsive sizing
+  return (
+    <LazyMotion features={domAnimation}>
+      <div
+        className={cn("relative aspect-square w-full", className)}
+        ref={containerRef}
+      >
+        <ParentSize debounceTime={10}>
+          {({ width, height }) => (
+            <PieChartInner
+              containerRef={containerRef}
+              cornerRadius={cornerRadius}
+              data={data}
+              endAngle={endAngle}
+              enterStaggerScale={enterStaggerScale}
+              enterTransition={enterTransition}
+              geometryScrubbing={geometryScrubbing}
+              height={height}
+              hoveredIndexProp={hoveredIndex}
+              hoverOffset={hoverOffset}
+              innerRadius={innerRadius}
+              onHoverChange={onHoverChange}
+              padAngle={padAngle}
+              startAngle={startAngle}
+              width={width}
+            >
+              {children}
+            </PieChartInner>
+          )}
+        </ParentSize>
+      </div>
+    </LazyMotion>
   );
 }
 

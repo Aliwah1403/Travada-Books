@@ -1,13 +1,9 @@
 "use client";
 
-import { curveNatural } from "@visx/curve";
-import { LinePath } from "@visx/shape";
-
-// CurveFactory type - simplified version compatible with visx
-// biome-ignore lint/suspicious/noExplicitAny: d3 curve factory type
-type CurveFactory = any;
+import { type CurveFactory, curveNatural } from "d3-shape";
 
 import {
+  memo,
   type RefObject,
   useCallback,
   useId,
@@ -15,12 +11,21 @@ import {
   useRef,
   useState,
 } from "react";
-import { chartCssVars, useChartStable, useYScale } from "./chart-context";
-import type { LoadingStyle } from "./chart-phase";
+import {
+  chartCssVars,
+  useChartStable,
+  useSettledYScale,
+  useYScale,
+} from "./chart-context";
+import type { ChartPhase, LoadingStyle } from "./chart-phase";
 import {
   type FadeEdges,
   fadeGradientStops,
+  horizontalPaintStops,
+  type PaintGradientStop,
   resolveFadeSides,
+  resolveStrokeGradientStops,
+  type StrokeGradient,
   viewportFadeGradientAttrs,
 } from "./fade-edges";
 import {
@@ -29,6 +34,7 @@ import {
   resolveLineLoadingPulseMode,
 } from "./line-loading-pulse";
 import { LINE_LOADING_LOOP_PAUSE_MS } from "./line-loading-timing";
+import { LinePath } from "./line-path";
 import { LineLoadingSweep } from "./loading-sweep";
 import {
   resolveDashTailBounds,
@@ -40,6 +46,44 @@ import { SeriesHoverDim } from "./series-hover-dim";
 import { SeriesMarkers } from "./series-markers";
 import type { SeriesPointMarkerStyle } from "./series-point-marker";
 import { useAnimatedSeriesPath } from "./use-animated-series-path";
+
+/** Soft outer glow drawn as a blurred copy of the stroke behind the line. */
+export interface LineGlow {
+  /** Gaussian blur radius (SVG `stdDeviation`) in px. Default: 6 */
+  blur?: number;
+  /** Glow opacity (0–1). Default: 0.7 */
+  opacity?: number;
+  /** Glow stroke width in px. Default: 2× `strokeWidth` */
+  strokeWidth?: number;
+}
+
+const DEFAULT_GLOW_BLUR = 6;
+const DEFAULT_GLOW_OPACITY = 0.7;
+const DEFAULT_HIGHLIGHT_DIM_OPACITY = 0.3;
+
+/** Styling for the hover highlight segment (`showHighlight`). */
+export interface LineHighlight {
+  /**
+   * Segment colour. Default: the line's paint — `strokeGradient` (without the
+   * edge fade) or `stroke`.
+   */
+  stroke?: string;
+  /** Segment colour ramp across the plot, left → right. Overrides `stroke`. */
+  strokeGradient?: StrokeGradient;
+  /** Segment stroke width in px. Default: the line's `strokeWidth` */
+  strokeWidth?: number;
+  /** Data points either side of the hovered point the segment covers. Default: 1 */
+  span?: number;
+  /**
+   * Soft ends: fade the segment in / out over this percentage (0–50) of its
+   * width at each side. `0` = hard edges. Default: 0
+   */
+  fadeLength?: number;
+  /** Glow behind the segment (same options as `glow`). Default: false */
+  glow?: boolean | LineGlow;
+  /** Opacity the rest of the line dims to while hovering. Default: 0.3 */
+  dimOpacity?: number;
+}
 
 export interface LineProps {
   /** Key in data to use for y values */
@@ -61,8 +105,27 @@ export interface LineProps {
    * Default: true
    */
   fadeEdges?: FadeEdges;
+  /**
+   * Horizontal stroke colour gradient across the plot, left → right. Plain
+   * colours are spaced evenly; `{ offset, color }` stops (offset 0–1) place
+   * them explicitly. Composes with `fadeEdges`. Overrides `stroke` for the
+   * line paint (`stroke` still colours markers and the tooltip dot).
+   */
+  strokeGradient?: StrokeGradient;
+  /**
+   * Soft outer glow — a blurred copy of the stroke behind the line. `true`
+   * uses the defaults; pass `{ blur, opacity, strokeWidth }` to tune it.
+   * Default: false
+   */
+  glow?: boolean | LineGlow;
   /** Whether to show highlight segment on hover. Default: true */
   showHighlight?: boolean;
+  /**
+   * Hover highlight styling: colour / gradient override, soft ends
+   * (`fadeLength`), `glow`, `span`, `strokeWidth` and the `dimOpacity` of the
+   * rest of the line.
+   */
+  highlight?: LineHighlight;
   /** Render scatter-style circle markers at each data point. Default: false */
   showMarkers?: boolean;
   /** Marker styling (same options as Scatter). */
@@ -97,35 +160,34 @@ export interface LineProps {
 
 function LineSeriesStroke({
   animatedPathD,
-  curve,
-  getY,
+  filter,
   pathRef,
-  renderData,
+  staticPathD,
+  strokeOpacity,
   strokeWidth,
-  useDataTransitionPath,
+  drawAnimatedPath,
   visibleStroke,
-  xAccessor,
-  xScale,
 }: {
   animatedPathD: string;
-  curve: CurveFactory;
-  getY: (datum: Record<string, unknown>) => number;
-  pathRef: RefObject<SVGPathElement | null>;
-  renderData: Record<string, unknown>[];
+  filter?: string;
+  pathRef?: RefObject<SVGPathElement | null>;
+  /** `d` of the resting line (unused while `drawAnimatedPath`). */
+  staticPathD: string;
+  strokeOpacity?: number;
   strokeWidth: number;
-  useDataTransitionPath: boolean;
+  drawAnimatedPath: boolean;
   visibleStroke: string;
-  xAccessor: (datum: Record<string, unknown>) => Date;
-  xScale: (value: Date) => number | undefined;
 }) {
-  if (useDataTransitionPath && animatedPathD) {
+  if (drawAnimatedPath) {
     return (
       <path
         d={animatedPathD}
         fill="none"
+        filter={filter}
         ref={pathRef}
         stroke={visibleStroke}
         strokeLinecap="round"
+        strokeOpacity={strokeOpacity}
         strokeWidth={strokeWidth}
       />
     );
@@ -133,19 +195,20 @@ function LineSeriesStroke({
 
   return (
     <LinePath
-      curve={curve}
-      data={renderData}
+      d={staticPathD}
+      filter={filter}
       innerRef={pathRef}
       stroke={visibleStroke}
       strokeLinecap="round"
+      strokeOpacity={strokeOpacity}
       strokeWidth={strokeWidth}
-      x={(d) => xScale(xAccessor(d)) ?? 0}
-      y={getY}
     />
   );
 }
 
-function LineLoadingOverlays({
+// Memoised: a series re-render (data update, every morph frame) passes the
+// same props, so the overlays and their children are skipped.
+const LineLoadingOverlays = memo(function LineLoadingOverlays({
   curve,
   handleLoadingPulseComplete,
   innerWidth,
@@ -201,6 +264,199 @@ function LineLoadingOverlays({
       ) : null}
     </>
   );
+});
+
+function resolveLineGlow(
+  glow: boolean | LineGlow,
+  strokeWidth: number
+): Required<LineGlow> | null {
+  if (!glow) {
+    return null;
+  }
+  const options = glow === true ? {} : glow;
+  return {
+    blur: options.blur ?? DEFAULT_GLOW_BLUR,
+    opacity: options.opacity ?? DEFAULT_GLOW_OPACITY,
+    strokeWidth: options.strokeWidth ?? strokeWidth * 2,
+  };
+}
+
+function GradientStops({ stops }: { stops: PaintGradientStop[] }) {
+  return stops.map((stop) => (
+    <stop
+      key={stop.offset}
+      offset={stop.offset}
+      style={{ stopColor: stop.color, stopOpacity: stop.opacity }}
+    />
+  ));
+}
+
+/**
+ * Resolved hover-highlight paint. The highlight re-strokes at full opacity, so
+ * by default it keeps the line's colour ramp but not the edge fade;
+ * `highlight.strokeGradient` / `.stroke` override the line's paint.
+ */
+function useLineHighlightPaint({
+  colorStops,
+  enabled,
+  glowFilterId,
+  gradientId,
+  highlight,
+  stroke,
+  strokeWidth,
+}: {
+  colorStops: ReturnType<typeof resolveStrokeGradientStops>;
+  enabled: boolean;
+  glowFilterId: string;
+  gradientId: string;
+  highlight: LineHighlight | undefined;
+  stroke: string;
+  strokeWidth: number;
+}) {
+  const gradient = highlight?.strokeGradient;
+  const color = highlight?.stroke;
+  const stops = useMemo(() => {
+    const ownStops = gradient ? resolveStrokeGradientStops(gradient) : null;
+    if (ownStops) {
+      return horizontalPaintStops({
+        color: color ?? stroke,
+        colorStops: ownStops,
+        fadeStops: null,
+      });
+    }
+    if (color || !colorStops) {
+      return null;
+    }
+    return horizontalPaintStops({ color: stroke, colorStops, fadeStops: null });
+  }, [colorStops, color, gradient, stroke]);
+  const width = highlight?.strokeWidth ?? strokeWidth;
+  const glow = resolveLineGlow(
+    enabled ? (highlight?.glow ?? false) : false,
+    width
+  );
+  return {
+    stops,
+    stroke: stops ? `url(#${gradientId})` : (color ?? stroke),
+    strokeWidth: width,
+    /** Filter def to render, or `null` when the segment has no glow. */
+    glowFilter: glow ? { id: glowFilterId, blur: glow.blur } : null,
+    /** `HighlightSegment` glow props. */
+    segmentGlow: glow
+      ? {
+          filter: `url(#${glowFilterId})`,
+          opacity: glow.opacity,
+          strokeWidth: glow.strokeWidth,
+        }
+      : undefined,
+    dimOpacity: highlight?.dimOpacity ?? DEFAULT_HIGHLIGHT_DIM_OPACITY,
+  };
+}
+
+function GlowFilter({
+  blur,
+  id,
+  innerHeight,
+  innerWidth,
+}: {
+  blur: number;
+  id: string;
+  innerHeight: number;
+  innerWidth: number;
+}) {
+  // Filter region in user space: a near-flat line has a thin bounding box, so
+  // the default objectBoundingBox region would crop the blur vertically.
+  const pad = blur * 3;
+  return (
+    <filter
+      colorInterpolationFilters="sRGB"
+      filterUnits="userSpaceOnUse"
+      height={innerHeight + pad * 2}
+      id={id}
+      width={innerWidth + pad * 2}
+      x={-pad}
+      y={-pad}
+    >
+      <feGaussianBlur stdDeviation={blur} />
+    </filter>
+  );
+}
+
+// Memoised for the same reason as `LineLoadingOverlays`.
+const LineStrokeDefs = memo(function LineStrokeDefs({
+  glowBlur,
+  glowFilterId,
+  gradientId,
+  highlightGlow,
+  highlightGradientId,
+  highlightStops,
+  innerHeight,
+  innerWidth,
+  paintStops,
+}: {
+  glowBlur: number;
+  glowFilterId: string | null;
+  gradientId: string;
+  highlightGlow: { id: string; blur: number } | null;
+  highlightGradientId: string;
+  highlightStops: PaintGradientStop[] | null;
+  innerHeight: number;
+  innerWidth: number;
+  paintStops: PaintGradientStop[] | null;
+}) {
+  if (!(paintStops || highlightStops || glowFilterId || highlightGlow)) {
+    return null;
+  }
+  return (
+    <defs>
+      {paintStops ? (
+        <linearGradient
+          id={gradientId}
+          {...viewportFadeGradientAttrs(innerWidth)}
+        >
+          <GradientStops stops={paintStops} />
+        </linearGradient>
+      ) : null}
+      {highlightStops ? (
+        <linearGradient
+          id={highlightGradientId}
+          {...viewportFadeGradientAttrs(innerWidth)}
+        >
+          <GradientStops stops={highlightStops} />
+        </linearGradient>
+      ) : null}
+      {glowFilterId ? (
+        <GlowFilter
+          blur={glowBlur}
+          id={glowFilterId}
+          innerHeight={innerHeight}
+          innerWidth={innerWidth}
+        />
+      ) : null}
+      {highlightGlow ? (
+        <GlowFilter
+          blur={highlightGlow.blur}
+          id={highlightGlow.id}
+          innerHeight={innerHeight}
+          innerWidth={innerWidth}
+        />
+      ) : null}
+    </defs>
+  );
+});
+
+/** Loading pulse mode for the line, or `null` when no pulse shows. */
+function resolveLinePulseMode(
+  chartPhase: ChartPhase,
+  loading: boolean | undefined,
+  loadingPulseMode: LineLoadingPulseMode | undefined
+): LineLoadingPulseMode | null {
+  if (loading === false) {
+    return null;
+  }
+  return (
+    loadingPulseMode ??
+    (loading === true ? "loop" : resolveLineLoadingPulseMode(chartPhase))
+  );
 }
 
 export function Line({
@@ -211,7 +467,10 @@ export function Line({
   curve = curveNatural,
   animate = true,
   fadeEdges = true,
+  strokeGradient,
+  glow = false,
   showHighlight = true,
+  highlight,
   showMarkers = false,
   markers,
   dashFromIndex,
@@ -242,6 +501,7 @@ export function Line({
     yDomainTweenDuration,
   } = useChartStable();
   const yScale = useYScale(yAxisId);
+  const settledYScale = useSettledYScale(yAxisId);
   const useDataTransitionPath = animate && chartPhase === "ready";
   const { pathD: animatedPathD } = useAnimatedSeriesPath({
     chartPhase,
@@ -251,16 +511,13 @@ export function Line({
     enabled: useDataTransitionPath,
     innerWidth,
     renderData,
+    settledYScale,
     xAccessor,
     xScale,
     yScale,
   });
 
-  const phasePulseMode = resolveLineLoadingPulseMode(chartPhase);
-  const pulseMode =
-    loading === false
-      ? null
-      : (loadingPulseMode ?? (loading === true ? "loop" : phasePulseMode));
+  const pulseMode = resolveLinePulseMode(chartPhase, loading, loadingPulseMode);
   const showLoadingPulse = pulseMode != null;
   const [pulseEpoch, setPulseEpoch] = useState(0);
   const effectiveShowHighlight = showHighlight && !showLoadingPulse;
@@ -282,29 +539,58 @@ export function Line({
   }, [lines, dataKey]);
 
   const pathRef = useRef<SVGPathElement>(null);
-  const { pathLength, pathD } = usePathStrokeMetrics(pathRef, [
-    renderData,
-    innerWidth,
-    dashFromIndex,
-    animate,
-    useDataTransitionPath ? animatedPathD : null,
-  ]);
+  const hasDashTail = resolveDashTailBounds(dashFromIndex, data.length);
+  const { pathLength, pathD } = usePathStrokeMetrics(
+    pathRef,
+    [
+      renderData,
+      innerWidth,
+      dashFromIndex,
+      animate,
+      useDataTransitionPath ? animatedPathD : null,
+    ],
+    // Only the dash tail and loading pulse read the metrics; outside the
+    // resting "ready" phase keep measuring so a pulse starts on a fresh path.
+    hasDashTail || showLoadingPulse || chartPhase !== "ready"
+  );
 
   const reactId = useId();
   const gradientId = `line-gradient-${dataKey}-${reactId}`;
+  const highlightGradientId = `${gradientId}-highlight`;
+  const glowFilterId = `line-glow-${dataKey}-${reactId}`;
 
-  const getY = useCallback(
-    (d: Record<string, unknown>) => {
-      const value = d[dataKey];
-      return typeof value === "number" ? (yScale(value) ?? 0) : 0;
-    },
-    [dataKey, yScale]
+  // While the data-transition tween runs, `animatedPathD` (per frame) is drawn
+  // on a plain `<path>`; at rest the same hook `pathD` (built from the same
+  // scales, curve and y accessor as a `linePathD` call) is the static `d`, so
+  // the path is generated once rather than twice per render.
+  const drawAnimatedPath = useDataTransitionPath && Boolean(animatedPathD);
+
+  const colorStops = useMemo(
+    () => resolveStrokeGradientStops(strokeGradient),
+    [strokeGradient]
   );
-
-  const hasDashTail = resolveDashTailBounds(dashFromIndex, data.length);
-  const fadeSides = resolveFadeSides(fadeEdges);
-  const lineStroke = fadeSides.any ? `url(#${gradientId})` : stroke;
-  const fadeStops = fadeSides.any ? fadeGradientStops(fadeSides) : null;
+  const paintStops = useMemo(() => {
+    const sides = resolveFadeSides(fadeEdges);
+    if (!(sides.any || colorStops)) {
+      return null;
+    }
+    return horizontalPaintStops({
+      color: stroke,
+      colorStops,
+      fadeStops: sides.any ? fadeGradientStops(sides) : null,
+    });
+  }, [colorStops, fadeEdges, stroke]);
+  const highlightPaint = useLineHighlightPaint({
+    colorStops,
+    enabled: effectiveShowHighlight,
+    glowFilterId: `${glowFilterId}-highlight`,
+    gradientId: highlightGradientId,
+    highlight,
+    stroke,
+    strokeWidth,
+  });
+  const lineStroke = paintStops ? `url(#${gradientId})` : stroke;
+  const glowOptions = resolveLineGlow(glow, strokeWidth);
   const showSeriesStroke =
     chartPhase === "revealing" ||
     chartPhase === "ready" ||
@@ -316,54 +602,59 @@ export function Line({
 
   return (
     <>
-      {fadeStops ? (
-        <defs>
-          <linearGradient
-            id={gradientId}
-            {...viewportFadeGradientAttrs(innerWidth)}
-          >
-            {fadeStops.map((stop) => (
-              <stop
-                key={stop.offset}
-                offset={stop.offset}
-                style={{ stopColor: stroke, stopOpacity: stop.opacity }}
-              />
-            ))}
-          </linearGradient>
-        </defs>
-      ) : null}
+      <LineStrokeDefs
+        glowBlur={glowOptions?.blur ?? 0}
+        glowFilterId={glowOptions ? glowFilterId : null}
+        gradientId={gradientId}
+        highlightGlow={highlightPaint.glowFilter}
+        highlightGradientId={highlightGradientId}
+        highlightStops={highlightPaint.stops}
+        innerHeight={innerHeight}
+        innerWidth={innerWidth}
+        paintStops={paintStops}
+      />
 
       <SeriesHoverDim
-        dimOpacity={0.3}
+        dimOpacity={highlightPaint.dimOpacity}
         enabled={effectiveShowHighlight}
         seriesIndex={seriesIndex}
       >
+        {glowOptions && showSeriesStroke ? (
+          <LineSeriesStroke
+            animatedPathD={animatedPathD}
+            drawAnimatedPath={drawAnimatedPath}
+            filter={`url(#${glowFilterId})`}
+            staticPathD={animatedPathD}
+            strokeOpacity={glowOptions.opacity}
+            strokeWidth={glowOptions.strokeWidth}
+            visibleStroke={lineStroke}
+          />
+        ) : null}
         <LineSeriesStroke
           animatedPathD={animatedPathD}
-          curve={curve}
-          getY={getY}
+          drawAnimatedPath={drawAnimatedPath}
           pathRef={pathRef}
-          renderData={renderData}
+          staticPathD={animatedPathD}
           strokeWidth={strokeWidth}
-          useDataTransitionPath={useDataTransitionPath}
           visibleStroke={visibleStroke}
-          xAccessor={xAccessor}
-          xScale={xScale}
         />
 
-        <SeriesDashTailOverlay
-          dashArray={dashArray}
-          dashFromIndex={dashFromIndex}
-          data={data}
-          innerHeight={innerHeight}
-          innerWidth={innerWidth}
-          pathD={pathD}
-          pathLength={pathLength}
-          stroke={lineStroke}
-          strokeWidth={strokeWidth}
-          xAccessor={xAccessor}
-          xScale={xScale}
-        />
+        {/* Only mounted with a dash tail: it takes `data` as a prop. */}
+        {hasDashTail ? (
+          <SeriesDashTailOverlay
+            dashArray={dashArray}
+            dashFromIndex={dashFromIndex}
+            data={data}
+            innerHeight={innerHeight}
+            innerWidth={innerWidth}
+            pathD={pathD}
+            pathLength={pathLength}
+            stroke={lineStroke}
+            strokeWidth={strokeWidth}
+            xAccessor={xAccessor}
+            xScale={xScale}
+          />
+        ) : null}
       </SeriesHoverDim>
 
       {showMarkers ? (
@@ -378,10 +669,13 @@ export function Line({
 
       <SeriesHighlightLayer
         enabled={effectiveShowHighlight}
+        fadeLength={highlight?.fadeLength}
+        glow={highlightPaint.segmentGlow}
         height={innerHeight}
         pathRef={pathRef}
-        stroke={stroke}
-        strokeWidth={strokeWidth}
+        span={highlight?.span}
+        stroke={highlightPaint.stroke}
+        strokeWidth={highlightPaint.strokeWidth}
       />
 
       <LineLoadingOverlays

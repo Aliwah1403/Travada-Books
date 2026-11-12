@@ -31,6 +31,7 @@ export function DashTailStroke({
   dashArray,
 }: DashTailStrokeProps) {
   const clipPathId = useId().replace(/:/g, "");
+  const headClipPathId = `${clipPathId}-head`;
 
   if (!pathD || pathLength <= 0 || dashStartLength >= pathLength) {
     return null;
@@ -50,13 +51,24 @@ export function DashTailStroke({
             y={-strokeWidth}
           />
         </clipPath>
+        {/* The head is clipped by x rather than by path length: a length-based
+            dasharray ends early on series with steep vertical jumps (e.g. a
+            cash balance), leaving a visible gap before the tail. */}
+        <clipPath id={headClipPathId}>
+          <rect
+            height={innerHeight + pad * 2}
+            width={Math.max(0, dashStartX + pad)}
+            x={-pad}
+            y={-pad}
+          />
+        </clipPath>
       </defs>
       {/* Solid head — same curved path, gradient/fade preserved */}
       <path
+        clipPath={`url(#${headClipPathId})`}
         d={pathD}
         fill="none"
         stroke={stroke}
-        strokeDasharray={`${dashStartLength} ${Math.max(1, pathLength - dashStartLength)}`}
         strokeLinecap="round"
         strokeWidth={strokeWidth}
       />

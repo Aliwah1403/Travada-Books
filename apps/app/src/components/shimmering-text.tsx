@@ -1,18 +1,30 @@
 "use client";
 
-import { motion, useReducedMotion, type Variants } from "motion/react";
-import { type ComponentProps, useCallback } from "react";
+import { domAnimation, LazyMotion, m, useReducedMotion } from "motion/react";
+import type { ComponentProps } from "react";
 import { cn } from "@travada-books/ui/lib/utils";
 
+/**
+ * Highlight band painted across the text. The gradient is 3× the text width
+ * with the band in its middle third, so at either end of the sweep the visible
+ * window is solid `--color` and the band enters/leaves fully off-text.
+ */
+const SHIMMER_GRADIENT =
+  "linear-gradient(90deg, var(--color) 0%, var(--color) 40%, var(--shimmering-color) 50%, var(--color) 60%, var(--color) 100%)";
+const SHIMMER_BG_SIZE = "300% 100%";
+/** Band off the right edge → band off the left edge (left-to-right sweep). */
+const SWEEP_FROM = "100% 0%";
+const SWEEP_TO = "0% 0%";
+
 export type ShimmeringTextProps = Omit<
-  ComponentProps<typeof motion.span>,
+  ComponentProps<typeof m.span>,
   "children"
 > & {
   /** The text to render with the shimmering effect. */
   text: string;
   /**
-   * Duration in seconds for one shimmer cycle.
-   * @defaultValue 1
+   * Duration in seconds for one shimmer sweep across the text.
+   * @defaultValue 1.5
    */
   duration?: number;
   /**
@@ -29,62 +41,58 @@ export type ShimmeringTextProps = Omit<
 
 export function ShimmeringText({
   text,
-  duration = 1,
+  duration = 1.5,
   isStopped = false,
   paused = false,
   className,
+  style,
   ...props
 }: ShimmeringTextProps) {
   const reducedMotion = useReducedMotion();
   const stopped = isStopped || paused || reducedMotion === true;
 
-  const createCharVariants = useCallback(
-    (charIndex: number): Variants => ({
-      running: {
-        color: ["var(--color)", "var(--shimmering-color)", "var(--color)"],
-        transition: {
-          duration,
-          repeat: Number.POSITIVE_INFINITY,
-          repeatType: "loop",
-          repeatDelay: text.length * 0.05,
-          delay: (charIndex * duration) / text.length,
-          ease: "easeInOut",
-        },
-      },
-      stopped: {
-        color: "var(--color)",
-        transition: {
-          duration: duration * 0.5,
-          ease: "easeOut",
-        },
-      },
-    }),
-    [duration, text.length]
-  );
-
+  // One gradient across the whole run (rather than per-character colors), so
+  // the highlight is a smooth band and RTL / cursive scripts keep their glyph
+  // joining and visual order.
   return (
-    <motion.span
-      className={cn(
-        "inline-flex select-none items-center leading-none",
-        "[--color:var(--muted-foreground)] [--shimmering-color:var(--foreground)]",
-        className
-      )}
-      {...props}
-    >
-      {text.split("").map((char, index) => (
-        <motion.span
-          animate={stopped ? "stopped" : "running"}
-          aria-hidden
-          className="inline-block whitespace-pre leading-none"
-          initial="stopped"
-          // biome-ignore lint/suspicious/noArrayIndexKey: static label text, order never changes
-          key={index}
-          variants={createCharVariants(index)}
-        >
-          {char}
-        </motion.span>
-      ))}
-      <span className="sr-only">{text}</span>
-    </motion.span>
+    <LazyMotion features={domAnimation}>
+      <m.span
+        animate={
+          stopped
+            ? { backgroundPosition: SWEEP_TO }
+            : { backgroundPosition: [SWEEP_FROM, SWEEP_TO] }
+        }
+        className={cn(
+          "inline-block select-none whitespace-nowrap leading-none",
+          "[--color:var(--muted-foreground)] [--shimmering-color:var(--foreground)]",
+          className
+        )}
+        initial={{ backgroundPosition: SWEEP_FROM }}
+        style={{
+          backgroundImage: SHIMMER_GRADIENT,
+          backgroundSize: SHIMMER_BG_SIZE,
+          backgroundRepeat: "no-repeat",
+          backgroundClip: "text",
+          WebkitBackgroundClip: "text",
+          color: "transparent",
+          WebkitTextFillColor: "transparent",
+          ...style,
+        }}
+        transition={
+          stopped
+            ? { duration: duration * 0.5, ease: "easeOut" }
+            : {
+                duration,
+                ease: "easeInOut",
+                repeat: Number.POSITIVE_INFINITY,
+                repeatType: "loop",
+                repeatDelay: duration * 0.4,
+              }
+        }
+        {...props}
+      >
+        {text}
+      </m.span>
+    </LazyMotion>
   );
 }

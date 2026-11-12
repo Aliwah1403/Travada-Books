@@ -1,22 +1,25 @@
-import { useMemo } from "react"
+import { curveLinear } from "d3-shape"
+import { useMemo, useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { parseISO } from "date-fns"
 import { ProfitIcon } from "@travada-books/ui/icons"
-import { ComposedChart } from "@/components/charts/composed-chart"
-import { BarChartLoading } from "@/components/charts/bar-chart-loading"
-import { SeriesBar } from "@/components/charts/series-bar"
+import { LineChart } from "@/components/charts/line-chart"
 import { Line } from "@/components/charts/line"
+import { LineChartLoading } from "@/components/charts/line-chart-loading"
+import { ProfitLossLine, profitLossColor } from "@/components/charts/profit-loss-line"
+import { ProfitLossLegend } from "@/components/charts/profit-loss-legend"
+import { ProfitLossLegendHoverProvider } from "@/components/charts/profit-loss-legend-hover"
 import { Grid } from "@/components/charts/grid"
 import { XAxis } from "@/components/charts/x-axis"
 import { YAxis } from "@/components/charts/y-axis"
 import { ChartTooltip } from "@/components/charts/tooltip"
-import { chartCssVars } from "@/components/charts/chart-context"
 import { ChartCard, ChartCardError } from "@/components/dashboard/chart-card"
 import { getCashFlow } from "@/lib/queries/metrics"
 import { formatCurrency, formatCurrencyCompact } from "@/lib/format"
 
 const STALE_TIME = 2 * 60 * 1000
-const MARGIN = { top: 24, right: 16, bottom: 32, left: 56 }
+const MARGIN = { top: 24, right: 16, bottom: 32, left: 68 }
+const TITLE = "Profit & Loss"
 
 type ProfitChartProps = {
   orgId: string
@@ -37,6 +40,8 @@ export function ProfitChart({
   displayCurrency = currency,
   fxRate = 1,
 }: ProfitChartProps) {
+  const [hoveredLegend, setHoveredLegend] = useState<number | null>(null)
+
   // Reuses Cash Flow's exact query key so TanStack dedupes the network call —
   // this chart is entirely derived client-side from the same series.
   const { data, isLoading, isError, refetch } = useQuery({
@@ -45,55 +50,75 @@ export function ProfitChart({
     staleTime: STALE_TIME,
   })
 
-  const chartData = useMemo(
-    () =>
-      (data ?? []).map((m) => ({
-        date: parseISO(m.month),
-        income: m.income * fxRate,
-        expense: m.expense * fxRate,
-        net: m.net * fxRate,
-      })),
-    [data, fxRate]
-  )
+  const { chartData, totalNet, profitMonths } = useMemo(() => {
+    const chartData = (data ?? []).map((m) => ({
+      date: parseISO(m.month),
+      income: m.income * fxRate,
+      expense: m.expense * fxRate,
+      net: m.net * fxRate,
+    }))
+    return {
+      chartData,
+      totalNet: chartData.reduce((sum, m) => sum + m.net, 0),
+      profitMonths: chartData.filter((m) => m.net > 0).length,
+    }
+  }, [data, fxRate])
 
-  if (isError) return <ChartCardError title="Profit & Loss" icon={ProfitIcon} onRetry={() => refetch()} />
+  if (isError) return <ChartCardError title={TITLE} icon={ProfitIcon} onRetry={() => refetch()} />
 
   return (
-    <ChartCard
-      title="Profit & Loss"
-      icon={ProfitIcon}
-      description="Income and expenses per month, with net profit as a line"
-    >
+    <ChartCard title={TITLE} icon={ProfitIcon} description="Net profit each month — above the line is profit, below is loss">
       {isLoading ? (
-        <BarChartLoading aspectRatio="3 / 1" margin={MARGIN} />
+        <LineChartLoading aspectRatio="2 / 1" margin={MARGIN} />
       ) : (
-        <ComposedChart data={chartData} xDataKey="date" aspectRatio="3 / 1" margin={MARGIN} barGap={4}>
-          <Grid horizontal highlightRowValues={[0]} />
-          <SeriesBar dataKey="income" fill="var(--chart-2)" radius={3} />
-          <SeriesBar dataKey="expense" fill="var(--chart-5)" radius={3} />
-          <Line dataKey="net" stroke={chartCssVars.linePrimary} strokeWidth={2.5} showMarkers />
-          <XAxis />
-          <YAxis formatValue={(v) => formatCurrencyCompact(v, displayCurrency)} />
-          <ChartTooltip
-            rows={(point) => [
-              {
-                color: "var(--chart-2)",
-                label: "Income",
-                value: formatCurrency((point.income as number) ?? 0, displayCurrency),
-              },
-              {
-                color: "var(--chart-5)",
-                label: "Expense",
-                value: formatCurrency((point.expense as number) ?? 0, displayCurrency),
-              },
-              {
-                color: chartCssVars.linePrimary,
-                label: "Net profit",
-                value: formatCurrency((point.net as number) ?? 0, displayCurrency),
-              },
-            ]}
-          />
-        </ComposedChart>
+        <div className="flex flex-col gap-2">
+          <p className="text-xs text-muted-foreground">
+            Net{" "}
+            <span className="font-medium tabular-nums" style={{ color: profitLossColor(totalNet) }}>
+              {formatCurrency(totalNet, displayCurrency)}
+            </span>{" "}
+            over the range · {profitMonths} of {chartData.length} {chartData.length === 1 ? "month" : "months"} in profit
+          </p>
+          <ProfitLossLegendHoverProvider hoveredIndex={hoveredLegend}>
+            <LineChart data={chartData} xDataKey="date" aspectRatio="2 / 1" margin={MARGIN}>
+              <Grid horizontal highlightRowValues={[0]} />
+              {/* Invisible series that drives the y-domain — ProfitLossLine opts out
+                  of domain registration by design (Bklit's documented pairing). */}
+              <Line
+                curve={curveLinear}
+                dataKey="net"
+                fadeEdges={false}
+                showHighlight={false}
+                stroke="transparent"
+                strokeWidth={0}
+              />
+              <ProfitLossLine dataKey="net" />
+              <XAxis />
+              <YAxis formatValue={(v) => formatCurrencyCompact(v, displayCurrency)} />
+              <ChartTooltip
+                dotColor={(point) => profitLossColor((point.net as number) ?? 0)}
+                rows={(point) => [
+                  {
+                    color: "var(--chart-2)",
+                    label: "Income",
+                    value: formatCurrency((point.income as number) ?? 0, displayCurrency),
+                  },
+                  {
+                    color: "var(--chart-5)",
+                    label: "Expenses",
+                    value: formatCurrency((point.expense as number) ?? 0, displayCurrency),
+                  },
+                  {
+                    color: profitLossColor((point.net as number) ?? 0),
+                    label: ((point.net as number) ?? 0) >= 0 ? "Net profit" : "Net loss",
+                    value: formatCurrency((point.net as number) ?? 0, displayCurrency),
+                  },
+                ]}
+              />
+            </LineChart>
+          </ProfitLossLegendHoverProvider>
+          <ProfitLossLegend hoveredIndex={hoveredLegend} onHoverChange={setHoveredLegend} />
+        </div>
       )}
     </ChartCard>
   )

@@ -1,29 +1,11 @@
 "use client";
 
-import { arc as arcGenerator } from "@visx/shape";
-import { motion, useSpring, useTransform } from "motion/react";
+import { m, useSpring, useTransform } from "motion/react";
 import { memo, useEffect } from "react";
+import { arcPath } from "./arc-path";
 import { usePieHover, usePieStable } from "./pie-context";
 import { useEnterComplete } from "./use-enter-complete";
 import { useMountProgress } from "./use-mount-progress";
-
-// Helper to generate arc path using d3 arc generator
-function generateArcPath(
-  innerRadius: number,
-  outerRadius: number,
-  startAngle: number,
-  endAngle: number,
-  cornerRadius: number,
-  padAngle: number
-): string {
-  const generator = arcGenerator<unknown>({
-    innerRadius,
-    outerRadius,
-    cornerRadius,
-    padAngle,
-  });
-  return generator({ startAngle, endAngle } as unknown as null) || "";
-}
 
 // Calculate the translation offset for a slice to "pop out" along its radial axis
 function getSliceOffset(
@@ -41,6 +23,10 @@ function getSliceOffset(
   };
 }
 
+// Every `m.path` below uses `initial={false}`: Motion can't read `opacity`
+// or `d` back from an SVG path, so without it the first frame animates from
+// `undefined` (console warning + an invalid `d="undefined"` attribute).
+
 /** Hover effect types */
 export type PieSliceHoverEffect = "translate" | "grow" | "none";
 
@@ -53,7 +39,7 @@ export interface PieSliceProps {
   fill?: string;
   /** Animate the slice on mount. Default: true */
   animate?: boolean;
-  /** Show glow effect on hover. Default: true */
+  /** Show glow effect on hover. Default: false */
   showGlow?: boolean;
   /**
    * Hover effect type. Default: "translate"
@@ -119,7 +105,7 @@ function AnimatedSliceTranslate({
     if (currentEndAngle <= startAngle + 0.01) {
       return "";
     }
-    return generateArcPath(
+    return arcPath(
       innerRadius,
       outerRadius,
       startAngle,
@@ -131,7 +117,7 @@ function AnimatedSliceTranslate({
 
   const offset = getSliceOffset(startAngle, endAngle, hoverOffset);
   const glowColor = color;
-  const hitboxPath = generateArcPath(
+  const hitboxPath = arcPath(
     innerRadius,
     outerRadius,
     startAngle,
@@ -143,7 +129,7 @@ function AnimatedSliceTranslate({
   if (enterComplete) {
     const shouldTranslate = isHovered;
     return (
-      <motion.path
+      <m.path
         animate={{
           opacity: isFaded ? 0.4 : 1,
           x: shouldTranslate ? offset.x : 0,
@@ -151,6 +137,7 @@ function AnimatedSliceTranslate({
         }}
         d={hitboxPath}
         fill={fill}
+        initial={false}
         pointerEvents="none"
         style={{
           filter:
@@ -168,7 +155,7 @@ function AnimatedSliceTranslate({
   }
 
   return (
-    <motion.path
+    <m.path
       animate={{
         opacity: isFaded ? 0.4 : 1,
         x: isHovered ? offset.x : 0,
@@ -176,6 +163,7 @@ function AnimatedSliceTranslate({
       }}
       d={animatedPath}
       fill={fill}
+      initial={false}
       key={`slice-${animationKey}-${index}`}
       pointerEvents="none"
       style={{
@@ -254,7 +242,7 @@ function AnimatedSliceGrow({
       if (currentEndAngle <= startAngle + 0.01) {
         return "";
       }
-      return generateArcPath(
+      return arcPath(
         innerRadius,
         currentOuterRadius as number,
         startAngle,
@@ -267,7 +255,7 @@ function AnimatedSliceGrow({
 
   const glowColor = color;
   const grownOuterRadius = isHovered ? outerRadius + hoverOffset : outerRadius;
-  const grownPath = generateArcPath(
+  const grownPath = arcPath(
     innerRadius,
     grownOuterRadius,
     startAngle,
@@ -278,13 +266,14 @@ function AnimatedSliceGrow({
 
   if (enterComplete) {
     return (
-      <motion.path
+      <m.path
         animate={{
           opacity: isFaded ? 0.4 : 1,
           d: grownPath,
         }}
         d={grownPath}
         fill={fill}
+        initial={false}
         pointerEvents="none"
         style={{
           filter:
@@ -301,12 +290,13 @@ function AnimatedSliceGrow({
   }
 
   return (
-    <motion.path
+    <m.path
       animate={{
         opacity: isFaded ? 0.4 : 1,
       }}
       d={animatedPath}
       fill={fill}
+      initial={false}
       key={`slice-${animationKey}-${index}`}
       pointerEvents="none"
       style={{
@@ -325,7 +315,7 @@ export const PieSlice = memo(function PieSlice({
   color: colorProp,
   fill: fillProp,
   animate = true,
-  showGlow = true,
+  showGlow = false,
   hoverEffect = "translate",
   hoverOffset: hoverOffsetProp,
 }: PieSliceProps) {
@@ -373,7 +363,7 @@ export const PieSlice = memo(function PieSlice({
   );
 
   // Generate the static hitbox path (always uses base outer radius)
-  const hitboxPath = generateArcPath(
+  const hitboxPath = arcPath(
     innerRadius,
     outerRadius,
     arcData.startAngle,
@@ -384,7 +374,7 @@ export const PieSlice = memo(function PieSlice({
 
   // Generate the visible path for grow effect
   const grownOuterRadius = isHovered ? outerRadius + hoverOffset : outerRadius;
-  const grownPath = generateArcPath(
+  const grownPath = arcPath(
     innerRadius,
     grownOuterRadius,
     arcData.startAngle,
@@ -441,13 +431,14 @@ export const PieSlice = memo(function PieSlice({
   const renderStaticSlice = () => {
     if (hoverEffect === "grow") {
       return (
-        <motion.path
+        <m.path
           animate={{
             opacity: isFaded ? 0.4 : 1,
             d: grownPath,
           }}
           d={hitboxPath}
           fill={fill}
+          initial={false}
           pointerEvents="none"
           style={{
             filter:
@@ -467,7 +458,7 @@ export const PieSlice = memo(function PieSlice({
     const translateY = shouldTranslate ? offset.y : 0;
 
     return (
-      <motion.path
+      <m.path
         animate={{
           opacity: isFaded ? 0.4 : 1,
           x: translateX,
@@ -475,6 +466,7 @@ export const PieSlice = memo(function PieSlice({
         }}
         d={hitboxPath}
         fill={fill}
+        initial={false}
         pointerEvents="none"
         style={{
           filter:

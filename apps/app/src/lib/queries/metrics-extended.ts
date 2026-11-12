@@ -84,7 +84,7 @@ function invoiceBaseRate(total: number, convertedAmount: number | null): number 
   return convertedAmount != null && total > 0 ? convertedAmount / total : 1
 }
 
-type TxRow = {
+export type TxRow = {
   date: string
   type: "income" | "expense"
   amount: number
@@ -94,11 +94,11 @@ type TxRow = {
   customer_id: string | null
 }
 
-function txBase(row: { amount: number; base_amount: number | null }): number {
+export function txBase(row: { amount: number; base_amount: number | null }): number {
   return Number(row.base_amount ?? row.amount) || 0
 }
 
-async function fetchTransactions(
+export async function fetchTransactions(
   orgId: string,
   from: string,
   to: string,
@@ -225,69 +225,7 @@ export function agingBucketDueRange(
   }
 }
 
-// ─── 2. Days to get paid (monthly) ──────────────────────────────────────────
-
-export type DaysToPayMonth = {
-  month: string
-  /** Average days from issue date to paid date. */
-  avgDaysToPay: number
-  /** Average days paid after the due date (on-time / early payments count as 0). */
-  avgDaysLate: number
-  count: number
-}
-
-// Invoices with status 'paid' whose paid_at falls in the range, bucketed by
-// the month they were paid. Months with no paid invoices are OMITTED (not
-// zero-filled) — a "0 days" point would read as instant payment.
-export async function getDaysToPay(orgId: string, from: string, to: string): Promise<DaysToPayMonth[]> {
-  type Row = { issue_date: string | null; due_date: string | null; paid_at: string | null }
-  const rows = await fetchAllRows<Row>((start, end) =>
-    supabase
-      .from("invoices")
-      .select("issue_date, due_date, paid_at")
-      .eq("org_id", orgId)
-      .eq("status", "paid")
-      .not("paid_at", "is", null)
-      .gte("paid_at", from)
-      .lt("paid_at", format(addDaysIso(to, 1), ISO_DATE))
-      .order("id")
-      .range(start, end) as unknown as PromiseLike<PageResult<Row>>,
-  )
-
-  const groups = new Map<string, { pay: number[]; late: number[] }>()
-  for (const row of rows) {
-    if (!row.paid_at || !row.issue_date) continue
-    const paid = toDay(row.paid_at)
-    const daysToPay = Math.max(0, differenceInCalendarDays(paid, toDay(row.issue_date)))
-    const daysLate = row.due_date ? Math.max(0, differenceInCalendarDays(paid, toDay(row.due_date))) : 0
-    const key = format(paid, MONTH_KEY)
-    const group = groups.get(key) ?? { pay: [], late: [] }
-    group.pay.push(daysToPay)
-    group.late.push(daysLate)
-    groups.set(key, group)
-  }
-
-  const avg = (xs: number[]) => xs.reduce((s, x) => s + x, 0) / xs.length
-  return monthKeysInRange(from, to)
-    .filter((key) => groups.has(key))
-    .map((key) => {
-      const g = groups.get(key)!
-      return {
-        month: monthStart(key),
-        avgDaysToPay: avg(g.pay),
-        avgDaysLate: avg(g.late),
-        count: g.pay.length,
-      }
-    })
-}
-
-function addDaysIso(value: string, days: number): Date {
-  const d = toDay(value)
-  d.setDate(d.getDate() + days)
-  return d
-}
-
-// ─── 3. Customer concentration ──────────────────────────────────────────────
+// ─── 2. Customer concentration ──────────────────────────────────────────────
 
 export type CustomerShare = {
   customerId: string
@@ -350,7 +288,7 @@ export async function getCustomerConcentration(
   return { customers, attributedTotal, unattributedTotal }
 }
 
-// ─── 4. Payment channels (monthly, income) ──────────────────────────────────
+// ─── 3. Payment channels (monthly, income) ──────────────────────────────────
 
 export const PAYMENT_CHANNELS = [
   { key: "mpesa", label: "M-Pesa", color: "var(--chart-2)" },
@@ -364,6 +302,13 @@ export const PAYMENT_CHANNELS = [
 export type PaymentChannelKey = (typeof PAYMENT_CHANNELS)[number]["key"]
 
 export type PaymentChannelMonth = { month: string } & Record<PaymentChannelKey, number>
+
+/** transactions.payment_mode → chart channel; 'other' and NULL become "unspecified". */
+export function paymentChannelKey(mode: string | null): PaymentChannelKey {
+  return mode === "mpesa" || mode === "bank_transfer" || mode === "card" || mode === "cash" || mode === "cheque"
+    ? mode
+    : "unspecified"
+}
 
 // Income transactions grouped by payment_mode per month (zero-filled).
 // 'other' and NULL are merged into "Other / unspecified".
@@ -381,17 +326,12 @@ export async function getPaymentChannels(orgId: string, from: string, to: string
   for (const row of rows) {
     const bucket = byMonth.get(monthKey(row.date))
     if (!bucket) continue
-    const mode = row.payment_mode
-    const key: PaymentChannelKey =
-      mode === "mpesa" || mode === "bank_transfer" || mode === "card" || mode === "cash" || mode === "cheque"
-        ? mode
-        : "unspecified"
-    bucket[key] += txBase(row)
+    bucket[paymentChannelKey(row.payment_mode)] += txBase(row)
   }
   return [...byMonth.entries()].map(([key, values]) => ({ month: monthStart(key), ...values }))
 }
 
-// ─── 5. Invoice-to-cash funnel ──────────────────────────────────────────────
+// ─── 4. Invoice-to-cash funnel ──────────────────────────────────────────────
 
 export type InvoiceFunnel = {
   sent: number
@@ -463,7 +403,111 @@ export async function getInvoiceFunnel(orgId: string, from: string, to: string):
   }
 }
 
-// ─── 6. Revenue vs previous period (range helper) ───────────────────────────
+// ─── 5. Money flow (Sankey) ─────────────────────────────────────────────────
+
+export type MoneyFlowCategory = {
+  categoryId: string | null
+  name: string
+  color: string | null
+  /** Expenses in base currency. */
+  amount: number
+}
+
+export type MoneyFlow = {
+  /** Income in base currency by payment channel (zero for unused channels). */
+  channels: Record<PaymentChannelKey, number>
+  /** Expenses by category, largest first. Uncategorized rows share one entry. */
+  categories: MoneyFlowCategory[]
+  income: number
+  expense: number
+}
+
+// Both sides come from one transactions pull (same exclusions as everywhere
+// else in this file) so money in and money out are measured identically and
+// the Sankey's flows balance.
+export async function getMoneyFlow(orgId: string, from: string, to: string): Promise<MoneyFlow> {
+  type Row = TxRow & {
+    category_id: string | null
+    category: { name: string | null; color: string | null } | null
+  }
+  const rows = (await fetchTransactions(
+    orgId,
+    from,
+    to,
+    "type, amount, base_amount, payment_mode, category_id, category:transaction_categories(name, color)",
+  )) as unknown as Row[]
+
+  const channels: Record<PaymentChannelKey, number> = {
+    mpesa: 0,
+    bank_transfer: 0,
+    card: 0,
+    cash: 0,
+    cheque: 0,
+    unspecified: 0,
+  }
+  const byCategory = new Map<string, MoneyFlowCategory>()
+  let income = 0
+  let expense = 0
+
+  for (const row of rows) {
+    const value = txBase(row)
+    if (value <= 0) continue
+    if (row.type === "income") {
+      channels[paymentChannelKey(row.payment_mode)] += value
+      income += value
+    } else if (row.type === "expense") {
+      expense += value
+      const key = row.category_id ?? "uncategorized"
+      const existing = byCategory.get(key)
+      if (existing) {
+        existing.amount += value
+      } else {
+        byCategory.set(key, {
+          categoryId: row.category_id,
+          name: row.category_id ? (row.category?.name ?? "Unnamed category") : "Uncategorized",
+          color: row.category?.color ?? null,
+          amount: value,
+        })
+      }
+    }
+  }
+
+  const categories = [...byCategory.values()].sort((a, b) => b.amount - a.amount)
+  return { channels, categories, income, expense }
+}
+
+// ─── 6. Daily income (calendar heatmap) ─────────────────────────────────────
+
+export type DailyIncome = {
+  /** "yyyy-MM-dd" */
+  date: string
+  /** Income in base currency. */
+  amount: number
+  /** Number of income transactions that day. */
+  count: number
+}
+
+// Income transactions summed per calendar day. Only days with income appear,
+// in date order.
+export async function getDailyIncome(orgId: string, from: string, to: string): Promise<DailyIncome[]> {
+  const rows = await fetchTransactions(orgId, from, to, "date, amount, base_amount", "income")
+  const byDay = new Map<string, DailyIncome>()
+  for (const row of rows) {
+    const value = txBase(row)
+    if (value <= 0) continue
+    const day = row.date.slice(0, 10)
+    const existing = byDay.get(day)
+    if (existing) {
+      existing.amount += value
+      existing.count += 1
+    } else {
+      byDay.set(day, { date: day, amount: value, count: 1 })
+    }
+  }
+  return [...byDay.values()].sort((a, b) => a.date.localeCompare(b.date))
+}
+
+// ─── Previous period (range helper for the Revenue compare toggle) ───────────────────────────
 
 /** The same-length window immediately before [from, to] (inclusive dates). */
 export function previousPeriod(from: string, to: string): { from: string; to: string } {
@@ -473,30 +517,4 @@ export function previousPeriod(from: string, to: string): { from: string; to: st
     from: format(subDays(start, length), ISO_DATE),
     to: format(subDays(start, 1), ISO_DATE),
   }
-}
-
-// ─── 7. Currency exposure ───────────────────────────────────────────────────
-
-export type CurrencyExposure = {
-  currency: string
-  /** Income in base currency. */
-  income: number
-  /** Expenses in base currency. */
-  expense: number
-}
-
-// Totals by ORIGINAL transaction currency, valued in base (base_amount ?? amount).
-// Sorted by total volume descending.
-export async function getCurrencyExposure(orgId: string, from: string, to: string): Promise<CurrencyExposure[]> {
-  const rows = await fetchTransactions(orgId, from, to, "type, currency, amount, base_amount")
-  const byCurrency = new Map<string, CurrencyExposure>()
-  for (const row of rows) {
-    const code = (row.currency || "").toUpperCase()
-    if (!code) continue
-    const entry = byCurrency.get(code) ?? { currency: code, income: 0, expense: 0 }
-    if (row.type === "income") entry.income += txBase(row)
-    else if (row.type === "expense") entry.expense += txBase(row)
-    byCurrency.set(code, entry)
-  }
-  return [...byCurrency.values()].sort((a, b) => b.income + b.expense - (a.income + a.expense))
 }

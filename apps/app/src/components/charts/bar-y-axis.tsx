@@ -1,10 +1,14 @@
 "use client";
 
-import { motion } from "motion/react";
-import { memo, useEffect, useMemo, useState } from "react";
+import { m } from "motion/react";
+import { memo, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { cn } from "@travada-books/ui/lib/utils";
-import { useChart, useChartStable } from "./chart-context";
+import {
+  useChart,
+  useChartPortalContainer,
+  useChartStable,
+} from "./chart-context";
 
 export interface BarYAxisProps {
   /** Whether to show all labels or skip some for dense data. Default: true */
@@ -34,7 +38,7 @@ function BarYAxisLabel({
         height: bandHeight,
       }}
     >
-      <motion.span
+      <m.span
         animate={{
           opacity: isHovered ? 1 : 0.7,
           color: isHovered
@@ -50,21 +54,16 @@ function BarYAxisLabel({
         transition={{ duration: 0.15 }}
       >
         {label}
-      </motion.span>
+      </m.span>
     </div>
   );
 }
 
 export function BarYAxis(props: BarYAxisProps) {
   const { containerRef, barScale } = useChartStable();
-  const [mounted, setMounted] = useState(false);
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  const container = containerRef.current;
-  if (!(mounted && container)) {
+  const container = useChartPortalContainer(containerRef);
+  if (!container) {
     return null;
   }
 
