@@ -37,7 +37,8 @@ import { cn } from "@travada-books/ui/lib/utils";
 import { useAuth } from "@/contexts/auth-context";
 import { useFormatDate } from "@/hooks/use-format-date";
 import { useRealtime } from "@/hooks/use-realtime";
-import { listCustomers, deleteCustomer } from "@/lib/queries/customers";
+import { listCustomers } from "@/lib/queries/customers";
+import { customerErrorDescription, customerWrites } from "@/lib/customer-api";
 import { listAllCustomerInvoiceSummaries } from "@/lib/queries/invoices";
 import { formatCurrency } from "@/lib/format";
 import { toast } from "sonner";
@@ -131,15 +132,15 @@ export function CustomersPage() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (customerId: string) => deleteCustomer(customerId, orgId!),
+    mutationFn: (customerId: string) => customerWrites.remove(customerId, orgId!),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["customers", orgId] });
       trackEvent(LogEvents.CustomerDeleted);
       toast.success("Customer deleted");
     },
-    onError: () => {
+    onError: (err) => {
       toast.error("Failed to delete customer", {
-        description: "Please try again.",
+        description: customerErrorDescription(err),
       });
     },
   });
@@ -530,7 +531,7 @@ export function CustomersPage() {
                           businessType: customer.company_type ?? "",
                           website: customer.website ?? "",
                           vatNumber: customer.vat_number ?? "",
-                          country: customer.country ?? "",
+                          country: customer.country_code ?? customer.country ?? "",
                           currency: customer.preferred_currency ?? undefined,
                           addressLine1: customer.address_line1 ?? "",
                           addressLine2: customer.address_line2 ?? "",

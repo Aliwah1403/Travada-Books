@@ -87,16 +87,11 @@ export const customerTools = [
     kind: "write",
     input: customerFields,
     run: async (args, ctx) => {
-      const rows = must(await ctx.db.insert("customers", args).select("id, name"), "Create customer") as {
-        id: string
-        name: string
-      }[]
-      const created = rows[0]
-      if (!created) throw new Error("Create customer: no row returned")
+      const { customer } = await ctx.customers.create(args)
       return {
-        data: { ...created, app_url: `${ctx.appUrl}/customers/${created.id}` },
-        entity: { type: "customer", id: created.id },
-        summary: `Created customer ${created.name}`,
+        data: { id: customer.id, name: customer.name, app_url: `${ctx.appUrl}/customers/${customer.id}` },
+        entity: { type: "customer", id: customer.id },
+        summary: `Created customer ${customer.name}`,
       }
     },
   }),
@@ -108,18 +103,69 @@ export const customerTools = [
     kind: "write",
     input: { id: uuid("Customer"), ...z.object(customerFields).partial().shape },
     run: async ({ id, ...changes }, ctx) => {
-      if (Object.keys(changes).length === 0) throw new ToolError("Nothing to update")
-      const rows = must(await ctx.db.update("customers", changes).eq("id", id).select("id, name"), "Update customer") as {
-        id: string
-        name: string
-      }[]
-      const updated = rows[0]
-      if (!updated) throw new ToolError("Customer not found")
+      const defined = Object.fromEntries(Object.entries(changes).filter(([, value]) => value !== undefined))
+      if (Object.keys(defined).length === 0) throw new ToolError("Nothing to update")
+      const { customer } = await ctx.customers.update(id, defined)
       return {
-        data: updated,
+        data: { id, name: customer.name },
         entity: { type: "customer", id },
-        summary: `Updated ${Object.keys(changes).join(", ")} on customer ${updated.name}`,
+        summary: `Updated ${Object.keys(defined).join(", ")} on customer ${customer.name}`,
       }
+    },
+  }),
+
+  defineTool({
+    name: "customers_archive",
+    title: "Archive customer",
+    description:
+      "Archive a customer (hides them from the customer list, keeps all their invoices and history), or unarchive one with archived: false.",
+    kind: "write",
+    input: { id: uuid("Customer"), archived: z.boolean().optional().describe("false to unarchive (default true)") },
+    run: async ({ id, archived }, ctx) => {
+      const { customer } = await ctx.customers.archive(id, archived ?? true)
+      return {
+        data: { id, name: customer.name, is_archived: customer.isArchived },
+        entity: { type: "customer", id },
+        summary: `${customer.isArchived ? "Archived" : "Unarchived"} customer ${customer.name}`,
+      }
+    },
+  }),
+
+  defineTool({
+    name: "customers_set_portal",
+    title: "Turn customer portal on or off",
+    description:
+      "Turn on (or off) the customer's portal: one private link where they see all their invoices, quotes and statements. Turning it back on keeps the same link.",
+    kind: "write",
+    input: { id: uuid("Customer"), enabled: z.boolean() },
+    run: async ({ id, enabled }, ctx) => {
+      const { customer } = await ctx.customers.setPortal(id, enabled)
+      return {
+        data: {
+          portal_enabled: customer.portalEnabled,
+          portal_url: customer.portalEnabled && customer.portalId ? `${ctx.appUrl}/p/${customer.portalId}` : null,
+        },
+        entity: { type: "customer", id },
+        summary: `${enabled ? "Turned on" : "Turned off"} the portal for ${customer.name}`,
+      }
+    },
+  }),
+
+  defineTool({
+    name: "customers_delete",
+    title: "Delete customer",
+    description:
+      "Permanently delete a customer. Their statements go too; their invoices stay but lose the link. Prefer customers_archive unless the user wants them gone.",
+    kind: "destructive",
+    confirm: true,
+    input: { id: uuid("Customer") },
+    describe: async ({ id }, ctx) => {
+      const row = must(await ctx.db.select("customers", "name").eq("id", id).maybeSingle(), "Customer") as { name: string }
+      return `Permanently delete customer ${row.name}? Their statements are deleted too. This can't be undone.`
+    },
+    run: async ({ id }, ctx) => {
+      const { customer } = await ctx.customers.remove(id)
+      return { data: { deleted: true, id }, entity: { type: "customer", id }, summary: `Deleted customer ${customer.name}` }
     },
   }),
 ]

@@ -101,6 +101,45 @@ function fakeQuoteServices(tables: FakeTables, orgId: string) {
   } as unknown as McpContext["quotes"]
 }
 
+function fakeCustomerServices(tables: FakeTables, orgId: string) {
+  const call = (name: string) => serviceCalls.push({ name, orgId })
+  const asRow = (row: Record<string, unknown>) => ({
+    ...row,
+    isArchived: row.is_archived ?? false,
+    portalEnabled: row.portal_enabled ?? false,
+    portalId: row.portal_id ?? null,
+  })
+  const get = async (id: string) => {
+    call("get")
+    const row = (tables.customers ?? []).find((r) => r.id === id && r.org_id === orgId)
+    if (!row) throw new ServiceError(404, "NOT_FOUND", "Customer not found.")
+    return row
+  }
+  const change = async (id: string, values: Record<string, unknown>) => {
+    const row = await get(id)
+    Object.assign(row, values)
+    return { customer: asRow(row) }
+  }
+  return {
+    get: async (id: string) => asRow(await get(id)),
+    create: async (input: Record<string, unknown>) => {
+      call("create")
+      const row = { id: crypto.randomUUID(), org_id: orgId, ...input }
+      ;(tables.customers ??= []).push(row)
+      return { customer: asRow(row) }
+    },
+    update: async (id: string, input: Record<string, unknown>) => (call("update"), change(id, input)),
+    archive: async (id: string, archived: boolean) => (call("archive"), change(id, { is_archived: archived })),
+    setPortal: async (id: string, enabled: boolean) => (call("setPortal"), change(id, { portal_enabled: enabled, portal_id: "p" })),
+    remove: async (id: string) => {
+      call("remove")
+      const row = await get(id)
+      tables.customers = (tables.customers ?? []).filter((r) => r !== row)
+      return { customer: asRow(row) }
+    },
+  } as unknown as McpContext["customers"]
+}
+
 function fakeStatementServices(tables: FakeTables, orgId: string) {
   const find = (id: string) => (tables.statements ?? []).find((row) => row.id === id && row.org_id === orgId)
   const asRow = (row: Record<string, unknown>) => ({
@@ -144,6 +183,7 @@ function makeCtx(
     invoices: fakeInvoiceServices(tables, overrides.orgId ?? ORG_A),
     quotes: fakeQuoteServices(tables, overrides.orgId ?? ORG_A),
     statements: fakeStatementServices(tables, overrides.orgId ?? ORG_A),
+    customers: fakeCustomerServices(tables, overrides.orgId ?? ORG_A),
     org: { name: "Acme Ltd", baseCurrency: "KES", countryCode: "KE" },
     user: { timezone: "Africa/Nairobi", locale: "en", dateFormat: null },
     channel: "mcp",
@@ -172,6 +212,7 @@ function sampleArgs(tool: AnyTool): Record<string, unknown> {
     else if (key === "date_from") args[key] = "2026-10-01"
     else if (key === "date_to") args[key] = "2026-10-31"
     else if (key === "amount") args[key] = 10
+    else if (key === "enabled") args[key] = true
     else args[key] = "Acme"
   }
   // Tools whose fields are all optional but that refuse an empty call.
@@ -349,7 +390,10 @@ describe("confirmations (plan §7)", () => {
               quote_number: "QUO-1",
             },
           ],
-          customers: [{ id: OTHER_USER, org_id: ORG_A, name: "Acme", email: "billing@acme.test" }],
+          customers: [
+            { id: OTHER_USER, org_id: ORG_A, name: "Acme", email: "billing@acme.test" },
+            { id: SOME_ID, org_id: ORG_A, name: "Beta Ltd" },
+          ],
           statements: [
             {
               id: SOME_ID,

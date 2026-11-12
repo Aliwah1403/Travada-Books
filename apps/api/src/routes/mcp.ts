@@ -6,6 +6,7 @@ import type { McpContext } from "../mcp/types.js"
 import { requireCaller } from "../middleware/require-caller.js"
 import { invoiceServices, type ServiceCtx } from "../services/invoices.js"
 import { quoteServices } from "../services/quotes.js"
+import { customerServices } from "../services/customers.js"
 import { statementServices } from "../services/statements.js"
 
 export const mcp = new Hono<AppEnv>()
@@ -40,6 +41,7 @@ mcp.all("/", async (c) => {
     db,
     invoices: invoiceServices(services),
     quotes: quoteServices(services),
+    customers: customerServices(services),
     statements: statementServices(services),
     org: { name: org.name, baseCurrency: org.base_currency ?? "KES", countryCode: org.country_code ?? null },
     user: {

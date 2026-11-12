@@ -27,10 +27,7 @@ import {
   AlertDialogTitle,
 } from "@travada-books/ui/components/alert-dialog";
 import { buildWhatsappUrl, toWhatsappNumber } from "@/lib/whatsapp";
-import {
-  setCustomerPortal,
-  regenerateCustomerPortalId,
-} from "@/lib/queries/customer-portal";
+import { customerWrites } from "@/lib/customer-api";
 
 type CustomerPortalCardProps = {
   customerId: string;
@@ -60,14 +57,14 @@ export function CustomerPortalCard({
   const portalUrl = portalId ? `${window.location.origin}/p/${portalId}` : null;
 
   const toggleMutation = useMutation({
-    mutationFn: (next: boolean) => setCustomerPortal(customerId, next),
+    mutationFn: (next: boolean) => customerWrites.setPortal(customerId, next),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["customer", customerId] });
     },
   });
 
   const regenerateMutation = useMutation({
-    mutationFn: () => regenerateCustomerPortalId(customerId),
+    mutationFn: () => customerWrites.regeneratePortal(customerId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["customer", customerId] });
       setRegenerateOpen(false);
