@@ -1,8 +1,8 @@
 "use client";
 
-import type { scaleBand } from "@visx/scale";
+import type { ScaleBand as D3ScaleBand } from "d3-scale";
 import type { Transition } from "motion/react";
-import { motion } from "motion/react";
+import { m } from "motion/react";
 import { memo, useId, useMemo } from "react";
 import { computeSquareColumn } from "./bar-squares-layout";
 import {
@@ -15,9 +15,7 @@ import { useChartLegendHover } from "./chart-legend-hover";
 import { transitionWithDelay } from "./motion-utils";
 import { type PatternPresetId, renderPatternPreset } from "./pattern-preset";
 
-type ScaleBand<Domain extends { toString(): string }> = ReturnType<
-  typeof scaleBand<Domain>
->;
+type ScaleBand<Domain extends { toString(): string }> = D3ScaleBand<Domain>;
 
 export interface GradientStop {
   offset: number;
@@ -29,6 +27,11 @@ export interface BarSquaresProps {
   yAxisId?: string | number;
   /** Fill color, gradient url, or pattern url. Default: var(--chart-line-primary) */
   fill?: string;
+  /**
+   * Datum key holding a per-column color. When the datum has a string there,
+   * it replaces `fill` for that column and solid-fills it (no gradient).
+   */
+  colorKey?: string;
   /** Tooltip dot / ring stroke color when fill is gradient/pattern */
   stroke?: string;
   /** Gap between stacked squares in pixels. Default: 3 */
@@ -245,7 +248,7 @@ function SquareColumn({
     }
 
     return (
-      <motion.rect
+      <m.rect
         animate={{ attrY: y, height: squareSize, opacity: squareOpacity }}
         fill={effectiveFill}
         height={squareSize}
@@ -278,6 +281,7 @@ const BarSquaresInner = memo(function BarSquaresInner({
   dataKey,
   yAxisId,
   fill = chartCssVars.linePrimary,
+  colorKey,
   squareGap = 3,
   squareRadius = 0.25,
   squareFit = false,
@@ -367,6 +371,9 @@ const BarSquaresInner = memo(function BarSquaresInner({
         const isFaded =
           (hoveredBarIndex !== null && hoveredBarIndex !== i) || isLegendDimmed;
 
+        const columnColor = colorKey ? d[colorKey] : undefined;
+        const hasColumnColor = typeof columnColor === "string";
+
         return (
           <SquareColumn
             animate={animate}
@@ -375,7 +382,7 @@ const BarSquaresInner = memo(function BarSquaresInner({
             baselineY={baselineY}
             enterTransition={enterTransition}
             fadedOpacity={fadedOpacity}
-            fill={fill}
+            fill={hasColumnColor ? columnColor : fill}
             gradientStops={stops}
             index={i}
             isFaded={isFaded}
@@ -387,7 +394,7 @@ const BarSquaresInner = memo(function BarSquaresInner({
             squareRadius={squareRadius}
             squareSize={squareSize}
             staggerDelay={calculatedStaggerDelay}
-            useGradient={useGradient}
+            useGradient={useGradient && !hasColumnColor}
             x={x}
           />
         );
@@ -578,7 +585,7 @@ function TrackColumn({
 
   if (animate) {
     return (
-      <motion.rect
+      <m.rect
         animate={{ height: animatedHeight, y: 0 }}
         fill={fill}
         height={animatedHeight}

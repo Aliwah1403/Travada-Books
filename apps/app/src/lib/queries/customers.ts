@@ -50,24 +50,24 @@ export type Customer = {
 
 export type CustomerInput = {
   name: string
-  email?: string
-  billing_email?: string
-  billing_cc?: string
-  phone?: string
-  website?: string
-  address_line1?: string
-  address_line2?: string
-  city?: string
-  state?: string
-  zip?: string
-  country?: string
-  country_code?: string
-  vat_number?: string
-  note?: string
-  industry?: string
-  company_type?: string
-  preferred_currency?: string
-  main_contact?: string
+  email?: string | null
+  billing_email?: string | null
+  billing_cc?: string | null
+  phone?: string | null
+  website?: string | null
+  address_line1?: string | null
+  address_line2?: string | null
+  city?: string | null
+  state?: string | null
+  zip?: string | null
+  country?: string | null
+  country_code?: string | null
+  vat_number?: string | null
+  note?: string | null
+  industry?: string | null
+  company_type?: string | null
+  preferred_currency?: string | null
+  main_contact?: string | null
 }
 
 export async function listCustomers(orgId: string): Promise<Customer[]> {

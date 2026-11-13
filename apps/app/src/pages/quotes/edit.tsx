@@ -34,6 +34,9 @@ import { toast } from "sonner";
 import { cn } from "@travada-books/ui/lib/utils";
 import { useAuth } from "@/contexts/auth-context";
 import { getQuote, updateQuote } from "@/lib/queries/quotes";
+import { ApiError } from "@/lib/api";
+import { apiWritesEnabled } from "@/lib/api-flags";
+import { quoteApi } from "@/lib/quote-api";
 import { lookupRate } from "@/lib/queries/exchange-rates";
 import { getOrgInvoiceTemplate } from "@/lib/queries/invoice-templates";
 import {
@@ -48,10 +51,14 @@ import {
 import type { LineItem } from "@/components/quotes/quote-utils";
 import { EditorDocumentPreview } from "@/components/invoice-templates/editor-preview";
 import { computeQuoteTotals, isQuoteEditable } from "@/components/quotes/quote-utils";
-import { deriveVatRate, toRateColumns } from "@/lib/document-totals";
+import {
+  deriveVatRate,
+  toRateColumns,
+  normalizeCustomFields,
+  parseCustomFields,
+  resolveDocumentLogo,
+} from "@travada-books/core";
 import { CustomFieldsEditor, type CustomField } from "@/components/invoices/custom-fields";
-import { normalizeCustomFields, parseCustomFields } from "@/lib/custom-fields";
-import { resolveDocumentLogo } from "@/lib/document-snapshots";
 import { EditorPaneTabs, type EditorPane } from "@/components/shared/editor-pane-tabs";
 
 export function EditQuotePage() {
@@ -185,8 +192,26 @@ export function EditQuotePage() {
   }, [quote, initialized]);
 
   const { mutate: saveEdit, isPending } = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (): Promise<{ id: string; total: number | null; lineItemCount: number }> => {
       if (!id) throw new Error("No quote id");
+      if (apiWritesEnabled("quotes")) {
+        // The API resets a declined quote to draft, as below.
+        const { quote: saved } = await quoteApi.update(id, {
+          customerId: selectedCustomer!.id,
+          quoteNumber,
+          currency,
+          issueDate,
+          validUntil,
+          items,
+          discountType,
+          discountValue,
+          vatRate,
+          notes,
+          customFields,
+          settings: { includePdf: quoteSettings.includePdf, quoteTemplate: quoteSettings.quoteTemplate },
+        });
+        return { id: saved.id, total: saved.total, lineItemCount: saved.line_item_count };
+      }
       const totals = computeQuoteTotals(
         items,
         discountType,
@@ -212,7 +237,7 @@ export function EditQuotePage() {
         }
       }
 
-      return updateQuote(id, orgId!, {
+      const updated = await updateQuote(id, orgId!, {
         customer_id: selectedCustomer!.id,
         customer_name: selectedCustomer!.name,
         quote_number: quoteNumber,
@@ -232,22 +257,27 @@ export function EditQuotePage() {
         // Reset declined quotes to draft so they can be reviewed and resent
         ...(quote?.status === "declined" ? { status: "draft" } : {}),
       });
+      return { id: updated.id, total: updated.total, lineItemCount: updated.line_items?.length ?? 0 };
     },
     onSuccess: (updated) => {
       queryClient.invalidateQueries({ queryKey: ["quote", id] });
       queryClient.invalidateQueries({ queryKey: ["quotes", orgId] });
       trackEvent(LogEvents.QuoteCreated, {
         quote_value: updated.total,
-        line_item_count: updated.line_items?.length ?? 0,
+        line_item_count: updated.lineItemCount,
       });
       navigate(`/quotes/${updated.id}`);
     },
     onError: (err) => {
       const msg = err instanceof Error ? err.message : "";
-      if (msg.includes("already been used")) {
+      if (err instanceof ApiError && err.code === "QUOTE_NUMBER_TAKEN") {
+        setQuoteNumberError(err.message);
+      } else if (!(err instanceof ApiError) && msg.includes("already been used")) {
         setQuoteNumberError(msg);
       } else {
-        toast.error("Failed to save quote. Please try again.");
+        toast.error("Failed to save quote. Please try again.", {
+          description: err instanceof ApiError ? err.message : undefined,
+        });
       }
     },
   });

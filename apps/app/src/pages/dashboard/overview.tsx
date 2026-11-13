@@ -1,6 +1,14 @@
 import { type RevenueType } from "@/lib/queries/metrics"
-import { WidgetsGrid } from "@/components/dashboard/widgets-grid"
+import { DashboardGrid } from "@/components/dashboard/dashboard-grid"
+import { WeeklySummarySheet } from "@/components/dashboard/overview/weekly-summary-sheet"
 
+/**
+ * The Overview tells one story, top to bottom: a plain-language lede, the
+ * cash balance (actual → forecast) with what moved it, insights and the
+ * things waiting on you, then the user's own widgets. Every block is a tile
+ * in the user's saved grid (see lib/dashboard-layout.ts). The Metrics tab is
+ * the power-user space.
+ */
 const OverviewTab = ({
   orgId,
   currency,
@@ -19,8 +27,8 @@ const OverviewTab = ({
   fxRate: number
 }) => {
   return (
-    <div className='flex flex-col gap-6 p-6'>
-      <WidgetsGrid
+    <div className='flex min-w-0 flex-col gap-6 p-4 md:p-6'>
+      <DashboardGrid
         orgId={orgId}
         currency={currency}
         from={from}
@@ -30,11 +38,8 @@ const OverviewTab = ({
         fxRate={fxRate}
       />
 
-      {/*
-        Reserved slot for the assistant input + suggested-action chips
-        (future batch). Kept empty on purpose so the page doesn't reflow
-        when that lands.
-      */}
+      {/* Opened by a weekly insight card, or by /insights (the weekly email's link). */}
+      <WeeklySummarySheet orgId={orgId} />
     </div>
   )
 }

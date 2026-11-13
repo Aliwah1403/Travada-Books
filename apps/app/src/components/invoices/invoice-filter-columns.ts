@@ -19,6 +19,14 @@ type InvoiceRow = {
 
 const dtf = createColumnConfigHelper<InvoiceRow>();
 
+/**
+ * The rows handed to useDataTableFilters. These pages filter elsewhere (the
+ * server, or the page itself), so it's always empty — but typing it is what
+ * lets the hook infer the row type instead of `unknown`. One shared constant
+ * so the hook's memo doesn't rebuild columns every render.
+ */
+export const FILTER_ROWS: InvoiceRow[] = [];
+
 const STATUS_OPTIONS = [
   { value: "draft", label: "Draft" },
   { value: "unpaid", label: "Unpaid" },

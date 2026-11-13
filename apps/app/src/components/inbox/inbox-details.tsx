@@ -24,7 +24,8 @@ import {
 import { Button } from "@travada-books/ui/components/button"
 import { useAuth } from "@/contexts/auth-context"
 import { trackEvent, LogEvents } from "@/lib/analytics"
-import { createBillFromInboxItem, getBillForInboxItem } from "@/lib/queries/bills"
+import { getBillForInboxItem } from "@/lib/queries/bills"
+import { billWrites } from "@/lib/bill-api"
 import { formatCurrency } from "@/lib/format"
 import { getInboxSignedUrl, type InboxItem } from "@/lib/queries/inbox"
 import { InboxStatus } from "@/components/inbox/inbox-status"
@@ -111,7 +112,7 @@ function BillAction({ item }: { item: InboxItem }) {
     queryFn: () => getBillForInboxItem(item.id),
   })
   const add = useMutation({
-    mutationFn: () => createBillFromInboxItem(item, user?.id ?? null),
+    mutationFn: () => billWrites.fromInbox(item, user?.id ?? null),
     onSuccess: () => {
       trackEvent(LogEvents.BillCreated, {
         source: "inbox_item",

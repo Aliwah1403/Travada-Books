@@ -6,7 +6,7 @@ import {
   formatServerDate,
   type ClassicDocumentData,
 } from "@travada-books/pdf"
-import { normalizeCustomFields } from "@/lib/custom-fields"
+import { normalizeCustomFields } from "@travada-books/core"
 import { CustomFieldsPreview } from "@/components/invoices/custom-fields"
 
 export type { ClassicDocumentData, Participant } from "@travada-books/pdf"

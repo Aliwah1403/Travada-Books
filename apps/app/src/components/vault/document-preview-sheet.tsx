@@ -28,19 +28,14 @@ import { cn } from "@travada-books/ui/lib/utils"
 import {
   getDocumentSignedUrl,
   getDocument,
-  updateDocument,
-  deleteDocument,
-  renameDocument,
   listRelatedDocuments,
   listDocumentTags,
-  upsertDocumentTag,
-  addDocumentTagAssignment,
-  removeDocumentTagAssignment,
   createDocumentShare,
   type VaultDocument,
   type VaultFolder,
   type DocumentTag,
 } from "@/lib/queries/vault"
+import { vaultWrites } from "@/lib/vault-api"
 import { classifyDocument } from "@/lib/queries/ai"
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -409,15 +404,13 @@ export function DocumentPreviewSheet({ doc, open, onOpenChange, onDeleted, onOpe
 
   const updateMutation = useMutation({
     mutationFn: (patch: { summary?: string | null; folder_id?: string | null }) =>
-      updateDocument(doc!.id, patch),
+      vaultWrites.update(doc!.id, patch),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["vault"] }),
   })
 
   const addTagMutation = useMutation({
     mutationFn: async (name: string) => {
-      const tag = await upsertDocumentTag(doc!.org_id, name)
-      await addDocumentTagAssignment(doc!.id, tag.id)
-      return tag
+      return vaultWrites.addTag(doc!.org_id, doc!.id, name)
     },
     onSuccess: (tag) => {
       setTags((prev) => (prev.some((t) => t.id === tag.id) ? prev : [...prev, tag]))
@@ -427,7 +420,7 @@ export function DocumentPreviewSheet({ doc, open, onOpenChange, onDeleted, onOpe
   })
 
   const removeTagMutation = useMutation({
-    mutationFn: (tagId: string) => removeDocumentTagAssignment(doc!.id, tagId),
+    mutationFn: (tagId: string) => vaultWrites.removeTag(doc!.id, tagId),
     onSuccess: (_data, tagId) => {
       setTags((prev) => prev.filter((t) => t.id !== tagId))
       queryClient.invalidateQueries({ queryKey: ["vault"] })
@@ -435,12 +428,12 @@ export function DocumentPreviewSheet({ doc, open, onOpenChange, onDeleted, onOpe
   })
 
   const renameMutation = useMutation({
-    mutationFn: (name: string) => renameDocument(doc!.id, name),
+    mutationFn: (name: string) => vaultWrites.rename(doc!.id, name),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["vault"] }),
   })
 
   const deleteMutation = useMutation({
-    mutationFn: () => deleteDocument(doc!.id, doc!.file_path),
+    mutationFn: () => vaultWrites.remove(doc!.id, doc!.file_path),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["vault"] })
       onOpenChange(false)

@@ -34,6 +34,8 @@ import { updateInvoiceRecurringStatus } from "@/lib/queries/invoice-recurring";
 import { useAuth } from "@/contexts/auth-context";
 import { useInvalidateAfterPaymentChange } from "@/hooks/use-invalidate-payment-queries";
 import { supabase } from "@/lib/supabase";
+import { apiWritesEnabled } from "@/lib/api-flags";
+import { invoiceApi } from "@/lib/invoice-api";
 import { notifyInvoicePaid } from "@/lib/notify-invoice-paid";
 import { toast } from "sonner";
 import { trackEvent, LogEvents } from "@/lib/analytics";
@@ -74,7 +76,8 @@ export function InvoiceActions({
   const balanceDue = (total ?? 0) - (amountPaid ?? 0);
   const hasRecordedPayments = (amountPaid ?? 0) > 0;
 
-  async function handleDuplicate() {
+  async function handleDuplicate(): Promise<{ id: string }> {
+    if (apiWritesEnabled("invoices")) return (await invoiceApi.duplicate(invoiceId)).invoice;
     const invoice = await getInvoice(invoiceId);
     const nextNumber = await getNextInvoiceNumber(orgId!);
     return createInvoice({
@@ -131,11 +134,7 @@ export function InvoiceActions({
               <DropdownMenuItem
                 onClick={() => {
                   toast.promise(
-                    updateInvoiceRecurringStatus(
-                      seriesId,
-                      orgId!,
-                      "paused",
-                    ).then(invalidateSeries),
+                    (apiWritesEnabled("invoices") ? invoiceApi.setRecurringStatus(seriesId, "paused").then(() => {}) : updateInvoiceRecurringStatus(seriesId, orgId!, "paused")).then(invalidateSeries),
                     {
                       loading: "Pausing series…",
                       success: "Series paused",
@@ -151,11 +150,7 @@ export function InvoiceActions({
               <DropdownMenuItem
                 onClick={() => {
                   toast.promise(
-                    updateInvoiceRecurringStatus(
-                      seriesId,
-                      orgId!,
-                      "active",
-                    ).then(invalidateSeries),
+                    (apiWritesEnabled("invoices") ? invoiceApi.setRecurringStatus(seriesId, "active").then(() => {}) : updateInvoiceRecurringStatus(seriesId, orgId!, "active")).then(invalidateSeries),
                     {
                       loading: "Resuming series…",
                       success: "Series resumed",
@@ -193,11 +188,7 @@ export function InvoiceActions({
                 onClick={() => {
                   setCancelSeriesOpen(false);
                   toast.promise(
-                    updateInvoiceRecurringStatus(
-                      seriesId,
-                      orgId!,
-                      "canceled",
-                    ).then(invalidateSeries),
+                    (apiWritesEnabled("invoices") ? invoiceApi.setRecurringStatus(seriesId, "canceled").then(() => {}) : updateInvoiceRecurringStatus(seriesId, orgId!, "canceled")).then(invalidateSeries),
                     {
                       loading: "Canceling series…",
                       success: "Series canceled",
@@ -242,7 +233,13 @@ export function InvoiceActions({
                 <DropdownMenuItem
                   onClick={() => {
                     toast.promise(
-                      createInvoicePayment({
+                      (apiWritesEnabled("invoices")
+                        ? invoiceApi.markPaid(invoiceId).then((result) => {
+                            if (result.notify && !result.notify.ok) {
+                              toast.warning("Invoice marked as paid, but the notification email failed to send.");
+                            }
+                          })
+                        : createInvoicePayment({
                         org_id: orgId!,
                         invoice_id: invoiceId,
                         recorded_by: user?.id ?? null,
@@ -251,12 +248,14 @@ export function InvoiceActions({
                         paid_at: new Date().toISOString(),
                         method: "other",
                       }).then(() => {
+                          notifyInvoicePaid(invoiceId);
+                        })
+                      ).then(() => {
                         trackEvent(LogEvents.InvoicePaid, {
                           invoice_number: invoiceNumber,
                         });
                         invalidate();
                         invalidateAfterPaymentChange(invoiceId);
-                        notifyInvoicePaid(invoiceId);
                       }),
                       {
                         loading: "Marking as paid…",
@@ -276,11 +275,13 @@ export function InvoiceActions({
             <DropdownMenuItem
               onClick={() => {
                 toast.promise(
-                  supabase.functions
-                    .invoke("send-invoice-reminder", { body: { invoiceId } })
-                    .then((res) => {
-                      if (res.error) throw res.error;
-                    }),
+                  apiWritesEnabled("invoices")
+                    ? invoiceApi.remind(invoiceId).then(() => {})
+                    : supabase.functions
+                        .invoke("send-invoice-reminder", { body: { invoiceId } })
+                        .then((res) => {
+                          if (res.error) throw res.error;
+                        }),
                   {
                     loading: "Sending reminder…",
                     success: "Reminder sent",
@@ -337,12 +338,15 @@ export function InvoiceActions({
             <DropdownMenuItem
               onClick={() => {
                 toast.promise(
-                  updateInvoice(invoiceId, orgId!, {
-                    status: reopenInvoiceStatus({
-                      due_date: dueDate ?? null,
-                      amount_paid: amountPaid ?? 0,
-                    }),
-                  }).then(invalidate),
+                  (apiWritesEnabled("invoices")
+                    ? invoiceApi.reopen(invoiceId)
+                    : updateInvoice(invoiceId, orgId!, {
+                        status: reopenInvoiceStatus({
+                          due_date: dueDate ?? null,
+                          amount_paid: amountPaid ?? 0,
+                        }),
+                      })
+                  ).then(invalidate),
                   {
                     loading: "Reopening invoice…",
                     success: "Invoice reopened",
@@ -381,7 +385,7 @@ export function InvoiceActions({
               onClick={() => {
                 setCancelInvoiceOpen(false);
                 toast.promise(
-                  updateInvoice(invoiceId, orgId!, { status: "canceled" }).then(
+                  (apiWritesEnabled("invoices") ? invoiceApi.cancel(invoiceId) : updateInvoice(invoiceId, orgId!, { status: "canceled" })).then(
                     invalidate,
                   ),
                   {
@@ -418,7 +422,7 @@ export function InvoiceActions({
               variant='destructive'
               onClick={() => {
                 setDeleteOpen(false);
-                toast.promise(deleteInvoice(invoiceId, orgId!), {
+                toast.promise(apiWritesEnabled("invoices") ? invoiceApi.remove(invoiceId).then(() => {}) : deleteInvoice(invoiceId, orgId!), {
                   loading: "Deleting invoice…",
                   success: () => {
                     invalidate();

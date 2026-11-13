@@ -1,11 +1,6 @@
 "use client";
 
-import { curveMonotoneX } from "@visx/curve";
-import { AreaClosed, LinePath } from "@visx/shape";
-
-// CurveFactory type - simplified version compatible with visx
-// biome-ignore lint/suspicious/noExplicitAny: d3 curve factory type
-type CurveFactory = any;
+import { type CurveFactory, curveMonotoneX } from "d3-shape";
 
 import { useCallback, useId, useMemo, useRef, useState } from "react";
 import { AreaGradientDefs } from "./area-gradient-defs";
@@ -18,6 +13,7 @@ import {
   resolveLineLoadingPulseMode,
 } from "./line-loading-pulse";
 import { LINE_LOADING_LOOP_PAUSE_MS } from "./line-loading-timing";
+import { areaClosedD, LinePath, linePathD } from "./line-path";
 import { LineLoadingSweep } from "./loading-sweep";
 import {
   resolveDashTailBounds,
@@ -62,13 +58,33 @@ export interface AreaProps {
    * - `true` fades both edges, `false` disables the fade entirely.
    * - `"left"` / `"right"` fades only that side — useful when the opposite
    *   edge butts up against another element you don't want to fade into.
+   * - `{ left, right }` sets each side's fade zone as % of the plot width
+   *   (0–50); `0` turns that side off. The presets use 15%.
    * Default: false
    */
   fadeEdges?: FadeEdges;
+  /**
+   * Fade the fill out over the bottom N% of the area height (0–100). `100`
+   * fades across the full height, `0` keeps the fill flat. When set, it
+   * replaces `gradientToOpacity` / `gradientSpan`.
+   */
+  fadeBottom?: number;
   /** Render scatter-style circle markers at each data point. Default: false */
   showMarkers?: boolean;
   /** Marker styling (same options as Scatter). */
   markers?: SeriesPointMarkerStyle;
+  /** Show smart formatted values above data points. Default: false. */
+  showValue?: boolean;
+  /** Preferred minimum labels per series, subject to available space. Default: 2. */
+  valueLabelMinCount?: number;
+  /** Maximum labels per series. Zero hides labels; omitted uses available width. */
+  valueLabelMaxCount?: number;
+  /** Format values displayed above data points. */
+  valueLabelFormatter?: (value: number) => string;
+  /** Text color for values displayed above data points. Default: same as stroke. */
+  valueLabelColor?: string;
+  /** Fade value labels with the chart edges. Default: false. */
+  fadeValueLabels?: boolean;
   /**
    * Data index from which the line stroke becomes dashed (inclusive).
    * Useful for projecting incomplete periods, e.g. dashed from yesterday through today.
@@ -147,6 +163,7 @@ export function Area({
   gradientToOpacity = 0,
   gradientSpan = 1,
   fadeEdges = false,
+  fadeBottom,
   showMarkers = false,
   markers,
   dashFromIndex,
@@ -194,14 +211,21 @@ export function Area({
   }, [lines, dataKey]);
 
   const pathRef = useRef<SVGPathElement>(null);
-  const { pathLength, pathD } = usePathStrokeMetrics(pathRef, [
-    renderData,
-    innerWidth,
-    dashFromIndex,
-    showLine,
-    showSeriesContent,
-    showLoadingPulse,
-  ]);
+  const hasDashTail = resolveDashTailBounds(dashFromIndex, data.length);
+  const { pathLength, pathD } = usePathStrokeMetrics(
+    pathRef,
+    [
+      renderData,
+      innerWidth,
+      dashFromIndex,
+      showLine,
+      showSeriesContent,
+      showLoadingPulse,
+    ],
+    // Only the dash tail and loading pulse read the metrics; outside the
+    // resting "ready" phase keep measuring so a pulse starts on a fresh path.
+    hasDashTail || showLoadingPulse || chartPhase !== "ready"
+  );
 
   // Unique IDs for this area
   const uniqueId = useId();
@@ -226,7 +250,6 @@ export function Area({
     [dataKey, yScale]
   );
 
-  const hasDashTail = resolveDashTailBounds(dashFromIndex, data.length);
   // The stroke gradient is only emitted when at least one edge fades, so fall
   // back to the resolved solid color otherwise — avoids an invalid url(#...).
   const fadeSides = resolveFadeSides(fadeEdges);
@@ -243,33 +266,43 @@ export function Area({
     visibleStroke = strokePaint;
   }
   const shouldMeasurePath = showLine && (showSeriesContent || showLoadingPulse);
+  const showFill = showSeriesContent && showAreaFill;
+
+  // Fill and stroke `d` only change with their inputs, so re-renders for
+  // other reasons reuse them. Hidden layers skip the work, as before.
+  const getX = useCallback(
+    (d: Record<string, unknown>) => xScale(xAccessor(d)) ?? 0,
+    [xAccessor, xScale]
+  );
+  const areaPathD = useMemo(
+    () =>
+      showFill
+        ? areaClosedD(renderData, { curve, x: getX, y: getY, yScale })
+        : "",
+    [curve, getX, getY, renderData, showFill, yScale]
+  );
+  const strokePathD = useMemo(
+    () =>
+      shouldMeasurePath
+        ? linePathD(renderData, { curve, x: getX, y: getY })
+        : "",
+    [curve, getX, getY, renderData, shouldMeasurePath]
+  );
 
   const seriesLayers = (
     <>
-      {showSeriesContent && showAreaFill ? (
-        <AreaClosed
-          curve={curve}
-          data={renderData}
-          fill={areaFill}
-          x={(d) => xScale(xAccessor(d)) ?? 0}
-          y={getY}
-          yScale={yScale}
-        />
-      ) : null}
+      {showFill ? <path d={areaPathD} fill={areaFill} /> : null}
 
       {shouldMeasurePath ? (
         <>
           <LinePath
-            curve={curve}
-            data={renderData}
+            d={strokePathD}
             innerRef={pathRef}
             stroke={visibleStroke}
             strokeLinecap="round"
             strokeWidth={strokeWidth}
-            x={(d) => xScale(xAccessor(d)) ?? 0}
-            y={getY}
           />
-          {showSeriesStroke ? (
+          {showSeriesStroke && hasDashTail ? (
             <SeriesDashTailOverlay
               dashArray={dashArray}
               dashFromIndex={dashFromIndex}
@@ -300,6 +333,7 @@ export function Area({
       <AreaGradientDefs
         edgeGradientId={edgeGradientId}
         edgeMaskId={edgeMaskId}
+        fadeBottom={fadeBottom}
         fadeEdges={fadeEdges}
         fill={fill}
         fillOpacity={fillOpacity}

@@ -19,7 +19,8 @@ import { DatePicker } from "@/components/shared/date-picker"
 import { useAuth } from "@/contexts/auth-context"
 import { trackEvent, LogEvents } from "@/lib/analytics"
 import { parseDateOnly, toDateOnlyString } from "@/lib/format-date"
-import { createBill, updateBill, type Bill, type BillInput } from "@/lib/queries/bills"
+import { type Bill, type BillInput } from "@/lib/queries/bills"
+import { billWrites } from "@/lib/bill-api"
 
 type Props = {
   open: boolean
@@ -59,8 +60,8 @@ export function BillFormSheet({ open, onOpenChange, bill }: Props) {
 
   const save = useMutation({
     mutationFn: async (input: BillInput) => {
-      if (bill) await updateBill(bill.id, input)
-      else await createBill(orgId!, user?.id ?? null, input)
+      if (bill) await billWrites.update(bill.id, input)
+      else await billWrites.create(orgId!, user?.id ?? null, input)
     },
     onSuccess: (_d, input) => {
       if (bill) {

@@ -1,9 +1,9 @@
 "use client";
 
-import { GridColumns, GridRows } from "@visx/grid";
-import { motion } from "motion/react";
+import { m } from "motion/react";
 import { useId } from "react";
 import { chartCssVars, useChartStable, useYScale } from "./chart-context";
+import { GridColumns, GridRows } from "./grid-lines";
 import { useGridShimmer } from "./use-grid-shimmer";
 import {
   isLoadingChromePhase,
@@ -202,7 +202,7 @@ export function Grid({
 
       {horizontal && shimmerEnabled ? (
         <defs>
-          <motion.linearGradient
+          <m.linearGradient
             gradientTransform={shimmerTransform}
             gradientUnits="userSpaceOnUse"
             id={shimmerGradientId}
@@ -216,7 +216,7 @@ export function Grid({
             <stop offset="50%" stopColor={shimmerStroke} stopOpacity={1} />
             <stop offset="65%" stopColor={shimmerStroke} stopOpacity={0.45} />
             <stop offset="100%" stopColor={shimmerStroke} stopOpacity={0} />
-          </motion.linearGradient>
+          </m.linearGradient>
         </defs>
       ) : null}
 
@@ -274,7 +274,9 @@ export function Grid({
         <g className="chart-grid-highlight-rows">
           {highlightRowValues.map((value) => {
             const y = yScale(value);
-            if (y == null || !Number.isFinite(y)) {
+            // Travada: a fitted y-domain (e.g. a cash balance that never nears
+            // zero) puts the row outside the plot; don't draw it below the axis.
+            if (y == null || !Number.isFinite(y) || y < 0 || y > innerHeight) {
               return null;
             }
 

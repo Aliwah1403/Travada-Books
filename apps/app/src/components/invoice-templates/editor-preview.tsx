@@ -3,7 +3,7 @@ import type { ClassicDocumentData } from "@travada-books/pdf"
 import type { SelectedCustomer } from "@/components/invoices/customer-combobox"
 import type { CustomField } from "@/components/invoices/custom-fields"
 import type { UserOrg } from "@/contexts/auth-context"
-import { computeDocumentTotals, type LineItem } from "@/lib/document-totals"
+import { computeDocumentTotals, type LineItem } from "@travada-books/core"
 import { InvoicePreview } from "./index"
 
 type EditorDocumentPreviewProps = {

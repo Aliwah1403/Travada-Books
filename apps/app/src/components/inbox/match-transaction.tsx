@@ -14,11 +14,10 @@ import { Link04Icon, Unlink02Icon } from "@travada-books/ui/icons"
 import { useAuth } from "@/contexts/auth-context"
 import { formatCurrency } from "@/lib/format"
 import {
-  matchTransaction,
-  unmatchTransaction,
   searchTransactionMatch,
   type InboxItem,
 } from "@/lib/queries/inbox"
+import { inboxWrites } from "@/lib/inbox-api"
 import { TransactionMatchItem } from "@/components/inbox/transaction-match-item"
 
 // Same one-time toast as SuggestedMatch — manual matches also feed
@@ -63,7 +62,7 @@ export function MatchTransaction({ item, orgId }: Props) {
   }
 
   const matchMutation = useMutation({
-    mutationFn: (transactionId: string) => matchTransaction(item.id, transactionId, orgId, user!.id),
+    mutationFn: (transactionId: string) => inboxWrites.match(item.id, transactionId, orgId, user!.id),
     onSuccess: () => {
       invalidate()
       maybeShowLearningToast()
@@ -71,7 +70,7 @@ export function MatchTransaction({ item, orgId }: Props) {
   })
 
   const unmatchMutation = useMutation({
-    mutationFn: () => unmatchTransaction(item.id),
+    mutationFn: () => inboxWrites.unmatch(item.id),
     onSuccess: invalidate,
   })
 

@@ -38,7 +38,8 @@ import {
   FieldError,
 } from "@travada-books/ui/components/field";
 import { useAuth } from "@/contexts/auth-context";
-import { createCustomer, triggerEnrichment } from "@/lib/queries/customers";
+import { triggerEnrichment } from "@/lib/queries/customers";
+import { customerWrites } from "@/lib/customer-api";
 import { toast } from "sonner";
 
 const schema = z.object({
@@ -173,7 +174,7 @@ export function CreateCustomerSheet({
   async function onSubmit(data: FormValues) {
     if (!orgId) return;
     try {
-      const newCustomer = await createCustomer(orgId, {
+      const newCustomer = await customerWrites.create(orgId, {
         name: data.name,
         email: data.email || undefined,
         billing_email: data.billToEmail || undefined,

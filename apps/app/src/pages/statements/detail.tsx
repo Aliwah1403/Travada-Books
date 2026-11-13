@@ -28,9 +28,11 @@ import {
 } from "@travada-books/ui/components/alert-dialog";
 import { cn } from "@travada-books/ui/lib/utils";
 import { getStatement, deleteStatement } from "@/lib/queries/statements";
+import { apiWritesEnabled } from "@/lib/api-flags";
+import { statementApi } from "@/lib/statement-api";
+import { sendStatementEmail } from "@/components/customers/generate-statement-sheet";
 import { useAuth } from "@/contexts/auth-context";
 import { useFormatDate } from "@/hooks/use-format-date";
-import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import { downloadPdf } from "@/lib/pdf-download";
 import { StatementPdf, buildStatementDocumentData, buildStatementLedger } from "@travada-books/pdf";
@@ -89,10 +91,11 @@ export function StatementDetailPage() {
   // delivery notice — invalidates the statement query either way so
   // email_status (and the notice/poll driven by it) reflect the outcome.
   async function dispatchStatementEmail(): Promise<{ queued: boolean }> {
-    const res = await supabase.functions.invoke("send-statement-email", { body: { statementId: id } });
-    queryClient.invalidateQueries({ queryKey: ["statement", id] });
-    if (res.error) throw res.error;
-    return { queued: !!(res.data as { queued?: boolean } | null)?.queued };
+    try {
+      return { queued: await sendStatementEmail(id!) };
+    } finally {
+      queryClient.invalidateQueries({ queryKey: ["statement", id] });
+    }
   }
 
   function handleSend() {
@@ -169,7 +172,8 @@ export function StatementDetailPage() {
     if (!statement || !orgId || isDeleting) return;
     setIsDeleting(true);
     try {
-      await deleteStatement(statement.id, orgId);
+      if (apiWritesEnabled("statements")) await statementApi.remove(statement.id);
+      else await deleteStatement(statement.id, orgId);
       queryClient.invalidateQueries({ queryKey: ["customer-statements", statement.customer_id] });
       toast.success("Statement deleted");
       navigate(`/customers/${statement.customer_id}`);

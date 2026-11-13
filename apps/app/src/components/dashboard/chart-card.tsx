@@ -15,6 +15,8 @@ type ChartCardProps = {
   icon: Icon;
   /** Short context line under the title (e.g. sign convention, methodology note). */
   description?: string;
+  /** Optional element pinned to the header's right edge (e.g. a "Live" badge). */
+  badge?: React.ReactNode;
   children: React.ReactNode;
 };
 
@@ -23,6 +25,7 @@ export function ChartCard({
   title,
   icon: TitleIcon,
   description,
+  badge,
   children,
 }: ChartCardProps) {
   return (
@@ -32,10 +35,11 @@ export function ChartCard({
           size={16}
           className='mt-0.5 shrink-0 text-muted-foreground'
         />
-        <div className='flex flex-col gap-1'>
+        <div className='flex min-w-0 flex-1 flex-col gap-1'>
           <CardTitle>{title}</CardTitle>
           {description && <CardDescription>{description}</CardDescription>}
         </div>
+        {badge && <div className='shrink-0'>{badge}</div>}
       </CardHeader>
       <CardContent>{children}</CardContent>
     </Card>

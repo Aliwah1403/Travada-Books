@@ -4,7 +4,8 @@ import { Button } from "@travada-books/ui/components/button"
 import { CheckmarkCircle02Icon, CancelCircleIcon } from "@travada-books/ui/icons"
 import { useAuth } from "@/contexts/auth-context"
 import { formatCurrency } from "@/lib/format"
-import { confirmSuggestion, declineSuggestion, type InboxItem, type InboxSuggestion } from "@/lib/queries/inbox"
+import { type InboxItem, type InboxSuggestion } from "@/lib/queries/inbox"
+import { inboxWrites } from "@/lib/inbox-api"
 
 // Midday's MatchLearningToastSeen equivalent — shown once ever, not per item.
 const LEARNING_TOAST_KEY = "travada:inbox-match-learning-toast-seen"
@@ -43,7 +44,7 @@ export function SuggestedMatch({ item, suggestion, orgId }: Props) {
 
   const confirmMutation = useMutation({
     mutationFn: () =>
-      confirmSuggestion(
+      inboxWrites.confirmSuggestion(
         suggestion.id,
         item.id,
         suggestion.transaction_id,
@@ -60,7 +61,7 @@ export function SuggestedMatch({ item, suggestion, orgId }: Props) {
   })
 
   const declineMutation = useMutation({
-    mutationFn: () => declineSuggestion(suggestion.id, item.id, user!.id),
+    mutationFn: () => inboxWrites.declineSuggestion(suggestion.id, item.id, user!.id),
     onSuccess: invalidate,
   })
 

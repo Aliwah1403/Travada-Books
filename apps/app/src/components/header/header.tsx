@@ -28,14 +28,11 @@ import {
 } from "@travada-books/ui/components/dropdown-menu";
 import { useTheme } from "@/components/theme-provider";
 import { MobileNav } from "@/components/sidebar/sidebar";
+import { PageBreadcrumbs } from "@/components/header/page-breadcrumbs";
 import { useAuth } from "@/contexts/auth-context";
 import { supabase } from "@/lib/supabase";
 
-type HeaderProps = {
-  title: string;
-};
-
-export function Header({ title }: HeaderProps) {
+export function Header() {
   const { theme, setTheme } = useTheme();
   const { user, avatarUrl } = useAuth();
   const navigate = useNavigate();
@@ -100,7 +97,7 @@ export function Header({ title }: HeaderProps) {
     <header className='flex h-14 shrink-0 items-center justify-between gap-2 border-b px-4 md:px-6'>
       <div className='flex min-w-0 items-center gap-1'>
         <MobileNav />
-        <h1 className='truncate text-sm font-medium'>{title}</h1>
+        <PageBreadcrumbs />
       </div>
       <div className='flex shrink-0 items-center gap-1 md:gap-2'>
         <Button

@@ -19,7 +19,7 @@ import { getQuote } from "@/lib/queries/quotes";
 import { useAuth } from "@/contexts/auth-context";
 import { supabase } from "@/lib/supabase";
 import type { Invoice } from "@/lib/queries/invoices";
-import { parseCustomFields } from "@/lib/custom-fields";
+import { parseCustomFields } from "@travada-books/core";
 import { CustomFieldsPreview } from "@/components/invoices/custom-fields";
 
 type QuotePreviewSheetProps = {

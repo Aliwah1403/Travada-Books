@@ -59,28 +59,22 @@ import { useRealtime, useDebouncedCallback } from "@/hooks/use-realtime";
 import { TransactionSheet } from "@/components/transactions/transaction-sheet";
 import { extractDocumentData, classifyDocument, parseVaultFilters } from "@/lib/queries/ai";
 import { DocumentPreviewSheet } from "@/components/vault/document-preview-sheet";
-import { createVaultColumnsConfig } from "@/components/vault/vault-filter-columns";
+import { createVaultColumnsConfig, FILTER_ROWS } from "@/components/vault/vault-filter-columns";
 import { BulkActionBar } from "@/components/vault/bulk-action-bar";
 import {
   listDocuments,
   listFolders,
   listDocumentTags,
-  createFolder,
-  deleteFolder,
-  deleteDocument,
-  bulkDeleteDocuments,
-  renameDocument,
   getDocument,
   getDocumentSignedUrl,
   uploadDocument,
-  setDocumentFolder,
-  bulkSetDocumentFolder,
   createDocumentShare,
   type VaultDocument,
   type VaultFolder,
   type VaultFilters,
   type DocumentTag,
 } from "@/lib/queries/vault";
+import { vaultWrites } from "@/lib/vault-api";
 
 const VAULT_UPLOAD_ACCEPT = [
   "image/*",
@@ -1022,6 +1016,7 @@ export function VaultPage() {
 
   const { columns, filters, actions, strategy } = useDataTableFilters({
     strategy: "server",
+    data: FILTER_ROWS,
     columnsConfig,
     filters: filtersState,
     onFiltersChange: setFiltersState,
@@ -1178,7 +1173,7 @@ export function VaultPage() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (doc: VaultDocument) => deleteDocument(doc.id, doc.file_path),
+    mutationFn: (doc: VaultDocument) => vaultWrites.remove(doc.id, doc.file_path),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["vault", orgId] });
     },
@@ -1186,7 +1181,7 @@ export function VaultPage() {
 
   const renameMutation = useMutation({
     mutationFn: ({ id, name }: { id: string; name: string }) =>
-      renameDocument(id, name),
+      vaultWrites.rename(id, name),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["vault", orgId] });
     },
@@ -1203,14 +1198,14 @@ export function VaultPage() {
   });
 
   const createFolderMutation = useMutation({
-    mutationFn: (name: string) => createFolder(orgId!, name, currentFolderId),
+    mutationFn: (name: string) => vaultWrites.createFolder(orgId!, name, currentFolderId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["vault-folders", orgId] });
     },
   });
 
   const deleteFolderMutation = useMutation({
-    mutationFn: (id: string) => deleteFolder(id),
+    mutationFn: (id: string) => vaultWrites.deleteFolder(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["vault-folders", orgId] });
       queryClient.invalidateQueries({ queryKey: ["vault", orgId] });
@@ -1219,14 +1214,14 @@ export function VaultPage() {
 
   const moveFolderMutation = useMutation({
     mutationFn: ({ filePath, folderId }: { filePath: string; folderId: string | null }) =>
-      setDocumentFolder(filePath, folderId),
+      vaultWrites.setFolder(filePath, folderId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["vault", orgId] });
     },
   });
 
   const bulkDeleteMutation = useMutation({
-    mutationFn: (selectedDocs: VaultDocument[]) => bulkDeleteDocuments(selectedDocs),
+    mutationFn: (selectedDocs: VaultDocument[]) => vaultWrites.bulkRemove(selectedDocs),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["vault", orgId] });
       clearSelection();
@@ -1235,7 +1230,7 @@ export function VaultPage() {
 
   const bulkMoveFolderMutation = useMutation({
     mutationFn: ({ filePaths, folderId }: { filePaths: string[]; folderId: string | null }) =>
-      bulkSetDocumentFolder(filePaths, folderId),
+      vaultWrites.bulkSetFolder(filePaths, folderId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["vault", orgId] });
       clearSelection();

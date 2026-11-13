@@ -28,6 +28,7 @@
       "headers": {
         "Authorization": "Bearer ${SHADCNBLOCKS_API_KEY}"
       }
-    }
+    },
+    "@reui": "https://reui.io/r/{style}/{name}.json"
   }
 }

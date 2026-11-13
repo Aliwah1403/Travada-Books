@@ -1,6 +1,6 @@
 "use client";
 
-import { motion } from "motion/react";
+import { m } from "motion/react";
 import { useMemo } from "react";
 import { useChartStable, useYScale } from "./chart-context";
 import { StaticSeriesPointMarker } from "./series-point-marker";
@@ -8,6 +8,7 @@ import { StaticSeriesPointMarker } from "./series-point-marker";
 export interface LineSeriesTerminalMarkerProps {
   dataKey: string;
   yAxisId?: string | number;
+  /** Dot fill. Default: `stroke`. */
   fill?: string;
   stroke?: string;
   radius?: number;
@@ -19,11 +20,15 @@ function isTerminalMarkerPhaseVisible(phase: string): boolean {
   return phase === "ready" || phase === "exitingReady";
 }
 
-/** Hollow ring at the last data point — shared anchor for projection lines. */
+/**
+ * Dot (and, with `ringGap`, a ring) at the last data point — the anchor for
+ * projection lines. `fill` defaults to `stroke`; pass `"transparent"` for a
+ * hollow marker.
+ */
 export function LineSeriesTerminalMarker({
   dataKey,
   yAxisId,
-  fill = "transparent",
+  fill,
   stroke = "var(--chart-1)",
   radius = 5,
   ringGap = 0,
@@ -59,7 +64,7 @@ export function LineSeriesTerminalMarker({
   }
 
   return (
-    <motion.g
+    <m.g
       animate={{
         opacity: visible ? 1 : 0,
         scale: visible ? 1 : 0.55,
@@ -75,13 +80,13 @@ export function LineSeriesTerminalMarker({
       <StaticSeriesPointMarker
         cx={point.cx}
         cy={point.cy}
-        fill={fill}
+        fill={fill ?? stroke}
         radius={radius}
         ringGap={ringGap}
         stroke={stroke}
         strokeWidth={strokeWidth}
       />
-    </motion.g>
+    </m.g>
   );
 }
 

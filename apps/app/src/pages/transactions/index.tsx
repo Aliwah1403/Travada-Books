@@ -1,4 +1,5 @@
 import { useMemo, useRef, useEffect, useState } from "react";
+import { transactionWrites } from "@/lib/transaction-api";
 import { useSearchParams } from "react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useDataTableFilters } from "@bazza-ui/filters";
@@ -24,7 +25,7 @@ import { TransactionTable } from "@/components/transactions/transaction-table";
 import { TransactionSheet } from "@/components/transactions/transaction-sheet";
 import { ImportCsvDialog } from "@/components/transactions/import-csv-dialog";
 import { ExportTransactionsDialog } from "@/components/transactions/export-transactions-dialog";
-import { createTransactionColumnsConfig } from "@/components/transactions/transaction-filter-columns";
+import { createTransactionColumnsConfig, FILTER_ROWS } from "@/components/transactions/transaction-filter-columns";
 import {
   DEFAULT_HIDDEN_COLUMNS,
   type Transaction as UITransaction,
@@ -32,9 +33,6 @@ import {
 import {
   listTransactions,
   listTransactionCategories,
-  deleteTransaction,
-  bulkDeleteTransactions,
-  bulkUpdateTransactions,
   getTransaction,
   getTransactionSummary,
   getTransactionExport,
@@ -317,6 +315,7 @@ export function TransactionsPage() {
 
   const { columns, filters, actions, strategy } = useDataTableFilters({
     strategy: "server",
+    data: FILTER_ROWS,
     columnsConfig,
     filters: filtersState,
     onFiltersChange: setFiltersState,
@@ -382,18 +381,18 @@ export function TransactionsPage() {
       : null;
 
   const deleteMutation = useMutation({
-    mutationFn: (id: string) => deleteTransaction(id, orgId!),
+    mutationFn: (id: string) => transactionWrites.remove(id, orgId!),
     onSuccess: invalidateTransactionQueries,
   });
 
   const bulkDeleteMutation = useMutation({
-    mutationFn: (ids: string[]) => bulkDeleteTransactions(ids, orgId!),
+    mutationFn: (ids: string[]) => transactionWrites.bulkRemove(ids, orgId!),
     onSuccess: invalidateTransactionQueries,
   });
 
   const bulkUpdateMutation = useMutation({
     mutationFn: ({ ids, update }: { ids: string[]; update: BulkTransactionUpdate }) =>
-      bulkUpdateTransactions(ids, orgId!, update),
+      transactionWrites.bulkUpdate(ids, orgId!, update),
     onSuccess: invalidateTransactionQueries,
   });
 

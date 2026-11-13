@@ -1,6 +1,6 @@
 import { supabase } from "@/lib/supabase"
 import type { LineItem } from "@/lib/queries/invoices"
-import type { CustomField } from "@/lib/custom-fields"
+import type { CustomField } from "@travada-books/core"
 import type { SendChannel } from "@/lib/send-channels"
 
 export type QuoteStatus = "draft" | "sent" | "accepted" | "declined" | "expired"

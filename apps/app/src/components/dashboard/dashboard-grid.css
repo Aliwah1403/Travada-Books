@@ -1,0 +1,55 @@
+/*
+ * Overrides for react-grid-layout's defaults on the Overview grid. Imported
+ * after `react-grid-layout/css/styles.css` so these win on equal specificity.
+ *
+ * The Overview is opened many times a day: tiles never animate outside
+ * Customize mode (RGL's default is `transition: all 200ms` on every item and
+ * a height transition on the container, which would slide tiles around on
+ * every sidebar toggle or window resize).
+ */
+.dashboard-grid.react-grid-layout {
+  transition: none;
+}
+
+.dashboard-grid .react-grid-item {
+  transition: none;
+}
+
+/* While customizing, siblings glide out of the way — transform only, never
+   the item being dragged or resized (it must track the pointer exactly). */
+.dashboard-grid.is-customizing
+  .react-grid-item:not(.react-draggable-dragging):not(.resizing):not(.react-grid-placeholder) {
+  transition: transform 150ms var(--ease-out);
+}
+
+.dashboard-grid .react-grid-item.react-grid-placeholder {
+  background: color-mix(in oklab, var(--muted) 40%, transparent);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-lg);
+  opacity: 1;
+  transition: none;
+}
+
+.dashboard-grid .react-grid-item > .react-resizable-handle::after {
+  border-color: var(--muted-foreground);
+}
+
+/* ─── Customize mode ─────────────────────────────────────────────────────── */
+
+/* While a tile is being dragged, the grab layer shows a closed hand. */
+.dashboard-grid .react-draggable-dragging .dashboard-tile-overlay,
+.dashboard-grid .react-draggable-dragging .dashboard-tile-chip {
+  cursor: grabbing;
+}
+
+/* Resize handles sit above the edit overlay and chip. RGL hides them until the
+   tile is hovered (fine pointers); on touch keep them visible while editing. */
+.dashboard-grid .react-grid-item > .react-resizable-handle {
+  z-index: 30;
+}
+
+@media (hover: none) {
+  .dashboard-grid.is-customizing .react-grid-item > .react-resizable-handle {
+    opacity: 1;
+  }
+}

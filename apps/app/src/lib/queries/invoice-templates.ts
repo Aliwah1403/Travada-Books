@@ -1,7 +1,7 @@
 import { normalizeDocumentTemplate } from "@travada-books/pdf"
 import { supabase } from "@/lib/supabase"
 import type { InvoiceSettings } from "@/components/invoices/invoice-settings-sheet"
-import { normalizePartialRules } from "@/lib/partial-payments"
+import { normalizePartialRules } from "@travada-books/core"
 
 type InvoiceTemplateRow = {
   id: string

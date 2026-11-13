@@ -89,6 +89,9 @@ Deno.serve(async (req) => {
     const note = quote.note || template?.default_note || null
     const paymentDetails = template?.default_payment_details || null
 
+    // Same fields as invoiceFromQuote in packages/core/src/quotes.ts (the API's
+    // owner-side accept/convert). Edge functions can't import that package, so
+    // change both together.
     const { data: newInvoice, error: insertError } = await db.from("invoices").insert({
       org_id: quote.org_id,
       user_id: quote.user_id,

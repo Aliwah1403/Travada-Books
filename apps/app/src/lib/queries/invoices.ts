@@ -1,6 +1,7 @@
 import { supabase } from "@/lib/supabase"
-import type { CustomField } from "@/lib/custom-fields"
-import type { PartialPaymentRules } from "@/lib/partial-payments"
+// Invoice rules live in @travada-books/core (shared with the API).
+export { invoiceBalance, reopenInvoiceStatus } from "@travada-books/core"
+import type { CustomField, PartialPaymentRules } from "@travada-books/core"
 
 export type LineItem = {
   description: string
@@ -225,24 +226,7 @@ export type PublicInvoice = {
   show_qty_column: boolean | null
 }
 
-// total is nullable (drafts may not have a computed total yet); amount_paid
-// is always present (defaults to 0 in the DB). Never reads amount_paid off
-// a stale client write — it is derived exclusively by the invoice_payments
-// sync trigger.
-export function invoiceBalance(inv: { total: number | null; amount_paid: number }): number {
-  return (inv.total ?? 0) - (inv.amount_paid ?? 0)
-}
 
-// Status to restore a canceled invoice to on "Reopen invoice" — mirrors the
-// same rules sync_invoice_payment_state() uses for an active invoice: overdue
-// if already past due (plain string compare against "YYYY-MM-DD local
-// today", matching mark-overdue's worker task), else unpaid — or
-// partially_paid if money was already recorded before it was canceled.
-export function reopenInvoiceStatus(inv: { due_date: string | null; amount_paid: number }): string {
-  const today = new Date().toLocaleDateString("en-CA")
-  if (inv.due_date && inv.due_date < today) return "overdue"
-  return (inv.amount_paid ?? 0) > 0 ? "partially_paid" : "unpaid"
-}
 
 export type InvoiceFilters = {
   search?: string

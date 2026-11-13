@@ -44,13 +44,8 @@ import { InvoiceTable } from "@/components/invoices/invoice-table";
 import { EditCustomerSheet } from "@/components/customers/edit-customer-sheet";
 import { GenerateStatementSheet } from "@/components/customers/generate-statement-sheet";
 import { CustomerPortalCard } from "@/components/customers/customer-portal-card";
-import {
-  getCustomer,
-  deleteCustomer,
-  triggerEnrichment,
-  cancelEnrichment,
-  clearEnrichment,
-} from "@/lib/queries/customers";
+import { getCustomer, triggerEnrichment } from "@/lib/queries/customers";
+import { customerErrorDescription, customerWrites } from "@/lib/customer-api";
 import { Spinner } from "@/components/shared/spinner";
 import { useRealtime } from "@/hooks/use-realtime";
 import {
@@ -145,14 +140,14 @@ export function CustomerDetailPage() {
   });
 
   const cancelEnrichMutation = useMutation({
-    mutationFn: () => cancelEnrichment(id!, orgId!),
+    mutationFn: () => customerWrites.cancelEnrichment(id!, orgId!),
     onSuccess: () =>
       queryClient.invalidateQueries({ queryKey: ["customer", id] }),
     onError: () => toast.error("Failed to cancel enrichment"),
   });
 
   const clearEnrichMutation = useMutation({
-    mutationFn: () => clearEnrichment(id!, orgId!),
+    mutationFn: () => customerWrites.clearEnrichment(id!, orgId!),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["customer", id] });
       queryClient.invalidateQueries({ queryKey: ["customers", orgId] });
@@ -161,16 +156,16 @@ export function CustomerDetailPage() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: () => deleteCustomer(id!, orgId!),
+    mutationFn: () => customerWrites.remove(id!, orgId!),
     onSuccess: () => {
       setDeleteOpen(false);
       queryClient.invalidateQueries({ queryKey: ["customers", orgId] });
       toast.success("Customer deleted");
       navigate("/customers");
     },
-    onError: () => {
+    onError: (err) => {
       toast.error("Failed to delete customer", {
-        description: "Please try again.",
+        description: customerErrorDescription(err),
       });
     },
   });

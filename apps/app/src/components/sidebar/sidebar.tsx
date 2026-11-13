@@ -3,7 +3,6 @@ import { Link, useLocation, useNavigate } from "react-router";
 import { toast } from "sonner";
 import {
   DashboardSquare01Icon,
-  SparklesIcon,
   Invoice01Icon,
   FileEditIcon,
   User02Icon,
@@ -61,7 +60,6 @@ import LogoLime from "@/assets/Logo-Lime.svg";
 
 const dashboardNav = [
   { icon: DashboardSquare01Icon, label: "Dashboard", to: "/", end: true },
-  { icon: SparklesIcon, label: "Insights", to: "/insights" },
 ];
 
 const salesNav = [

@@ -26,7 +26,7 @@ import { usePaymentAccount } from "@/hooks/use-payment-account";
 import { supabase } from "@/lib/supabase";
 import { LOGO_ACCEPT, prepareLogoFile } from "@/lib/logo-upload";
 import { PAYMENTS_ENABLED } from "@/lib/features";
-import { DEFAULT_PARTIAL_RULES, type PartialPaymentRules } from "@/lib/partial-payments";
+import { DEFAULT_PARTIAL_RULES, type PartialPaymentRules } from "@travada-books/core";
 import { toast } from "sonner";
 import { Button } from "@travada-books/ui/components/button";
 import {

@@ -41,6 +41,9 @@ import { toast } from "sonner";
 import { cn } from "@travada-books/ui/lib/utils";
 import { useAuth } from "@/contexts/auth-context";
 import { createQuote, getNextQuoteNumber } from "@/lib/queries/quotes";
+import { ApiError } from "@/lib/api";
+import { apiWritesEnabled } from "@/lib/api-flags";
+import { quoteApi } from "@/lib/quote-api";
 import { lookupRate } from "@/lib/queries/exchange-rates";
 import { getOrgInvoiceTemplate } from "@/lib/queries/invoice-templates";
 import {
@@ -55,15 +58,16 @@ import {
 import type { LineItem } from "@/components/quotes/quote-utils";
 import { EditorDocumentPreview } from "@/components/invoice-templates/editor-preview";
 import { computeQuoteTotals } from "@/components/quotes/quote-utils";
-import { toRateColumns } from "@/lib/document-totals";
-import { supabase } from "@/lib/supabase";
-import { CustomFieldsEditor, type CustomField } from "@/components/invoices/custom-fields";
-import { normalizeCustomFields, fieldsFromLabels } from "@/lib/custom-fields";
 import {
+  toRateColumns,
+  normalizeCustomFields,
+  fieldsFromLabels,
   resolveDocumentLogo,
   buildFromDetailsSnapshot,
   buildCustomerDetailsSnapshot,
-} from "@/lib/document-snapshots";
+} from "@travada-books/core";
+import { supabase } from "@/lib/supabase";
+import { CustomFieldsEditor, type CustomField } from "@/components/invoices/custom-fields";
 import { EditorPaneTabs, type EditorPane } from "@/components/shared/editor-pane-tabs";
 
 export function CreateQuotePage() {
@@ -229,43 +233,83 @@ export function CreateQuotePage() {
     };
   }
 
+  // Both write paths report the same fields; `email` is set only when the
+  // API already sent it (the direct path invokes send-quote-email here).
+  async function saveQuote(action: "draft" | "send") {
+    if (apiWritesEnabled("quotes")) {
+      const { quote, email } = await quoteApi.create(
+        {
+          customerId: selectedCustomer!.id,
+          quoteNumber,
+          currency,
+          issueDate,
+          validUntil,
+          items,
+          discountType,
+          discountValue,
+          vatRate,
+          notes,
+          customFields,
+          settings: { includePdf: quoteSettings.includePdf, quoteTemplate: quoteSettings.quoteTemplate },
+        },
+        action,
+      );
+      return { id: quote.id, total: quote.total, lineItemCount: quote.line_item_count, customerName: quote.customer_name, email, viaApi: true };
+    }
+    const quote = await createQuote(await buildInput(action));
+    return {
+      id: quote.id,
+      total: quote.total,
+      lineItemCount: quote.line_items?.length ?? 0,
+      customerName: quote.customer_name,
+      email: null,
+      viaApi: false,
+    };
+  }
+
   const { mutate: handleSubmit, isPending } = useMutation({
-    mutationFn: async (action: "draft" | "send") =>
-      createQuote(await buildInput(action)),
+    mutationFn: saveQuote,
     onSuccess: (quote, action) => {
       queryClient.invalidateQueries({ queryKey: ["quotes", orgId] });
       queryClient.invalidateQueries({ queryKey: ["next-quote-number", orgId] });
       trackEvent(LogEvents.QuoteCreated, {
         quote_value: quote.total,
-        line_item_count: quote.line_items?.length ?? 0,
+        line_item_count: quote.lineItemCount,
       });
       if (action === "send") {
         trackEvent(LogEvents.QuoteSent, {
           quote_value: quote.total,
           recipient_email: selectedCustomer?.billing_email || selectedCustomer?.email,
         });
-        supabase.functions
-          .invoke("send-quote-email", { body: { quoteId: quote.id } })
-          .then((res) => {
-            if (res.error) throw res.error;
-            if ((res.data as { queued?: boolean } | null)?.queued) {
-              toast.success(
-                `Emailing it to ${selectedCustomer?.name ?? quote.customer_name} with the PDF attached…`,
-              );
-            }
-          })
-          .catch(() => {
-            toast.warning("Quote created, but email delivery failed.");
-          });
+        const emailingToast = () =>
+          toast.success(`Emailing it to ${selectedCustomer?.name ?? quote.customerName} with the PDF attached…`);
+        if (quote.viaApi) {
+          if (quote.email && !quote.email.ok) toast.warning("Quote created, but email delivery failed.");
+          else if (quote.email?.queued) emailingToast();
+        } else {
+          supabase.functions
+            .invoke("send-quote-email", { body: { quoteId: quote.id } })
+            .then((res) => {
+              if (res.error) throw res.error;
+              if ((res.data as { queued?: boolean } | null)?.queued) emailingToast();
+            })
+            .catch(() => {
+              toast.warning("Quote created, but email delivery failed.");
+            });
+        }
       }
       navigate(`/quotes/${quote.id}`);
     },
     onError: (err) => {
       const msg = err instanceof Error ? err.message : "";
-      if (msg.includes("already been used")) {
+      if (err instanceof ApiError && err.code === "QUOTE_NUMBER_TAKEN") {
+        setQuoteNumberError(err.message);
+      } else if (!(err instanceof ApiError) && msg.includes("already been used")) {
         setQuoteNumberError(msg);
       } else {
-        toast.error("Failed to save quote. Please try again.");
+        toast.error("Failed to save quote. Please try again.", {
+          description: err instanceof ApiError ? err.message : undefined,
+        });
       }
     },
   });

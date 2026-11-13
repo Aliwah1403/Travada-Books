@@ -34,7 +34,7 @@ import {
   FieldDescription,
   FieldError,
 } from "@travada-books/ui/components/field";
-import { updateCustomer } from "@/lib/queries/customers";
+import { customerWrites } from "@/lib/customer-api";
 import { useAuth } from "@/contexts/auth-context";
 import { toast } from "sonner";
 import { trackEvent, LogEvents } from "@/lib/analytics";
@@ -138,28 +138,29 @@ export function EditCustomerSheet({
       return;
     }
     try {
-      await updateCustomer(customerId, orgId, {
+      // Cleared fields are sent as null so emptying one really clears it.
+      await customerWrites.update(customerId, orgId, {
         name: data.name,
-        email: data.email || undefined,
-        billing_email: data.billToEmail || undefined,
+        email: data.email || null,
+        billing_email: data.billToEmail || null,
         billing_cc: normalizeEmailList(data.billingCc),
-        phone: data.phone || undefined,
-        website: data.website || undefined,
-        address_line1: data.addressLine1 || undefined,
-        address_line2: data.addressLine2 || undefined,
-        city: data.city || undefined,
-        state: data.state || undefined,
-        zip: data.zip || undefined,
+        phone: data.phone || null,
+        website: data.website || null,
+        address_line1: data.addressLine1 || null,
+        address_line2: data.addressLine2 || null,
+        city: data.city || null,
+        state: data.state || null,
+        zip: data.zip || null,
         country: data.country
           ? (countries.all.find((c) => c.alpha2 === data.country)?.name ?? data.country)
-          : undefined,
-        country_code: data.country || undefined,
-        vat_number: data.vatNumber || undefined,
-        industry: data.industry || undefined,
-        company_type: data.businessType || undefined,
-        preferred_currency: data.currency || undefined,
-        main_contact: data.mainContact || undefined,
-        note: data.note || undefined,
+          : null,
+        country_code: data.country || null,
+        vat_number: data.vatNumber || null,
+        industry: data.industry || null,
+        company_type: data.businessType || null,
+        preferred_currency: data.currency || null,
+        main_contact: data.mainContact || null,
+        note: data.note || null,
       });
       trackEvent(LogEvents.CustomerEdited);
       toast.success("Customer updated");

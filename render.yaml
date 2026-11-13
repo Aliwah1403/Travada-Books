@@ -1,0 +1,61 @@
+# Render Blueprint for apps/api — production only. Development runs locally
+# (`npm run dev --workspace=@travada-books/api`, local Supabase, local Redis);
+# there is no staging service.
+#
+# Starts on the free plan because Render only lets a service move to a paid
+# plan after a successful deploy. Upgrade it straight after the first green
+# deploy, and before any `api-writes-*` switch is turned on: the free plan
+# sleeps after ~15 idle minutes (30–60s cold start) and has no static IP.
+#
+# Region: Singapore, the closest Render region to Supabase (ap-southeast-2) and
+# the same region as the Upstash database `travada-api-prod` (ap-southeast-1).
+#
+# Secrets are `sync: false`: Render asks for them when the Blueprint is applied
+# and never reads them from this file.
+
+services:
+  - type: web
+    name: travada-api
+    runtime: node
+    plan: free
+    region: singapore
+    branch: main
+    buildCommand: npm ci --workspace=@travada-books/api --include-workspace-root && npm run build --workspace=@travada-books/api
+    startCommand: npm run start --workspace=@travada-books/api
+    healthCheckPath: /health
+    autoDeployTrigger: commit
+    buildFilter:
+      paths:
+        - apps/api/**
+        - packages/core/**
+        - package-lock.json
+        - render.yaml
+    envVars:
+      - key: NODE_VERSION
+        value: 24.14.1
+      - key: NODE_ENV
+        value: production
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      # Supabase pooler, transaction mode (port 6543).
+      - key: DATABASE_URL
+        sync: false
+      # Upstash `travada-api-prod`, TLS URL: rediss://default:<password>@<endpoint>:6379
+      - key: REDIS_URL
+        sync: false
+      - key: ALLOWED_ORIGINS
+        sync: false
+      - key: APP_URL
+        sync: false
+      # Same value the edge functions use; without it "invoice paid" and inbox notifications are skipped.
+      - key: WORKER_SHARED_SECRET
+        sync: false
+      # Production Trigger.dev key; without it scheduled sends and inbox retries fail.
+      - key: TRIGGER_SECRET_KEY
+        sync: false
+      - key: POSTHOG_API_KEY
+        sync: false
+      - key: POSTHOG_HOST
+        value: https://eu.i.posthog.com

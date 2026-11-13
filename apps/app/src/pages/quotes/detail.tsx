@@ -12,6 +12,8 @@ import {
   PencilEdit01Icon,
   Sent02Icon,
   Invoice01Icon,
+  CheckmarkCircle02Icon,
+  CancelCircleIcon,
 } from "@travada-books/ui/icons";
 import { Button } from "@travada-books/ui/components/button";
 import { Separator } from "@travada-books/ui/components/separator";
@@ -54,16 +56,19 @@ import {
   resolveDocumentLogo,
   buildFromDetailsSnapshot,
   buildCustomerDetailsSnapshot,
-} from "@/lib/document-snapshots";
+  parseCustomFields,
+} from "@travada-books/core";
 import { supabase } from "@/lib/supabase";
+import { apiWritesEnabled } from "@/lib/api-flags";
+import { quoteApi } from "@/lib/quote-api";
 import type { Invoice } from "@/lib/queries/invoices";
 import { InvoicePdf, buildQuoteDocumentData, taxIdLine } from "@travada-books/pdf";
 import { downloadPdf, urlToDataUrl } from "@/lib/pdf-download";
-import { parseCustomFields } from "@/lib/custom-fields";
 import { CustomFieldsPreview } from "@/components/invoices/custom-fields";
 import { EmailDeliveryNotice } from "@/components/shared/email-delivery-notice";
 import { formatCurrency } from "@/lib/format";
 import { isQuoteEditable } from "@/components/quotes/quote-utils";
+import { isPastValidUntil } from "@travada-books/core";
 
 function DetailRow({ label, value }: { label: string; value: string }) {
   return (
@@ -145,6 +150,9 @@ export function QuoteDetailPage() {
   const { formatDate, formatActivityDate } = useFormatDate();
   const [copied, setCopied] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [acceptOpen, setAcceptOpen] = useState(false);
+  const [declineOpen, setDeclineOpen] = useState(false);
+  const [declineReason, setDeclineReason] = useState("");
   const [isPdfDownloading, setIsPdfDownloading] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [sendDialogOpen, setSendDialogOpen] = useState(false);
@@ -187,7 +195,7 @@ export function QuoteDetailPage() {
   const logoUrl = resolveDocumentLogo(invoiceTemplate?.logoUrl, org);
 
   // Fetch linked invoice if accepted
-  const { data: linkedInvoice } = useQuery({
+  const { data: linkedInvoice, isFetched: linkedInvoiceChecked } = useQuery({
     queryKey: ["invoice-by-quote", id],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -213,7 +221,10 @@ export function QuoteDetailPage() {
 
     setIsSending(true);
     try {
-      await sendQuote(
+      const viaApi = apiWritesEnabled("quotes");
+      // The API path sends the email itself when the channel is email.
+      const apiEmail = viaApi ? (await quoteApi.issue(quote.id, channel)).email : null;
+      if (!viaApi) await sendQuote(
         quote.id,
         orgId,
         buildFromDetailsSnapshot(org, logoUrl),
@@ -241,7 +252,13 @@ export function QuoteDetailPage() {
         : "Quote sent",
       );
 
-      if (channel === "email") {
+      if (channel === "email" && viaApi) {
+        if (apiEmail && !apiEmail.ok) {
+          toast.warning("Quote sent, but email delivery failed. Try resending from the quote.");
+        } else if (apiEmail?.queued) {
+          toast.success(`Emailing it to ${customer?.name ?? quote.customer_name} with the PDF attached…`);
+        }
+      } else if (channel === "email") {
         dispatchQuoteEmail()
           .then(({ queued }) => {
             if (queued) {
@@ -265,6 +282,13 @@ export function QuoteDetailPage() {
   // delivery notice — invalidates the quote query either way so email_status
   // (and the notice/poll driven by it) reflect the outcome.
   async function dispatchQuoteEmail(): Promise<{ queued: boolean }> {
+    if (apiWritesEnabled("quotes")) {
+      try {
+        return await quoteApi.resendEmail(id!);
+      } finally {
+        queryClient.invalidateQueries({ queryKey: ["quote", id] });
+      }
+    }
     const res = await supabase.functions.invoke("send-quote-email", { body: { quoteId: id } });
     queryClient.invalidateQueries({ queryKey: ["quote", id] });
     if (res.error) throw res.error;
@@ -301,7 +325,8 @@ export function QuoteDetailPage() {
   const { mutate: handleDuplicate } = useMutation({
     mutationFn: () => {
       if (!quote || !orgId || !user) throw new Error("Missing data");
-      return duplicateQuote(quote, orgId, user.id);
+      if (apiWritesEnabled("quotes")) return quoteApi.duplicate(quote.id).then(({ quote: copy }) => ({ id: copy.id }));
+      return duplicateQuote(quote, orgId, user.id).then((copy) => ({ id: copy.id }));
     },
     onSuccess: (newQuote) => {
       queryClient.invalidateQueries({ queryKey: ["quotes", orgId] });
@@ -312,7 +337,7 @@ export function QuoteDetailPage() {
   });
 
   const { mutate: handleDelete } = useMutation({
-    mutationFn: () => deleteQuote(id!, orgId!),
+    mutationFn: () => (apiWritesEnabled("quotes") ? quoteApi.remove(id!).then(() => {}) : deleteQuote(id!, orgId!)),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["quotes", orgId] });
       navigate("/quotes");
@@ -390,7 +415,10 @@ export function QuoteDetailPage() {
   }
 
   const { mutate: saveInternalNote } = useMutation({
-    mutationFn: () => updateQuote(id!, orgId!, { internal_note: internalNote || null }),
+    mutationFn: () =>
+      apiWritesEnabled("quotes")
+        ? quoteApi.updateMeta(id!, { internal_note: internalNote }).then(() => {})
+        : updateQuote(id!, orgId!, { internal_note: internalNote || null }).then(() => {}),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["quote", id] });
       setInternalNoteDirty(false);
@@ -398,6 +426,57 @@ export function QuoteDetailPage() {
       setTimeout(() => setInternalNoteSaved(false), 2000);
     },
     onError: () => toast.error("Failed to save note"),
+  });
+
+  // Accept / decline on the customer's behalf (they answered by phone,
+  // WhatsApp or in person) and quote → invoice. API-only: these exist only
+  // behind the api-writes-quotes flag.
+  const quoteWritesViaApi = apiWritesEnabled("quotes");
+
+  function refreshAfterDecision() {
+    queryClient.invalidateQueries({ queryKey: ["quote", id] });
+    queryClient.invalidateQueries({ queryKey: ["quotes", orgId] });
+    queryClient.invalidateQueries({ queryKey: ["invoice-by-quote", id] });
+    queryClient.invalidateQueries({ queryKey: ["invoices", orgId] });
+  }
+
+  function invoiceToast(title: string, invoice: { id: string; invoice_number: string | null }) {
+    toast.success(title, {
+      description: `Draft invoice ${invoice.invoice_number ?? ""} is ready to review and send.`,
+      action: { label: "View invoice", onClick: () => navigate(`/invoices/${invoice.id}`) },
+      duration: 10000,
+    });
+  }
+
+  const { mutate: handleAccept, isPending: isAccepting } = useMutation({
+    mutationFn: () => quoteApi.accept(id!),
+    onSuccess: ({ invoice }) => {
+      setAcceptOpen(false);
+      refreshAfterDecision();
+      invoiceToast("Quote marked as accepted", invoice);
+    },
+    onError: (err) => toast.error("Couldn't mark the quote as accepted", { description: err.message }),
+  });
+
+  const { mutate: handleDecline, isPending: isDeclining } = useMutation({
+    mutationFn: () => quoteApi.decline(id!, declineReason.trim() || null),
+    onSuccess: () => {
+      setDeclineOpen(false);
+      setDeclineReason("");
+      refreshAfterDecision();
+      toast.success("Quote marked as declined", { description: "You can edit and resend it." });
+    },
+    onError: (err) => toast.error("Couldn't mark the quote as declined", { description: err.message }),
+  });
+
+  const { mutate: handleConvert, isPending: isConverting } = useMutation({
+    mutationFn: () => quoteApi.convert(id!),
+    onSuccess: ({ invoice, created }) => {
+      refreshAfterDecision();
+      if (created) invoiceToast("Invoice created", invoice);
+      else navigate(`/invoices/${invoice.id}`);
+    },
+    onError: (err) => toast.error("Couldn't create the invoice", { description: err.message }),
   });
 
   if (isLoading) {
@@ -457,6 +536,9 @@ export function QuoteDetailPage() {
   const quoteUrl = `${window.location.origin}/q/${quote.token}`;
   // Accepted and expired are fully terminal. Declined can be revised and resent.
   const isEditable = isQuoteEditable(quote.status);
+  // A sent quote past its valid-until date reads as expired until the nightly
+  // job flips it; it can't be accepted any more.
+  const canDecide = quoteWritesViaApi && quote.status === "sent" && !isPastValidUntil(quote.valid_until);
 
   function handleCopyLink() {
     navigator.clipboard.writeText(quoteUrl);
@@ -517,6 +599,12 @@ export function QuoteDetailPage() {
               {quote.status === "declined" ? "Resend Quote" : "Send Quote"}
             </Button>
           )}
+          {canDecide && (
+            <Button variant='outline' className='gap-1.5' onClick={() => setAcceptOpen(true)}>
+              <CheckmarkCircle02Icon size={13} />
+              Mark accepted
+            </Button>
+          )}
           {isEditable && (
             <Button
               variant='outline'
@@ -534,6 +622,12 @@ export function QuoteDetailPage() {
                 <FileEditIcon size={13} />
                 Duplicate
               </DropdownMenuItem>
+              {canDecide && (
+                <DropdownMenuItem onClick={() => setDeclineOpen(true)}>
+                  <CancelCircleIcon size={13} />
+                  Mark declined
+                </DropdownMenuItem>
+              )}
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 className='text-destructive focus:text-destructive'
@@ -562,6 +656,54 @@ export function QuoteDetailPage() {
               onClick={() => { setDeleteOpen(false); handleDelete(); }}
             >
               Delete
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={acceptOpen} onOpenChange={setAcceptOpen}>
+        <AlertDialogContent size='sm'>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Mark as accepted?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Use this when {customerName} accepted <strong>{quote.quote_number}</strong> outside the quote link. A draft
+              invoice for {formatCurrency(quote.total ?? 0, quote.currency)} will be created for you to review and send.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <Button onClick={() => handleAccept()} disabled={isAccepting}>
+              {isAccepting ? "Creating invoice…" : "Mark accepted"}
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={declineOpen}
+        onOpenChange={(open) => {
+          setDeclineOpen(open);
+          if (!open) setDeclineReason("");
+        }}
+      >
+        <AlertDialogContent size='sm'>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Mark as declined?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {customerName} turned down <strong>{quote.quote_number}</strong>. You can still edit and resend it later.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <Textarea
+            value={declineReason}
+            onChange={(e) => setDeclineReason(e.target.value)}
+            placeholder='Reason (optional) — e.g. went with another supplier'
+            maxLength={1000}
+            className='min-h-20 text-xs'
+          />
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <Button variant='destructive' onClick={() => handleDecline()} disabled={isDeclining}>
+              {isDeclining ? "Saving…" : "Mark declined"}
             </Button>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -614,9 +756,24 @@ export function QuoteDetailPage() {
           )}
 
           {/* Accepted, no invoice yet */}
-          {quote.status === "accepted" && !linkedInvoice && (
-            <div className='mb-4 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-xs text-green-700 dark:border-green-900/40 dark:bg-green-900/20 dark:text-green-400'>
-              Quote accepted — draft invoice is being created.
+          {quote.status === "accepted" && !linkedInvoice && linkedInvoiceChecked && (
+            <div className='mb-4 flex items-center justify-between gap-3 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-xs text-green-700 dark:border-green-900/40 dark:bg-green-900/20 dark:text-green-400'>
+              <div className='flex items-center gap-2'>
+                <Invoice01Icon size={14} />
+                <span>
+                  {quoteWritesViaApi ? "Quote accepted — no invoice has been created yet." : "Quote accepted — draft invoice is being created."}
+                </span>
+              </div>
+              {quoteWritesViaApi && (
+                <button
+                  type='button'
+                  onClick={() => handleConvert()}
+                  disabled={isConverting}
+                  className='shrink-0 font-medium underline underline-offset-2 hover:text-green-800 disabled:opacity-60 dark:hover:text-green-300'
+                >
+                  {isConverting ? "Creating…" : "Create invoice"}
+                </button>
+              )}
             </div>
           )}
 

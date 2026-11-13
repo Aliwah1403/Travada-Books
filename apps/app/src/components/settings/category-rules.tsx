@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { transactionWrites } from "@/lib/transaction-api";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Button } from "@travada-books/ui/components/button";
@@ -16,8 +17,6 @@ import { useInvalidateTransactionQueries } from "@/hooks/use-invalidate-transact
 import { trackEvent, LogEvents } from "@/lib/analytics";
 import {
   listCategoryRules,
-  createCategoryRule,
-  deleteCategoryRule,
   type CategoryRule,
 } from "@/lib/queries/category-rules";
 import type { TransactionCategory } from "@/lib/queries/transactions";
@@ -80,7 +79,7 @@ export function CategoryRules({ categories }: { categories: TransactionCategory[
     if (!canAdd || !orgId || !user) return;
     setAdding(true);
     toast.promise(
-      createCategoryRule({ orgId, pattern: trimmed, categoryId, userId: user.id }),
+      transactionWrites.createRule({ orgId, pattern: trimmed, categoryId, userId: user.id }),
       {
         loading: "Adding rule…",
         success: ({ appliedCount }) => {
@@ -108,7 +107,7 @@ export function CategoryRules({ categories }: { categories: TransactionCategory[
 
   function handleDelete(rule: CategoryRule) {
     setDeletingId(rule.id);
-    toast.promise(deleteCategoryRule(rule.id), {
+    toast.promise(transactionWrites.deleteRule(rule.id), {
       loading: "Deleting rule…",
       success: () => {
         trackEvent(LogEvents.CategoryRuleDeleted);

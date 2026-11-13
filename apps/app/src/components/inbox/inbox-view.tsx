@@ -36,17 +36,13 @@ import { BulkActionBar } from "@/components/inbox/bulk-action-bar"
 import {
   listInboxItems,
   createInboxItem,
-  deleteInboxItem,
-  bulkDeleteInboxItems,
-  updateInboxStatus,
-  retryMatching,
-  addBlocklistEntry,
   getInboxEmail,
   type InboxItem,
   type InboxItemStatus,
   type InboxFilters,
   type InboxOrder,
 } from "@/lib/queries/inbox"
+import { inboxWrites } from "@/lib/inbox-api"
 
 const ORDER_LABEL: Record<InboxOrder, string> = {
   recent: "Most recent",
@@ -266,13 +262,13 @@ export function InboxView() {
 
   const statusMutation = useMutation({
     mutationFn: ({ id, status }: { id: string; status: InboxItemStatus }) =>
-      updateInboxStatus(id, status),
+      inboxWrites.setStatus(id, status),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["inbox", orgId] }),
   })
 
   const deleteMutation = useMutation({
     mutationFn: ({ id, filePath }: { id: string; filePath: string }) =>
-      deleteInboxItem(id, filePath),
+      inboxWrites.remove(id, filePath),
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["inbox", orgId] })
       if (inboxId === variables.id) updateParams({ inboxId: null })
@@ -280,7 +276,7 @@ export function InboxView() {
   })
 
   const bulkDeleteMutation = useMutation({
-    mutationFn: (selectedItems: InboxItem[]) => bulkDeleteInboxItems(selectedItems),
+    mutationFn: (selectedItems: InboxItem[]) => inboxWrites.bulkRemove(selectedItems),
     onSuccess: (_data, selectedItems) => {
       queryClient.invalidateQueries({ queryKey: ["inbox", orgId] })
       if (selectedItems.some((i) => i.id === inboxId)) updateParams({ inboxId: null })
@@ -289,7 +285,7 @@ export function InboxView() {
   })
 
   const retryMutation = useMutation({
-    mutationFn: (id: string) => retryMatching(id),
+    mutationFn: (id: string) => inboxWrites.retry(id),
     onSuccess: (_data, id) => {
       queryClient.invalidateQueries({ queryKey: ["inbox", orgId] })
       queryClient.invalidateQueries({ queryKey: ["inbox-item", id] })
@@ -298,7 +294,7 @@ export function InboxView() {
 
   const blocklistMutation = useMutation({
     mutationFn: ({ type, value }: { type: "email" | "domain"; value: string }) =>
-      addBlocklistEntry(orgId!, type, value),
+      inboxWrites.addBlocklistEntry(orgId!, type, value),
   })
 
   function handleDropFiles(files: File[]) {

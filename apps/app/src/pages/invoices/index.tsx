@@ -19,7 +19,7 @@ import { Filter } from "@/components/ui/filter";
 import { InvoiceStats } from "@/components/invoices/invoice-stats";
 import { InvoiceTable, type Invoice } from "@/components/invoices/invoice-table";
 import { QuotePreviewSheet } from "@/components/quotes/quote-preview-sheet";
-import { createInvoiceColumnsConfig } from "@/components/invoices/invoice-filter-columns";
+import { createInvoiceColumnsConfig, FILTER_ROWS } from "@/components/invoices/invoice-filter-columns";
 import type { VisibilityState } from "@tanstack/react-table";
 import {
   listInvoices,
@@ -285,6 +285,7 @@ export function InvoicesPage() {
 
   const { columns, filters, actions, strategy } = useDataTableFilters({
     strategy: "server",
+    data: FILTER_ROWS,
     columnsConfig,
     filters: filtersState,
     onFiltersChange: setFiltersState,

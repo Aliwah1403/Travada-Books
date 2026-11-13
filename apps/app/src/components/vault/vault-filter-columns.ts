@@ -9,6 +9,14 @@ type VaultRow = {
 
 const dtf = createColumnConfigHelper<VaultRow>();
 
+/**
+ * The rows handed to useDataTableFilters. These pages filter elsewhere (the
+ * server, or the page itself), so it's always empty — but typing it is what
+ * lets the hook infer the row type instead of `unknown`. One shared constant
+ * so the hook's memo doesn't rebuild columns every render.
+ */
+export const FILTER_ROWS: VaultRow[] = [];
+
 export function createVaultColumnsConfig(tags: { id: string; name: string }[]) {
   const tagOptions = tags.map((t) => ({ value: t.id, label: t.name }));
 

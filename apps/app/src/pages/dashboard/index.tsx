@@ -12,11 +12,8 @@ import { Button } from "@travada-books/ui/components/button";
 import { Settings02Icon, TickIcon } from "@travada-books/ui/icons";
 import { useAuth } from "@/contexts/auth-context";
 import { MetricsFilterBar } from "@/components/dashboard/metrics-filter-bar";
-import {
-  WidgetProvider,
-  useIsCustomizing,
-  useWidgetActions,
-} from "@/components/dashboard/widget-provider";
+import { DashboardLayoutProvider } from "@/components/dashboard/dashboard-layout-provider";
+import { useDashboardLayout } from "@/components/dashboard/dashboard-layout-context";
 
 import { lookupRate } from "@/lib/queries/exchange-rates";
 import { type RevenueType } from "@/lib/queries/metrics";
@@ -34,8 +31,11 @@ const DEFAULT_REVENUE_TYPE: RevenueType = "gross";
 const BASE_VIEW_CURRENCY = "base";
 
 function CustomizeToggle() {
-  const isCustomizing = useIsCustomizing();
-  const { setIsCustomizing } = useWidgetActions();
+  const { isCustomizing, setIsCustomizing } = useDashboardLayout();
+
+  // The cog only shows on the Overview tab, so it unmounts when the user
+  // switches to Metrics — Customize mode ends with it.
+  useEffect(() => () => setIsCustomizing(false), [setIsCustomizing]);
 
   return (
     <Button
@@ -199,7 +199,7 @@ export function DashboardPage() {
   const greetingText = firstName ? `${greeting}, ${firstName}` : greeting;
 
   return (
-    <WidgetProvider orgId={orgId} userId={user.id}>
+    <DashboardLayoutProvider orgId={orgId} userId={user.id} countryCode={org.country_code}>
       <div className='flex flex-col'>
         <Tabs
           value={tab}
@@ -265,6 +265,6 @@ export function DashboardPage() {
           </TabsContent>
         </Tabs>
       </div>
-    </WidgetProvider>
+    </DashboardLayoutProvider>
   );
 }

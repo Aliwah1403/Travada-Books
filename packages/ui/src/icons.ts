@@ -106,6 +106,9 @@ import {
   Menu01Icon as Menu01Svg,
   CreditCardIcon as CreditCardSvg,
   SmartPhone01Icon as SmartPhone01Svg,
+  FlowConnectionIcon as FlowConnectionSvg,
+  NewsIcon as NewsSvg,
+  Calendar03Icon as Calendar03Svg,
 } from "@hugeicons/core-free-icons";
 
 export type IconProps = Omit<HugeiconsIconProps, "icon">;
@@ -220,6 +223,9 @@ export const AiChat01Icon = make(AiChat01Svg);
 export const Menu01Icon = make(Menu01Svg);
 export const CreditCardIcon = make(CreditCardSvg);
 export const SmartPhone01Icon = make(SmartPhone01Svg);
+export const FlowConnectionIcon = make(FlowConnectionSvg);
+export const NewsIcon = make(NewsSvg);
+export const Calendar03Icon = make(Calendar03Svg);
 
 // Brand logos (Gmail, Outlook) are fixed multi-color marks, not currentColor
 // glyphs, so they're hand-authored SVGs rather than wrapped Hugeicons.

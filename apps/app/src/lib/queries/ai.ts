@@ -154,6 +154,34 @@ export async function parseQuoteFilters(args: {
   return data as ParsedQuoteFilters
 }
 
+export type ParsedBillFilters = {
+  name?: string | null
+  status?: "unpaid" | "paid" | null
+  overdue?: boolean | null
+  dueFrom?: string | null
+  dueTo?: string | null
+  issuedFrom?: string | null
+  issuedTo?: string | null
+  paidFrom?: string | null
+  paidTo?: string | null
+  amountMin?: number | null
+  amountMax?: number | null
+  currencies?: string[] | null
+  source?: "inbox" | "manual" | null
+  matched?: boolean | null
+}
+
+export async function parseBillFilters(args: {
+  input: string
+  vendors?: string[]
+  currentDate?: string
+  timezone?: string
+}): Promise<ParsedBillFilters> {
+  const { data, error } = await supabase.functions.invoke("parse-bill-filters", { body: args })
+  if (error) await throwInvokeError(error)
+  return data as ParsedBillFilters
+}
+
 export type ParsedVaultFilters = {
   name?: string | null
   dateFrom?: string | null

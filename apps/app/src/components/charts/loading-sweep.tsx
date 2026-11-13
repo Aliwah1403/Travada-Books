@@ -1,8 +1,8 @@
 "use client";
 
-import { scaleLinear } from "@visx/scale";
-import { AreaClosed, LinePath } from "@visx/shape";
-import { motion, useReducedMotion } from "motion/react";
+import { scaleLinear } from "d3-scale";
+import type { CurveFactory } from "d3-shape";
+import { m, useReducedMotion } from "motion/react";
 import {
   useCallback,
   useEffect,
@@ -16,6 +16,7 @@ import {
   LINE_LOADING_PULSE_EASE,
   LOADING_LABEL_EXIT_S,
 } from "./line-loading-timing";
+import { areaClosedD, LinePath, linePathD } from "./line-path";
 
 /**
  * Shared "sweep" loading visuals. A soft diagonal shimmer band travels across a
@@ -27,10 +28,6 @@ import {
  * `<BarChart status="loading">`.
  */
 
-// CurveFactory type - simplified version compatible with visx
-// biome-ignore lint/suspicious/noExplicitAny: d3 curve factory type
-type CurveFactory = any;
-
 /** One shimmer sweep, in seconds. */
 const DEFAULT_SWEEP_DURATION_S = 2;
 /** Sweep travel in objectBoundingBox space: off the left edge to off the right. */
@@ -41,7 +38,6 @@ const SWEEP_ANGLE_DEG = 25;
 const HEIGHT_MIN_PCT = 20;
 const HEIGHT_MAX_PCT = 80;
 const DEFAULT_POINT_COUNT = 14;
-const BAR_CORNER_RADIUS = 2;
 const DEFAULT_BAR_COUNT = 12;
 const DEFAULT_FILL = "var(--foreground)";
 const DEFAULT_BAR_FILL_OPACITY = 0.45;
@@ -154,7 +150,7 @@ function LoadingSweepMask({
         x="0"
         y="0"
       >
-        <motion.rect
+        <m.rect
           animate={{ x: SWEEP_END_X }}
           fill={`url(#${chartId}-grad)`}
           height="1"
@@ -245,11 +241,10 @@ export function LineLoadingSweep({
     return null;
   }
 
-  const xScale = scaleLinear({
-    domain: [0, heights.length - 1],
-    range: [0, innerWidth],
-  });
-  const yScale = scaleLinear({ domain: [0, 100], range: [innerHeight, 0] });
+  const xScale = scaleLinear()
+    .domain([0, heights.length - 1])
+    .range([0, innerWidth]);
+  const yScale = scaleLinear().domain([0, 100]).range([innerHeight, 0]);
   const points = heights.map((value, index) => ({ index, value }));
   const getX = (d: { index: number }) => xScale(d.index);
   const getY = (d: { value: number }) => yScale(d.value);
@@ -257,25 +252,18 @@ export function LineLoadingSweep({
   const silhouette = (
     <>
       {withArea ? (
-        <AreaClosed
-          curve={curve}
-          data={points}
+        <path
+          d={areaClosedD(points, { curve, x: getX, y: getY, yScale })}
           fill={`url(#${chartId}-area)`}
-          x={getX}
-          y={getY}
-          yScale={yScale}
         />
       ) : null}
       <LinePath
-        curve={curve}
-        data={points}
+        d={linePathD(points, { curve, x: getX, y: getY })}
         fill="none"
         stroke={stroke}
         strokeLinecap="round"
         strokeOpacity={strokeOpacity}
         strokeWidth={strokeWidth}
-        x={getX}
-        y={getY}
       />
     </>
   );
@@ -332,7 +320,7 @@ export function LineLoadingSweep({
   return (
     <>
       {defs}
-      <motion.g
+      <m.g
         animate={{ opacity: mode === "exit" ? 0 : 1 }}
         initial={{ opacity: mode === "exit" ? 1 : 0 }}
         mask={maskUrl}
@@ -343,7 +331,7 @@ export function LineLoadingSweep({
         }}
       >
         {silhouette}
-      </motion.g>
+      </m.g>
     </>
   );
 }
@@ -373,6 +361,7 @@ function SkeletonBars({
 }) {
   const bandWidth = innerWidth / heights.length;
   const barW = bandWidth * barFraction;
+  const cornerRadius = Math.min(barW / 2, 8);
   const xOffset = (bandWidth * (1 - barFraction)) / 2;
   const isCenter = baseline === "center";
   const baselineY = isCenter ? innerHeight / 2 : innerHeight;
@@ -391,7 +380,7 @@ function SkeletonBars({
             fillOpacity={fillOpacity}
             height={barH}
             key={`${x.toFixed(2)}-${value}`}
-            rx={BAR_CORNER_RADIUS}
+            rx={cornerRadius}
             width={barW}
             x={x}
             y={y}
