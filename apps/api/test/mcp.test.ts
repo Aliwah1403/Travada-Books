@@ -140,6 +140,19 @@ function fakeCustomerServices(tables: FakeTables, orgId: string) {
   } as unknown as McpContext["customers"]
 }
 
+function fakeBillServices(orgId: string) {
+  const call = (name: string) => serviceCalls.push({ name, orgId })
+  const bill = { id: SOME_ID, vendorName: "Acme", billNumber: null, amount: "10", currency: "KES", status: "unpaid", paidAt: null, dueDate: null }
+  return {
+    get: async () => (call("get"), bill),
+    create: async () => (call("create"), { bill }),
+    update: async () => (call("update"), { bill }),
+    setPaid: async () => (call("setPaid"), { bill: { ...bill, status: "paid" } }),
+    remove: async () => (call("remove"), { bill }),
+    fromInbox: async () => (call("fromInbox"), { bill }),
+  } as unknown as McpContext["bills"]
+}
+
 function fakeTransactionServices(tables: FakeTables, orgId: string) {
   const call = (name: string) => serviceCalls.push({ name, orgId })
   const row = (over: Record<string, unknown> = {}) => ({ id: SOME_ID, name: "Rent", amount: "10", currency: "KES", type: "expense", status: "completed", ...over })
@@ -200,6 +213,7 @@ function makeCtx(
     statements: fakeStatementServices(tables, overrides.orgId ?? ORG_A),
     customers: fakeCustomerServices(tables, overrides.orgId ?? ORG_A),
     transactions: fakeTransactionServices(tables, overrides.orgId ?? ORG_A),
+    bills: fakeBillServices(overrides.orgId ?? ORG_A),
     org: { name: "Acme Ltd", baseCurrency: "KES", countryCode: "KE" },
     user: { timezone: "Africa/Nairobi", locale: "en", dateFormat: null },
     channel: "mcp",
@@ -234,6 +248,7 @@ function sampleArgs(tool: AnyTool): Record<string, unknown> {
   }
   // Tools whose fields are all optional but that refuse an empty call.
   if (tool.name === "customers_update" || tool.name === "transactions_update") args.name = "Acme"
+  if (tool.name === "bills_update") args.note = "Acme"
   // Every sample must pass the tool's own schema, or the test proves nothing.
   z.object(tool.input).parse(args)
   return args
@@ -412,6 +427,7 @@ describe("confirmations (plan §7)", () => {
             { id: SOME_ID, org_id: ORG_A, name: "Beta Ltd" },
           ],
           transactions: [{ id: SOME_ID, org_id: ORG_A, name: "Rent", amount: 10, currency: "KES" }],
+          bills: [{ id: SOME_ID, org_id: ORG_A, vendor_name: "Acme", bill_number: null, amount: 10, currency: "KES" }],
           statements: [
             {
               id: SOME_ID,

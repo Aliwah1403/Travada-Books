@@ -10,6 +10,7 @@ import { health } from "./routes/health.js"
 import { mcp } from "./routes/mcp.js"
 import { me } from "./routes/me.js"
 import { invoiceRoutes, paymentRoutes, recurringRoutes } from "./routes/v1/invoices.js"
+import { billRoutes } from "./routes/v1/bills.js"
 import { customerRoutes } from "./routes/v1/customers.js"
 import { quoteRoutes } from "./routes/v1/quotes.js"
 import { statementRoutes } from "./routes/v1/statements.js"
@@ -47,6 +48,7 @@ export function createApp(deps: Deps, options: { allowedOrigins: string[]; logRe
     .route("/v1/transactions", transactionRoutes)
     .route("/v1/transaction-categories", transactionCategoryRoutes)
     .route("/v1/category-rules", categoryRuleRoutes)
+    .route("/v1/bills", billRoutes)
     .route("/mcp", mcp)
 
   // Every error leaves as an ApiErrorBody ({ error, code, field? }) from

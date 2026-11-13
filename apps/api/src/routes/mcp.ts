@@ -7,6 +7,7 @@ import { requireCaller } from "../middleware/require-caller.js"
 import { invoiceServices, type ServiceCtx } from "../services/invoices.js"
 import { quoteServices } from "../services/quotes.js"
 import { customerServices } from "../services/customers.js"
+import { billServices } from "../services/bills.js"
 import { statementServices } from "../services/statements.js"
 import { transactionServices } from "../services/transactions.js"
 
@@ -43,6 +44,7 @@ mcp.all("/", async (c) => {
     invoices: invoiceServices(services),
     quotes: quoteServices(services),
     customers: customerServices(services),
+    bills: billServices(services),
     statements: statementServices(services),
     transactions: transactionServices(services),
     org: { name: org.name, baseCurrency: org.base_currency ?? "KES", countryCode: org.country_code ?? null },

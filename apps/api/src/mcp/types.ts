@@ -2,6 +2,7 @@ import type { z } from "zod"
 import type { Analytics } from "../lib/posthog.js"
 import type { Redis } from "../lib/redis.js"
 import type { ScopedDb } from "../lib/scoped.js"
+import type { BillServices } from "../services/bills.js"
 import type { CustomerServices } from "../services/customers.js"
 import type { InvoiceServices } from "../services/invoices.js"
 import type { QuoteServices } from "../services/quotes.js"
@@ -17,6 +18,8 @@ export type McpContext = {
   userId: string
   /** Org-scoped data access. Tools never get the raw service-role client. */
   db: ScopedDb
+  /** Bill writes — the same services as /v1/bills. */
+  bills: BillServices
   /** Customer writes — the same services as /v1/customers. */
   customers: CustomerServices
   /** Invoice and payment writes — the same services the app's /v1 routes use. */

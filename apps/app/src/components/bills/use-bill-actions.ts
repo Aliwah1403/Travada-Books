@@ -4,11 +4,10 @@ import { useAuth } from "@/contexts/auth-context"
 import { trackEvent, LogEvents } from "@/lib/analytics"
 import {
   daysFromToday,
-  deleteBill,
   isBillOverdue,
-  setBillPaid,
   type Bill,
 } from "@/lib/queries/bills"
+import { billWrites } from "@/lib/bill-api"
 import { getInboxSignedUrl } from "@/lib/queries/inbox"
 
 function errMsg(e: unknown): string {
@@ -26,10 +25,10 @@ export function useBillActions() {
   }
 
   const paid = useMutation({
-    mutationFn: ({ bill, paid }: { bill: Bill; paid: boolean }) => setBillPaid(bill.id, paid),
+    mutationFn: ({ bill, paid }: { bill: Bill; paid: boolean }) => billWrites.setPaid(bill.id, paid),
     onSuccess: invalidate,
   })
-  const remove = useMutation({ mutationFn: (bill: Bill) => deleteBill(bill.id), onSuccess: invalidate })
+  const remove = useMutation({ mutationFn: (bill: Bill) => billWrites.remove(bill.id), onSuccess: invalidate })
 
   function markPaid(bill: Bill, isPaid: boolean) {
     // Matched bills are driven by the linked transaction; the UI hides this, guard anyway.

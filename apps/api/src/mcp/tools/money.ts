@@ -1,4 +1,5 @@
 import { z } from "zod"
+import { createBillSchema, updateBillSchema } from "../../services/bill-schemas.js"
 import {
   createTransactionSchema,
   PAYMENT_MODES,
@@ -244,22 +245,106 @@ export const billTools = [
   defineTool({
     name: "bills_mark_paid",
     title: "Mark bill paid",
-    description: "Mark a bill as paid (today), or as unpaid again.",
+    description: "Mark a bill as paid (today unless you give paid_on), or as unpaid again.",
     kind: "write",
-    input: { id: uuid("Bill"), paid: z.boolean().optional().describe("Default true; false marks it unpaid again") },
-    run: async ({ id, paid = true }, ctx) => {
-      const today = new Date().toISOString().slice(0, 10)
-      const rows = must(
-        await ctx.db
-          .update("bills", { status: paid ? "paid" : "unpaid", paid_at: paid ? today : null, updated_at: new Date().toISOString() })
-          .eq("id", id)
-          .select("id, vendor_name, bill_number"),
-        "Update bill",
-      ) as { id: string; vendor_name: string | null; bill_number: string | null }[]
-      const bill = rows[0]
-      if (!bill) throw new ToolError("Bill not found")
-      const label = [bill.vendor_name, bill.bill_number].filter(Boolean).join(" ") || "bill"
-      return { data: bill, entity: { type: "bill", id }, summary: `Marked ${label} ${paid ? "paid" : "unpaid"}` }
+    input: {
+      id: uuid("Bill"),
+      paid: z.boolean().optional().describe("Default true; false marks it unpaid again"),
+      paid_on: z.iso.date().optional().describe("YYYY-MM-DD; defaults to today"),
+    },
+    run: async ({ id, paid = true, paid_on }, ctx) => {
+      const { bill } = await ctx.bills.setPaid(id, paid, paid_on)
+      const label = [bill.vendorName, bill.billNumber].filter(Boolean).join(" ") || "bill"
+      return {
+        data: { id, status: bill.status, paid_at: bill.paidAt },
+        entity: { type: "bill", id },
+        summary: `Marked ${label} ${paid ? "paid" : "unpaid"}`,
+      }
+    },
+  }),
+
+  defineTool({
+    name: "bills_create",
+    title: "Add bill",
+    description: "Add a bill the business has to pay (a supplier invoice), with its due date. For documents already in the inbox use bills_from_inbox.",
+    kind: "write",
+    input: {
+      vendor_name: z.string().min(1).max(300).describe("Supplier"),
+      amount: z.number().nonnegative(),
+      currency: z.string().length(3).optional().describe("ISO 4217 code; defaults to the organisation's base currency"),
+      bill_number: z.string().max(100).optional(),
+      issue_date: z.iso.date().optional().describe("YYYY-MM-DD"),
+      due_date: z.iso.date().optional().describe("YYYY-MM-DD"),
+      note: z.string().max(5000).optional(),
+    },
+    run: async (args, ctx) => {
+      const { bill } = await ctx.bills.create(createBillSchema.parse({ ...args, currency: args.currency ?? ctx.org.baseCurrency }))
+      return {
+        data: { id: bill.id, app_url: `${ctx.appUrl}/bills?open=${bill.id}` },
+        entity: { type: "bill", id: bill.id },
+        summary: `Added a bill from ${bill.vendorName} for ${formatMoney(Number(bill.amount), bill.currency)}${bill.dueDate ? `, due ${bill.dueDate}` : ""}`,
+      }
+    },
+  }),
+
+  defineTool({
+    name: "bills_update",
+    title: "Update bill",
+    description: "Change a bill's supplier, number, amount, currency, dates or note. Only the fields you pass change.",
+    kind: "write",
+    input: {
+      id: uuid("Bill"),
+      vendor_name: z.string().min(1).max(300).optional(),
+      amount: z.number().nonnegative().optional(),
+      currency: z.string().length(3).optional(),
+      bill_number: z.string().max(100).optional(),
+      issue_date: z.iso.date().optional(),
+      due_date: z.iso.date().optional(),
+      note: z.string().max(5000).optional(),
+    },
+    run: async ({ id, ...changes }, ctx) => {
+      const defined = Object.fromEntries(Object.entries(changes).filter(([, v]) => v !== undefined))
+      if (Object.keys(defined).length === 0) throw new ToolError("Nothing to update")
+      const { bill } = await ctx.bills.update(id, updateBillSchema.parse(defined))
+      return { data: { id }, entity: { type: "bill", id }, summary: `Updated ${Object.keys(defined).join(", ")} on the ${bill.vendorName} bill` }
+    },
+  }),
+
+  defineTool({
+    name: "bills_from_inbox",
+    title: "Make bill from inbox document",
+    description: "Turn an inbox document (a supplier invoice the AI didn't file as a bill) into a bill. Use inbox_list to find it.",
+    kind: "write",
+    input: { inbox_item_id: uuid("Inbox document") },
+    run: async ({ inbox_item_id }, ctx) => {
+      const { bill } = await ctx.bills.fromInbox(inbox_item_id)
+      return {
+        data: { id: bill.id, status: bill.status },
+        entity: { type: "bill", id: bill.id },
+        summary: `Added a bill from ${bill.vendorName} for ${formatMoney(Number(bill.amount), bill.currency)}`,
+      }
+    },
+  }),
+
+  defineTool({
+    name: "bills_delete",
+    title: "Delete bill",
+    description: "Permanently delete a bill. Its inbox document, if any, stays in the inbox.",
+    kind: "destructive",
+    confirm: true,
+    input: { id: uuid("Bill") },
+    describe: async ({ id }, ctx) => {
+      const b = must(await ctx.db.select("bills", "vendor_name, bill_number, amount, currency").eq("id", id).maybeSingle(), "Bill") as {
+        vendor_name: string
+        bill_number: string | null
+        amount: number
+        currency: string
+      }
+      return `Delete the ${b.vendor_name}${b.bill_number ? ` ${b.bill_number}` : ""} bill for ${formatMoney(Number(b.amount), b.currency)}? This can't be undone.`
+    },
+    run: async ({ id }, ctx) => {
+      const { bill } = await ctx.bills.remove(id)
+      return { data: { deleted: true, id }, entity: { type: "bill", id }, summary: `Deleted the ${bill.vendorName} bill` }
     },
   }),
 ]
