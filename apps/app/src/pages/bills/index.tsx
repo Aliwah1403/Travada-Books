@@ -2,19 +2,17 @@ import { useEffect, useMemo, useState, type FormEvent } from "react"
 import { useSearchParams } from "react-router"
 import { useQuery } from "@tanstack/react-query"
 import { useDataTableFilters, type FiltersState } from "@bazza-ui/filters"
-import { Search01Icon, Cancel01Icon, ReceiptTextIcon, PlusSignIcon, FilterIcon } from "@travada-books/ui/icons"
+import type { VisibilityState } from "@tanstack/react-table"
+import { Search01Icon, Cancel01Icon, ReceiptTextIcon, PlusSignIcon, FilterIcon, ColumnsThreeCogIcon } from "@travada-books/ui/icons"
 import { cn } from "@travada-books/ui/lib/utils"
 import { Button } from "@travada-books/ui/components/button"
 import { Input } from "@travada-books/ui/components/input"
-import { Tabs, TabsList, TabsTrigger } from "@travada-books/ui/components/tabs"
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@travada-books/ui/components/table"
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from "@travada-books/ui/components/dropdown-menu"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -33,18 +31,13 @@ import { billMatchesFilters, createBillColumnsConfig, filtersFromParsed } from "
 import { Spinner } from "@/components/shared/spinner"
 import { parseBillFilters } from "@/lib/queries/ai"
 import { toDateOnlyString } from "@/lib/format-date"
-import { BillStatusBadge, billDisplayStatus } from "@/components/bills/bill-status-badge"
-import { billDueHelper } from "@/components/bills/bill-due-label"
-import { BillActions } from "@/components/bills/bill-actions"
+import { BILL_DEFAULT_HIDDEN, BILL_HIDEABLE_COLUMNS, BillTable } from "@/components/bills/bill-table"
 import { BillFormSheet } from "@/components/bills/bill-form-sheet"
 import { BillDetailSheet } from "@/components/bills/bill-detail-sheet"
 import { useBillActions } from "@/components/bills/use-bill-actions"
 import { useAuth } from "@/contexts/auth-context"
 import { useFormatDate } from "@/hooks/use-format-date"
-import { formatCurrency } from "@/lib/format"
 import { daysFromToday, isBillOverdue, listBills, type Bill } from "@/lib/queries/bills"
-
-type Tab = "unpaid" | "paid" | "all"
 
 // ── URL filter state (same shape as the Invoices page) ───────────────────────
 
@@ -78,13 +71,6 @@ function buildStat(label: string, bills: Bill[]): BillStat {
   return { label, count: bills.length, totals }
 }
 
-function byDueAsc(a: Bill, b: Bill): number {
-  if (!a.due_date && !b.due_date) return 0
-  if (!a.due_date) return 1
-  if (!b.due_date) return -1
-  return a.due_date.localeCompare(b.due_date)
-}
-
 function SkeletonRows() {
   return (
     <div className="flex flex-col gap-6">
@@ -114,7 +100,7 @@ export function BillsPage() {
   const { formatDate } = useFormatDate()
   const { removeBill } = useBillActions()
 
-  const [tab, setTab] = useState<Tab>("unpaid")
+  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>(BILL_DEFAULT_HIDDEN)
   // `input` is what's typed; `search` is the text the list is filtered by. A
   // single word filters as you type; a sentence waits for Enter and goes
   // through parse-bill-filters, like the Invoices and Transactions search.
@@ -174,11 +160,10 @@ export function BillsPage() {
     }
   }, [bills])
 
+  // Filters and search only; the table does the sorting.
   const visible = useMemo(() => {
     const q = search.trim().toLowerCase()
-    let rows = bills.filter((b) => {
-      if (tab === "unpaid" && b.status !== "unpaid") return false
-      if (tab === "paid" && b.status !== "paid") return false
+    return bills.filter((b) => {
       if (!billMatchesFilters(b, filtersState)) return false
       if (!q) return true
       return (
@@ -187,10 +172,7 @@ export function BillsPage() {
         (b.note ?? "").toLowerCase().includes(q)
       )
     })
-    if (tab === "unpaid") rows = [...rows].sort(byDueAsc)
-    else if (tab === "paid") rows = [...rows].sort((a, b) => (b.paid_at ?? "").localeCompare(a.paid_at ?? ""))
-    return rows
-  }, [bills, tab, search, filtersState])
+  }, [bills, search, filtersState])
 
   // Derived from the live list so the sheet reflects mutations immediately.
   const viewing = viewingId ? (bills.find((b) => b.id === viewingId) ?? null) : null
@@ -240,9 +222,6 @@ export function BillsPage() {
       })
       setSearch(parsed.name ?? "")
       setInput(parsed.name ?? "")
-      if (parsed.overdue || parsed.status === "unpaid") setTab("unpaid")
-      else if (parsed.status === "paid") setTab("paid")
-      else setTab("all")
       setFiltersState(filtersFromParsed(parsed))
     } catch {
       // The parser is a convenience: fall back to plain text search.
@@ -329,13 +308,26 @@ export function BillsPage() {
                   </button>
                 </Filter.Menu>
               </form>
-              <Tabs value={tab} onValueChange={(v) => setTab(v as Tab)}>
-                <TabsList>
-                  <TabsTrigger value="unpaid">Unpaid</TabsTrigger>
-                  <TabsTrigger value="paid">Paid</TabsTrigger>
-                  <TabsTrigger value="all">All</TabsTrigger>
-                </TabsList>
-              </Tabs>
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  render={<Button variant="outline" className="hidden h-10 gap-1.5 text-xs md:inline-flex" />}
+                >
+                  <ColumnsThreeCogIcon size={14} />
+                  Columns
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-44">
+                  {BILL_HIDEABLE_COLUMNS.map((col) => (
+                    <DropdownMenuCheckboxItem
+                      key={col.id}
+                      checked={columnVisibility[col.id] !== false}
+                      onCheckedChange={(checked) => setColumnVisibility((prev) => ({ ...prev, [col.id]: checked }))}
+                      className="text-xs"
+                    >
+                      {col.label}
+                    </DropdownMenuCheckboxItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
             <Button className="h-10 shrink-0 gap-1.5" onClick={openAdd} aria-label="Add bill">
               <PlusSignIcon size={14} />
@@ -372,48 +364,15 @@ export function BillsPage() {
       ) : visible.length === 0 ? (
         <p className="py-12 text-center text-xs text-muted-foreground">No bills match.</p>
       ) : (
-        <div className="rounded-lg border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="h-12 px-4 text-xs">Vendor</TableHead>
-                <TableHead className="h-12 px-4 text-xs">Bill no.</TableHead>
-                <TableHead className="h-12 px-4 text-xs">Due date</TableHead>
-                <TableHead className="h-12 px-4 text-xs">Amount</TableHead>
-                <TableHead className="h-12 px-4 text-xs">Status</TableHead>
-                <TableHead className="h-12 w-12 px-4" />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {visible.map((bill) => {
-                const helper = billDueHelper(bill)
-                return (
-                  <TableRow
-                    key={bill.id}
-                    className="cursor-pointer transition-opacity active:opacity-80"
-                    onClick={() => setViewingId(bill.id)}
-                  >
-                    <TableCell className="py-3 text-xs font-medium">{bill.vendor_name}</TableCell>
-                    <TableCell className="py-3 font-mono text-xs">{bill.bill_number ?? "—"}</TableCell>
-                    <TableCell className="py-3 text-xs">
-                      {bill.due_date ? formatDate(bill.due_date) : "—"}
-                      {helper && <p className="mt-0.5 text-muted-foreground">{helper}</p>}
-                    </TableCell>
-                    <TableCell className="py-3 text-xs font-medium">
-                      {formatCurrency(bill.amount, bill.currency)}
-                    </TableCell>
-                    <TableCell className="py-3">
-                      <BillStatusBadge status={billDisplayStatus(bill)} />
-                    </TableCell>
-                    <TableCell className="py-3" onClick={(e) => e.stopPropagation()}>
-                      <BillActions bill={bill} onEdit={openEdit} onDelete={setDeleting} />
-                    </TableCell>
-                  </TableRow>
-                )
-              })}
-            </TableBody>
-          </Table>
-        </div>
+        <BillTable
+          data={visible}
+          formatDate={formatDate}
+          columnVisibility={columnVisibility}
+          onColumnVisibilityChange={setColumnVisibility}
+          onView={(b) => setViewingId(b.id)}
+          onEdit={openEdit}
+          onDelete={setDeleting}
+        />
       )}
 
       <BillDetailSheet

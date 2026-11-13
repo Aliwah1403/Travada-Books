@@ -1,21 +1,28 @@
 import { createColumnConfigHelper, type FiltersState } from "@bazza-ui/filters";
 import {
-  Alert01Icon,
   Calendar01Icon,
   FilterIcon,
   InboxIcon,
   Link01Icon,
+  MoneyExchange01Icon,
   Wallet01Icon,
 } from "@travada-books/ui/icons";
 import { parseDateOnly } from "@/lib/format-date";
-import { isBillOverdue, type Bill } from "@/lib/queries/bills";
+import { billDisplayStatus } from "@/components/bills/bill-status-badge";
+import type { Bill } from "@/lib/queries/bills";
 
 // Filters for the Bills page, on the same filter kit as Invoices, Quotes,
 // Transactions and Vault. Bills are loaded in full, so the page applies these
-// to the loaded list with billMatchesFilters. Paid/unpaid stays on the page's
-// tabs rather than here, so the two can't contradict each other.
+// to the loaded list with billMatchesFilters. Status (unpaid / overdue / paid)
+// is a filter like on the other pages — there are no tabs.
 
 const dtf = createColumnConfigHelper<Bill>();
+
+const STATUS_OPTIONS = [
+  { value: "unpaid", label: "Unpaid" },
+  { value: "overdue", label: "Overdue" },
+  { value: "paid", label: "Paid" },
+];
 
 const SOURCE_OPTIONS = [
   { value: "inbox", label: "From inbox" },
@@ -24,6 +31,15 @@ const SOURCE_OPTIONS = [
 
 export function createBillColumnsConfig(currencies: string[]) {
   return [
+    dtf
+      .option()
+      .id("status")
+      .accessor((b) => billDisplayStatus(b))
+      .displayName("Status")
+      .icon(FilterIcon)
+      .options(STATUS_OPTIONS)
+      .build(),
+
     dtf
       .date()
       .id("dueDate")
@@ -63,7 +79,7 @@ export function createBillColumnsConfig(currencies: string[]) {
       .id("currency")
       .accessor((b) => b.currency)
       .displayName("Currency")
-      .icon(FilterIcon)
+      .icon(MoneyExchange01Icon)
       .options(currencies.map((c) => ({ value: c, label: c })))
       .build(),
 
@@ -74,15 +90,6 @@ export function createBillColumnsConfig(currencies: string[]) {
       .displayName("Source")
       .icon(InboxIcon)
       .options(SOURCE_OPTIONS)
-      .build(),
-
-    dtf
-      .boolean()
-      .id("overdue")
-      .accessor((b) => isBillOverdue(b))
-      .displayName("Overdue")
-      .icon(Alert01Icon)
-      .toggledStateName("Overdue")
       .build(),
 
     dtf
@@ -190,8 +197,8 @@ export function billMatchesFilters(bill: Bill, filters: FiltersState): boolean {
         return matchesOption(bill.currency, operator, values);
       case "source":
         return matchesOption(bill.source, operator, values);
-      case "overdue":
-        return matchesBoolean(isBillOverdue(bill), operator, values);
+      case "status":
+        return matchesOption(billDisplayStatus(bill), operator, values);
       case "matched":
         return matchesBoolean(!!bill.transaction_id, operator, values);
       default:
@@ -211,8 +218,9 @@ function dateRange(columnId: string, from?: string | null, to?: string | null): 
   return [];
 }
 
-/** parse-bill-filters' answer → the page's filter chips (status goes to the tabs). */
+/** parse-bill-filters' answer → the page's filter chips. */
 export function filtersFromParsed(parsed: {
+  status?: "unpaid" | "paid" | null;
   overdue?: boolean | null;
   dueFrom?: string | null;
   dueTo?: string | null;
@@ -239,7 +247,9 @@ export function filtersFromParsed(parsed: {
     out.push({ columnId: "currency", type: "option", operator: "is any of", values: parsed.currencies.map((c) => c.toUpperCase()) });
   }
   if (parsed.source) out.push({ columnId: "source", type: "option", operator: "is", values: [parsed.source] });
-  if (parsed.overdue != null) out.push({ columnId: "overdue", type: "boolean", operator: "is", values: [parsed.overdue] });
+  // "Unpaid" covers overdue bills too (they're unpaid); "overdue" narrows to them.
+  const statuses = parsed.overdue ? ["overdue"] : parsed.status === "unpaid" ? ["unpaid", "overdue"] : parsed.status === "paid" ? ["paid"] : [];
+  if (statuses.length) out.unshift({ columnId: "status", type: "option", operator: "is any of", values: statuses });
   if (parsed.matched != null) out.push({ columnId: "matched", type: "boolean", operator: "is", values: [parsed.matched] });
   return out;
 }
