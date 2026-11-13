@@ -54,11 +54,12 @@ import {
   type AttachmentInput,
 } from "@/lib/queries/transactions";
 import { extractDocumentData, classifyDocument } from "@/lib/queries/ai";
-import { linkDocumentsToTransaction } from "@/lib/queries/vault";
+
 import { supabase } from "@/lib/supabase";
 import { listCustomers } from "@/lib/queries/customers";
 import { useUpdateTransactionCategory } from "@/hooks/use-update-transaction-category";
 import { transactionWrites } from "@/lib/transaction-api";
+import { vaultWrites } from "@/lib/vault-api";
 import { useInvalidateTransactionQueries } from "@/hooks/use-invalidate-transaction-queries";
 import { parseDateOnly, toDateOnlyString } from "@/lib/format-date";
 import type {
@@ -528,7 +529,7 @@ export function TransactionSheet({
         }
         // 3. Link any vault docs that were the source of extraction
         if (vaultDocs.length > 0) {
-          await linkDocumentsToTransaction(vaultDocs, txIdRef.current);
+          await vaultWrites.linkToTransaction(vaultDocs, txIdRef.current);
         }
         toast.success("Transaction saved");
       }

@@ -22,6 +22,7 @@ export type ApiDomain =
   | "transactions"
   | "bills"
   | "inbox"
+  | "vault"
   | "settings";
 
 function overrideFor(value: string | undefined, domain: ApiDomain): boolean | null {

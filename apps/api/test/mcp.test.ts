@@ -140,6 +140,19 @@ function fakeCustomerServices(tables: FakeTables, orgId: string) {
   } as unknown as McpContext["customers"]
 }
 
+function fakeVaultServices(orgId: string) {
+  const call = (name: string) => serviceCalls.push({ name, orgId })
+  return {
+    get: async () => (call("get"), { id: SOME_ID, name: "Receipt" }),
+    remove: async (ids: string[]) => (call("remove"), { deleted: ids.length }),
+    update: async () => (call("update"), { document: { id: SOME_ID } }),
+    move: async (paths: string[]) => (call("move"), { moved: paths.length }),
+    addTag: async () => (call("addTag"), { tag: { id: SOME_ID, name: "Acme", slug: "acme" } }),
+    link: async (ids: string[]) => (call("link"), { linked: ids.length }),
+    createFolder: async () => (call("createFolder"), { folder: { id: SOME_ID, name: "Acme" } }),
+  } as unknown as McpContext["vault"]
+}
+
 function fakeInboxServices(orgId: string) {
   const call = (name: string) => serviceCalls.push({ name, orgId })
   const item = { id: SOME_ID, displayName: "Receipt", fileName: "r.pdf", status: "done", transactionId: null }
@@ -230,6 +243,7 @@ function makeCtx(
     transactions: fakeTransactionServices(tables, overrides.orgId ?? ORG_A),
     bills: fakeBillServices(overrides.orgId ?? ORG_A),
     inbox: fakeInboxServices(overrides.orgId ?? ORG_A),
+    vault: fakeVaultServices(overrides.orgId ?? ORG_A),
     org: { name: "Acme Ltd", baseCurrency: "KES", countryCode: "KE" },
     user: { timezone: "Africa/Nairobi", locale: "en", dateFormat: null },
     channel: "mcp",
@@ -445,6 +459,7 @@ describe("confirmations (plan §7)", () => {
           transactions: [{ id: SOME_ID, org_id: ORG_A, name: "Rent", amount: 10, currency: "KES" }],
           bills: [{ id: SOME_ID, org_id: ORG_A, vendor_name: "Acme", bill_number: null, amount: 10, currency: "KES" }],
           inbox_items: [{ id: SOME_ID, org_id: ORG_A, display_name: "Receipt", file_name: "r.pdf" }],
+          documents: [{ id: SOME_ID, org_id: ORG_A, name: "Receipt", file_path: `${ORG_A}/r.pdf` }],
           statements: [
             {
               id: SOME_ID,

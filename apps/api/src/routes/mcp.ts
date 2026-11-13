@@ -11,6 +11,7 @@ import { billServices } from "../services/bills.js"
 import { inboxServices } from "../services/inbox.js"
 import { statementServices } from "../services/statements.js"
 import { transactionServices } from "../services/transactions.js"
+import { vaultServices } from "../services/vault.js"
 
 export const mcp = new Hono<AppEnv>()
 
@@ -49,6 +50,7 @@ mcp.all("/", async (c) => {
     inbox: inboxServices(services),
     statements: statementServices(services),
     transactions: transactionServices(services),
+    vault: vaultServices(services),
     org: { name: org.name, baseCurrency: org.base_currency ?? "KES", countryCode: org.country_code ?? null },
     user: {
       timezone,

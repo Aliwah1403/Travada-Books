@@ -9,6 +9,7 @@ import type { InvoiceServices } from "../services/invoices.js"
 import type { QuoteServices } from "../services/quotes.js"
 import type { StatementServices } from "../services/statements.js"
 import type { TransactionServices } from "../services/transactions.js"
+import type { VaultServices } from "../services/vault.js"
 
 // Where a tool call came from. Drives the confirmation rule (§7) and is
 // recorded on every assistant_actions row (§9).
@@ -33,6 +34,8 @@ export type McpContext = {
   statements: StatementServices
   /** Transaction, category and rule writes — the same services as /v1/transactions. */
   transactions: TransactionServices
+  /** Vault document and folder writes — the same services as /v1/vault. */
+  vault: VaultServices
   org: { name: string; baseCurrency: string; countryCode: string | null }
   user: { timezone: string; locale: string; dateFormat: string | null }
   channel: Channel
