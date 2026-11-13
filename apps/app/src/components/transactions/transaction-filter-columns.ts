@@ -23,6 +23,14 @@ type TxRow = {
 
 const dtf = createColumnConfigHelper<TxRow>()
 
+/**
+ * The rows handed to useDataTableFilters. These pages filter elsewhere (the
+ * server, or the page itself), so it's always empty — but typing it is what
+ * lets the hook infer the row type instead of `unknown`. One shared constant
+ * so the hook's memo doesn't rebuild columns every render.
+ */
+export const FILTER_ROWS: TxRow[] = []
+
 const TYPE_OPTIONS = [
   { value: "income", label: "Income" },
   { value: "expense", label: "Expense" },

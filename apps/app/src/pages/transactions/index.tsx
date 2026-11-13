@@ -25,7 +25,7 @@ import { TransactionTable } from "@/components/transactions/transaction-table";
 import { TransactionSheet } from "@/components/transactions/transaction-sheet";
 import { ImportCsvDialog } from "@/components/transactions/import-csv-dialog";
 import { ExportTransactionsDialog } from "@/components/transactions/export-transactions-dialog";
-import { createTransactionColumnsConfig } from "@/components/transactions/transaction-filter-columns";
+import { createTransactionColumnsConfig, FILTER_ROWS } from "@/components/transactions/transaction-filter-columns";
 import {
   DEFAULT_HIDDEN_COLUMNS,
   type Transaction as UITransaction,
@@ -315,6 +315,7 @@ export function TransactionsPage() {
 
   const { columns, filters, actions, strategy } = useDataTableFilters({
     strategy: "server",
+    data: FILTER_ROWS,
     columnsConfig,
     filters: filtersState,
     onFiltersChange: setFiltersState,

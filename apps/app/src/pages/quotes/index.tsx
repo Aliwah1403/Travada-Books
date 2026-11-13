@@ -18,7 +18,7 @@ import { ErrorState } from "@/components/shared/error-state";
 import { Filter } from "@/components/ui/filter";
 import { QuoteStats } from "@/components/quotes/quote-stats";
 import { QuoteTable, type Quote } from "@/components/quotes/quote-table";
-import { createQuoteColumnsConfig } from "@/components/quotes/quote-filter-columns";
+import { createQuoteColumnsConfig, FILTER_ROWS } from "@/components/quotes/quote-filter-columns";
 import type { VisibilityState } from "@tanstack/react-table";
 import {
   listQuotes,
@@ -259,6 +259,7 @@ export function QuotesPage() {
 
   const { columns, filters, actions, strategy } = useDataTableFilters({
     strategy: "server",
+    data: FILTER_ROWS,
     columnsConfig,
     filters: filtersState,
     onFiltersChange: setFiltersState,

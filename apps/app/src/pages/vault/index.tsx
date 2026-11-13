@@ -59,7 +59,7 @@ import { useRealtime, useDebouncedCallback } from "@/hooks/use-realtime";
 import { TransactionSheet } from "@/components/transactions/transaction-sheet";
 import { extractDocumentData, classifyDocument, parseVaultFilters } from "@/lib/queries/ai";
 import { DocumentPreviewSheet } from "@/components/vault/document-preview-sheet";
-import { createVaultColumnsConfig } from "@/components/vault/vault-filter-columns";
+import { createVaultColumnsConfig, FILTER_ROWS } from "@/components/vault/vault-filter-columns";
 import { BulkActionBar } from "@/components/vault/bulk-action-bar";
 import {
   listDocuments,
@@ -1016,6 +1016,7 @@ export function VaultPage() {
 
   const { columns, filters, actions, strategy } = useDataTableFilters({
     strategy: "server",
+    data: FILTER_ROWS,
     columnsConfig,
     filters: filtersState,
     onFiltersChange: setFiltersState,

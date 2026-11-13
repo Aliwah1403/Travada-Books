@@ -18,6 +18,14 @@ import type { Bill } from "@/lib/queries/bills";
 
 const dtf = createColumnConfigHelper<Bill>();
 
+/**
+ * The rows handed to useDataTableFilters. These pages filter elsewhere (the
+ * server, or the page itself), so it's always empty — but typing it is what
+ * lets the hook infer the row type instead of `unknown`. One shared constant
+ * so the hook's memo doesn't rebuild columns every render.
+ */
+export const FILTER_ROWS: Bill[] = [];
+
 const STATUS_OPTIONS = [
   { value: "unpaid", label: "Unpaid" },
   { value: "overdue", label: "Overdue" },

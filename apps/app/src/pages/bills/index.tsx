@@ -27,7 +27,7 @@ import { EmptyState } from "@/components/shared/empty-state"
 import { ErrorState } from "@/components/shared/error-state"
 import { Filter } from "@/components/ui/filter"
 import { BillStats, type BillStat } from "@/components/bills/bill-stats"
-import { billMatchesFilters, createBillColumnsConfig, filtersFromParsed } from "@/components/bills/bill-filter-columns"
+import { billMatchesFilters, createBillColumnsConfig, filtersFromParsed, FILTER_ROWS } from "@/components/bills/bill-filter-columns"
 import { Spinner } from "@/components/shared/spinner"
 import { parseBillFilters } from "@/lib/queries/ai"
 import { toDateOnlyString } from "@/lib/format-date"
@@ -139,6 +139,7 @@ export function BillsPage() {
   const columnsConfig = useMemo(() => createBillColumnsConfig(currencies), [currencies])
   const { columns, filters, actions, strategy } = useDataTableFilters({
     strategy: "server",
+    data: FILTER_ROWS,
     columnsConfig,
     filters: filtersState,
     onFiltersChange: setFiltersState,
