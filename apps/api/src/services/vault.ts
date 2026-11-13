@@ -2,6 +2,7 @@ import { and, eq, inArray } from "drizzle-orm"
 import { inOrg } from "../db/client.js"
 import { documentTagAssignments, documentTags, documents, transactionAttachments, transactions, vaultFolders } from "../db/schema.js"
 import { mapDbError, ServiceError } from "../lib/errors.js"
+import { unusedPaths } from "./files.js"
 import { followUp, type ServiceCtx } from "./invoices.js"
 import type { UpdateDocumentInput } from "./vault-schemas.js"
 
@@ -27,15 +28,22 @@ async function assertFolder(ctx: Ctx, folderId: string | null | undefined, field
   if (!row) throw new ServiceError(422, "VALIDATION_FAILED", "Folder not found.", field)
 }
 
-/** Delete documents; their files are removed after commit (best-effort). */
+/**
+ * Delete documents. A file is removed (after commit, best-effort) only if
+ * nothing else uses it — a transaction's receipt, an inbox document or an
+ * invoice/quote/statement PDF keeps its file; only the Vault entry goes.
+ */
 export async function deleteDocuments(ctx: ServiceCtx, ids: string[]) {
-  const rows = await ctx.db
-    .delete(documents)
-    .where(inOrg(documents, ctx.orgId, inArray(documents.id, ids)))
-    .returning({ id: documents.id, filePath: documents.filePath })
+  const { rows, removable } = await ctx.db.transaction(async (tx) => {
+    const rows = await tx
+      .delete(documents)
+      .where(inOrg(documents, ctx.orgId, inArray(documents.id, ids)))
+      .returning({ id: documents.id, filePath: documents.filePath })
+    return { rows, removable: await unusedPaths(tx, ctx.orgId, rows.map((r) => r.filePath)) }
+  })
   if (rows.length === 0) throw new ServiceError(404, "NOT_FOUND", ids.length === 1 ? "Document not found." : "None of those documents were found.")
-  await followUp(() => ctx.effects.removeVaultFiles(rows.map((r) => r.filePath)))
-  return { deleted: rows.length }
+  if (removable.length) await followUp(() => ctx.effects.removeVaultFiles(removable))
+  return { deleted: rows.length, filesKept: rows.length - removable.length }
 }
 
 /** Rename, edit the summary or move to a folder. */

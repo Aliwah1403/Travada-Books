@@ -445,26 +445,29 @@ export function TransactionSheet({
 
     setSaving(true);
     try {
+      // Cleared fields go as null so editing really clears them. The linked
+      // invoice is the exception: unlinking it would leave the payment it
+      // recorded behind, so an empty invoice field means "leave as is".
       const txFields = {
         date,
         name: name.trim(),
-        counterparty_name: counterparty.trim() || undefined,
-        customer_id: customerId || undefined,
+        counterparty_name: counterparty.trim() || null,
+        customer_id: customerId || null,
         amount: amtValue,
         currency,
         type,
         status,
-        payment_mode: paymentMode || undefined,
-        reference_number: referenceNumber.trim() || undefined,
-        category_id: categoryId || undefined,
+        payment_mode: paymentMode || null,
+        reference_number: referenceNumber.trim() || null,
+        category_id: categoryId || null,
         invoice_id: type === "income" && invoiceId ? invoiceId : undefined,
-        tax_amount: taxAmount ? parseFloat(taxAmount) : undefined,
-        tax_rate: taxRate ? parseFloat(taxRate) : undefined,
-        tax_type: taxType || undefined,
+        tax_amount: taxAmount ? parseFloat(taxAmount) : null,
+        tax_rate: taxRate ? parseFloat(taxRate) : null,
+        tax_type: taxType || null,
         recurring,
-        frequency: recurring && frequency ? frequency : undefined,
+        frequency: recurring && frequency ? frequency : null,
         internal,
-        note: note.trim() || undefined,
+        note: note.trim() || null,
       };
 
       if (isEditing) {

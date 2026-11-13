@@ -4,6 +4,7 @@ import { createDb, type Tx } from "../src/db/client.js"
 import {
   exchangeRates,
   invoicePayments,
+  inboxItems,
   invoices,
   organizationMembers,
   organizations,
@@ -178,6 +179,21 @@ describe.skipIf(!url)("transaction services (local database)", () => {
       expect((await svc.getTransactionRow(ctx, old.id)).categoryId).toBe(category.id)
       await expect(svc.createCategoryRule(ctx, { pattern: " TXTEST-KPLC ", category_id: category.id })).rejects.toMatchObject({ status: 409 })
       await svc.deleteCategoryRule(ctx, rule.id)
+    })
+  })
+
+  it("keeps an attachment's file when the inbox or Vault still uses it", async () => {
+    await scenario(async (ctx, tx, calls) => {
+      const shared = (await svc.createTransaction(ctx, input())).transaction
+      const own = (await svc.createTransaction(ctx, input({ name: "TXTEST own" }))).transaction
+      const sharedPath = `${orgId}/inbox/${crypto.randomUUID()}.pdf`
+      const ownPath = `${orgId}/transactions/${own.id}/r.pdf`
+      await svc.addAttachments(ctx, shared.id, [{ file_path: sharedPath, file_name: "r.pdf" }])
+      await svc.addAttachments(ctx, own.id, [{ file_path: ownPath, file_name: "r.pdf" }])
+      await tx.insert(inboxItems).values({ orgId, fileName: "r.pdf", filePath: sharedPath, transactionId: shared.id, status: "done" })
+      calls.length = 0
+      await svc.deleteTransactions(ctx, [shared.id, own.id])
+      expect(calls).toEqual([{ name: "removeVaultFiles", args: [[ownPath]] }])
     })
   })
 

@@ -10,6 +10,7 @@ import {
   transactions,
 } from "../db/schema.js"
 import { mapDbError, pgConstraint, pgErrorCode, ServiceError } from "../lib/errors.js"
+import { unusedPaths } from "./files.js"
 import { followUp, getOrg, lookupRate, type ServiceCtx } from "./invoices.js"
 import type {
   AttachmentInput,
@@ -211,18 +212,25 @@ export async function updateTransaction(ctx: ServiceCtx, id: string, input: Upda
   return { transaction: row }
 }
 
-/** Delete transactions and, after commit, their attachment files (best-effort). */
+/**
+ * Delete transactions (their attachment rows cascade). Attachment files are
+ * removed after commit only if nothing else uses them — a receipt matched
+ * from the inbox, or one also kept in the Vault, stays.
+ */
 export async function deleteTransactions(ctx: ServiceCtx, ids: string[]) {
-  const files = await ctx.db
-    .select({ path: transactionAttachments.filePath })
-    .from(transactionAttachments)
-    .where(inOrg(transactionAttachments, ctx.orgId, inArray(transactionAttachments.transactionId, ids)))
-  const deleted = await ctx.db
-    .delete(transactions)
-    .where(inOrg(transactions, ctx.orgId, inArray(transactions.id, ids)))
-    .returning({ id: transactions.id })
+  const { deleted, removable } = await ctx.db.transaction(async (tx) => {
+    const files = await tx
+      .select({ path: transactionAttachments.filePath })
+      .from(transactionAttachments)
+      .where(inOrg(transactionAttachments, ctx.orgId, inArray(transactionAttachments.transactionId, ids)))
+    const deleted = await tx
+      .delete(transactions)
+      .where(inOrg(transactions, ctx.orgId, inArray(transactions.id, ids)))
+      .returning({ id: transactions.id })
+    return { deleted, removable: await unusedPaths(tx, ctx.orgId, files.map((f) => f.path)) }
+  })
   if (deleted.length === 0) throw new ServiceError(404, "NOT_FOUND", ids.length === 1 ? "Transaction not found." : "None of those transactions were found.")
-  if (files.length) await followUp(() => ctx.effects.removeVaultFiles(files.map((f) => f.path)))
+  if (removable.length) await followUp(() => ctx.effects.removeVaultFiles(removable))
   return { deleted: deleted.length }
 }
 
@@ -250,13 +258,17 @@ export async function addAttachments(ctx: ServiceCtx, transactionId: string, att
   return { attachments: rows }
 }
 
+/** Remove an attachment. Its file goes too unless something else (inbox, Vault) still uses it. */
 export async function deleteAttachment(ctx: ServiceCtx, attachmentId: string) {
-  const [row] = await ctx.db
-    .delete(transactionAttachments)
-    .where(inOrg(transactionAttachments, ctx.orgId, eq(transactionAttachments.id, attachmentId)))
-    .returning()
+  const { row, removable } = await ctx.db.transaction(async (tx) => {
+    const [row] = await tx
+      .delete(transactionAttachments)
+      .where(inOrg(transactionAttachments, ctx.orgId, eq(transactionAttachments.id, attachmentId)))
+      .returning()
+    return { row, removable: row ? await unusedPaths(tx, ctx.orgId, [row.filePath]) : [] }
+  })
   if (!row) throw new ServiceError(404, "NOT_FOUND", "Attachment not found.")
-  await followUp(() => ctx.effects.removeVaultFiles([row.filePath]))
+  if (removable.length) await followUp(() => ctx.effects.removeVaultFiles(removable))
   return { attachment: row }
 }
 

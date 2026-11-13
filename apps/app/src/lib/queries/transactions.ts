@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase"
+import { removeUnusedFiles } from "@/lib/queries/files"
 
 // Strip PostgREST filter metacharacters and ILIKE wildcards before string interpolation
 function sanitizeSearch(raw: string): string {
@@ -72,23 +73,23 @@ export type TransactionInput = {
   id: string
   date: string
   name: string
-  counterparty_name?: string
-  customer_id?: string
+  counterparty_name?: string | null
+  customer_id?: string | null
   amount: number
   currency: string
   type: "income" | "expense"
   status?: "pending" | "completed" | "excluded" | "archived"
-  payment_mode?: "mpesa" | "bank_transfer" | "cash" | "cheque" | "card" | "other"
-  category_id?: string
+  payment_mode?: "mpesa" | "bank_transfer" | "cash" | "cheque" | "card" | "other" | null
+  category_id?: string | null
   invoice_id?: string
-  tax_amount?: number
-  tax_rate?: number
-  tax_type?: "vat" | "wht" | "other"
+  tax_amount?: number | null
+  tax_rate?: number | null
+  tax_type?: "vat" | "wht" | "other" | null
   recurring?: boolean
-  frequency?: "weekly" | "biweekly" | "monthly" | "semi_monthly" | "annually" | "irregular"
+  frequency?: "weekly" | "biweekly" | "monthly" | "semi_monthly" | "annually" | "irregular" | null
   internal?: boolean
-  reference_number?: string
-  note?: string
+  reference_number?: string | null
+  note?: string | null
   markInvoicePaid?: boolean
   attachments?: AttachmentInput[]
 }
@@ -422,12 +423,9 @@ export async function deleteTransaction(id: string, orgId: string): Promise<void
 
   if (error) throw error
 
-  // Best-effort storage cleanup after row is gone
-  if (attachments?.length) {
-    await supabase.storage
-      .from("vault")
-      .remove(attachments.map((a) => a.file_path))
-  }
+  // Best-effort storage cleanup after the row is gone — only files nothing
+  // else (an inbox document, the Vault) still uses.
+  if (attachments?.length) await removeUnusedFiles(attachments.map((a) => a.file_path))
 }
 
 // ─── Attachments ─────────────────────────────────────────────────────────────
@@ -453,7 +451,7 @@ export async function addAttachments(
 export async function deleteAttachment(id: string, filePath: string): Promise<void> {
   const { error } = await supabase.from("transaction_attachments").delete().eq("id", id)
   if (error) throw error
-  await supabase.storage.from("vault").remove([filePath])
+  await removeUnusedFiles([filePath])
 }
 
 export function triggerEnrichment(transactionId: string): void {
@@ -672,11 +670,7 @@ export async function bulkDeleteTransactions(ids: string[], orgId: string): Prom
 
   if (error) throw error
 
-  if (attachments?.length) {
-    await supabase.storage
-      .from("vault")
-      .remove(attachments.map((a) => a.file_path))
-  }
+  if (attachments?.length) await removeUnusedFiles(attachments.map((a) => a.file_path))
 }
 
 export async function bulkCreateTransactions(

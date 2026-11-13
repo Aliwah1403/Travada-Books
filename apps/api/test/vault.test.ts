@@ -104,11 +104,25 @@ describe.skipIf(!url)("vault services (local database)", () => {
     })
   })
 
+  it("keeps the file when a transaction still uses it; only the Vault entry goes", async () => {
+    await scenario(async (ctx, tx, calls) => {
+      const d = await doc(tx)
+      const [t] = await tx
+        .insert(transactions)
+        .values({ orgId, date: "2026-11-10", name: "VTEST", amount: "1", currency: "KES", type: "expense", status: "completed" })
+        .returning({ id: transactions.id })
+      await svc.linkDocumentsToTransaction(ctx, [d.id], t!.id)
+      expect(await svc.deleteDocuments(ctx, [d.id])).toEqual({ deleted: 1, filesKept: 1 })
+      expect(calls).toEqual([])
+      expect(await tx.select().from(transactionAttachments).where(eq(transactionAttachments.transactionId, t!.id))).toHaveLength(1)
+    })
+  })
+
   it("deletes documents, files after; refuses built-in folders and other orgs", async () => {
     await scenario(async (ctx, tx, calls) => {
       const a = await doc(tx)
       const b = await doc(tx)
-      expect(await svc.deleteDocuments(ctx, [a.id, b.id])).toEqual({ deleted: 2 })
+      expect(await svc.deleteDocuments(ctx, [a.id, b.id])).toEqual({ deleted: 2, filesKept: 0 })
       expect(calls).toEqual([{ name: "removeVaultFiles", args: [expect.arrayContaining([a.filePath, b.filePath])] }])
 
       const [system] = await tx.insert(vaultFolders).values({ orgId, name: "VTEST system", isSystem: true }).returning()

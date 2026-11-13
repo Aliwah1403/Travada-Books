@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase"
+import { removeUnusedFiles } from "@/lib/queries/files"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -114,10 +115,11 @@ export async function listDocuments(orgId: string, filters: VaultFilters = {}): 
   return (data as RawVaultDocument[] ?? []).map(normalizeDoc)
 }
 
+/** Deletes the Vault entry; the file goes too unless a transaction, inbox item or PDF still uses it. */
 export async function deleteDocument(id: string, filePath: string): Promise<void> {
   const { error } = await supabase.from("documents").delete().eq("id", id)
   if (error) throw error
-  await supabase.storage.from("vault").remove([filePath])
+  await removeUnusedFiles([filePath])
 }
 
 export async function bulkDeleteDocuments(docs: { id: string; file_path: string }[]): Promise<void> {
@@ -126,7 +128,7 @@ export async function bulkDeleteDocuments(docs: { id: string; file_path: string 
     .delete()
     .in("id", docs.map((d) => d.id))
   if (error) throw error
-  await supabase.storage.from("vault").remove(docs.map((d) => d.file_path))
+  await removeUnusedFiles(docs.map((d) => d.file_path))
 }
 
 export async function bulkSetDocumentFolder(filePaths: string[], folderId: string | null): Promise<void> {
