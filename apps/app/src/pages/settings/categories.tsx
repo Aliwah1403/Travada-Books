@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { transactionWrites } from "@/lib/transaction-api";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Button } from "@travada-books/ui/components/button";
@@ -28,9 +29,6 @@ import { ColorPicker, COLOR_PALETTE } from "@/components/shared/color-picker";
 import { useAuth } from "@/contexts/auth-context";
 import {
   listTransactionCategories,
-  createTransactionCategory,
-  deleteTransactionCategory,
-  updateTransactionCategory,
   type TransactionCategory,
 } from "@/lib/queries/transactions";
 import {
@@ -130,7 +128,7 @@ function AddCategoryDialog({
     try {
       await Promise.all(
         toCreate.map((f) =>
-          createTransactionCategory(orgId, {
+          transactionWrites.createCategory(orgId, {
             name: f.name.trim(),
             color: f.color,
           }),
@@ -238,7 +236,7 @@ function CategoryRow({
 
   function handleDelete() {
     setDeleting(true);
-    toast.promise(deleteTransactionCategory(category.id, orgId), {
+    toast.promise(transactionWrites.deleteCategory(category.id, orgId), {
       loading: "Deleting category…",
       success: () => {
         onDeleted();
@@ -256,7 +254,7 @@ function CategoryRow({
 
   async function handleColorChange(color: string) {
     try {
-      await updateTransactionCategory(category.id, orgId, { color });
+      await transactionWrites.updateCategory(category.id, orgId, { color });
       onUpdated();
     } catch {
       toast.error("Failed to update color");

@@ -29,7 +29,8 @@ function fakeEffects() {
     scheduleInvoiceSend: async (...args) => void calls.push({ name: "scheduleInvoiceSend", args }),
     sendQuoteEmail: async (...args) => (calls.push({ name: "sendQuoteEmail", args }), { queued: false }),
     sendStatementEmail: async (...args) => (calls.push({ name: "sendStatementEmail", args }), { queued: false }),
-    removeVaultFile: async (...args) => void calls.push({ name: "removeVaultFile", args }),
+    removeVaultFiles: async (...args) => void calls.push({ name: "removeVaultFiles", args }),
+    enrichTransactions: async (...args) => void calls.push({ name: "enrichTransactions", args }),
   }
   return { effects, calls }
 }

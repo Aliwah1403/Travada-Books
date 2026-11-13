@@ -32,7 +32,8 @@ function fakeEffects(failEmail = false) {
       if (failEmail) throw new Error("resend down")
       return { queued: true }
     },
-    removeVaultFile: async (...args) => void calls.push({ name: "removeVaultFile", args }),
+    removeVaultFiles: async (...args) => void calls.push({ name: "removeVaultFiles", args }),
+    enrichTransactions: async (...args) => void calls.push({ name: "enrichTransactions", args }),
   }
   return { effects, calls }
 }
@@ -160,7 +161,7 @@ describe.skipIf(!url)("statement services (local database)", () => {
       await svc.deleteStatement(ctx, statement.id)
       expect(await tx.select().from(statements).where(eq(statements.id, statement.id))).toEqual([])
       expect(await tx.select().from(documents).where(and(eq(documents.orgId, orgId), eq(documents.filePath, path)))).toEqual([])
-      expect(calls).toEqual([{ name: "removeVaultFile", args: [path] }])
+      expect(calls).toEqual([{ name: "removeVaultFiles", args: [[path]] }])
       await expect(svc.deleteStatement(ctx, statement.id)).rejects.toMatchObject({ status: 404 })
     })
   })

@@ -140,6 +140,21 @@ function fakeCustomerServices(tables: FakeTables, orgId: string) {
   } as unknown as McpContext["customers"]
 }
 
+function fakeTransactionServices(tables: FakeTables, orgId: string) {
+  const call = (name: string) => serviceCalls.push({ name, orgId })
+  const row = (over: Record<string, unknown> = {}) => ({ id: SOME_ID, name: "Rent", amount: "10", currency: "KES", type: "expense", status: "completed", ...over })
+  return {
+    get: async () => (call("get"), row()),
+    create: async () => (call("create"), { transaction: row(), enrichment: { ok: true } }),
+    update: async () => (call("update"), { transaction: row() }),
+    remove: async (ids: string[]) => (call("remove"), { deleted: ids.length }),
+    bulkUpdate: async (ids: string[]) => (call("bulkUpdate"), { updated: ids.length, ids }),
+    createCategory: async () => (call("createCategory"), { category: { id: SOME_ID, name: "Acme" } }),
+    createRule: async () => (call("createRule"), { rule: { id: SOME_ID, pattern: "Acme" }, applied: 0 }),
+  } as unknown as McpContext["transactions"]
+  void tables
+}
+
 function fakeStatementServices(tables: FakeTables, orgId: string) {
   const find = (id: string) => (tables.statements ?? []).find((row) => row.id === id && row.org_id === orgId)
   const asRow = (row: Record<string, unknown>) => ({
@@ -184,6 +199,7 @@ function makeCtx(
     quotes: fakeQuoteServices(tables, overrides.orgId ?? ORG_A),
     statements: fakeStatementServices(tables, overrides.orgId ?? ORG_A),
     customers: fakeCustomerServices(tables, overrides.orgId ?? ORG_A),
+    transactions: fakeTransactionServices(tables, overrides.orgId ?? ORG_A),
     org: { name: "Acme Ltd", baseCurrency: "KES", countryCode: "KE" },
     user: { timezone: "Africa/Nairobi", locale: "en", dateFormat: null },
     channel: "mcp",
@@ -213,10 +229,11 @@ function sampleArgs(tool: AnyTool): Record<string, unknown> {
     else if (key === "date_to") args[key] = "2026-10-31"
     else if (key === "amount") args[key] = 10
     else if (key === "enabled") args[key] = true
+    else if (Array.isArray((schema as unknown as { options?: unknown }).options)) args[key] = (schema as unknown as { options: unknown[] }).options[0]
     else args[key] = "Acme"
   }
   // Tools whose fields are all optional but that refuse an empty call.
-  if (tool.name === "customers_update") args.name = "Acme"
+  if (tool.name === "customers_update" || tool.name === "transactions_update") args.name = "Acme"
   // Every sample must pass the tool's own schema, or the test proves nothing.
   z.object(tool.input).parse(args)
   return args
@@ -394,6 +411,7 @@ describe("confirmations (plan §7)", () => {
             { id: OTHER_USER, org_id: ORG_A, name: "Acme", email: "billing@acme.test" },
             { id: SOME_ID, org_id: ORG_A, name: "Beta Ltd" },
           ],
+          transactions: [{ id: SOME_ID, org_id: ORG_A, name: "Rent", amount: 10, currency: "KES" }],
           statements: [
             {
               id: SOME_ID,

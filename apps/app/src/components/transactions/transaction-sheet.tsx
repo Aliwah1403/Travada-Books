@@ -48,12 +48,7 @@ import { DatePicker } from "@/components/shared/date-picker";
 import { FileDropzone } from "@/components/shared/file-dropzone";
 import {
   listTransactionCategories,
-  createTransaction,
-  updateTransaction,
-  addAttachments,
   uploadTransactionAttachment,
-  deleteAttachment,
-  createTransactionCategory,
   triggerAttachmentProcessing,
   type TransactionCategory,
   type AttachmentInput,
@@ -63,6 +58,7 @@ import { linkDocumentsToTransaction } from "@/lib/queries/vault";
 import { supabase } from "@/lib/supabase";
 import { listCustomers } from "@/lib/queries/customers";
 import { useUpdateTransactionCategory } from "@/hooks/use-update-transaction-category";
+import { transactionWrites } from "@/lib/transaction-api";
 import { useInvalidateTransactionQueries } from "@/hooks/use-invalidate-transaction-queries";
 import { parseDateOnly, toDateOnlyString } from "@/lib/format-date";
 import type {
@@ -474,11 +470,11 @@ export function TransactionSheet({
         // 1. Delete removed attachments
         if (attachmentsToRemove.length > 0) {
           await Promise.all(
-            attachmentsToRemove.map((a) => deleteAttachment(a.id, a.file_path)),
+            attachmentsToRemove.map((a) => transactionWrites.deleteAttachment(a.id, a.file_path)),
           );
         }
         // 2. Update transaction row
-        await updateTransaction(
+        await transactionWrites.update(
           transaction.id,
           orgId,
           txFields,
@@ -491,7 +487,7 @@ export function TransactionSheet({
               uploadTransactionAttachment(orgId, transaction.id, f),
             ),
           );
-          await addAttachments(transaction.id, orgId, uploads);
+          await transactionWrites.addAttachments(transaction.id, orgId, uploads);
           triggerAttachmentProcessing(transaction.id, uploads);
         }
         toast.success("Transaction updated");
@@ -506,7 +502,7 @@ export function TransactionSheet({
         }
       } else {
         // 1. Create transaction row first — vault trigger needs this FK to exist
-        await createTransaction(
+        await transactionWrites.create(
           orgId,
           user.id,
           {
@@ -524,7 +520,7 @@ export function TransactionSheet({
               uploadTransactionAttachment(orgId, txIdRef.current, f),
             ),
           );
-          await addAttachments(txIdRef.current, orgId, uploads);
+          await transactionWrites.addAttachments(txIdRef.current, orgId, uploads);
           triggerAttachmentProcessing(txIdRef.current, uploads);
           uploads.forEach((u) =>
             classifyDocument({ filePath: u.file_path }).catch(() => {}),
@@ -556,7 +552,7 @@ export function TransactionSheet({
   async function handleCreateCategory(categoryName: string) {
     if (!orgId) return;
     try {
-      const newCat = await createTransactionCategory(orgId, {
+      const newCat = await transactionWrites.createCategory(orgId, {
         name: categoryName.trim(),
       });
       queryClient.invalidateQueries({

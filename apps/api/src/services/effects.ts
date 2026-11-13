@@ -9,7 +9,8 @@
 //   send-invoice-email, send-invoice-reminder,
 //   send-quote-email, send-statement-email    → service-role bearer
 //   notify-invoice-paid                       → X-Worker-Secret
-// Scheduled sends go straight to Trigger.dev, as trigger-scheduled-send does.
+// Scheduled sends and transaction enrichment go straight to Trigger.dev, as
+// trigger-scheduled-send and trigger-enrich-transaction do.
 
 export type Effects = {
   /** Emails a sent invoice. `queued` = a PDF is being generated first. */
@@ -23,8 +24,10 @@ export type Effects = {
   sendQuoteEmail(quoteId: string): Promise<{ queued: boolean }>
   /** Emails a statement. `queued` = a PDF is being generated first. */
   sendStatementEmail(statementId: string): Promise<{ queued: boolean }>
-  /** Removes a file from the private `vault` storage bucket. */
-  removeVaultFile(path: string): Promise<void>
+  /** Removes files from the private `vault` storage bucket. */
+  removeVaultFiles(paths: string[]): Promise<void>
+  /** Queues AI enrichment (category, counterparty, embedding) for new transactions. */
+  enrichTransactions(orgId: string, transactionIds: string[]): Promise<void>
 }
 
 export type EffectsConfig = {
@@ -102,14 +105,29 @@ export function createEffects(config: EffectsConfig): Effects {
       return { queued: data.queued === true }
     },
 
-    async removeVaultFile(path) {
+    async removeVaultFiles(paths) {
+      if (paths.length === 0) return
       const res = await fetch(`${config.supabaseUrl}/storage/v1/object/vault`, {
         method: "DELETE",
         headers: { "Content-Type": "application/json", ...asService },
-        body: JSON.stringify({ prefixes: [path] }),
+        body: JSON.stringify({ prefixes: paths }),
         signal: AbortSignal.timeout(10_000),
       })
       if (!res.ok) throw new EffectError(`vault remove failed (${res.status}): ${(await res.text()).slice(0, 200)}`)
+    },
+
+    async enrichTransactions(orgId, transactionIds) {
+      if (!config.triggerSecretKey) {
+        console.warn("[effects] TRIGGER_SECRET_KEY not set; skipping transaction enrichment")
+        return
+      }
+      // Same task and payload as the trigger-enrich-transaction edge function.
+      await postJson(
+        "https://api.trigger.dev/api/v1/tasks/enrich-transactions/trigger",
+        { Authorization: `Bearer ${config.triggerSecretKey}` },
+        { payload: { transactionIds, orgId } },
+        10_000,
+      )
     },
   }
 }

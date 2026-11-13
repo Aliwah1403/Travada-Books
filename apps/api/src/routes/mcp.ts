@@ -8,6 +8,7 @@ import { invoiceServices, type ServiceCtx } from "../services/invoices.js"
 import { quoteServices } from "../services/quotes.js"
 import { customerServices } from "../services/customers.js"
 import { statementServices } from "../services/statements.js"
+import { transactionServices } from "../services/transactions.js"
 
 export const mcp = new Hono<AppEnv>()
 
@@ -43,6 +44,7 @@ mcp.all("/", async (c) => {
     quotes: quoteServices(services),
     customers: customerServices(services),
     statements: statementServices(services),
+    transactions: transactionServices(services),
     org: { name: org.name, baseCurrency: org.base_currency ?? "KES", countryCode: org.country_code ?? null },
     user: {
       timezone,

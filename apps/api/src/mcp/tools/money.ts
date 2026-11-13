@@ -1,11 +1,31 @@
 import { z } from "zod"
+import {
+  createTransactionSchema,
+  PAYMENT_MODES,
+  TRANSACTION_STATUSES,
+  TRANSACTION_TYPES,
+  updateTransactionSchema,
+} from "../../services/transaction-schemas.js"
 import { defineTool, ToolError } from "../types.js"
-import { likeTerm, listResult, must, page, pagination, uuid } from "../util.js"
+import { dateContext, formatMoney, likeTerm, listResult, must, page, pagination, uuid } from "../util.js"
 
 // Transactions, categories and bills: money in and out that isn't an invoice.
 
 const TX_COLUMNS =
   "id, date, name, counterparty_name, amount, currency, base_amount, base_currency, type, status, payment_mode, category_id, invoice_id, customer_id, tax_amount, tax_type, recurring, frequency, internal, reference_number, note, has_attachments, transaction_categories(name)"
+
+// Fields the assistant may set on a transaction (a subset of the app's sheet).
+const txFields = {
+  name: z.string().min(1).max(300).describe("What it was, e.g. 'Office rent' or 'KPLC tokens'"),
+  amount: z.number().positive().describe("Always positive; type says whether money came in or went out"),
+  type: z.enum(TRANSACTION_TYPES),
+  counterparty_name: z.string().max(300).optional().describe("Who paid or was paid"),
+  category_id: uuid("Category").optional(),
+  customer_id: uuid("Customer").optional(),
+  payment_mode: z.enum(PAYMENT_MODES).optional(),
+  reference_number: z.string().max(200).optional().describe("M-Pesa code, cheque number…"),
+  note: z.string().max(5000).optional(),
+}
 
 export const transactionTools = [
   defineTool({
@@ -73,20 +93,123 @@ export const transactionTools = [
       category_id: uuid("Category"),
     },
     run: async ({ transaction_ids, category_id }, ctx) => {
-      // The category must belong to this org too, not just the transactions.
       const category = must(
         await ctx.db.select("transaction_categories", "id, name").eq("id", category_id).maybeSingle(),
         "Category",
       ) as { id: string; name: string }
-      const rows = must(
-        await ctx.db.update("transactions", { category_id }).in("id", transaction_ids).select("id"),
-        "Categorise",
-      ) as { id: string }[]
-      if (rows.length === 0) throw new ToolError("None of those transactions were found")
+      const { updated, ids } = await ctx.transactions.bulkUpdate(transaction_ids, { category_id })
       return {
-        data: { updated: rows.length, category: category.name },
-        entity: rows.length === 1 && rows[0] ? { type: "transaction", id: rows[0].id } : undefined,
-        summary: `Categorised ${rows.length} transaction${rows.length === 1 ? "" : "s"} as ${category.name}`,
+        data: { updated, category: category.name },
+        entity: ids.length === 1 && ids[0] ? { type: "transaction", id: ids[0] } : undefined,
+        summary: `Categorised ${updated} transaction${updated === 1 ? "" : "s"} as ${category.name}`,
+      }
+    },
+  }),
+
+  defineTool({
+    name: "transactions_create",
+    title: "Record transaction",
+    description:
+      "Record money in or out that isn't from a bank feed (cash, M-Pesa, a card payment). To record a customer paying an invoice, use payments_record instead.",
+    kind: "write",
+    input: {
+      ...txFields,
+      date: z.iso.date().optional().describe("YYYY-MM-DD; defaults to today"),
+      currency: z.string().length(3).optional().describe("ISO 4217 code; defaults to the organisation's base currency"),
+    },
+    run: async (args, ctx) => {
+      const { transaction } = await ctx.transactions.create(
+        createTransactionSchema.parse({
+          ...args,
+          date: args.date ?? dateContext(ctx.user.timezone).today,
+          currency: args.currency ?? ctx.org.baseCurrency,
+        }),
+      )
+      return {
+        data: { id: transaction.id, app_url: `${ctx.appUrl}/transactions?id=${transaction.id}` },
+        entity: { type: "transaction", id: transaction.id },
+        summary: `Recorded ${transaction.type} "${transaction.name}" (${formatMoney(Number(transaction.amount), transaction.currency)})`,
+      }
+    },
+  }),
+
+  defineTool({
+    name: "transactions_update",
+    title: "Update transaction",
+    description: "Change a transaction's details. Only the fields you pass change. Changing amount or currency recalculates the base-currency amount.",
+    kind: "write",
+    input: {
+      id: uuid("Transaction"),
+      ...z.object(txFields).partial().shape,
+      date: z.iso.date().optional(),
+      currency: z.string().length(3).optional(),
+      status: z.enum(TRANSACTION_STATUSES).optional().describe("excluded = left out of reports; archived = hidden"),
+    },
+    run: async ({ id, ...changes }, ctx) => {
+      const defined = Object.fromEntries(Object.entries(changes).filter(([, v]) => v !== undefined))
+      if (Object.keys(defined).length === 0) throw new ToolError("Nothing to update")
+      const { transaction } = await ctx.transactions.update(id, updateTransactionSchema.parse(defined))
+      return {
+        data: { id, name: transaction.name, amount: Number(transaction.amount), currency: transaction.currency, status: transaction.status },
+        entity: { type: "transaction", id },
+        summary: `Updated ${Object.keys(defined).join(", ")} on "${transaction.name}"`,
+      }
+    },
+  }),
+
+  defineTool({
+    name: "transactions_delete",
+    title: "Delete transactions",
+    description: "Permanently delete transactions (up to 50) and their attachments. To hide one from reports instead, set its status to excluded.",
+    kind: "destructive",
+    confirm: true,
+    input: { transaction_ids: z.array(z.uuid()).min(1).max(50) },
+    describe: async ({ transaction_ids }, ctx) => {
+      const rows = must(
+        await ctx.db.select("transactions", "id, name, amount, currency").in("id", transaction_ids),
+        "Transactions",
+      ) as { name: string; amount: number; currency: string }[]
+      if (rows.length === 0) throw new ToolError("None of those transactions were found")
+      const first = rows[0]!
+      const what =
+        rows.length === 1 ? `"${first.name}" (${formatMoney(Number(first.amount), first.currency)})` : `${rows.length} transactions`
+      return `Permanently delete ${what} and any attachments? This can't be undone.`
+    },
+    run: async ({ transaction_ids }, ctx) => {
+      const { deleted } = await ctx.transactions.remove(transaction_ids)
+      return {
+        data: { deleted },
+        entity: transaction_ids.length === 1 ? { type: "transaction", id: transaction_ids[0]! } : undefined,
+        summary: `Deleted ${deleted} transaction${deleted === 1 ? "" : "s"}`,
+      }
+    },
+  }),
+
+  defineTool({
+    name: "categories_create",
+    title: "Create category",
+    description: "Add a transaction category. Check categories_list first; names must be unique.",
+    kind: "write",
+    input: { name: z.string().min(1).max(100), color: z.string().max(30).optional().describe("CSS colour, e.g. #22c55e") },
+    run: async (args, ctx) => {
+      const { category } = await ctx.transactions.createCategory(args)
+      return { data: { id: category.id, name: category.name }, entity: { type: "category", id: category.id }, summary: `Created category ${category.name}` }
+    },
+  }),
+
+  defineTool({
+    name: "category_rules_create",
+    title: "Create category rule",
+    description:
+      'Always file transactions whose name or counterparty contains some text under a category (e.g. "KPLC" → Utilities). Also files existing uncategorised matches now.',
+    kind: "write",
+    input: { pattern: z.string().min(2).max(200).describe("Text to match, case-insensitive"), category_id: uuid("Category") },
+    run: async (args, ctx) => {
+      const { rule, applied } = await ctx.transactions.createRule(args)
+      return {
+        data: { id: rule.id, pattern: rule.pattern, applied_to_existing: applied },
+        entity: { type: "category_rule", id: rule.id },
+        summary: `Added rule "${rule.pattern}"${applied ? ` and filed ${applied} existing transaction${applied === 1 ? "" : "s"}` : ""}`,
       }
     },
   }),

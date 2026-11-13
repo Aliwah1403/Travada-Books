@@ -6,6 +6,7 @@ import type { CustomerServices } from "../services/customers.js"
 import type { InvoiceServices } from "../services/invoices.js"
 import type { QuoteServices } from "../services/quotes.js"
 import type { StatementServices } from "../services/statements.js"
+import type { TransactionServices } from "../services/transactions.js"
 
 // Where a tool call came from. Drives the confirmation rule (§7) and is
 // recorded on every assistant_actions row (§9).
@@ -24,6 +25,8 @@ export type McpContext = {
   quotes: QuoteServices
   /** Statement writes — the same services as /v1/statements. */
   statements: StatementServices
+  /** Transaction, category and rule writes — the same services as /v1/transactions. */
+  transactions: TransactionServices
   org: { name: string; baseCurrency: string; countryCode: string | null }
   user: { timezone: string; locale: string; dateFormat: string | null }
   channel: Channel

@@ -165,7 +165,7 @@ export async function deleteStatement(ctx: ServiceCtx, id: string) {
   })
   if (statement.filePath) {
     const path = statement.filePath
-    await followUp(() => ctx.effects.removeVaultFile(path))
+    await followUp(() => ctx.effects.removeVaultFiles([path]))
   }
   return { statement }
 }

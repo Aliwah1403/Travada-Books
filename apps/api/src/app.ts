@@ -13,6 +13,7 @@ import { invoiceRoutes, paymentRoutes, recurringRoutes } from "./routes/v1/invoi
 import { customerRoutes } from "./routes/v1/customers.js"
 import { quoteRoutes } from "./routes/v1/quotes.js"
 import { statementRoutes } from "./routes/v1/statements.js"
+import { categoryRuleRoutes, transactionCategoryRoutes, transactionRoutes } from "./routes/v1/transactions.js"
 
 export function createApp(deps: Deps, options: { allowedOrigins: string[]; logRequests?: boolean }) {
   const app = new Hono<AppEnv>()
@@ -43,6 +44,9 @@ export function createApp(deps: Deps, options: { allowedOrigins: string[]; logRe
     .route("/v1/quotes", quoteRoutes)
     .route("/v1/statements", statementRoutes)
     .route("/v1/customers", customerRoutes)
+    .route("/v1/transactions", transactionRoutes)
+    .route("/v1/transaction-categories", transactionCategoryRoutes)
+    .route("/v1/category-rules", categoryRuleRoutes)
     .route("/mcp", mcp)
 
   // Every error leaves as an ApiErrorBody ({ error, code, field? }) from

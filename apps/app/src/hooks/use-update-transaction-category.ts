@@ -1,9 +1,9 @@
 import { toast } from "sonner"
 import { useQueryClient } from "@tanstack/react-query"
-import { findSimilarTransactions, bulkUpdateTransactions } from "@/lib/queries/transactions"
+import { findSimilarTransactions } from "@/lib/queries/transactions"
+import { transactionWrites } from "@/lib/transaction-api"
 import {
   listCategoryRules,
-  createCategoryRule,
   normalizeRulePattern,
 } from "@/lib/queries/category-rules"
 import { useInvalidateTransactionQueries } from "@/hooks/use-invalidate-transaction-queries"
@@ -32,7 +32,7 @@ export function useUpdateTransactionCategory(orgId: string) {
 
     return async () => {
       try {
-        const { appliedCount } = await createCategoryRule({
+        const { appliedCount } = await transactionWrites.createRule({
           orgId,
           pattern: text,
           categoryId: category.id,
@@ -75,7 +75,7 @@ export function useUpdateTransactionCategory(orgId: string) {
     // is the only action. Rules cover future and uncategorized rows; "Apply"
     // overwrites already-categorized look-alikes, so the two aren't redundant.
     const apply = async () => {
-      await bulkUpdateTransactions(similar.map((t) => t.id), orgId, { category_id: category.id })
+      await transactionWrites.bulkUpdate(similar.map((t) => t.id), orgId, { category_id: category.id })
       invalidateTransactionQueries()
       toast.success(`Updated ${similar.length} transactions`)
     }

@@ -33,7 +33,8 @@ function fakeEffects(failEmail = false) {
       return { queued: true }
     },
     sendStatementEmail: async (...args) => (calls.push({ name: "sendStatementEmail", args }), { queued: false }),
-    removeVaultFile: async (...args) => void calls.push({ name: "removeVaultFile", args }),
+    removeVaultFiles: async (...args) => void calls.push({ name: "removeVaultFiles", args }),
+    enrichTransactions: async (...args) => void calls.push({ name: "enrichTransactions", args }),
   }
   return { effects, calls }
 }

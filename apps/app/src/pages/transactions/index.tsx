@@ -1,4 +1,5 @@
 import { useMemo, useRef, useEffect, useState } from "react";
+import { transactionWrites } from "@/lib/transaction-api";
 import { useSearchParams } from "react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useDataTableFilters } from "@bazza-ui/filters";
@@ -32,9 +33,6 @@ import {
 import {
   listTransactions,
   listTransactionCategories,
-  deleteTransaction,
-  bulkDeleteTransactions,
-  bulkUpdateTransactions,
   getTransaction,
   getTransactionSummary,
   getTransactionExport,
@@ -382,18 +380,18 @@ export function TransactionsPage() {
       : null;
 
   const deleteMutation = useMutation({
-    mutationFn: (id: string) => deleteTransaction(id, orgId!),
+    mutationFn: (id: string) => transactionWrites.remove(id, orgId!),
     onSuccess: invalidateTransactionQueries,
   });
 
   const bulkDeleteMutation = useMutation({
-    mutationFn: (ids: string[]) => bulkDeleteTransactions(ids, orgId!),
+    mutationFn: (ids: string[]) => transactionWrites.bulkRemove(ids, orgId!),
     onSuccess: invalidateTransactionQueries,
   });
 
   const bulkUpdateMutation = useMutation({
     mutationFn: ({ ids, update }: { ids: string[]; update: BulkTransactionUpdate }) =>
-      bulkUpdateTransactions(ids, orgId!, update),
+      transactionWrites.bulkUpdate(ids, orgId!, update),
     onSuccess: invalidateTransactionQueries,
   });
 
