@@ -51,6 +51,8 @@ beforeAll(async () => {
       sendStatementEmail: async () => ({ queued: false }),
       removeVaultFiles: async () => {},
       enrichTransactions: async () => {},
+      processInboxItem: async () => {},
+      notifyInbox: async () => {},
     },
     db: { execute: async () => [] } as unknown as Deps["db"],
     verifyToken: createTokenVerifier(SUPABASE_URL, createLocalJWKSet({ keys: [jwk] })),

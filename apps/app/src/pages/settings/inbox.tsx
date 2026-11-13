@@ -16,12 +16,11 @@ import {
 import { Copy01Icon, Delete01Icon } from "@travada-books/ui/icons";
 import { useAuth } from "@/contexts/auth-context";
 import {
-  addBlocklistEntry,
   getInboxEmail,
   listBlocklist,
-  removeBlocklistEntry,
   type BlocklistEntry,
 } from "@/lib/queries/inbox";
+import { inboxWrites } from "@/lib/inbox-api";
 
 // Mirrors Midday's domain validation — a bare label followed by one or more
 // dot-separated labels, no leading/trailing hyphens per label.
@@ -45,7 +44,7 @@ export function InboxSettingsPage() {
 
   const addMutation = useMutation({
     mutationFn: (payload: { type: "email" | "domain"; value: string }) =>
-      addBlocklistEntry(orgId!, payload.type, payload.value),
+      inboxWrites.addBlocklistEntry(orgId!, payload.type, payload.value),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["inbox-blocklist", orgId] });
       setBlockValue("");
@@ -53,7 +52,7 @@ export function InboxSettingsPage() {
   });
 
   const removeMutation = useMutation({
-    mutationFn: (id: string) => removeBlocklistEntry(id),
+    mutationFn: (id: string) => inboxWrites.removeBlocklistEntry(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["inbox-blocklist", orgId] });
     },

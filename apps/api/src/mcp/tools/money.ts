@@ -407,4 +407,92 @@ export const inboxTools = [
       return { data: { ...item, suggestions } }
     },
   }),
+
+  defineTool({
+    name: "inbox_confirm_match",
+    title: "Confirm inbox match",
+    description: "Accept a suggested match from inbox_get: the document is attached to that transaction as its receipt.",
+    kind: "write",
+    input: { suggestion_id: uuid("Suggestion") },
+    run: async ({ suggestion_id }, ctx) => {
+      const { item, transactionId } = await ctx.inbox.confirmSuggestion(suggestion_id)
+      return {
+        data: { inbox_item_id: item.id, transaction_id: transactionId, status: item.status },
+        entity: { type: "inbox_item", id: item.id },
+        summary: `Matched "${item.displayName || item.fileName}" to its transaction`,
+      }
+    },
+  }),
+
+  defineTool({
+    name: "inbox_decline_match",
+    title: "Decline inbox match",
+    description: "Reject a suggested match. The document goes back to waiting for a manual match; that pair is never suggested again.",
+    kind: "write",
+    input: { suggestion_id: uuid("Suggestion") },
+    run: async ({ suggestion_id }, ctx) => {
+      const { item } = await ctx.inbox.declineSuggestion(suggestion_id)
+      return { data: { inbox_item_id: item.id, status: item.status }, entity: { type: "inbox_item", id: item.id }, summary: `Declined the suggested match for "${item.displayName || item.fileName}"` }
+    },
+  }),
+
+  defineTool({
+    name: "inbox_match",
+    title: "Match inbox document",
+    description: "Attach an inbox document to a transaction you chose (find it with transactions_list), when there's no suggestion or the suggestion was wrong.",
+    kind: "write",
+    input: { inbox_item_id: uuid("Inbox document"), transaction_id: uuid("Transaction") },
+    run: async ({ inbox_item_id, transaction_id }, ctx) => {
+      const { item } = await ctx.inbox.match(inbox_item_id, transaction_id)
+      return { data: { inbox_item_id, transaction_id, status: item.status }, entity: { type: "inbox_item", id: inbox_item_id }, summary: `Matched "${item.displayName || item.fileName}" to a transaction` }
+    },
+  }),
+
+  defineTool({
+    name: "inbox_unmatch",
+    title: "Unmatch inbox document",
+    description: "Detach an inbox document from the transaction it was matched to. The file stays in the inbox.",
+    kind: "write",
+    input: { inbox_item_id: uuid("Inbox document") },
+    run: async ({ inbox_item_id }, ctx) => {
+      const { item } = await ctx.inbox.unmatch(inbox_item_id)
+      return { data: { inbox_item_id, status: item.status }, entity: { type: "inbox_item", id: inbox_item_id }, summary: `Unmatched "${item.displayName || item.fileName}"` }
+    },
+  }),
+
+  defineTool({
+    name: "inbox_archive",
+    title: "Archive inbox document",
+    description: "Archive an inbox document you don't need to match (or restore one with archived: false).",
+    kind: "write",
+    input: { inbox_item_id: uuid("Inbox document"), archived: z.boolean().optional().describe("false to restore (default true)") },
+    run: async ({ inbox_item_id, archived = true }, ctx) => {
+      const current = await ctx.inbox.get(inbox_item_id)
+      const status = archived ? "archived" : current.transactionId ? "done" : "pending"
+      const { item } = await ctx.inbox.setStatus(inbox_item_id, status)
+      return { data: { inbox_item_id, status: item.status }, entity: { type: "inbox_item", id: inbox_item_id }, summary: `${archived ? "Archived" : "Restored"} "${item.displayName || item.fileName}"` }
+    },
+  }),
+
+  defineTool({
+    name: "inbox_delete",
+    title: "Delete inbox documents",
+    description: "Permanently delete inbox documents (up to 50) and their files. A bill made from one is deleted with it. Prefer inbox_archive.",
+    kind: "destructive",
+    confirm: true,
+    input: { inbox_item_ids: z.array(z.uuid()).min(1).max(50) },
+    describe: async ({ inbox_item_ids }, ctx) => {
+      const rows = must(await ctx.db.select("inbox_items", "id, display_name, file_name").in("id", inbox_item_ids), "Inbox documents") as {
+        display_name: string | null
+        file_name: string
+      }[]
+      if (rows.length === 0) throw new ToolError("None of those documents were found")
+      const what = rows.length === 1 ? `"${rows[0]!.display_name || rows[0]!.file_name}"` : `${rows.length} inbox documents`
+      return `Permanently delete ${what} and the file${rows.length === 1 ? "" : "s"}? Any bill made from ${rows.length === 1 ? "it" : "them"} is deleted too. This can't be undone.`
+    },
+    run: async ({ inbox_item_ids }, ctx) => {
+      const { deleted } = await ctx.inbox.remove(inbox_item_ids)
+      return { data: { deleted }, summary: `Deleted ${deleted} inbox document${deleted === 1 ? "" : "s"}` }
+    },
+  }),
 ]

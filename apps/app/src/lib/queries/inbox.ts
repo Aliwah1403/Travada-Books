@@ -313,6 +313,9 @@ export async function createInboxItem(orgId: string, file: File): Promise<InboxI
 }
 
 export async function deleteInboxItem(id: string, filePath: string): Promise<void> {
+  // A matched item's file is also the transaction's attachment: drop that row
+  // too, or the transaction keeps a receipt pointing at a deleted file.
+  await removeMatchedAttachments([id])
   const { error } = await supabase.from("inbox_items").delete().eq("id", id)
   if (error) throw error
   await supabase.storage.from("vault").remove([filePath])
@@ -323,7 +326,14 @@ export async function deleteInboxItem(id: string, filePath: string): Promise<voi
   await supabase.from("documents").delete().eq("file_path", filePath)
 }
 
+async function removeMatchedAttachments(ids: string[]): Promise<void> {
+  const { data } = await supabase.from("inbox_items").select("attachment_id").in("id", ids)
+  const attachmentIds = (data ?? []).flatMap((r) => (r.attachment_id ? [r.attachment_id as string] : []))
+  if (attachmentIds.length) await supabase.from("transaction_attachments").delete().in("id", attachmentIds)
+}
+
 export async function bulkDeleteInboxItems(items: { id: string; file_path: string }[]): Promise<void> {
+  await removeMatchedAttachments(items.map((i) => i.id))
   const { error } = await supabase
     .from("inbox_items")
     .delete()

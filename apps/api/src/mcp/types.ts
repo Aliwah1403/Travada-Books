@@ -4,6 +4,7 @@ import type { Redis } from "../lib/redis.js"
 import type { ScopedDb } from "../lib/scoped.js"
 import type { BillServices } from "../services/bills.js"
 import type { CustomerServices } from "../services/customers.js"
+import type { InboxServices } from "../services/inbox.js"
 import type { InvoiceServices } from "../services/invoices.js"
 import type { QuoteServices } from "../services/quotes.js"
 import type { StatementServices } from "../services/statements.js"
@@ -20,6 +21,8 @@ export type McpContext = {
   db: ScopedDb
   /** Bill writes — the same services as /v1/bills. */
   bills: BillServices
+  /** Inbox writes — the same services as /v1/inbox. */
+  inbox: InboxServices
   /** Customer writes — the same services as /v1/customers. */
   customers: CustomerServices
   /** Invoice and payment writes — the same services the app's /v1 routes use. */

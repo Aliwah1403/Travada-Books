@@ -8,7 +8,7 @@
 // way the Trigger.dev worker calls them (API-WRITES-PLAN.md D6):
 //   send-invoice-email, send-invoice-reminder,
 //   send-quote-email, send-statement-email    → service-role bearer
-//   notify-invoice-paid                       → X-Worker-Secret
+//   notify-invoice-paid, notify-inbox         → X-Worker-Secret
 // Scheduled sends and transaction enrichment go straight to Trigger.dev, as
 // trigger-scheduled-send and trigger-enrich-transaction do.
 
@@ -28,6 +28,10 @@ export type Effects = {
   removeVaultFiles(paths: string[]): Promise<void>
   /** Queues AI enrichment (category, counterparty, embedding) for new transactions. */
   enrichTransactions(orgId: string, transactionIds: string[]): Promise<void>
+  /** Re-runs extraction and matching for an inbox document. */
+  processInboxItem(inboxItemId: string): Promise<void>
+  /** Inbox notification (email + in-app, per member prefs) via notify-inbox. */
+  notifyInbox(event: string, orgId: string, payload: Record<string, unknown>): Promise<void>
 }
 
 export type EffectsConfig = {
@@ -114,6 +118,27 @@ export function createEffects(config: EffectsConfig): Effects {
         signal: AbortSignal.timeout(10_000),
       })
       if (!res.ok) throw new EffectError(`vault remove failed (${res.status}): ${(await res.text()).slice(0, 200)}`)
+    },
+
+    async processInboxItem(inboxItemId) {
+      if (!config.triggerSecretKey) {
+        throw new EffectError("TRIGGER_SECRET_KEY not set; can't queue inbox processing")
+      }
+      // Same task and payload as the trigger-process-inbox edge function.
+      await postJson(
+        "https://api.trigger.dev/api/v1/tasks/process-inbox-attachment/trigger",
+        { Authorization: `Bearer ${config.triggerSecretKey}` },
+        { payload: { inboxItemId } },
+        10_000,
+      )
+    },
+
+    async notifyInbox(event, orgId, payload) {
+      if (!config.workerSecret) {
+        console.warn("[effects] WORKER_SHARED_SECRET not set; skipping notify-inbox")
+        return
+      }
+      await postJson(fn("notify-inbox"), { ...asService, "X-Worker-Secret": config.workerSecret }, { event, orgId, ...payload })
     },
 
     async enrichTransactions(orgId, transactionIds) {

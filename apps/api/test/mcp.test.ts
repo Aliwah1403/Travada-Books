@@ -140,6 +140,21 @@ function fakeCustomerServices(tables: FakeTables, orgId: string) {
   } as unknown as McpContext["customers"]
 }
 
+function fakeInboxServices(orgId: string) {
+  const call = (name: string) => serviceCalls.push({ name, orgId })
+  const item = { id: SOME_ID, displayName: "Receipt", fileName: "r.pdf", status: "done", transactionId: null }
+  return {
+    get: async () => (call("get"), item),
+    remove: async (ids: string[]) => (call("remove"), { deleted: ids.length }),
+    setStatus: async () => (call("setStatus"), { item }),
+    confirmSuggestion: async () => (call("confirmSuggestion"), { item, transactionId: SOME_ID }),
+    declineSuggestion: async () => (call("declineSuggestion"), { item }),
+    match: async () => (call("match"), { item }),
+    unmatch: async () => (call("unmatch"), { item }),
+    retry: async () => (call("retry"), { item }),
+  } as unknown as McpContext["inbox"]
+}
+
 function fakeBillServices(orgId: string) {
   const call = (name: string) => serviceCalls.push({ name, orgId })
   const bill = { id: SOME_ID, vendorName: "Acme", billNumber: null, amount: "10", currency: "KES", status: "unpaid", paidAt: null, dueDate: null }
@@ -214,6 +229,7 @@ function makeCtx(
     customers: fakeCustomerServices(tables, overrides.orgId ?? ORG_A),
     transactions: fakeTransactionServices(tables, overrides.orgId ?? ORG_A),
     bills: fakeBillServices(overrides.orgId ?? ORG_A),
+    inbox: fakeInboxServices(overrides.orgId ?? ORG_A),
     org: { name: "Acme Ltd", baseCurrency: "KES", countryCode: "KE" },
     user: { timezone: "Africa/Nairobi", locale: "en", dateFormat: null },
     channel: "mcp",
@@ -234,7 +250,7 @@ function sampleArgs(tool: AnyTool): Record<string, unknown> {
   const args: Record<string, unknown> = {}
   for (const [key, schema] of Object.entries(tool.input)) {
     if ((schema as z.ZodType).safeParse(undefined).success) continue
-    if (key === "transaction_ids") args[key] = [SOME_ID]
+    if (key.endsWith("_ids")) args[key] = [SOME_ID]
     else if (key === "line_items") args[key] = [{ description: "Work", quantity: 1, price: 100 }]
     else if (key === "id" || key === "action_id" || key.endsWith("_id")) args[key] = SOME_ID
     else if (key === "from") args[key] = "2026-01-01"
@@ -428,6 +444,7 @@ describe("confirmations (plan §7)", () => {
           ],
           transactions: [{ id: SOME_ID, org_id: ORG_A, name: "Rent", amount: 10, currency: "KES" }],
           bills: [{ id: SOME_ID, org_id: ORG_A, vendor_name: "Acme", bill_number: null, amount: 10, currency: "KES" }],
+          inbox_items: [{ id: SOME_ID, org_id: ORG_A, display_name: "Receipt", file_name: "r.pdf" }],
           statements: [
             {
               id: SOME_ID,

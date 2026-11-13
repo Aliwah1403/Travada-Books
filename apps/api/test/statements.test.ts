@@ -34,6 +34,8 @@ function fakeEffects(failEmail = false) {
     },
     removeVaultFiles: async (...args) => void calls.push({ name: "removeVaultFiles", args }),
     enrichTransactions: async (...args) => void calls.push({ name: "enrichTransactions", args }),
+    processInboxItem: async (...args) => void calls.push({ name: "processInboxItem", args }),
+    notifyInbox: async (...args) => void calls.push({ name: "notifyInbox", args }),
   }
   return { effects, calls }
 }
