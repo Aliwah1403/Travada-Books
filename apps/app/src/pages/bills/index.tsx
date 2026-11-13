@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useState, type FormEvent } from "react"
 import { useSearchParams } from "react-router"
 import { useQuery } from "@tanstack/react-query"
 import { useDataTableFilters, type FiltersState } from "@bazza-ui/filters"
@@ -29,7 +29,10 @@ import { EmptyState } from "@/components/shared/empty-state"
 import { ErrorState } from "@/components/shared/error-state"
 import { Filter } from "@/components/ui/filter"
 import { BillStats, type BillStat } from "@/components/bills/bill-stats"
-import { billMatchesFilters, createBillColumnsConfig } from "@/components/bills/bill-filter-columns"
+import { billMatchesFilters, createBillColumnsConfig, filtersFromParsed } from "@/components/bills/bill-filter-columns"
+import { Spinner } from "@/components/shared/spinner"
+import { parseBillFilters } from "@/lib/queries/ai"
+import { toDateOnlyString } from "@/lib/format-date"
 import { BillStatusBadge, billDisplayStatus } from "@/components/bills/bill-status-badge"
 import { billDueHelper } from "@/components/bills/bill-due-label"
 import { BillActions } from "@/components/bills/bill-actions"
@@ -112,7 +115,12 @@ export function BillsPage() {
   const { removeBill } = useBillActions()
 
   const [tab, setTab] = useState<Tab>("unpaid")
+  // `input` is what's typed; `search` is the text the list is filtered by. A
+  // single word filters as you type; a sentence waits for Enter and goes
+  // through parse-bill-filters, like the Invoices and Transactions search.
+  const [input, setInput] = useState("")
   const [search, setSearch] = useState("")
+  const [isAIParsing, setIsAIParsing] = useState(false)
   const [viewingId, setViewingId] = useState<string | null>(null)
   const [formOpen, setFormOpen] = useState(false)
   const [editing, setEditing] = useState<Bill | null>(null)
@@ -203,6 +211,47 @@ export function BillsPage() {
     )
   }, [openId, setSearchParams])
 
+  function handleInputChange(value: string) {
+    setInput(value)
+    if (!/\s/.test(value.trim())) setSearch(value)
+  }
+
+  function clearSearch() {
+    setInput("")
+    setSearch("")
+    setFiltersState([])
+  }
+
+  async function handleSearchSubmit(e?: FormEvent) {
+    e?.preventDefault()
+    const trimmed = input.trim()
+    if (trimmed.split(/\s+/).length < 2) {
+      setSearch(trimmed)
+      return
+    }
+    setIsAIParsing(true)
+    try {
+      const vendors = [...new Set(bills.map((b) => b.vendor_name))]
+      const parsed = await parseBillFilters({
+        input: trimmed,
+        vendors,
+        currentDate: toDateOnlyString(new Date()), // the user's calendar day, not UTC's
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      })
+      setSearch(parsed.name ?? "")
+      setInput(parsed.name ?? "")
+      if (parsed.overdue || parsed.status === "unpaid") setTab("unpaid")
+      else if (parsed.status === "paid") setTab("paid")
+      else setTab("all")
+      setFiltersState(filtersFromParsed(parsed))
+    } catch {
+      // The parser is a convenience: fall back to plain text search.
+      setSearch(trimmed)
+    } finally {
+      setIsAIParsing(false)
+    }
+  }
+
   function openAdd() {
     setEditing(null)
     setFormOpen(true)
@@ -237,20 +286,27 @@ export function BillsPage() {
           {/* Row 1: search + filter, tabs, add */}
           <div className="flex items-center justify-between gap-2">
             <div className="flex min-w-0 flex-1 items-center gap-2 md:flex-none">
-              <div className="relative min-w-0 flex-1 md:flex-none">
-                <Search01Icon size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <form onSubmit={handleSearchSubmit} className="relative min-w-0 flex-1 md:flex-none">
+                {isAIParsing ? (
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                    <Spinner size={14} />
+                  </span>
+                ) : (
+                  <Search01Icon size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                )}
                 <Input
                   placeholder="Search or filter bills…"
-                  className={cn("h-10 w-full pl-8 text-xs md:w-80", search ? "pr-14" : "pr-9")}
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
+                  className={cn("h-10 w-full pl-8 text-xs md:w-80", input || search ? "pr-14" : "pr-9")}
+                  value={input}
+                  onChange={(e) => handleInputChange(e.target.value)}
                   autoComplete="off"
                   spellCheck={false}
+                  disabled={isAIParsing}
                 />
-                {search && (
+                {(input || search) && (
                   <button
                     type="button"
-                    onClick={() => setSearch("")}
+                    onClick={clearSearch}
                     aria-label="Clear search"
                     className="absolute right-9 top-1/2 -translate-y-1/2 text-muted-foreground transition-colors fine-hover:text-foreground"
                   >
@@ -272,7 +328,7 @@ export function BillsPage() {
                     )}
                   </button>
                 </Filter.Menu>
-              </div>
+              </form>
               <Tabs value={tab} onValueChange={(v) => setTab(v as Tab)}>
                 <TabsList>
                   <TabsTrigger value="unpaid">Unpaid</TabsTrigger>

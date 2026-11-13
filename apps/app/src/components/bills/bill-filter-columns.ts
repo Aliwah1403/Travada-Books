@@ -199,3 +199,47 @@ export function billMatchesFilters(bill: Bill, filters: FiltersState): boolean {
     }
   });
 }
+
+// ── Sentence search ───────────────────────────────────────────────────────────
+
+/** A date filter from an optional from/to pair ("YYYY-MM-DD"). */
+function dateRange(columnId: string, from?: string | null, to?: string | null): FiltersState {
+  // parseDateOnly keeps the calendar day in the user's zone (new Date("YYYY-MM-DD") is UTC midnight).
+  if (from && to) return [{ columnId, type: "date", operator: "is between", values: [parseDateOnly(from), parseDateOnly(to)] }];
+  if (from) return [{ columnId, type: "date", operator: "is on or after", values: [parseDateOnly(from)] }];
+  if (to) return [{ columnId, type: "date", operator: "is on or before", values: [parseDateOnly(to)] }];
+  return [];
+}
+
+/** parse-bill-filters' answer → the page's filter chips (status goes to the tabs). */
+export function filtersFromParsed(parsed: {
+  overdue?: boolean | null;
+  dueFrom?: string | null;
+  dueTo?: string | null;
+  issuedFrom?: string | null;
+  issuedTo?: string | null;
+  paidFrom?: string | null;
+  paidTo?: string | null;
+  amountMin?: number | null;
+  amountMax?: number | null;
+  currencies?: string[] | null;
+  source?: "inbox" | "manual" | null;
+  matched?: boolean | null;
+}): FiltersState {
+  const out: FiltersState = [
+    ...dateRange("dueDate", parsed.dueFrom, parsed.dueTo),
+    ...dateRange("issueDate", parsed.issuedFrom, parsed.issuedTo),
+    ...dateRange("paidDate", parsed.paidFrom, parsed.paidTo),
+  ];
+  const { amountMin: min, amountMax: max } = parsed;
+  if (min != null && max != null) out.push({ columnId: "amount", type: "number", operator: "is between", values: [min, max] });
+  else if (min != null) out.push({ columnId: "amount", type: "number", operator: "is greater than or equal to", values: [min] });
+  else if (max != null) out.push({ columnId: "amount", type: "number", operator: "is less than or equal to", values: [max] });
+  if (parsed.currencies?.length) {
+    out.push({ columnId: "currency", type: "option", operator: "is any of", values: parsed.currencies.map((c) => c.toUpperCase()) });
+  }
+  if (parsed.source) out.push({ columnId: "source", type: "option", operator: "is", values: [parsed.source] });
+  if (parsed.overdue != null) out.push({ columnId: "overdue", type: "boolean", operator: "is", values: [parsed.overdue] });
+  if (parsed.matched != null) out.push({ columnId: "matched", type: "boolean", operator: "is", values: [parsed.matched] });
+  return out;
+}
