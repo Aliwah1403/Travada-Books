@@ -1,5 +1,6 @@
 import type { ApiErrorBody } from "@travada-books/core"
 import { createMiddleware } from "hono/factory"
+import { endTime, startTime } from "hono/timing"
 import type { AppEnv } from "../context.js"
 import { resolveActiveOrg } from "../lib/auth.js"
 import { scopeToOrg } from "../lib/scoped.js"
@@ -13,13 +14,17 @@ export const requireCaller = createMiddleware<AppEnv>(async (c, next) => {
     return c.json({ error: "Missing bearer token", code: "UNAUTHORIZED" } satisfies ApiErrorBody, 401)
   }
 
-  const { verifyToken, serviceDb } = c.var.deps
+  const { verifyToken, serviceDb, db } = c.var.deps
+  startTime(c, "auth")
   const identity = await verifyToken(token)
+  endTime(c, "auth")
   if (!identity) {
     return c.json({ error: "Invalid or expired token", code: "UNAUTHORIZED" } satisfies ApiErrorBody, 401)
   }
 
-  const org = await resolveActiveOrg(serviceDb, identity.userId)
+  startTime(c, "org")
+  const org = await resolveActiveOrg(db, identity.userId)
+  endTime(c, "org")
   if (!org.ok) {
     return c.json(
       { error: org.error, code: org.status === 403 ? "FORBIDDEN" : "INTERNAL" } satisfies ApiErrorBody,

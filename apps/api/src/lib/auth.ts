@@ -1,4 +1,5 @@
-import type { SupabaseClient } from "@supabase/supabase-js"
+import { sql } from "drizzle-orm"
+import type { Db } from "../db/client.js"
 import { createRemoteJWKSet, jwtVerify, type JWTVerifyGetKey } from "jose"
 
 export type Caller = {
@@ -35,36 +36,32 @@ export type OrgResolution =
 // Same rule as the edge functions' getCallerOrgId (_shared/auth.ts): the org is
 // the user's active_org_id, and only while they still hold an active membership
 // in it — active_org_id is denormalised and can outlive a revoked membership.
-export async function resolveActiveOrg(db: SupabaseClient, userId: string): Promise<OrgResolution> {
-  const { data: user, error: userError } = await db
-    .from("users")
-    .select("active_org_id")
-    .eq("id", userId)
-    .maybeSingle()
-
-  if (userError) {
-    console.error("[auth] user lookup failed:", userError.message)
+//
+// One query on the API's Postgres pool rather than two supabase-js calls: this
+// runs on every authenticated request, and each HTTPS call to Supabase from
+// Render (Singapore → Sydney) cost a fresh TLS handshake.
+export async function resolveActiveOrg(db: Pick<Db, "execute">, userId: string): Promise<OrgResolution> {
+  let row: { active_org_id: string | null; org_id: string | null; role: string | null } | undefined
+  try {
+    const rows = await db.execute<{ active_org_id: string | null; org_id: string | null; role: string | null }>(sql`
+      select u.active_org_id, m.org_id, m.role
+      from public.users u
+      left join public.organization_members m
+        on m.user_id = u.id and m.org_id = u.active_org_id and m.status = 'active'
+      where u.id = ${userId}::uuid
+      limit 1
+    `)
+    row = rows[0]
+  } catch (error) {
+    console.error("[auth] org lookup failed:", error instanceof Error ? error.message : error)
     return { ok: false, status: 500, error: "Internal server error" }
   }
-  if (!user?.active_org_id) {
+
+  if (!row?.active_org_id) {
     return { ok: false, status: 403, error: "No active organization membership" }
   }
-
-  const { data: member, error: memberError } = await db
-    .from("organization_members")
-    .select("org_id, role")
-    .eq("user_id", userId)
-    .eq("org_id", user.active_org_id)
-    .eq("status", "active")
-    .maybeSingle()
-
-  if (memberError) {
-    console.error("[auth] membership lookup failed:", memberError.message)
-    return { ok: false, status: 500, error: "Internal server error" }
-  }
-  if (!member) {
+  if (!row.org_id) {
     return { ok: false, status: 403, error: "Forbidden" }
   }
-
-  return { ok: true, orgId: member.org_id, role: member.role === "owner" ? "owner" : "member" }
+  return { ok: true, orgId: row.org_id, role: row.role === "owner" ? "owner" : "member" }
 }

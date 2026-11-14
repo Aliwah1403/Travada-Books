@@ -23,9 +23,22 @@ const sign = (claims: Record<string, unknown> = {}, opts: { issuer?: string; exp
     .setExpirationTime(opts.expired ? Math.floor(Date.now() / 1000) - 60 : "1h")
     .sign(privateKey)
 
+// The org lookup is one SQL query (lib/auth.ts); answer it from the tables.
+const orgLookup = (tables: Record<string, Record<string, unknown>[]>) => async () => {
+  const user = tables.users?.find((u) => u.id === USER)
+  if (!user) return []
+  const member = tables.organization_members?.find(
+    (m) => m.user_id === USER && m.org_id === user.active_org_id && m.status === "active",
+  )
+  return [{ active_org_id: user.active_org_id ?? null, org_id: member?.org_id ?? null, role: member?.role ?? null }]
+}
+
 function makeApp(tables: Record<string, Record<string, unknown>[]>) {
   const { db } = createFakeDb(tables)
-  return createApp({ ...deps, serviceDb: db }, { allowedOrigins: ["http://localhost:5173"] })
+  return createApp(
+    { ...deps, serviceDb: db, db: { ...deps.db, execute: orgLookup(tables) } as unknown as Deps["db"] },
+    { allowedOrigins: ["http://localhost:5173"] },
+  )
 }
 
 const memberTables = (overrides: { status?: string; activeOrg?: string | null } = {}) => ({
