@@ -14,7 +14,11 @@ export function createDb(url: string) {
   const client = postgres(url, {
     prepare: false,
     max: 10,
-    idle_timeout: 20,
+    // Keep connections open between requests: a new one to the pooler costs a
+    // TCP + TLS + auth handshake, several round trips from Render (Singapore)
+    // to Supabase (Sydney). Recycled every 30 minutes regardless.
+    idle_timeout: 600,
+    max_lifetime: 30 * 60,
     connect_timeout: 10,
   })
   const db = drizzle(client, { schema, casing: "snake_case" })

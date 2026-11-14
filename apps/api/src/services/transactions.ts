@@ -53,9 +53,12 @@ async function assertOwned(
 }
 
 async function assertRefs(ctx: Ctx, input: { customer_id?: string | null; invoice_id?: string | null; category_id?: string | null }) {
-  await assertOwned(ctx, customers, input.customer_id, "customer_id", "Customer")
-  await assertOwned(ctx, invoices, input.invoice_id, "invoice_id", "Invoice")
-  await assertOwned(ctx, transactionCategories, input.category_id, "category_id", "Category")
+  // In parallel: each is a round trip to the database.
+  await Promise.all([
+    assertOwned(ctx, customers, input.customer_id, "customer_id", "Customer"),
+    assertOwned(ctx, invoices, input.invoice_id, "invoice_id", "Invoice"),
+    assertOwned(ctx, transactionCategories, input.category_id, "category_id", "Category"),
+  ])
 }
 
 /**

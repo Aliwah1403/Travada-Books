@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js"
+import type { TimingVariables } from "hono/timing"
 import type { Db } from "./db/client.js"
 import type { Effects } from "./services/effects.js"
 import type { Caller, TokenVerifier } from "./lib/auth.js"
@@ -22,7 +23,7 @@ export type Deps = {
 }
 
 export type AppEnv = {
-  Variables: {
+  Variables: TimingVariables & {
     deps: Deps
     // Set by requireCaller on authenticated routes only.
     caller: Caller

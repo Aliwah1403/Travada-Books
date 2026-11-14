@@ -3,6 +3,7 @@ import { cors } from "hono/cors"
 import { HTTPException } from "hono/http-exception"
 import { logger } from "hono/logger"
 import { secureHeaders } from "hono/secure-headers"
+import { timing } from "hono/timing"
 import type { ApiErrorBody } from "@travada-books/core"
 import type { AppEnv, Deps } from "./context.js"
 import { ServiceError } from "./lib/errors.js"
@@ -22,6 +23,18 @@ export function createApp(deps: Deps, options: { allowedOrigins: string[]; logRe
   const app = new Hono<AppEnv>()
 
   if (options.logRequests) app.use(logger())
+  // Server-Timing on every response (total, plus auth/org from requireCaller),
+  // and a log line with the breakdown for anything slow.
+  if (options.logRequests) {
+    app.use(async (c, next) => {
+      const started = performance.now()
+      await next()
+      const ms = Math.round(performance.now() - started)
+      if (ms >= 750) console.warn(`[api] slow ${c.req.method} ${c.req.path} ${ms}ms — ${c.res.headers.get("Server-Timing") ?? ""}`)
+    })
+  }
+  // Inside the slow-request log, so the header is there when it reads it.
+  app.use(timing({ crossOrigin: (c) => c.req.header("Origin") ?? false }))
   app.use(secureHeaders())
   app.use(
     cors({
