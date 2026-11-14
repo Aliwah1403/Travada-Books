@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm"
 import type { Db } from "../db/client.js"
+import type { Redis } from "./redis.js"
 import { createRemoteJWKSet, jwtVerify, type JWTVerifyGetKey } from "jose"
 
 export type Caller = {
@@ -64,4 +65,58 @@ export async function resolveActiveOrg(db: Pick<Db, "execute">, userId: string):
     return { ok: false, status: 403, error: "Forbidden" }
   }
   return { ok: true, orgId: row.org_id, role: row.role === "owner" ? "owner" : "member" }
+}
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+/** How long a confirmed membership is trusted without asking the database again. */
+export const MEMBERSHIP_CACHE_SECONDS = 60
+
+/**
+ * The org the app says it's working in (X-Org-Id), allowed only while the
+ * user holds an active membership in it — the same right that lets them
+ * switch to it. A confirmed membership is cached in Redis (next to the API)
+ * for a minute, saving a round trip to the database on almost every request;
+ * a revoked membership therefore stops working within a minute. Refusals are
+ * never cached.
+ *
+ * Keyed by user *and* org, so switching orgs in the app can never reuse the
+ * previous org's answer.
+ */
+export async function resolveRequestedOrg(
+  db: Pick<Db, "execute">,
+  redis: Pick<Redis, "get" | "set">,
+  userId: string,
+  orgId: string,
+): Promise<OrgResolution> {
+  if (!UUID.test(orgId)) return { ok: false, status: 403, error: "Forbidden" }
+  const key = `member:${userId}:${orgId.toLowerCase()}`
+
+  try {
+    const cached = await redis.get(key)
+    if (cached === "owner" || cached === "member") return { ok: true, orgId: orgId.toLowerCase(), role: cached }
+  } catch (error) {
+    // Redis down: fall through to the database.
+    console.error("[auth] membership cache read failed:", error instanceof Error ? error.message : error)
+  }
+
+  let role: string | undefined
+  try {
+    const rows = await db.execute<{ role: string }>(sql`
+      select m.role from public.organization_members m
+      where m.user_id = ${userId}::uuid and m.org_id = ${orgId}::uuid and m.status = 'active'
+      limit 1
+    `)
+    role = rows[0]?.role
+  } catch (error) {
+    console.error("[auth] membership lookup failed:", error instanceof Error ? error.message : error)
+    return { ok: false, status: 500, error: "Internal server error" }
+  }
+  if (!role) return { ok: false, status: 403, error: "Forbidden" }
+
+  const normalised = role === "owner" ? "owner" : "member"
+  await redis.set(key, normalised, { EX: MEMBERSHIP_CACHE_SECONDS }).catch((error: unknown) => {
+    console.error("[auth] membership cache write failed:", error instanceof Error ? error.message : error)
+  })
+  return { ok: true, orgId: orgId.toLowerCase(), role: normalised }
 }

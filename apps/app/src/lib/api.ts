@@ -14,6 +14,14 @@ import { supabase } from "@/lib/supabase";
 const API_URL: string =
   import.meta.env.VITE_API_URL ?? (import.meta.env.DEV ? "http://localhost:8787" : "");
 
+// The org the app is working in, kept in step by AuthProvider. Sent as
+// X-Org-Id so the API acts on the org on screen — not whatever active_org_id
+// says at that moment — and can cache the membership check.
+let currentOrgId: string | null = null;
+export function setApiOrgId(orgId: string | null) {
+  currentOrgId = orgId;
+}
+
 export const api = hc<AppType>(API_URL, {
   // The user's Supabase session is the API's login too.
   headers: async (): Promise<Record<string, string>> => {
@@ -22,7 +30,11 @@ export const api = hc<AppType>(API_URL, {
     // Lets the API compute "today" (overdue checks, reopen status) in the
     // user's timezone rather than the server's.
     const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    return { ...(token ? { Authorization: `Bearer ${token}` } : {}), ...(tz ? { "X-User-Timezone": tz } : {}) };
+    return {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(tz ? { "X-User-Timezone": tz } : {}),
+      ...(currentOrgId ? { "X-Org-Id": currentOrgId } : {}),
+    };
   },
 });
 

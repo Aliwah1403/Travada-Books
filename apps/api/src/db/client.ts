@@ -47,3 +47,18 @@ export function withOrg<Row extends Record<string, unknown>>(orgId: string, row:
   if (!orgId) throw new Error("withOrg: orgId is required")
   return { ...row, orgId }
 }
+
+/** Is this handle already inside a transaction? (Drizzle's transaction handle has rollback().) */
+export function inTransaction(db: DbOrTx): db is Tx {
+  return typeof (db as { rollback?: unknown }).rollback === "function"
+}
+
+/**
+ * Runs a single statement. A single statement is atomic on its own, so on the
+ * root handle it skips BEGIN/COMMIT — two round trips to the database. Inside
+ * a caller's transaction it still takes a savepoint, so a refused statement
+ * doesn't abort the caller's work.
+ */
+export function single<T>(db: DbOrTx, statement: (db: DbOrTx) => Promise<T>): Promise<T> {
+  return inTransaction(db) ? db.transaction((tx) => statement(tx)) : statement(db)
+}

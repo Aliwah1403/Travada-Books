@@ -23,8 +23,17 @@ const sign = (claims: Record<string, unknown> = {}, opts: { issuer?: string; exp
     .setExpirationTime(opts.expired ? Math.floor(Date.now() / 1000) - 60 : "1h")
     .sign(privateKey)
 
-// The org lookup is one SQL query (lib/auth.ts); answer it from the tables.
-const orgLookup = (tables: Record<string, Record<string, unknown>[]>) => async () => {
+// The org lookups are single SQL queries (lib/auth.ts); answer them from the
+// tables. A query naming an org other than the user (X-Org-Id) is the
+// membership check; otherwise it's the active-org lookup.
+const orgLookup = (tables: Record<string, Record<string, unknown>[]>) => async (query: unknown) => {
+  const named = (JSON.stringify(query).match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/g) ?? []).find(
+    (id) => id !== USER,
+  )
+  if (named) {
+    const member = tables.organization_members?.find((m) => m.user_id === USER && m.org_id === named && m.status === "active")
+    return member ? [{ role: member.role }] : []
+  }
   const user = tables.users?.find((u) => u.id === USER)
   if (!user) return []
   const member = tables.organization_members?.find(
@@ -53,7 +62,7 @@ beforeAll(async () => {
   const jwk = { ...(await exportJWK(keys.publicKey)), kid: "test", alg: "ES256" }
   deps = {
     serviceDb: createFakeDb().db,
-    redis: { ping: async () => "PONG", set: async () => "OK", getDel: async () => null } as unknown as Deps["redis"],
+    redis: { ping: async () => "PONG", get: async () => null, set: async () => "OK", getDel: async () => null } as unknown as Deps["redis"],
     appUrl: "http://localhost:5173",
     effects: {
       sendInvoiceEmail: async () => ({ queued: false }),
@@ -128,6 +137,23 @@ describe("GET /v1/me", () => {
     expect(res.status).toBe(403)
   })
 
+  it("uses the org the app names when the user is an active member of it", async () => {
+    const token = await sign()
+    const res = await makeApp(memberTables({ activeOrg: null })).request("/v1/me", {
+      headers: { Authorization: `Bearer ${token}`, "X-Org-Id": ORG },
+    })
+    expect(res.status).toBe(200)
+    expect(await res.json()).toMatchObject({ org: { id: ORG }, role: "owner" })
+  })
+
+  it("refuses an org the app names that the user isn't a member of", async () => {
+    const token = await sign()
+    const res = await makeApp(memberTables()).request("/v1/me", {
+      headers: { Authorization: `Bearer ${token}`, "X-Org-Id": "33333333-3333-3333-3333-333333333333" },
+    })
+    expect(res.status).toBe(403)
+  })
+
   it("returns the user, org and role for a valid member", async () => {
     const token = await sign()
     const res = await makeApp(memberTables()).request("/v1/me", { headers: { Authorization: `Bearer ${token}` } })
@@ -147,6 +173,18 @@ describe("CORS", () => {
     expect(allowed.headers.get("access-control-allow-origin")).toBe("http://localhost:5173")
     const blocked = await app.request("/health", { headers: { Origin: "https://evil.example" } })
     expect(blocked.headers.get("access-control-allow-origin")).toBeNull()
+  })
+
+  it("lets the app send X-Org-Id", async () => {
+    const res = await makeApp({}).request("/v1/transactions", {
+      method: "OPTIONS",
+      headers: {
+        Origin: "http://localhost:5173",
+        "Access-Control-Request-Method": "POST",
+        "Access-Control-Request-Headers": "authorization,content-type,x-org-id",
+      },
+    })
+    expect(res.headers.get("access-control-allow-headers")?.toLowerCase()).toContain("x-org-id")
   })
 })
 

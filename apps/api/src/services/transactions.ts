@@ -1,9 +1,11 @@
-import { count, eq, inArray, sql } from "drizzle-orm"
-import { type DbOrTx, inOrg } from "../db/client.js"
+import { and, count, eq, inArray, sql } from "drizzle-orm"
+import { type DbOrTx, inOrg, single } from "../db/client.js"
 import {
   customers,
+  exchangeRates,
   invoicePayments,
   invoices,
+  organizations,
   transactionAttachments,
   transactionCategories,
   transactionCategoryRules,
@@ -11,7 +13,7 @@ import {
 } from "../db/schema.js"
 import { mapDbError, pgConstraint, pgErrorCode, ServiceError } from "../lib/errors.js"
 import { unusedPaths } from "./files.js"
-import { followUp, getOrg, lookupRate, type ServiceCtx } from "./invoices.js"
+import { followUp, type ServiceCtx } from "./invoices.js"
 import type {
   AttachmentInput,
   BulkTransactionUpdate,
@@ -66,9 +68,16 @@ async function assertRefs(ctx: Ctx, input: { customer_id?: string | null; invoic
  * a missing rate is an error, never a silent 1:1 (same rule as the app had).
  */
 async function baseValues(ctx: Ctx, amount: number, currency: string) {
-  const org = await getOrg(ctx)
-  const base = org.baseCurrency
-  const rate = await lookupRate(ctx, currency, base)
+  // The org's base currency and the rate into it, in one query.
+  const [found] = await ctx.db
+    .select({ base: organizations.baseCurrency, rate: exchangeRates.rate })
+    .from(organizations)
+    .leftJoin(exchangeRates, and(eq(exchangeRates.base, currency), eq(exchangeRates.target, organizations.baseCurrency)))
+    .where(eq(organizations.id, ctx.orgId))
+    .limit(1)
+  if (!found) throw new ServiceError(404, "NOT_FOUND", "Organisation not found.")
+  const base = found.base as string
+  const rate = currency === base ? 1 : found.rate == null ? null : Number(found.rate)
   if (rate == null) {
     throw new ServiceError(422, "VALIDATION_FAILED", `No exchange rate for ${currency} → ${base} yet.`, "currency")
   }
@@ -134,17 +143,20 @@ function assertOwnPaths(ctx: Ctx, attachments: AttachmentInput[]) {
  * Enrichment is queued after commit.
  */
 export async function createTransaction(ctx: ServiceCtx, input: CreateTransactionInput) {
-  await assertRefs(ctx, input)
   assertOwnPaths(ctx, input.attachments)
   if (input.mark_invoice_paid && !input.invoice_id) {
     throw new ServiceError(422, "VALIDATION_FAILED", "Choose the invoice to mark as paid.", "invoice_id")
   }
-  const base = await baseValues(ctx, input.amount, input.currency)
+  // Independent lookups, sent together.
+  const [, base] = await Promise.all([assertRefs(ctx, input), baseValues(ctx, input.amount, input.currency)])
   const id = input.id ?? crypto.randomUUID()
+  // Only a transaction when there's more than the one insert.
+  const multiStep = input.attachments.length > 0 || Boolean(input.invoice_id && input.mark_invoice_paid)
+  const run = <T>(fn: (db: DbOrTx) => Promise<T>) => (multiStep ? ctx.db.transaction((tx) => fn(tx)) : single(ctx.db, fn))
 
   let row: TransactionRow
   try {
-    row = await ctx.db.transaction(async (tx) => {
+    row = await run(async (tx) => {
       const [created] = await tx
         .insert(transactions)
         .values({
@@ -195,18 +207,29 @@ async function payInvoiceBalance(
 
 /** Update a transaction. Changing amount or currency recomputes base_amount. */
 export async function updateTransaction(ctx: ServiceCtx, id: string, input: UpdateTransactionInput) {
-  await assertRefs(ctx, input)
   const values = columns(input)
-  if (input.amount !== undefined || input.currency !== undefined) {
-    const current = await getTransactionRow(ctx, id)
-    Object.assign(values, await baseValues(ctx, input.amount ?? Number(current.amount), input.currency ?? current.currency))
-  }
+  const amountChanged = input.amount !== undefined || input.currency !== undefined
+  // The ownership checks and, when the amount changes, the base-currency
+  // lookup are independent — sent together.
+  const [, base] = await Promise.all([
+    assertRefs(ctx, input),
+    amountChanged
+      ? (input.amount !== undefined && input.currency !== undefined
+          ? Promise.resolve({ amount: input.amount, currency: input.currency })
+          : getTransactionRow(ctx, id).then((current) => ({
+              amount: input.amount ?? Number(current.amount),
+              currency: input.currency ?? current.currency,
+            }))
+        ).then(({ amount, currency }) => baseValues(ctx, amount, currency))
+      : Promise.resolve(null),
+  ])
+  if (base) Object.assign(values, base)
   if (Object.keys(values).length === 0) return { transaction: await getTransactionRow(ctx, id) }
 
   let row: TransactionRow | undefined
   try {
-    ;[row] = await ctx.db.transaction((tx) =>
-      tx.update(transactions).set(values).where(inOrg(transactions, ctx.orgId, eq(transactions.id, id))).returning(),
+    ;[row] = await single(ctx.db, (db) =>
+      db.update(transactions).set(values).where(inOrg(transactions, ctx.orgId, eq(transactions.id, id))).returning(),
     )
   } catch (error) {
     throw mapDbError(error)
@@ -233,7 +256,8 @@ export async function deleteTransactions(ctx: ServiceCtx, ids: string[]) {
     return { deleted, removable: await unusedPaths(tx, ctx.orgId, files.map((f) => f.path)) }
   })
   if (deleted.length === 0) throw new ServiceError(404, "NOT_FOUND", ids.length === 1 ? "Transaction not found." : "None of those transactions were found.")
-  if (removable.length) await followUp(() => ctx.effects.removeVaultFiles(removable))
+  // File cleanup is a storage call the user needn't wait for; followUp logs failures.
+  if (removable.length) void followUp(() => ctx.effects.removeVaultFiles(removable))
   return { deleted: deleted.length }
 }
 
@@ -271,7 +295,7 @@ export async function deleteAttachment(ctx: ServiceCtx, attachmentId: string) {
     return { row, removable: row ? await unusedPaths(tx, ctx.orgId, [row.filePath]) : [] }
   })
   if (!row) throw new ServiceError(404, "NOT_FOUND", "Attachment not found.")
-  if (removable.length) await followUp(() => ctx.effects.removeVaultFiles(removable))
+  if (removable.length) void followUp(() => ctx.effects.removeVaultFiles(removable))
   return { attachment: row }
 }
 
