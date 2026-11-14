@@ -12,13 +12,16 @@ export async function unusedPaths(db: DbOrTx, orgId: string, paths: string[]): P
   const unique = [...new Set(paths)]
   if (unique.length === 0) return []
   const tables = [documents, transactionAttachments, inboxItems, invoices, quotes, statements] as const
+  // Sent together: the driver pipelines them, so this is one round trip, not six.
+  const results = await Promise.all(
+    tables.map((table) =>
+      db
+        .select({ path: table.filePath })
+        .from(table)
+        .where(and(eq(table.orgId, orgId), inArray(table.filePath, unique))),
+    ),
+  )
   const used = new Set<string>()
-  for (const table of tables) {
-    const rows = await db
-      .select({ path: table.filePath })
-      .from(table)
-      .where(and(eq(table.orgId, orgId), inArray(table.filePath, unique)))
-    for (const r of rows) if (r.path) used.add(r.path)
-  }
+  for (const rows of results) for (const r of rows) if (r.path) used.add(r.path)
   return unique.filter((p) => !used.has(p))
 }

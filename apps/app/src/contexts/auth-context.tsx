@@ -3,6 +3,7 @@ import type { Session, User } from "@supabase/supabase-js"
 import posthog from "posthog-js"
 import * as Sentry from "@sentry/react"
 import { supabase } from "@/lib/supabase"
+import { setApiOrgId } from "@/lib/api"
 
 export type UserProfile = {
   id: string
@@ -279,6 +280,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setOrgError(true)
       })
   }, [session?.user?.id, loading])
+
+  // Every API call names this org (lib/api.ts).
+  useEffect(() => {
+    setApiOrgId(org?.id ?? null)
+  }, [org?.id])
 
   const user = session?.user ?? null
   const googleAvatarUrl = (user?.user_metadata?.avatar_url as string | undefined)

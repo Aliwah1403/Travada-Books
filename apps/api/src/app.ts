@@ -40,7 +40,7 @@ export function createApp(deps: Deps, options: { allowedOrigins: string[]; logRe
     cors({
       origin: options.allowedOrigins,
       allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-      allowHeaders: ["Authorization", "Content-Type", "Idempotency-Key", "X-User-Timezone"],
+      allowHeaders: ["Authorization", "Content-Type", "Idempotency-Key", "X-User-Timezone", "X-Org-Id"],
       maxAge: 86_400,
     }),
   )
